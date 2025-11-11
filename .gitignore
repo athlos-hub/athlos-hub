@@ -1,0 +1,65 @@
+# Python / FastAPI
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.env/
+.env.*
+
+# Python packaging
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# Mypy cache
+.mypy_cache/
+.dmypy.json
+
+# Pytest cache
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# IDEs
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+
+# Java / Spring Boot
+# Compiled class files
+*.class
+
+# Log files
+*.log
+
+# Package files
+*.jar
+*.war
+*.ear
+
+# Maven / Gradle
+target/
+build/
+!.mvn/wrapper/maven-wrapper.jar
+.gradle/
+out/
+
+# Eclipse / IntelliJ
+*.iml
+*.ipr
+*.iws
+.idea/
+.project
+.settings/
+
+# Spring Boot specific
+spring.log
