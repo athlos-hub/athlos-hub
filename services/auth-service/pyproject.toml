@@ -1,0 +1,26 @@
+[project]
+name = "auth-service"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Gustavo Emanuel Silva Queiroz", email = "gustavoe.dev@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12,<4.0"
+
+dependencies = [
+    "fastapi (>=0.121.2,<0.122.0)",
+    "uvicorn (>=0.38.0,<0.39.0)",
+    "pydantic-settings (>=2.12.0,<3.0.0)",
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.dependencies]
+database-lib = {path = "../../libs/database", develop = true}
+common-lib = {path = "../../libs/common", develop = true}

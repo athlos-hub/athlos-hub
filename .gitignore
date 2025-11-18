@@ -1,65 +1,87 @@
-# Python / FastAPI
-# Byte-compiled / optimized / DLL files
+# GERAL
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.log
+tmp/
+temp/
+
+# SEGURANÇA E AMBIENTE
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+secrets.yaml
+
+# IDEs
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# Eclipse
+.classpath
+.project
+.settings/
+.factorypath
+
+# PYTHON
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
 
-# Virtual environments
+# Ambientes Virtuais
+.venv/
 venv/
-.env/
-.env.*
+env/
 
-# Python packaging
-*.egg
-*.egg-info/
-dist/
+# Distribuição e Build Python
 build/
+dist/
+*.egg-info/
+*.egg
 *.whl
 
-# Mypy cache
-.mypy_cache/
-.dmypy.json
-
-# Pytest cache
+# Testes e Linter
 .pytest_cache/
+.ruff_cache/
+.mypy_cache/
 .coverage
-.coverage.*
 htmlcov/
+coverage.xml
 
-# IDEs
-.vscode/
-.idea/
-
-# Logs
-*.log
-
-
-# Java / Spring Boot
-# Compiled class files
+# JAVA
+# Arquivos compilados
 *.class
 
-# Log files
-*.log
-
-# Package files
+# Pacotes finais
 *.jar
 *.war
 *.ear
+*.nar
 
-# Maven / Gradle
+# Maven
 target/
-build/
-!.mvn/wrapper/maven-wrapper.jar
-.gradle/
-out/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
 
-# Eclipse / IntelliJ
-*.iml
-*.ipr
-*.iws
-.idea/
-.project
-.settings/
-
-# Spring Boot specific
-spring.log
+# Spring Boot
+hs_err_pid*
+replay_pid*
