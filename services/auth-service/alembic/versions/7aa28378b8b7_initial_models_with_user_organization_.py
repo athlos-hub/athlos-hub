@@ -32,7 +32,6 @@ def upgrade() -> None:
         sa.Column('email_verified', sa.Boolean(), nullable=False),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-        sa.Column('roles', sa.Text(), nullable=True),
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
@@ -83,4 +82,6 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_users_keycloak_id'), table_name='users')
     op.drop_index(op.f('ix_users_email'), table_name='users')
     op.drop_table('users')
+    sa.Enum(name='organization_type', schema='auth_schema').drop(op.get_bind(), checkfirst=False)
+    sa.Enum(name='visibility_organization', schema='auth_schema').drop(op.get_bind(), checkfirst=False)
     # ### end Alembic commands ###
