@@ -23,13 +23,13 @@ async def lifespan(app: FastAPI):
         startup_logger.info("Inicializando conexão com banco de dados...")
 
         db.init(
-            url=settings.DATABASE_URL,
+            url=settings.AUTH_DATABASE_URL,
             pool_min=settings.DB_POOL_MIN_SIZE,
             pool_max=settings.DB_POOL_MAX_SIZE,
             timeout=settings.DB_POOL_TIMEOUT,
             connect_args={
                 "server_settings": {
-                    "search_path": f"{settings.KEYCLOAK_DATABASE_SCHEMA},public"
+                    "search_path": f"{settings.AUTH_DATABASE_SCHEMA},public"
                 }
             }
         )
