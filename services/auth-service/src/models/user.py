@@ -3,7 +3,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
-from models.base import Base
+from .base import Base
 
 
 class User(Base):
@@ -19,7 +19,6 @@ class User(Base):
     email_verified = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
-    roles = Column(Text, nullable=True)
     owned_organizations = relationship(
         "Organization",
         foreign_keys="Organization.owner_id",

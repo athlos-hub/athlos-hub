@@ -4,7 +4,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
 import enum
-from models.base import Base
+from .base import Base
 
 
 class OrganizationType(str, enum.Enum):
