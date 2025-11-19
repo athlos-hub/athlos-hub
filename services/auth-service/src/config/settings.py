@@ -46,13 +46,17 @@ class Settings(BaseSettings):
     DATABASE_HOST: str
     DATABASE_PORT: int
     DATABASE_NAME: str
-    DATABASE_URL: str
 
-    # Conexão com o schema de auth
+    # Conexão com o keycloak
     KEYCLOAK_DATABASE_URL: str
     KEYCLOAK_DATABASE_USER: str
     KEYCLOAK_DATABASE_PASSWORD: str
-    KEYCLOAK_DATABASE_SCHEMA: str
+
+    # Conexão com o schema de auth
+    AUTH_DATABASE_USER: str
+    AUTH_DATABASE_PASSWORD: str
+    AUTH_DATABASE_URL: str
+    AUTH_DATABASE_SCHEMA: str
 
     # Database Pool
     DB_POOL_MIN_SIZE: int
