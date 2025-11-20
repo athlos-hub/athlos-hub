@@ -6,7 +6,8 @@ from ..config.settings import settings
 from common.logging import setup_logging, RequestLoggerMiddleware
 from common.api.handlers import register_exception_handlers
 from database.client import db
-from ..routes.health_route import router as health_router
+from ..routes.health_routes import router as health_router
+from ..routes.auth_routes import router as auth_router
 
 logger = logging.getLogger(__name__)
 
@@ -76,5 +77,6 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
 
     app.include_router(health_router)
+    app.include_router(auth_router)
 
     return app
