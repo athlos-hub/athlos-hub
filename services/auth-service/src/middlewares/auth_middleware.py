@@ -18,13 +18,12 @@ class KeycloakAuthMiddleware(BaseHTTPMiddleware):
         self.public_paths = {
             "/docs", "/redoc", "/openapi.json",
             "/health",
-            "/auth/keycloak/callback"
+            "/auth/keycloak/callback",
+            "/users/"
         }
 
     def _is_public_path(self, path: str) -> bool:
-        if path in self.public_paths:
-            return True
-        return False
+        return any(path.startswith(p) for p in self.public_paths)
 
     async def dispatch(self, request: Request, call_next: Callable):
         if request.method == "OPTIONS":
