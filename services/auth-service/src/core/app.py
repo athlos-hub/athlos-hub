@@ -9,6 +9,7 @@ from database.client import db
 from ..routes.health_routes import router as health_router
 from ..routes.auth_routes import router as auth_router
 from ..routes.user_routes import router as user_router
+from ..routes.organizations_routes import router as organization_router
 from ..middlewares.auth_middleware import KeycloakAuthMiddleware
 
 logger = logging.getLogger(__name__)
@@ -83,5 +84,6 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(auth_router)
     app.include_router(user_router)
+    app.include_router(organization_router)
 
     return app
