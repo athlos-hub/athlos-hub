@@ -25,5 +25,6 @@ asyncpg = ">=0.29.0"
 python-jose = "==3.5.0"
 python-keycloak = "==5.8.1"
 email-validator = "^2.1.0"
+python-slugify = "==8.0.4"
 database-lib = {path = "../../libs/database", develop = true}
 common-lib = {path = "../../libs/common", develop = true}
