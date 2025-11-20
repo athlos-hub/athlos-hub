@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from fastapi.concurrency import run_in_threadpool
+from common.security.jwt_handler import JwtHandler
+from ..config.settings import settings
 from ..schemas.auth_response import UserPublic
 from ..services.auth_service import AuthService, keycloak_openid
 from ..models.user import User
 import logging
+from database.client import db
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +57,14 @@ async def keycloak_callback(payload: dict = Body(...)):
             logger.error(f"Resposta inválida do Keycloak ao trocar code: {token_response}")
             raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Falha ao trocar code por token no Keycloak")
 
-        token_payload = await AuthService.decode_token(access_token)
+        public_key = await AuthService.get_public_key()
+
+        token_payload = JwtHandler.decode_token(
+            token=access_token,
+            public_key=public_key,
+            audience=settings.KEYCLOAK_CLIENT_ID,
+            issuer=f"{settings.KEYCLOAK_URL}/realms/{settings.KEYCLOAK_REALM}"
+        )
         db_user = await AuthService.get_or_create_user_from_keycloak_token(token_payload)
 
         user_data = {
