@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Boolean, Text
+from sqlalchemy import Column, String, DateTime, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -19,18 +19,22 @@ class User(Base):
     email_verified = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
     owned_organizations = relationship(
         "Organization",
-        foreign_keys="Organization.owner_id",
         back_populates="owner",
         lazy="dynamic",
     )
-    organizer_in_organizations = relationship(
+    memberships = relationship(
+        "OrganizationMember",
+        back_populates="user",
+        lazy="dynamic"
+    )
+    organizer_roles = relationship(
         "OrganizationOrganizer",
-        foreign_keys="OrganizationOrganizer.user_id",
         back_populates="user",
         lazy="dynamic",
     )
 
     def __repr__(self):
-        return f"<User(id={self.id}, keycloak_id={self.keycloak_id}, email={self.email})>"
+        return f"<User(id={self.id}, email={self.email})>"
