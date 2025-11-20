@@ -8,6 +8,7 @@ from common.api.handlers import register_exception_handlers
 from database.client import db
 from ..routes.health_routes import router as health_router
 from ..routes.auth_routes import router as auth_router
+from ..middlewares.auth_middleware import KeycloakAuthMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,8 @@ def create_app() -> FastAPI:
         version="3.0.0",
         lifespan=lifespan
     )
+
+    app.add_middleware(KeycloakAuthMiddleware)
 
     app.add_middleware(
         CORSMiddleware,

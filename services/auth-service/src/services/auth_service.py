@@ -1,13 +1,12 @@
 from fastapi import Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import jwt, JWTError
-from keycloak import KeycloakOpenID
-from ..config.settings import settings
-from typing import Dict, Any, Optional
+from keycloak import KeycloakOpenID, KeycloakAdmin
+from typing import Dict, Any
 from fastapi.concurrency import run_in_threadpool
 import logging
 import uuid
-
+from common.security.jwt_handler import JwtHandler
+from ..config.settings import settings
 from common.exceptions import (
     InvalidCredentialsError,
     TokenExpiredError,
@@ -53,47 +52,18 @@ class AuthService:
             raise AppException("Erro ao obter chave pública do Keycloak")
 
     @staticmethod
-    async def decode_token(token: str) -> Dict[str, Any]:
-        try:
-            public_key = await AuthService.get_public_key()
-
-            options = {
-                "verify_signature": True,
-                "verify_aud": True,
-                "verify_exp": True,
-                "verify_iss": True,
-            }
-
-            payload = jwt.decode(
-                token,
-                public_key,
-                algorithms=[settings.ALGORITHM],
-                options=options,
-                audience=settings.KEYCLOAK_CLIENT_ID,
-                issuer=f"{settings.KEYCLOAK_URL}/realms/{settings.KEYCLOAK_REALM}"
-            )
-
-            required_claims = ['sub', 'exp', 'iat']
-            missing = [c for c in required_claims if c not in payload]
-            if missing:
-                raise InvalidCredentialsError(f"Claims faltando: {missing}")
-
-            return payload
-
-        except JWTError as e:
-            logger.warning(f"Token inválido: {str(e)}")
-            err_msg = str(e).lower()
-            if "exp" in err_msg or "expired" in err_msg:
-                raise TokenExpiredError()
-            if "iss" in err_msg or "issuer" in err_msg:
-                raise InvalidCredentialsError("Token de origem inválida")
-            raise InvalidCredentialsError()
-
-    @staticmethod
     async def get_current_db_user(
             credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)
     ) -> User:
-        payload = await AuthService.decode_token(credentials.credentials)
+        public_key = await AuthService.get_public_key()
+
+        payload = JwtHandler.decode_token(
+            token=credentials.credentials,
+            public_key=public_key,
+            audience=settings.KEYCLOAK_CLIENT_ID,
+            issuer=f"{settings.KEYCLOAK_URL}/realms/{settings.KEYCLOAK_REALM}"
+        )
+
         db_user = await AuthService.get_or_create_user_from_keycloak_token(payload)
         return db_user
 
@@ -197,3 +167,29 @@ class AuthService:
         except Exception as e:
             logger.error(f"Erro ao sincronizar usuário: {e}", exc_info=True)
             raise AppException(f"Erro ao processar usuário: {str(e)}")
+
+    @staticmethod
+    def add_role_to_user(user_id_keycloak: str, role_name: str):
+        try:
+            keycloak_admin = KeycloakAdmin(
+                server_url=settings.KEYCLOAK_URL,
+                client_id=settings.KEYCLOAK_CLIENT_ID,
+                client_secret_key=settings.KEYCLOAK_CLIENT_SECRET,
+                realm_name=settings.KEYCLOAK_REALM,
+                user_realm_name=settings.KEYCLOAK_REALM,
+                verify=True
+            )
+
+            role_object = keycloak_admin.get_realm_role(role_name)
+
+            keycloak_admin.assign_realm_roles(
+                user_id=user_id_keycloak,
+                roles=[role_object]
+            )
+
+            logger.info(f"Role '{role_name}' adicionada ao usuário {user_id_keycloak}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Erro ao adicionar role no Keycloak: {e}")
+            raise AppException(f"Não foi possível atribuir o perfil {role_name}")
