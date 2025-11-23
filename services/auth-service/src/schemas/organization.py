@@ -28,3 +28,5 @@ class OrganizationResponse(OrganizationGetPublic):
 
 class OrganizationWithRole(OrganizationGetPublic):
     role: str
+
+    model_config = ConfigDict(from_attributes=True)
