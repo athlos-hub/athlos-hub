@@ -1,7 +1,7 @@
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from keycloak import KeycloakOpenID, KeycloakAdmin
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from fastapi.concurrency import run_in_threadpool
 import logging
 import uuid
@@ -66,6 +66,30 @@ class AuthService:
 
         db_user = await AuthService.get_or_create_user_from_keycloak_token(payload)
         return db_user
+
+    @staticmethod
+    async def get_current_user_optional(request: Request) -> Optional[User]:
+        auth_header = request.headers.get("Authorization")
+
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return None
+
+        try:
+            token = auth_header.split(" ")[1]
+
+            public_key = await AuthService.get_public_key()
+
+            payload = JwtHandler.decode_token(
+                token=token,
+                public_key=public_key,
+                audience=settings.KEYCLOAK_CLIENT_ID,
+                issuer=f"{settings.KEYCLOAK_URL}/realms/{settings.KEYCLOAK_REALM}"
+            )
+
+            user = await AuthService.get_or_create_user_from_keycloak_token(payload)
+            return user
+        except Exception:
+            return None
 
     @staticmethod
     async def get_or_create_user_from_keycloak_token(token_payload: Dict[str, Any]) -> User:
