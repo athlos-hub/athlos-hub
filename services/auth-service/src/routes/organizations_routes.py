@@ -4,7 +4,7 @@ import logging
 from slugify import slugify
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import select
+from sqlalchemy import select, case, and_, or_, true, literal
 from ..schemas.organization import OrganizationResponse, OrganizationCreate, OrganizationGetPublic, OrganizationWithRole
 from ..models.enums import OrganizationPrivacy
 from ..core.exceptions import OrganizationAlreadyExists
@@ -81,33 +81,67 @@ async def get_organizations(
 
 
 @router.get("/me", response_model=List[OrganizationWithRole])
-async def get_my_organizations(
-    user: User = Depends(AuthService.get_current_db_user),
-    session: AsyncSession = Depends(get_session)
-):
+async def get_my_organizations(user: User = Depends(AuthService.get_current_db_user),
+                               session: AsyncSession = Depends(get_session),
+                               roles: Optional[List[str]] = Query(None)):
 
-    query_owner = select(Organization).where(Organization.owner_id == user.id)
-    owners = (await session.execute(query_owner)).scalars().all()
+    if roles is None:
+        search_roles = {OrgRole.OWNER, OrgRole.ORGANIZER, OrgRole.MEMBER}
+    else:
+        search_roles = set(roles)
 
-    query_organizer = select(Organization).join(OrganizationOrganizer).where(
-        OrganizationOrganizer.user_id == user.id
+    is_owner = (Organization.owner_id == user.id)
+    is_organizer = (OrganizationOrganizer.id.is_not(None))
+    is_member = (OrganizationMember.id.is_not(None))
+
+    role_case = case(
+        (is_owner, literal(OrgRole.OWNER)),
+        (is_organizer, literal(OrgRole.ORGANIZER)),
+        (is_member, literal(OrgRole.MEMBER)),
+        else_=literal(OrgRole.NONE)
+    ).label("role")
+
+    query = (
+        select(Organization, role_case)
+        .outerjoin(
+            OrganizationOrganizer,
+            and_(
+                OrganizationOrganizer.organization_id == Organization.id,
+                OrganizationOrganizer.user_id == user.id
+            )
+        )
+        .outerjoin(
+            OrganizationMember,
+            and_(
+                OrganizationMember.organization_id == Organization.id,
+                OrganizationMember.user_id == user.id,
+                OrganizationMember.status == MemberStatus.ACTIVE
+            )
+        )
     )
-    organizers = (await session.execute(query_organizer)).scalars().all()
 
-    query_member = select(Organization).join(OrganizationMember).where(
-        OrganizationMember.user_id == user.id,
-        OrganizationMember.status == MemberStatus.ACTIVE
-    )
-    members = (await session.execute(query_member)).scalars().all()
+    filters = []
+    if OrgRole.OWNER in search_roles:
+        filters.append(is_owner)
+    if OrgRole.ORGANIZER in search_roles:
+        filters.append(is_organizer)
+    if OrgRole.MEMBER in search_roles:
+        filters.append(is_member)
 
-    result = []
-    for org in owners:
-        result.append({**org.__dict__, "role": OrgRole.OWNER})
-    for org in organizers:
-        if org.id not in [o.id for o in owners]:
-            result.append({**org.__dict__, "role": OrgRole.ORGANIZER})
-    for org in members:
-        if org.id not in [o["id"] for o in result]:
-            result.append({**org.__dict__, "role": OrgRole.MEMBER})
+    if not filters:
+        return []
 
-    return result
+    query = query.where(or_(*filters))
+
+    query = query.order_by(Organization.created_at.desc())
+
+    results = (await session.execute(query)).all()
+
+    response_list = []
+    for org, role_name in results:
+        setattr(org, "role", role_name)
+
+        dto = OrganizationWithRole.model_validate(org)
+        response_list.append(dto)
+
+    return response_list
