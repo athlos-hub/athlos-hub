@@ -5,6 +5,7 @@ from typing import Dict, Any, Optional
 from fastapi.concurrency import run_in_threadpool
 import logging
 import uuid
+import datetime
 from common.security.jwt_handler import JwtHandler
 from ..config.settings import settings
 from common.exceptions import (
@@ -103,6 +104,9 @@ class AuthService:
             first_name = token_payload.get("given_name") or ""
             last_name = token_payload.get("family_name") or ""
             email_verified = token_payload.get("email_verified", False)
+            avatar_url = token_payload.get("picture")
+
+            now = datetime.datetime.now(datetime.timezone.utc)
 
             async with db.session() as session:
                 stmt = select(User).where(User.keycloak_id == keycloak_id)
@@ -121,6 +125,10 @@ class AuthService:
                         updates['last_name'] = last_name
                     if user.email_verified != email_verified:
                         updates['email_verified'] = email_verified
+                    if avatar_url and user.avatar_url != avatar_url:
+                        updates['avatar_url'] = avatar_url
+
+                    updates['last_login_at'] = now
 
                     if updates:
                         for key, value in updates.items():
@@ -140,6 +148,11 @@ class AuthService:
                         if not user_by_email.keycloak_id:
                             user_by_email.keycloak_id = keycloak_id
                             user_by_email.email_verified = email_verified
+                            user_by_email.last_login_at = now
+
+                            if avatar_url:
+                                user_by_email.avatar_url = avatar_url
+
                             logger.info(f"Usuário migrado: {email} -> keycloak_id: {keycloak_id}")
                             await session.commit()
                             await session.refresh(user_by_email)
@@ -162,7 +175,9 @@ class AuthService:
                     first_name=first_name,
                     last_name=last_name,
                     enabled=True,
-                    email_verified=email_verified
+                    email_verified=email_verified,
+                    last_login_at=now,
+                    avatar_url=avatar_url
                 )
 
                 session.add(new_user)
