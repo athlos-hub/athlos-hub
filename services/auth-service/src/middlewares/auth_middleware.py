@@ -18,8 +18,8 @@ class KeycloakAuthMiddleware(BaseHTTPMiddleware):
         self.public_paths = {
             "/docs", "/redoc", "/openapi.json",
             "/health",
-            "/auth/keycloak/callback",
-            "/users/"
+            "/users/",
+            "/auth/"
         }
 
     def _is_public_path(self, path: str) -> bool:

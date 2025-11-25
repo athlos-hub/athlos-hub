@@ -66,6 +66,8 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: List[str]
 
+    FRONTEND_URL: str
+
     # Rate Limiting
     RATE_LIMIT_ENABLED: bool
     RATE_LIMIT_PER_MINUTE: int
