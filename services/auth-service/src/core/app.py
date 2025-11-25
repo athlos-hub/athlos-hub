@@ -6,6 +6,11 @@ from ..config.settings import settings
 from common.logging import setup_logging, RequestLoggerMiddleware
 from common.api.handlers import register_exception_handlers
 from database.client import db
+from ..routes.health_routes import router as health_router
+from ..routes.auth_routes import router as auth_router
+from ..routes.user_routes import router as user_router
+from ..routes.organizations_routes import router as organization_router
+from ..middlewares.auth_middleware import KeycloakAuthMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +28,13 @@ async def lifespan(app: FastAPI):
         startup_logger.info("Inicializando conexão com banco de dados...")
 
         db.init(
-            url=settings.DATABASE_URL,
+            url=settings.AUTH_DATABASE_URL,
             pool_min=settings.DB_POOL_MIN_SIZE,
             pool_max=settings.DB_POOL_MAX_SIZE,
             timeout=settings.DB_POOL_TIMEOUT,
             connect_args={
                 "server_settings": {
-                    "search_path": f"{settings.KEYCLOAK_DATABASE_SCHEMA},public"
+                    "search_path": f"{settings.AUTH_DATABASE_SCHEMA},public"
                 }
             }
         )
@@ -59,6 +64,8 @@ def create_app() -> FastAPI:
         lifespan=lifespan
     )
 
+    app.add_middleware(KeycloakAuthMiddleware)
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
@@ -73,5 +80,10 @@ def create_app() -> FastAPI:
     )
 
     register_exception_handlers(app)
+
+    app.include_router(health_router)
+    app.include_router(auth_router)
+    app.include_router(user_router)
+    app.include_router(organization_router)
 
     return app
