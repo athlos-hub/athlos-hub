@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body, BackgroundTasks
 from fastapi.concurrency import run_in_threadpool
 from common.security.jwt_handler import JwtHandler
+from common.exceptions import InvalidCredentialsError, TokenExpiredError
 from urllib.parse import urlencode
 from ..config.settings import settings
 from ..schemas.auth_response import UserPublic, TokenResponse, LoginRequest, RegisterRequest, LogoutRequest, RefreshTokenRequest
@@ -8,7 +9,7 @@ from ..services.auth_service import AuthService, keycloak_openid
 from ..services.mail_service import MailService
 from ..models.user import User
 from keycloak import KeycloakAdmin
-from keycloak.exceptions import KeycloakPostError, KeycloakError
+from keycloak.exceptions import KeycloakPostError
 import logging
 from database.client import db
 
@@ -297,6 +298,41 @@ async def register(user_data: RegisterRequest = Body(...), background: Backgroun
     except Exception as e:
         logger.error(f"Erro no registro: {e}")
         raise HTTPException(500, "Falha ao criar usuário")
+
+
+@router.post("/verify/{token}")
+async def verify_email(token: str):
+    try:
+        payload = JwtHandler.decode_email_token(
+            token=token,
+            secret_key=settings.EMAIL_TOKEN_SECRET
+        )
+
+        user_id = payload.get("sub")
+
+        result = await AuthService.activate_user(user_id)
+
+        if not result["success"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=result.get("error", "Erro ao ativar usuário")
+            )
+
+        return {
+            "message": "Email verificado com sucesso",
+            "email": result.get("email")
+        }
+
+    except TokenExpiredError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Link de verificação expirado. Solicite um novo."
+        )
+    except InvalidCredentialsError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
 
 
 @router.get("/google/url")
