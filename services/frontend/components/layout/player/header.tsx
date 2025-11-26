@@ -33,7 +33,7 @@ export default function PlayerHeader() {
     return (
         <div className="w-full fixed top-0 left-0 z-50 bg-white shadow-md">
             <div className="w-full flex items-center justify-between py-4 bg-white">
-                <div className="px-[5rem] w-full flex items-center justify-between">
+                <div className="max-w-[80rem] mx-auto w-full flex items-center justify-between">
                     <Image
                         src="/logo.svg"
                         alt="Logo Oficial do AthlosHub"
@@ -81,9 +81,9 @@ export default function PlayerHeader() {
                         </div>
                     </nav>
 
-                    <button className="text-main cursor-pointer px-6 py-2 hover:bg-[#1F78FF10] rounded-xl transition-colors duration-300">
+                    <Link href="/auth/login" className="text-main cursor-pointer px-6 py-2 hover:bg-[#1F78FF10] rounded-xl transition-colors duration-300">
                         Entrar
-                    </button>
+                    </Link>
                 </div>
             </div>
 
