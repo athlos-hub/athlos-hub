@@ -6,6 +6,8 @@ from fastapi.concurrency import run_in_threadpool
 import logging
 import uuid
 import datetime
+from datetime import timedelta
+from jose import jwt
 from common.security.jwt_handler import JwtHandler
 from ..config.settings import settings
 from common.exceptions import (
@@ -51,6 +53,16 @@ class AuthService:
         except Exception as e:
             logger.error(f"Erro ao obter chave pública: {e}")
             raise AppException("Erro ao obter chave pública do Keycloak")
+
+    @staticmethod
+    def generate_email_token(user_id: str, expiry_hours: int = 24) -> str:
+        payload = {
+            "sub": user_id,
+            "iat": datetime.datetime.now(),
+            "exp": datetime.datetime.now() + timedelta(hours=expiry_hours)
+        }
+        token = jwt.encode(payload, settings.EMAIL_TOKEN_SECRET, algorithm="HS256")
+        return token
 
     @staticmethod
     async def get_current_db_user(
@@ -103,8 +115,12 @@ class AuthService:
             username = token_payload.get("preferred_username")
             first_name = token_payload.get("given_name") or ""
             last_name = token_payload.get("family_name") or ""
+            enabled_payload = token_payload.get("enabled")
             email_verified = token_payload.get("email_verified", False)
             avatar_url = token_payload.get("picture")
+
+            if enabled_payload is None:
+                enabled_payload = email_verified
 
             now = datetime.datetime.now(datetime.timezone.utc)
 
@@ -125,6 +141,9 @@ class AuthService:
                         updates['last_name'] = last_name
                     if user.email_verified != email_verified:
                         updates['email_verified'] = email_verified
+
+                        if email_verified:
+                            updates['enabled'] = True
                     if avatar_url and user.avatar_url != avatar_url:
                         updates['avatar_url'] = avatar_url
 
@@ -174,7 +193,7 @@ class AuthService:
                     username=username,
                     first_name=first_name,
                     last_name=last_name,
-                    enabled=True,
+                    enabled=enabled_payload,
                     email_verified=email_verified,
                     last_login_at=now,
                     avatar_url=avatar_url

@@ -1,13 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Body, BackgroundTasks
 from fastapi.concurrency import run_in_threadpool
 from common.security.jwt_handler import JwtHandler
 from urllib.parse import urlencode
 from ..config.settings import settings
 from ..schemas.auth_response import UserPublic, TokenResponse, LoginRequest, RegisterRequest, LogoutRequest, RefreshTokenRequest
 from ..services.auth_service import AuthService, keycloak_openid
+from ..services.mail_service import MailService
 from ..models.user import User
 from keycloak import KeycloakAdmin
-from keycloak.exceptions import KeycloakPostError
+from keycloak.exceptions import KeycloakPostError, KeycloakError
 import logging
 from database.client import db
 
@@ -204,7 +205,7 @@ async def logout(request: LogoutRequest = Body(...)):
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-async def register(user_data: RegisterRequest = Body(...)):
+async def register(user_data: RegisterRequest = Body(...), background: BackgroundTasks = None):
     try:
         keycloak_admin = KeycloakAdmin(
             server_url=settings.KEYCLOAK_URL,
@@ -238,7 +239,7 @@ async def register(user_data: RegisterRequest = Body(...)):
                 "username": user_data.username,
                 "firstName": user_data.first_name,
                 "lastName": user_data.last_name,
-                "enabled": True,
+                "enabled": False,
                 "credentials": [{"value": user_data.password, "type": "password", "temporary": False}],
                 "attributes": user_attributes
             }
@@ -252,6 +253,42 @@ async def register(user_data: RegisterRequest = Body(...)):
             )
         except Exception as role_error:
             logger.warning(f"Usuário criado, mas falha ao atribuir role 'player': {role_error}")
+
+        try:
+            await AuthService.get_or_create_user_from_keycloak_token({
+                "sub": new_user_id,
+                "email": user_data.email,
+                "preferred_username": user_data.username,
+                "given_name": user_data.first_name,
+                "family_name": user_data.last_name,
+                "enabled": False,
+                "email_verified": False,
+                "picture": user_data.avatar_url
+            })
+        except Exception as e:
+            logger.error(f"Erro ao sincronizar usuário no banco: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Falha ao sincronizar usuário"
+            )
+
+        token = AuthService.generate_email_token(new_user_id)
+        activation_link = f"{settings.FRONTEND_URL}/verify?token={token}"
+
+        MailService.send_email_background(
+            background,
+            to=str(user_data.email),
+            subject="Ative sua conta AthlosHub",
+            template_name="verify_email.html",
+            context={
+                "name": user_data.first_name,
+                "verification_link": activation_link,
+                "expiry_hours": 24,
+                "company_name": "AthlosHub",
+                "support_email": "suporte@athloshub.com.br",
+                "logo_url": "https://upload.wikimedia.org/wikipedia/commons/3/36/Logo_nike_principal.jpg"
+            }
+        )
 
         return {"message": "Usuário criado com sucesso", "id": new_user_id}
 
