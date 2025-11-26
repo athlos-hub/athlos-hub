@@ -6,8 +6,8 @@ interface AuthLayoutProps {
 
 export default function AuthLayout({ children }: AuthLayoutProps) {
     return (
-        <div className="min-h-screen bg-[#E6F3FF]">
-            <div className="flex items-stretch w-full min-h-screen bg-[#E6F3FF]">
+        <div className="min-h-screen">
+            <div className="flex items-stretch w-full min-h-screen bg-[#e6f3ed]">
                 <div className="hidden lg:flex flex-shrink-0 min-w-[391px] max-w-[531px] items-center justify-center p-8 relative z-10">
                     <Image
                         src="/auth.png"
