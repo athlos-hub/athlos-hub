@@ -60,7 +60,7 @@ export default function DropdownNavbar({ mainSections, isOpen, categoryName }: D
 
                     {/* sub-itens */}
                     {selectedSection >= 0 && mainSections[selectedSection] && (
-                        <div className="py-8 px-5 flex flex-col gap-4">
+                        <div className="py-8 px-5 flex flex-col gap-4 bg-[#fff]">
                             <span className="text-lg text-main font-semibold tracking-wide">
                               {mainSections[selectedSection].label}
                             </span>
