@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import "./styles/globals.css";
+import "@/styles/globals.css";
 import { Outfit, Bebas_Neue } from "next/font/google";
-import PlayerHeader from "@/components/layout/player/header";
 
 const outfit = Outfit({
     variable: "--font-outfit",
@@ -46,10 +45,7 @@ export default function RootLayout({
       <body
           className={`${outfit.variable} ${bebasNeue.variable} antialiased`}
       >
-        <PlayerHeader />
-        <main className="min-h-screen px-[5rem]">
-          {children}
-        </main>
+        {children}
       </body>
     </html>
   );
