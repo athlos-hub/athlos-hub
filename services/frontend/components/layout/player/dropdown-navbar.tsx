@@ -22,7 +22,6 @@ export default function DropdownNavbar({ mainSections, isOpen, categoryName }: D
         <div className="absolute top-full mt-4 left-1/2 transform -translate-x-1/2 max-w-[50rem] w-full animate-in fade-in slide-in-from-top-2 duration-200 z-50">
             <div className="max-w-6xl mx-auto">
                 <div className="grid grid-cols-2 border border-[#97979730] rounded-xl overflow-hidden">
-                    {/* seções principais */}
                     <div className="py-8 px-5 flex flex-col gap-7 bg-[#F7F7FB]">
                         <span className="text-lg text-main font-semibold tracking-wide">{categoryName}</span>
                         <div className="flex flex-col gap-6">
@@ -58,7 +57,6 @@ export default function DropdownNavbar({ mainSections, isOpen, categoryName }: D
                         </div>
                     </div>
 
-                    {/* sub-itens */}
                     {selectedSection >= 0 && mainSections[selectedSection] && (
                         <div className="py-8 px-5 flex flex-col gap-4 bg-[#fff]">
                             <span className="text-lg text-main font-semibold tracking-wide">

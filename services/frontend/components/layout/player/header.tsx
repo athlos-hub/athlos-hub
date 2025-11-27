@@ -10,10 +10,27 @@ import { FiUsers } from "react-icons/fi";
 import { FaChevronDown } from "react-icons/fa6";
 import { dropdownData } from '@/data/dropdownData';
 import DropdownNavbar from "@/components/layout/player/dropdown-navbar";
+import {Session} from "next-auth";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {IoMdNotificationsOutline} from "react-icons/io";
+import {LogoutButton} from "@/components/layout/player/logout-button";
+
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 type DropdownType = 'esportes' | 'gestao' | 'social' | null;
 
-export default function PlayerHeader() {
+interface PlayerHeaderProps {
+    session: Session | null;
+}
+
+export default function PlayerHeader({ session }: PlayerHeaderProps) {
     const [activeDropdown, setActiveDropdown] = useState<DropdownType>(null);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -81,9 +98,38 @@ export default function PlayerHeader() {
                         </div>
                     </nav>
 
-                    <Link href="/auth/login" className="text-main cursor-pointer px-6 py-2 hover:bg-[#1F78FF10] rounded-xl transition-colors duration-300">
-                        Entrar
-                    </Link>
+                    {session ? (
+                        <div className="flex items-center gap-6">
+                            <IoMdNotificationsOutline size={20} className="cursor-pointer" />
+                            <DropdownMenu>
+                                <DropdownMenuTrigger className="focus:outline-none" asChild={true}>
+                                    <Avatar className="cursor-pointer">
+                                        <AvatarImage
+                                            src={session?.user?.image ?? undefined}
+                                            alt={session?.user?.name ?? "Avatar"}
+                                            referrerPolicy="no-referrer"
+                                        />
+                                        <AvatarFallback>
+                                            {session.user?.name?.slice(0, 2).toUpperCase() ?? "U"}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                </DropdownMenuTrigger>
+
+                                <DropdownMenuContent>
+                                    <DropdownMenuLabel>Minha conta</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem>Perfil</DropdownMenuItem>
+                                    <DropdownMenuItem className="p-0">
+                                        <LogoutButton />
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                    ) : (
+                        <Link href="/auth/login" className="text-main cursor-pointer px-6 py-2 hover:bg-[#1F78FF10] rounded-xl transition-colors duration-300">
+                            Entrar
+                        </Link>
+                    )}
                 </div>
             </div>
 
