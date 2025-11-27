@@ -98,14 +98,14 @@ export const authOptions: NextAuthOptions = {
                                     maxAge: 60 * 15,
                                 });
 
-                                throw new Error("ACCOUNT_NOT_VERIFIED");
+                                return Promise.reject(new Error("ACCOUNT_NOT_VERIFIED"));
                             }
 
                             cookieStore.delete("pending_verification_email");
                             return null;
                         }
 
-                        throw err;
+                        return Promise.reject(err);
                     }
 
                     let userProfile: BackendUserResponse | null = null;
@@ -134,7 +134,7 @@ export const authOptions: NextAuthOptions = {
                     const errMsg = (error instanceof Error) ? error.message : String(error ?? "");
 
                     if (errMsg === "ACCOUNT_NOT_VERIFIED") {
-                        throw new Error(errMsg);
+                        return Promise.reject(new Error(errMsg));
                     }
 
                     return null;

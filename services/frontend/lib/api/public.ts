@@ -12,7 +12,7 @@ function clientBaseURL(): string {
 async function handleResponse<T>(res: Response): Promise<APIResponse<T>> {
     const text = await res.text();
 
-    let parsed: unknown = null;
+    let parsed: unknown;
     try {
         parsed = text ? JSON.parse(text) : null;
     } catch {

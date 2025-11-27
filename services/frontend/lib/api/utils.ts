@@ -4,8 +4,7 @@ export function isValidationError(error: unknown): error is ValidationError {
     return (
         typeof error === "object" &&
         error !== null &&
-        "msg" in error &&
-        typeof (error as ValidationError).msg === "string"
+        "msg" in error
     );
 }
 
