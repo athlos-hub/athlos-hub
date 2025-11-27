@@ -1,14 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body, BackgroundTasks
 from fastapi.concurrency import run_in_threadpool
+from sqlalchemy import select
 from common.security.jwt_handler import JwtHandler
 from common.exceptions import InvalidCredentialsError, TokenExpiredError
 from urllib.parse import urlencode
 from ..config.settings import settings
-from ..schemas.auth_response import UserPublic, TokenResponse, LoginRequest, RegisterRequest, LogoutRequest, RefreshTokenRequest
+from ..schemas.auth_response import UserPublic, TokenResponse, LoginRequest, RegisterRequest, LogoutRequest, RefreshTokenRequest, ResendEmailRequest
 from ..services.auth_service import AuthService, keycloak_openid
 from ..services.mail_service import MailService
 from ..models.user import User
-from keycloak import KeycloakAdmin
+from keycloak import KeycloakAdmin, KeycloakAuthenticationError, KeycloakPostError
 from keycloak.exceptions import KeycloakPostError
 import logging
 from database.client import db
@@ -80,8 +81,10 @@ async def keycloak_callback(payload: dict = Body(...)):
             "email": db_user.email,
             "first_name": db_user.first_name or "",
             "last_name": db_user.last_name or "",
+            "avatar_url": db_user.avatar_url or "",
             "enabled": bool(db_user.enabled),
             "email_verified": bool(db_user.email_verified),
+            "last_login_at": db_user.last_login_at
         }
 
         return {
@@ -131,14 +134,46 @@ async def login(credentials: LoginRequest = Body(...)):
             expires_in=token_response.get("expires_in")
         )
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        error_msg = str(e).lower()
-        if "invalid_grant" in error_msg or "unauthorized" in error_msg:
-            raise HTTPException(status_code=401, detail="Credenciais inválidas")
+    except (KeycloakPostError, KeycloakAuthenticationError) as e:
+        error_message = str(e)
+        error_code = ""
+        try:
+            if hasattr(e, 'response_body'):
+                error_body = json.loads(e.response_body)
+                description = error_body.get('error_description', '')
+            else:
+                import ast
+                error_dict = ast.literal_eval(error_message)
+                description = error_dict.get('error_description', '')
+        except:
+            description = error_message
 
-        logger.error(f"Erro no login: {e}", exc_info=True)
+        if "Account is not fully set up" in description:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"code": "ACCOUNT_NOT_VERIFIED", "message": "Email não verificado"}
+            )
+
+        if "Account disabled" in description:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"code": "ACCOUNT_DISABLED", "message": "Conta desativada pelo administrador"}
+            )
+            
+        if "Invalid user credentials" in description or "invalid_grant" in str(e):
+             raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Email ou senha incorretos"
+            )
+
+        logger.error(f"Erro Keycloak desconhecido: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Falha na autenticação"
+        )
+
+    except Exception as e:
+        logger.error(f"Erro interno no login: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Erro interno no login")
 
 
@@ -332,6 +367,67 @@ async def verify_email(token: str):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
+        )
+
+
+@router.post("/resend-verification")
+async def resend_verification_email(
+    payload: ResendEmailRequest,
+    background: BackgroundTasks
+):
+    try:
+        user_id = None
+        user_email = None
+        user_name = None
+        should_send_email = False
+
+        async with db.session() as session:
+            stmt = select(User).where(User.email == payload.email)
+            result = await session.execute(stmt)
+            user = result.scalar_one_or_none()
+    
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Usuário não encontrado."
+                )
+
+            if user.email_verified:
+                return {"message": "Este email já foi verificado. Tente fazer login."}
+
+            user_id = str(user.keycloak_id)
+            user_email = str(user.email)
+            user_name = user.first_name or user.username
+            should_send_email = True
+        
+        if should_send_email:
+            token = AuthService.generate_email_token(user_id)
+            verification_link = f"{settings.FRONTEND_URL}/verify?token={token}"
+
+            MailService.send_email_background(
+                background,
+                to=user_email,
+                subject="Reenvio do link de verificação - AthlosHub",
+                template_name="verify_email.html",
+                context={
+                    "name": user_name,
+                    "verification_link": verification_link,
+                    "expiry_hours": 24,
+                    "company_name": "AthlosHub",
+                    "support_email": "suporte@athloshub.com.br",
+                    "logo_url": "https://upload.wikimedia.org/wikipedia/commons/3/36/Logo_nike_principal.jpg"
+                }
+            )
+
+        return {"success": True, "message": "Link de verificação reenviado com sucesso."}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao reenviar email de verificação: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail="Falha ao processar o reenvio."
         )
 
 
