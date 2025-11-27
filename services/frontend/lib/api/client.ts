@@ -50,11 +50,11 @@ export async function axiosAPI<TypeResponse = unknown>({
                 const session = await getServerSession(authOptions);
 
                 if (!session?.accessToken) {
-                    throw new APIException(
+                    return Promise.reject(new APIException(
                         "Usuário não autenticado",
                         401,
                         "UNAUTHORIZED"
-                    );
+                    ));
                 }
 
                 config.headers = {
@@ -76,11 +76,11 @@ export async function axiosAPI<TypeResponse = unknown>({
         const axiosError = error as AxiosError<unknown>;
 
         if (!axiosError.response) {
-            throw new APIException(
+            return Promise.reject(new APIException(
                 axiosError.message || "Erro de conexão com o servidor",
                 0,
                 "NETWORK_ERROR"
-            );
+            ));
         }
 
         const errorData = axiosError.response.data;
@@ -92,6 +92,6 @@ export async function axiosAPI<TypeResponse = unknown>({
             code = errorData.code;
         }
 
-        throw new APIException(message, status, code);
+        return Promise.reject(new APIException(message, status, code));
     }
 }
