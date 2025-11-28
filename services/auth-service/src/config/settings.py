@@ -68,6 +68,10 @@ class Settings(BaseSettings):
 
     FRONTEND_URL: str
 
+    # Email Resend
+    EMAIL_TOKEN_SECRET: str
+    RESEND_API_KEY: str
+
     # Rate Limiting
     RATE_LIMIT_ENABLED: bool
     RATE_LIMIT_PER_MINUTE: int
