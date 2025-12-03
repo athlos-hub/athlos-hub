@@ -48,6 +48,7 @@ def upgrade() -> None:
         sa.Column('owner_id', sa.UUID(), nullable=False),
 
         sa.Column('privacy', sa.Enum('PUBLIC', 'PRIVATE', name='org_privacy'), nullable=False),
+        sa.Column('join_policy', sa.Enum('INVITE_ONLY', 'REQUEST_ONLY', 'INVITE_AND_REQUEST', name='org_join_policy'), nullable=False),
         sa.Column('status', sa.Enum('PENDING', 'ACTIVE', 'REJECTED', 'SUSPENDED', 'EXCLUDED', name='org_status'), nullable=False),
 
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
