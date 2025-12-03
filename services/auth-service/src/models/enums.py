@@ -11,6 +11,7 @@ class OrganizationStatus(str, enum.Enum):
     ACTIVE = "ACTIVE"
     REJECTED = "REJECTED"
     SUSPENDED = "SUSPENDED"
+    EXCLUDED = "EXCLUDED"
 
 class OrganizationPrivacy(str, enum.Enum):
     PUBLIC = "PUBLIC"

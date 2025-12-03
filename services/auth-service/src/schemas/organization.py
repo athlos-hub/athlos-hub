@@ -15,6 +15,14 @@ class OrganizationBase(BaseModel):
 class OrganizationCreate(OrganizationBase):
     pass
 
+class OrganizationUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    logo_url: Optional[str] = None
+    privacy: Optional[str] = None
+
+    model_config = ConfigDict(extra='ignore')
+
 class OrganizationGetPublic(OrganizationBase):
     id: UUID
     slug: str
@@ -22,11 +30,15 @@ class OrganizationGetPublic(OrganizationBase):
 
 class OrganizationResponse(OrganizationGetPublic):
     status: OrganizationStatus
-    owner_id: UUID
     created_at: datetime
     updated_at: datetime
 
 class OrganizationWithRole(OrganizationGetPublic):
+    role: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+class OrganizationAdminWithRole(OrganizationResponse):
     role: str
 
     model_config = ConfigDict(from_attributes=True)

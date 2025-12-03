@@ -162,9 +162,9 @@ class AuthService:
             username = token_payload.get("preferred_username")
             first_name = token_payload.get("given_name") or ""
             last_name = token_payload.get("family_name") or ""
-            enabled_payload = token_payload.get("enabled")
             email_verified = token_payload.get("email_verified", False)
             avatar_url = token_payload.get("picture")
+            enabled_payload = token_payload.get("enabled")
 
             if enabled_payload is None:
                 enabled_payload = email_verified
@@ -178,6 +178,9 @@ class AuthService:
 
                 if user:
                     updates = {}
+
+                    updates['last_login_at'] = now
+
                     if email and user.email != email:
                         updates['email'] = email
                     if username and user.username != username:
@@ -186,15 +189,13 @@ class AuthService:
                         updates['first_name'] = first_name
                     if last_name and user.last_name != last_name:
                         updates['last_name'] = last_name
+                    if avatar_url and user.avatar_url != avatar_url:
+                        updates['avatar_url'] = avatar_url
                     if user.email_verified != email_verified:
                         updates['email_verified'] = email_verified
 
-                        if email_verified:
-                            updates['enabled'] = True
-                    if avatar_url and user.avatar_url != avatar_url:
-                        updates['avatar_url'] = avatar_url
-
-                    updates['last_login_at'] = now
+                    if enabled_payload is not None and user.enabled != enabled_payload:
+                        updates['enabled'] = enabled_payload
 
                     if updates:
                         for key, value in updates.items():
@@ -218,6 +219,9 @@ class AuthService:
 
                             if avatar_url:
                                 user_by_email.avatar_url = avatar_url
+
+                            if enabled_payload is not None:
+                                user_by_email.enabled = enabled_payload
 
                             logger.info(f"Usuário migrado: {email} -> keycloak_id: {keycloak_id}")
                             await session.commit()
@@ -298,3 +302,25 @@ class AuthService:
         except Exception as e:
             logger.error(f"Erro ao adicionar role no Keycloak: {e}")
             raise AppException(f"Não foi possível atribuir o perfil {role_name}")
+
+    @staticmethod
+    def get_role_from_user(user_id_keycloak: str):
+        try:
+            keycloak_admin = KeycloakAdmin(
+                server_url=settings.KEYCLOAK_URL,
+                client_id=settings.KEYCLOAK_CLIENT_ID,
+                client_secret_key=settings.KEYCLOAK_CLIENT_SECRET,
+                realm_name=settings.KEYCLOAK_REALM,
+                user_realm_name=settings.KEYCLOAK_REALM,
+                verify=True
+            )
+
+            roles = keycloak_admin.get_realm_roles_of_user(user_id_keycloak)
+            role_names = [role['name'] for role in roles]
+
+            logger.info(f"Roles obtidas para o usuário {user_id_keycloak}: {role_names}")
+            return role_names
+
+        except Exception as e:
+            logger.error(f"Erro ao obter roles do Keycloak: {e}")
+            raise AppException("Não foi possível obter os perfis do usuário")
