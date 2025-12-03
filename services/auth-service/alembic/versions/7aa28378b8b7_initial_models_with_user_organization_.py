@@ -48,7 +48,7 @@ def upgrade() -> None:
         sa.Column('owner_id', sa.UUID(), nullable=False),
 
         sa.Column('privacy', sa.Enum('PUBLIC', 'PRIVATE', name='org_privacy'), nullable=False),
-        sa.Column('status', sa.Enum('PENDING', 'ACTIVE', 'REJECTED', 'SUSPENDED', name='org_status'), nullable=False),
+        sa.Column('status', sa.Enum('PENDING', 'ACTIVE', 'REJECTED', 'SUSPENDED', 'EXCLUDED', name='org_status'), nullable=False),
 
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
