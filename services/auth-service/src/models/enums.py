@@ -16,3 +16,8 @@ class OrganizationStatus(str, enum.Enum):
 class OrganizationPrivacy(str, enum.Enum):
     PUBLIC = "PUBLIC"
     PRIVATE = "PRIVATE"
+
+class OrganizationJoinPolicy(str, enum.Enum):
+    INVITE_ONLY = "INVITE_ONLY"
+    REQUEST_ONLY = "REQUEST_ONLY"
+    INVITE_AND_REQUEST = "INVITE_AND_REQUEST"

@@ -2,7 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from uuid import UUID
 from typing import Optional
 from datetime import datetime
-from ..models.enums import OrganizationPrivacy, OrganizationStatus
+from ..models.enums import OrganizationPrivacy, OrganizationStatus, OrganizationJoinPolicy
 
 class OrganizationBase(BaseModel):
     name: str = Field(..., min_length=3, max_length=255)
@@ -19,7 +19,8 @@ class OrganizationUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     logo_url: Optional[str] = None
-    privacy: Optional[str] = None
+    privacy: Optional[OrganizationPrivacy] = None
+    join_policy: Optional[OrganizationJoinPolicy] = None
 
     model_config = ConfigDict(extra='ignore')
 

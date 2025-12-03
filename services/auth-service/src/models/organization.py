@@ -4,7 +4,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
 from .base import Base
-from .enums import MemberStatus, OrganizationStatus, OrganizationPrivacy
+from .enums import MemberStatus, OrganizationStatus, OrganizationPrivacy, OrganizationJoinPolicy
 
 
 class Organization(Base):
@@ -25,6 +25,10 @@ class Organization(Base):
         Enum(OrganizationPrivacy, name="org_privacy"),
         nullable=False,
         default=OrganizationPrivacy.PUBLIC,
+    )
+    join_policy = Column(
+        Enum(OrganizationJoinPolicy, name="org_join_policy"),
+        nullable=True
     )
     status = Column(
         Enum(OrganizationStatus, name="org_status"),

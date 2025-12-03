@@ -10,13 +10,14 @@ from ..models.user import User
 from ..models.organization import Organization
 from ..services.auth_service import AuthService
 from ..models.enums import OrganizationStatus
+from ..schemas.organization import OrganizationResponse
 from database.dependencies import get_session
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
-@router.delete("/organizations/{org_slug}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_role(["admin"]))])
+@router.delete("/organizations/delete/{org_slug}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_role(["admin"]))])
 async def delete_organization(org_slug: str,
                               user: User = Depends(AuthService.get_current_db_user),
                               session: AsyncSession = Depends(get_session)):
@@ -61,5 +62,57 @@ async def delete_organization(org_slug: str,
             logger.info(f"Organização {org_slug} excluída por admin {user.id}")
 
     await session.commit()
+
+    return
+
+
+@router.patch("/organizations/accept/{org_slug}", dependencies=[Depends(require_role(["admin"]))], response_model=OrganizationResponse)
+async def accept_organization(org_slug: str,
+                              user: User = Depends(AuthService.get_current_db_user),
+                              session: AsyncSession = Depends(get_session)):
+
+    stmt = select(Organization).where(Organization.slug == org_slug)
+    result = await session.execute(stmt)
+    org = result.scalars().first()
+
+    if not org:
+        raise OrganizationNotFoundError(org_slug)
+
+    if org.status != OrganizationStatus.PENDING:
+        raise HTTPException(
+            status_code=409,
+            detail="Apenas organizações pendentes podem ser aceitas."
+        )
+
+    org.status = OrganizationStatus.ACTIVE
+    await session.commit()
+
+    logger.info(f"Organização {org_slug} aceita por admin {user.id}")
+
+    return org
+
+
+@router.delete("/organizations/suspend/{org_slug}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_role(["admin"]))])
+async def suspend_organization(org_slug: str,
+                           user: User = Depends(AuthService.get_current_db_user),
+                           session: AsyncSession = Depends(get_session)):
+
+    stmt = select(Organization).where(Organization.slug == org_slug)
+    result = await session.execute(stmt)
+    org = result.scalars().first()
+
+    if not org:
+        raise OrganizationNotFoundError(org_slug)
+
+    if org.status == OrganizationStatus.SUSPENDED:
+        raise HTTPException(
+            status_code=409,
+            detail="Organização já está suspensa."
+        )
+
+    org.status = OrganizationStatus.SUSPENDED
+    await session.commit()
+
+    logger.info(f"Organização {org_slug} suspensa por admin {user.id}")
 
     return
