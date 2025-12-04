@@ -2,13 +2,14 @@ from fastapi import APIRouter, status, Depends, HTTPException
 from uuid import UUID
 from sqlalchemy import select
 from ..models.user import User
-from ..schemas.user import UserPublic, UserAdmin
+from ..schemas.user import UserPublic
+from ..core.exceptions import OrganizationNotFoundError
 from database.dependencies import get_session
 from ..core.exceptions import UserNotFoundError
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 from slugify import slugify
-from ..models.organization import Organization, OrganizationMember
+from ..models.organization import Organization, OrganizationMember, OrganizationOrganizer
 from ..services.auth_service import AuthService
 from ..models.enums import MemberStatus
 from database.dependencies import get_session
@@ -99,3 +100,59 @@ async def decline_organization_invite(org_slug: str,
     return {
         "message": "Convite recusado."
     }
+
+
+@router.delete("/organizations/{org_slug}/leave", status_code=status.HTTP_204_NO_CONTENT)
+async def leave_organization(org_slug: str,
+                             user: User = Depends(AuthService.get_current_db_user),
+                             session: AsyncSession = Depends(get_session)):
+
+    org_stmt = select(Organization).where(Organization.slug == org_slug)
+
+    org = await session.scalar(org_stmt)
+
+    if not org:
+        raise OrganizationNotFoundError(org_slug)
+
+    if org.owner_id == user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="O proprietário da organização não pode sair da organização. "
+                   "Transfira a propriedade ou exclua a organização."
+        )
+
+    organizer_stmt = (
+        select(OrganizationOrganizer)
+        .where(
+            OrganizationOrganizer.organization_id == org.id,
+            OrganizationOrganizer.user_id == user.id
+        )
+    )
+
+    organizer = await session.scalar(organizer_stmt)
+
+    if organizer:
+        await session.delete(organizer)
+
+    membership_stmt = (
+        select(OrganizationMember)
+        .where(
+            OrganizationMember.organization_id == org.id,
+            OrganizationMember.user_id == user.id,
+            OrganizationMember.status == MemberStatus.ACTIVE,
+        )
+    )
+
+    membership = await session.scalar(membership_stmt)
+
+    if not membership:
+        raise HTTPException(
+            status_code=404,
+            detail="Você não é um membro ativo desta organização."
+        )
+
+    await session.delete(membership)
+    await session.commit()
+
+    logger.info(f"Usuário {user.id} saiu da organização {org_slug}")
+    return

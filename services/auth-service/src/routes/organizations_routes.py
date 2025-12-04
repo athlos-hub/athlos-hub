@@ -1,4 +1,5 @@
 from fastapi import APIRouter, status, Depends, Query, HTTPException
+from uuid import UUID
 from typing import Optional, List
 import logging
 from slugify import slugify
@@ -51,30 +52,22 @@ async def create_organization(
         owner_id=current_user.id
     )
 
-    session.add(new_org)
-
-    try:
-        await session.flush()
-    except IntegrityError:
-        await session.rollback()
-        logger.warning(
-            f"Tentativa de criar organização duplicada: {org_data.name} por usuário {current_user.id}"
-        )
-        raise OrganizationAlreadyExists(org_data.name)
-
     owner_member = OrganizationMember(
         organization_id=new_org.id,
         user_id=current_user.id,
         status=MemberStatus.ACTIVE
     )
-    session.add(owner_member)
 
-    await session.commit()
-    await session.refresh(new_org)
+    try:
+        async with session.begin():
+            session.add(new_org)
+            await session.flush()
+            session.add(owner_member)
+    except IntegrityError:
+        logger.warning(f"Tentativa de criar organização duplicada: {org_data.name} por usuário {current_user.id}")
+        raise OrganizationAlreadyExists(org_data.name)
 
-    logger.info(
-        f"Organização criada: {new_org.slug} (ID: {new_org.id}) por usuário {current_user.id}"
-    )
+    logger.info(f"Organização criada: {new_org.slug} (ID: {new_org.id}) por usuário {current_user.id}")
     return new_org
 
 
@@ -799,3 +792,187 @@ async def get_organization_team_overview(org_slug: str,
         total_members=len(members_list),
         total_organizers=len(organizers_list)
     )
+
+
+@router.delete("/{org_slug}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_member_from_organization(org_slug: str,
+                                          user_id: UUID,
+                                          user: User = Depends(AuthService.get_current_db_user),
+                                          session: AsyncSession = Depends(get_session)):
+
+    org = await session.scalar(select(Organization).where(Organization.slug == org_slug))
+
+    if not org:
+        raise OrganizationNotFoundError(org_slug)
+
+    is_owner = org.owner_id == user.id
+
+    is_organizer = bool(await session.scalar(
+        select(
+            exists().where(
+                and_(
+                    OrganizationOrganizer.organization_id == org.id,
+                    OrganizationOrganizer.user_id == user.id
+                )
+            )
+        )
+    ))
+
+    is_admin = is_owner or is_organizer
+
+    if not is_admin:
+        logger.warning(f"Tentativa não autorizada de remoção do membro {user_id} da organização {org_slug} pelo usuário {user.id}")
+        raise HTTPException(
+            status_code=403,
+            detail="Apenas o proprietário ou organizadores podem remover membros."
+        )
+
+    membership = await session.scalar(
+        select(OrganizationMember).where(
+            OrganizationMember.organization_id == org.id,
+            OrganizationMember.user_id == user_id,
+            OrganizationMember.status == MemberStatus.ACTIVE
+        )
+    )
+
+    if not membership:
+        raise HTTPException(
+            status_code=404,
+            detail="Membro não encontrado na organização."
+        )
+
+    if membership.user_id == org.owner_id:
+        raise HTTPException(
+            status_code=400,
+            detail="O proprietário da organização não pode ser removido."
+        )
+
+    await session.delete(membership)
+    await session.commit()
+
+    logger.info(f"Usuário {user.id} removeu o membro {user_id} da organização {org_slug}")
+    return
+
+
+@router.post("/{org_slug}/organizers/{user_id}", status_code=status.HTTP_201_CREATED)
+async def add_organizer_to_organization(org_slug: str,
+                                        user_id: UUID,
+                                        user: User = Depends(AuthService.get_current_db_user),
+                                        session: AsyncSession = Depends(get_session)):
+
+    org = await session.scalar(select(Organization).where(Organization.slug == org_slug))
+
+    if not org:
+        raise OrganizationNotFoundError(org_slug)
+
+    if org.owner_id != user.id:
+        logger.warning(f"Tentativa não autorizada de adicionar organizador {user_id} à organização {org_slug} pelo usuário {user.id}")
+        raise HTTPException(
+            status_code=403,
+            detail="Apenas o proprietário pode adicionar organizadores."
+        )
+
+    if user_id == org.owner_id:
+        raise HTTPException(
+            status_code=400,
+            detail="O proprietário não pode ser organizador. Ele já tem todos os privilégios!"
+        )
+
+    existing_organizer = await session.scalar(
+        select(OrganizationOrganizer).where(
+            OrganizationOrganizer.organization_id == org.id,
+            OrganizationOrganizer.user_id == user_id
+        )
+    )
+
+    if existing_organizer:
+        raise HTTPException(
+            status_code=409,
+            detail="O usuário já é um organizador desta organização."
+        )
+
+    membership = await session.scalar(
+        select(OrganizationMember).where(
+            OrganizationMember.organization_id == org.id,
+            OrganizationMember.user_id == user_id,
+            OrganizationMember.status == MemberStatus.ACTIVE
+        )
+    )
+
+    if not membership:
+        raise HTTPException(
+            status_code=409,
+            detail="O usuário deve ser um membro ativo da organização para ser promovido a organizador."
+        )
+
+    new_organizer = OrganizationOrganizer(
+        organization_id=org.id,
+        user_id=user_id
+    )
+
+    session.add(new_organizer)
+    await session.commit()
+
+    logger.info(f"Usuário {user.id} adicionou o organizador {user_id} à organização {org_slug}")
+    return {
+        "message": "Organizador adicionado com sucesso."
+    }
+
+
+@router.delete("/{org_slug}/organizers/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_organizer_from_organization(org_slug: str,
+                                        user_id: UUID,
+                                        user: User = Depends(AuthService.get_current_db_user),
+                                        session: AsyncSession = Depends(get_session)):
+
+    org = await session.scalar(select(Organization).where(Organization.slug == org_slug))
+
+    if not org:
+        raise OrganizationNotFoundError(org_slug)
+
+    if org.owner_id != user.id:
+        logger.warning(f"Tentativa não autorizada de remover organizador {user_id} à organização {org_slug} pelo usuário {user.id}")
+        raise HTTPException(
+            status_code=403,
+            detail="Apenas o proprietário pode remover organizadores."
+        )
+
+    if user_id == org.owner_id:
+        raise HTTPException(
+            status_code=400,
+            detail="O proprietário não pode ser organizador. Portanto, não pode ser removido."
+        )
+
+    existing_organizer = await session.scalar(
+        select(OrganizationOrganizer).where(
+            OrganizationOrganizer.organization_id == org.id,
+            OrganizationOrganizer.user_id == user_id
+        )
+    )
+
+    if not existing_organizer:
+        raise HTTPException(
+            status_code=404,
+            detail="O usuário não é um organizador desta organização."
+        )
+
+    membership = await session.scalar(
+        select(OrganizationMember).where(
+            OrganizationMember.organization_id == org.id,
+            OrganizationMember.user_id == user_id,
+            OrganizationMember.status == MemberStatus.ACTIVE
+        )
+    )
+
+    if not membership:
+        raise HTTPException(
+            status_code=409,
+            detail="O usuário deve ser um membro ativo da organização."
+        )
+
+    async with session.begin():
+        await session.delete(existing_organizer)
+        await session.delete(membership)
+
+    logger.info(f"Usuário {user.id} adicionou o organizador {user_id} à organização {org_slug}")
+    return
