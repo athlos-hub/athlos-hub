@@ -61,6 +61,7 @@ async def keycloak_callback(payload: dict = Body(...)):
         )
 
         access_token = token_response.get('access_token')
+        print(access_token)
         refresh_token = token_response.get('refresh_token')
 
         if not access_token:
@@ -132,6 +133,8 @@ async def login(credentials: LoginRequest = Body(...)):
             )
 
         access_token = token_response.get("access_token")
+
+        print(access_token)
 
         public_key = await AuthService.get_public_key()
         token_payload = JwtHandler.decode_token(

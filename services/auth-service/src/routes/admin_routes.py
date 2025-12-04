@@ -1,5 +1,5 @@
 from fastapi import APIRouter, status, Depends, HTTPException
-from typing import Set
+from typing import Set, List
 import logging
 from starlette.concurrency import run_in_threadpool
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,10 +12,17 @@ from ..services.auth_service import AuthService
 from ..models.enums import OrganizationStatus
 from ..schemas.organization import OrganizationResponse
 from database.dependencies import get_session
+from ..schemas.user import UserAdmin
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
+
+@router.get("/users", dependencies=[Depends(require_role(["admin"]))], response_model=List[UserAdmin])
+async def get_users_admin(session: AsyncSession = Depends(get_session)):
+    users = await session.execute(select(User))
+    return users.scalars().all()
+
 
 @router.delete("/organizations/delete/{org_slug}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_role(["admin"]))])
 async def delete_organization(org_slug: str,
