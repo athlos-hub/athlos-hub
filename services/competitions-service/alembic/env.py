@@ -7,17 +7,10 @@ from sqlalchemy import pool
 
 from alembic import context
 
-# ----------------------------------------------------------------------
-# 1. SETUP DE PATH
-# Adiciona o diretório atual ao path do Python. 
-# Isso permite importar "src.config" mesmo rodando o comando da raiz.
-# ----------------------------------------------------------------------
 sys.path.append(os.getcwd())
 
-# Import do settings
 from src.config.settings import settings
 
-# Importa os models
 from src.models import Base
 
 config = context.config
@@ -25,10 +18,18 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Sobrescreve URL do banco
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
-# Linkar os metadados para o autogenerate funcionar
+db_url = settings.COMPETITIONS_DATABASE_URL
+
+
+if "postgresql+asyncpg" in db_url:
+    db_url = db_url.replace("postgresql+asyncpg", "postgresql")
+
+final_url = db_url.replace("%", "%%")
+
+
+config.set_main_option("sqlalchemy.url", final_url)
+
 target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
@@ -47,7 +48,6 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
     
-    # Cria a engine usando a configuração injetada acima
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
