@@ -28,7 +28,8 @@ class Organization(Base):
     )
     join_policy = Column(
         Enum(OrganizationJoinPolicy, name="org_join_policy"),
-        nullable=True
+        nullable=True,
+        default=OrganizationJoinPolicy.REQUEST_ONLY,
     )
     status = Column(
         Enum(OrganizationStatus, name="org_status"),
