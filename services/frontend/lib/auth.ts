@@ -143,12 +143,24 @@ export const authOptions: NextAuthOptions = {
         }),
     ],
     callbacks: {
-        async jwt({ token, user }) {
+        async jwt({ token, user, trigger, session }) {
             if (user) {
                 token.accessToken = user.accessToken;
                 token.refreshToken = user.refreshToken;
                 token.id = user.id;
+                token.picture = user.image;
+                token.name = user.name;
+                token.email = user.email;
             }
+
+            if (trigger === "update" && session) {
+                if (session.user) {
+                    token.picture = session.user.image ?? token.picture;
+                    token.name = session.user.name ?? token.name;
+                    token.email = session.user.email ?? token.email;
+                }
+            }
+
             return token;
         },
         async session({ session, token }) {
@@ -157,6 +169,9 @@ export const authOptions: NextAuthOptions = {
             session.user = {
                 ...session.user,
                 id: token.id as string,
+                image: token.picture as string | undefined,
+                name: token.name as string | undefined,
+                email: token.email as string | undefined,
             };
             return session;
         },
