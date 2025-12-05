@@ -86,3 +86,7 @@ class TeamOverviewResponse(BaseModel):
     members: list[OrganizationMemberResponse]
     total_members: int
     total_organizers: int
+
+
+class TransferOwnershipRequest(BaseModel):
+    new_owner_id: UUID
