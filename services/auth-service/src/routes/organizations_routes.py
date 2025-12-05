@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select, case, and_, or_, literal, exists
 from sqlalchemy.orm import joinedload
-from ..schemas.organization import OrganizationResponse, OrganizationCreate, OrganizationGetPublic, OrganizationWithRole, OrganizationAdminWithRole, OrganizationUpdate, UpdateJoinPolicyRequest, OrganizationMemberResponse, OrganizersListResponse, OrganizerResponse, MembersListResponse, TeamOverviewResponse
+from ..schemas.organization import *
 from ..schemas.user import PendingRequestsResponse, PendingMemberRequest, UserOrgMember
 from ..models.enums import OrganizationPrivacy, OrganizationJoinPolicy
 from ..utils.organization_utils import can_user_join_organization
@@ -327,6 +327,36 @@ async def request_to_join_organization(org_slug: str,
     }
 
 
+@router.delete("/{org_slug}/join-request", status_code=status.HTTP_204_NO_CONTENT)
+async def cancel_join_request(org_slug: str,
+                              user: User = Depends(AuthService.get_current_db_user),
+                              session: AsyncSession = Depends(get_session)):
+
+    stmt = (
+        select(OrganizationMember)
+        .join(Organization, OrganizationMember.organization_id == Organization.id)
+        .where(
+            Organization.slug == org_slug,
+            OrganizationMember.user_id == user.id,
+            OrganizationMember.status == MemberStatus.PENDING
+        )
+    )
+
+    membership = await session.scalar(stmt)
+
+    if not membership:
+        raise HTTPException(
+            status_code=404,
+            detail="Você não possui uma solicitação de entrada pendente para esta organização."
+        )
+
+    await session.delete(membership)
+    await session.commit()
+
+    logger.info(f"Usuário {user.id} cancelou sua solicitação de entrada na organização {org_slug}")
+    return
+
+
 @router.post("/{org_slug}/invite/{user_id}", status_code=status.HTTP_201_CREATED)
 async def invite_user_to_organization(org_slug: str,
                                       user_id: str,
@@ -384,6 +414,54 @@ async def invite_user_to_organization(org_slug: str,
     return {
         "message": "Convite enviado com sucesso."
     }
+
+
+@router.delete("/{org_slug}/invite/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def cancel_invite(org_slug: str,
+                        user_id: UUID,
+                        user: User = Depends(AuthService.get_current_db_user),
+                        session: AsyncSession = Depends(get_session)):
+
+    org_stmt = select(Organization).where(
+        Organization.slug == org_slug,
+        or_(
+            Organization.owner_id == user.id,
+            exists().where(
+                and_(
+                    OrganizationOrganizer.organization_id == Organization.id,
+                    OrganizationOrganizer.user_id == user.id
+                )
+            )
+        )
+    )
+
+    org = await session.scalar(org_stmt)
+
+    if not org:
+        raise HTTPException(
+            status_code=403,
+            detail="Apenas o proprietário ou organizadores podem cancelar convites."
+        )
+
+    membership = await session.scalar(
+        select(OrganizationMember).where(
+            OrganizationMember.organization_id == org.id,
+            OrganizationMember.user_id == user_id,
+            OrganizationMember.status == MemberStatus.INVITED
+        )
+    )
+
+    if not membership:
+        raise HTTPException(
+            status_code=404,
+            detail="Convite não encontrado. O usuário pode já ter respondido ao convite."
+        )
+
+    await session.delete(membership)
+    await session.commit()
+
+    logger.info(f"Admin {user.id} cancelou o convite de {user_id} para a organização {org_slug}")
+    return
 
 
 @router.post("/{org_slug}/join-via-link", status_code=status.HTTP_201_CREATED)
@@ -847,6 +925,22 @@ async def remove_member_from_organization(org_slug: str,
             detail="O proprietário da organização não pode ser removido."
         )
 
+    if user_id == user.id:
+        raise HTTPException(
+            status_code=400,
+            detail="Você não pode remover a si mesmo. Use o endpoint /leave para sair da organização."
+        )
+
+    organizer = await session.scalar(
+        select(OrganizationOrganizer).where(
+            OrganizationOrganizer.organization_id == org.id,
+            OrganizationOrganizer.user_id == user_id
+        )
+    )
+
+    if organizer:
+        await session.delete(organizer)
+
     await session.delete(membership)
     await session.commit()
 
@@ -875,7 +969,7 @@ async def add_organizer_to_organization(org_slug: str,
     if user_id == org.owner_id:
         raise HTTPException(
             status_code=400,
-            detail="O proprietário não pode ser organizador. Ele já tem todos os privilégios!"
+            detail="O proprietário não precisa ser organizador, ele já tem todos os privilégios."
         )
 
     existing_organizer = await session.scalar(
@@ -901,8 +995,8 @@ async def add_organizer_to_organization(org_slug: str,
 
     if not membership:
         raise HTTPException(
-            status_code=409,
-            detail="O usuário deve ser um membro ativo da organização para ser promovido a organizador."
+            status_code=400,
+            detail="O usuário deve ser um membro ativo da organização para se tornar organizador."
         )
 
     new_organizer = OrganizationOrganizer(
@@ -913,14 +1007,14 @@ async def add_organizer_to_organization(org_slug: str,
     session.add(new_organizer)
     await session.commit()
 
-    logger.info(f"Usuário {user.id} adicionou o organizador {user_id} à organização {org_slug}")
+    logger.info(f"Usuário {user.id} promoveu {user_id} a organizador da organização {org_slug}")
     return {
         "message": "Organizador adicionado com sucesso."
     }
 
 
 @router.delete("/{org_slug}/organizers/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_organizer_from_organization(org_slug: str,
+async def remove_organizer_from_organization(org_slug: str,
                                         user_id: UUID,
                                         user: User = Depends(AuthService.get_current_db_user),
                                         session: AsyncSession = Depends(get_session)):
@@ -931,7 +1025,7 @@ async def delete_organizer_from_organization(org_slug: str,
         raise OrganizationNotFoundError(org_slug)
 
     if org.owner_id != user.id:
-        logger.warning(f"Tentativa não autorizada de remover organizador {user_id} à organização {org_slug} pelo usuário {user.id}")
+        logger.warning(f"Tentativa não autorizada de remover organizador {user_id} da organização {org_slug} pelo usuário {user.id}")
         raise HTTPException(
             status_code=403,
             detail="Apenas o proprietário pode remover organizadores."
@@ -940,7 +1034,7 @@ async def delete_organizer_from_organization(org_slug: str,
     if user_id == org.owner_id:
         raise HTTPException(
             status_code=400,
-            detail="O proprietário não pode ser organizador. Portanto, não pode ser removido."
+            detail="O proprietário não pode ser organizador."
         )
 
     existing_organizer = await session.scalar(
@@ -956,23 +1050,80 @@ async def delete_organizer_from_organization(org_slug: str,
             detail="O usuário não é um organizador desta organização."
         )
 
+    await session.delete(existing_organizer)
+    await session.commit()
+
+    logger.info(f"Usuário {user.id} removeu o cargo de organizador de {user_id} na organização {org_slug}")
+    return
+
+
+@router.post("/{org_slug}/transfer-ownership", status_code=status.HTTP_200_OK)
+async def transfer_organization_ownership(org_slug: str,
+                                          request: TransferOwnershipRequest,  # ✅ Usar modelo Pydantic
+                                          user: User = Depends(AuthService.get_current_db_user),
+                                          session: AsyncSession = Depends(get_session)):
+
+    org_stmt = select(Organization).where(
+        Organization.slug == org_slug,
+        Organization.owner_id == user.id
+    )
+
+    org = await session.scalar(org_stmt)
+
+    if not org:
+        org_exists = await session.scalar(
+            select(Organization).where(Organization.slug == org_slug)
+        )
+        if org_exists:
+            raise HTTPException(
+                status_code=403,
+                detail="Apenas o proprietário pode transferir a propriedade da organização."
+            )
+        else:
+            raise OrganizationNotFoundError(org_slug)
+
+    if request.new_owner_id == user.id:
+        raise HTTPException(
+            status_code=400,
+            detail="Você já é o proprietário desta organização."
+        )
+
     membership = await session.scalar(
         select(OrganizationMember).where(
             OrganizationMember.organization_id == org.id,
-            OrganizationMember.user_id == user_id,
+            OrganizationMember.user_id == request.new_owner_id,
             OrganizationMember.status == MemberStatus.ACTIVE
         )
     )
 
     if not membership:
         raise HTTPException(
-            status_code=409,
-            detail="O usuário deve ser um membro ativo da organização."
+            status_code=404,
+            detail="O novo proprietário deve ser um membro ativo da organização."
         )
 
-    async with session.begin():
-        await session.delete(existing_organizer)
-        await session.delete(membership)
+    new_owner = await session.scalar(
+        select(User).where(
+            User.id == request.new_owner_id,
+            User.enabled == True
+        )
+    )
 
-    logger.info(f"Usuário {user.id} adicionou o organizador {user_id} à organização {org_slug}")
-    return
+    if not new_owner:
+        raise HTTPException(
+            status_code=404,
+            detail="Usuário não encontrado ou conta inativa."
+        )
+
+    old_owner_id = org.owner_id
+    org.owner_id = request.new_owner_id
+
+    await session.commit()
+    await session.refresh(org)
+
+    logger.info(f"Propriedade da organização {org_slug} transferida de {old_owner_id} para {request.new_owner_id}")
+
+    return {
+        "message": "Propriedade transferida com sucesso.",
+        "new_owner_id": request.new_owner_id
+    }
