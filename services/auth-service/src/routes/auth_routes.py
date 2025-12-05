@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, Body, BackgroundTasks, File, UploadFile, Form
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
 from common.security.jwt_handler import JwtHandler
@@ -6,13 +6,13 @@ from common.exceptions import InvalidCredentialsError, TokenExpiredError
 from urllib.parse import urlencode
 import json
 from ..config.settings import settings
-from ..schemas.auth_response import UserPublic, TokenResponse, LoginRequest, RegisterRequest, LogoutRequest, \
+from ..schemas.auth_response import UserPublic, TokenResponse, LoginRequest, LogoutRequest, \
     RefreshTokenRequest, ResendEmailRequest
 from ..services.auth_service import AuthService, keycloak_openid
 from ..services.mail_service import MailService
 from ..models.user import User
 from keycloak import KeycloakAdmin, KeycloakAuthenticationError
-from keycloak.exceptions import KeycloakPostError, KeycloakConnectionError
+from keycloak.exceptions import KeycloakPostError
 import logging
 from database.client import db
 
@@ -271,7 +271,14 @@ async def logout(request: LogoutRequest = Body(...)):
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-async def register(user_data: RegisterRequest = Body(...), background: BackgroundTasks = None):
+async def register(background: BackgroundTasks,
+                   email: str = Form(...),
+                   username: str = Form(...),
+                   first_name: str = Form(...),
+                   last_name: str = Form(...),
+                   password: str = Form(...),
+                   avatar: UploadFile = File(None)):
+
     try:
         keycloak_admin = KeycloakAdmin(
             server_url=settings.KEYCLOAK_URL,
@@ -283,35 +290,56 @@ async def register(user_data: RegisterRequest = Body(...), background: Backgroun
         )
 
         users_email = await run_in_threadpool(
-            keycloak_admin.get_users, query={"email": user_data.email, "exact": True}
+            keycloak_admin.get_users, query={"email": email, "exact": True}
         )
         if users_email:
-            logger.warning(f"Tentativa de registro com email já cadastrado: {user_data.email}")
+            logger.warning(f"Tentativa de registro com email já cadastrado: {email}")
             raise HTTPException(400, "Email já cadastrado")
 
         users_username = await run_in_threadpool(
-            keycloak_admin.get_users, query={"username": user_data.username, "exact": True}
+            keycloak_admin.get_users, query={"username": username, "exact": True}
         )
         if users_username:
-            logger.warning(f"Tentativa de registro com username já em uso: {user_data.username}")
+            logger.warning(f"Tentativa de registro com username já em uso: {username}")
             raise HTTPException(400, "Username já está em uso")
-
-        user_attributes = {}
-        if user_data.avatar_url:
-            user_attributes["avatar_url"] = user_data.avatar_url
 
         new_user_id = await run_in_threadpool(
             keycloak_admin.create_user,
             {
-                "email": user_data.email,
-                "username": user_data.username,
-                "firstName": user_data.first_name,
-                "lastName": user_data.last_name,
+                "email": email,
+                "username": username,
+                "firstName": first_name,
+                "lastName": last_name,
                 "enabled": False,
-                "credentials": [{"value": user_data.password, "type": "password", "temporary": False}],
-                "attributes": user_attributes
+                "credentials": [{"value": password, "type": "password", "temporary": False}],
+                "attributes": {}
             }
         )
+
+        avatar_url = None
+        if avatar:
+            try:
+                result = AuthService.upload_avatar(
+                    avatar,
+                    user_id=new_user_id,
+                    aws_access_key_id=settings.AWS_BUCKET_ACCESS_KEY_ID,
+                    aws_secret_access_key=settings.AWS_BUCKET_SECRET_ACCESS_KEY,
+                    aws_region=settings.AWS_BUCKET_REGION,
+                    aws_bucket=settings.AWS_BUCKET_NAME
+                )
+                avatar_url = result["url"]
+
+                await run_in_threadpool(
+                    keycloak_admin.update_user,
+                    new_user_id,
+                    {
+                        "attributes": {
+                            "avatar_url": avatar_url
+                        }
+                    }
+                )
+            except HTTPException as e:
+                logger.warning(f"Erro no upload do avatar para usuário {new_user_id}: {e.detail}")
 
         try:
             await run_in_threadpool(
@@ -320,21 +348,21 @@ async def register(user_data: RegisterRequest = Body(...), background: Backgroun
                 "player"
             )
         except Exception as role_error:
-            logger.warning(f"Usuário {user_data.username} criado, mas falha ao atribuir role 'player': {role_error}")
+            logger.warning(f"Usuário {username} criado, mas falha ao atribuir role 'player': {role_error}")
 
         try:
             await AuthService.get_or_create_user_from_keycloak_token({
                 "sub": new_user_id,
-                "email": user_data.email,
-                "preferred_username": user_data.username,
-                "given_name": user_data.first_name,
-                "family_name": user_data.last_name,
+                "email": email,
+                "preferred_username": username,
+                "given_name": first_name,
+                "family_name": last_name,
                 "enabled": False,
                 "email_verified": False,
-                "picture": user_data.avatar_url
+                "picture": avatar_url
             })
         except Exception as e:
-            logger.error(f"Erro ao sincronizar usuário {user_data.username} no banco: {e}", exc_info=True)
+            logger.error(f"Erro ao sincronizar usuário {username} no banco: {e}", exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Falha ao sincronizar usuário"
@@ -345,11 +373,11 @@ async def register(user_data: RegisterRequest = Body(...), background: Backgroun
 
         MailService.send_email_background(
             background,
-            to=str(user_data.email),
+            to=email,
             subject="Ative sua conta AthlosHub",
             template_name="verify_email.html",
             context={
-                "name": user_data.first_name,
+                "name": first_name,
                 "verification_link": activation_link,
                 "expiry_hours": 24,
                 "company_name": "AthlosHub",
@@ -358,8 +386,12 @@ async def register(user_data: RegisterRequest = Body(...), background: Backgroun
             }
         )
 
-        logger.info(f"Usuário registrado com sucesso: {user_data.username} (ID: {new_user_id})")
-        return {"message": "Usuário criado com sucesso", "id": new_user_id}
+        logger.info(f"Usuário registrado com sucesso: {username} (ID: {new_user_id})")
+        return {
+            "message": "Usuário criado com sucesso",
+            "id": new_user_id,
+            "avatar_url": avatar_url
+        }
 
     except HTTPException:
         raise

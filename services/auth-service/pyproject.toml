@@ -30,3 +30,4 @@ database-lib = {path = "../../libs/database", develop = true}
 common-lib = {path = "../../libs/common", develop = true}
 resend = "^2.19.0"
 jinja2 = "^3.1.6"
+upload-s3 = {path = "../../libs/upload_s3", develop = true}

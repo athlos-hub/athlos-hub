@@ -8,8 +8,14 @@ from typing import Optional
 class UserPublic(BaseModel):
     id: UUID
     username: str
+    email: EmailStr
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    enabled: bool = True
+    email_verified: bool = False
+    created_at: datetime
+    updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
