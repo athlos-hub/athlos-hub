@@ -1,7 +1,14 @@
-from fastapi import FastAPI
+import uvicorn
+from src.config.settings import settings
+from src.core.app import create_app
 
-app = FastAPI(title="Competitions Service")
+# Cria a instância da aplicação chamando a factory
+app = create_app()
 
-@app.get("/health")
-def health_check():
-    return {"status": "ok", "service": "competitions-service"}
+if __name__ == "__main__":
+    uvicorn.run(
+        "src.main:app",
+        host=settings.API_HOST,
+        port=settings.API_PORT,
+        reload=True
+    )
