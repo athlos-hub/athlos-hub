@@ -5,7 +5,7 @@ from typing import List, TYPE_CHECKING
 from src.models.base import Base
 
 if TYPE_CHECKING:
-    from competitions import CompetitionModel
+    from competition import CompetitionModel
 
 class ModalityModel(Base):
     __tablename__ = "modalities"
