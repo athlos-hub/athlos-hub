@@ -31,10 +31,24 @@ class Settings(BaseSettings):
     COMPETITIONS_DATABASE_PASSWORD: str
     COMPETITIONS_DATABASE_URL: str
     COMPETITIONS_DATABASE_SCHEMA: str
-    
+
+    @property
+    def DATABASE_URL(self) -> str:
+        """
+        Monta a URL de conexão Async.
+        Prioridade: 
+        1. URL explícita no .env (COMPETITIONS_DATABASE_URL)
+        """
+        if self.COMPETITIONS_DATABASE_URL:
+            return self.COMPETITIONS_DATABASE_URL
+                
 
     CORS_ORIGINS: List[str]
     LOG_LEVEL: str
     LOG_FORMAT: str
+
+    DB_POOL_MIN_SIZE: int
+    DB_POOL_MAX_SIZE: int
+    DB_POOL_TIMEOUT: int
 
 settings = Settings()
