@@ -2,16 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
-from database.client import db
-
 from src.schemas.modality_schema import ModalityCreateSchema, ModalityResponseSchema
 from src.services.modality_service import ModalityService
 
-router = APIRouter(prefix="/modalities", tags=["Modalities"])
+from src.routes.routes import get_session
 
-async def get_session() -> AsyncSession:
-    async with db.session() as session:
-        yield session
+router = APIRouter(prefix="/modalities", tags=["Modalities"])
 
 @router.post("/", response_model=ModalityResponseSchema, status_code=status.HTTP_201_CREATED)
 async def create_modality(
