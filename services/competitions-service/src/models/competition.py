@@ -7,7 +7,7 @@ import enum
 from src.models.base import Base
 
 if TYPE_CHECKING:
-    from modalities import ModalityModel
+    from modality import ModalityModel
     from sport_ruleset import SportRulesetModel
 
 class CompetitionSystem(str, enum.Enum):

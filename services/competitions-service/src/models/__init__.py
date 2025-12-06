@@ -1,4 +1,4 @@
 from .base import Base
-from .modalities import ModalityModel
-from .competitions import CompetitionModel
+from .modality import ModalityModel
+from .competition import CompetitionModel
 from .sport_ruleset import SportRulesetModel
