@@ -31,12 +31,17 @@ jobs:
           python-version: '3.12.12'
 
       - name: Install Poetry
-        run: pip install 
+        if: steps.filter.outputs.src == 'true'
+        run: pip install poetry
         
       - name: Install Deps
+        if: steps.filter.outputs.src == 'true'
+        working-directory: ./services/auth_service
         run: poetry install
 
       - name: Run Tests
+        if: steps.filter.outputs.src == 'true'
+        working-directory: ./services/auth_service
         run: poetry run pytest
 
   # ------------------------------------------------------------------
@@ -61,12 +66,17 @@ jobs:
           python-version: '3.12.12'
 
       - name: Install Poetry
+        if: steps.filter.outputs.src == 'true'
         run: pip install poetry
 
       - name: Install Deps
+        if: steps.filter.outputs.src == 'true'
+        working-directory: ./services/competitions_service
         run: poetry install
 
       - name: Run Tests
+        if: steps.filter.outputs.src == 'true'
+        working-directory: ./services/competitions_service
         run: poetry run pytest
 
   # ------------------------------------------------------------------
