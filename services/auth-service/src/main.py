@@ -9,7 +9,7 @@ def main():
         app,
         host=settings.API_HOST,
         port=settings.API_PORT,
-        reload=True, # só para dev
+        reload=True,
         log_level="info",
         log_config=None
     )
