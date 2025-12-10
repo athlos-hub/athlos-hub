@@ -10,6 +10,12 @@ if TYPE_CHECKING:
     from modality import ModalityModel
     from sport_ruleset import SportRulesetModel
 
+
+class CompetitionStatus(str, enum.Enum):
+    PENDING = "pending"
+    STARTED = "started"
+    FINISHED = "finished"
+
 class CompetitionSystem(str, enum.Enum):
     POINTS = "points"
     ELIMINATION = "elimination"
@@ -22,13 +28,13 @@ class CompetitionModel(Base):
     modality_id: Mapped[int] = mapped_column(ForeignKey("modalities.id"))
     
     name: Mapped[str] = mapped_column(String(100))
-    status: Mapped[str] = mapped_column(String(20), default="DRAFT")
+    status: Mapped[CompetitionStatus] = mapped_column(String, default="PENDING")
     
     start_date: Mapped[datetime]
     end_date: Mapped[datetime]
     
     # Configs
-    system: Mapped[CompetitionSystem] = mapped_column(String)
+    system: Mapped[CompetitionSystem] = mapped_column(String, default="POINTS")
     min_members_per_team: Mapped[int] = mapped_column(Integer, default=5)
     max_members_per_team: Mapped[int] = mapped_column(Integer, default=20)
     
