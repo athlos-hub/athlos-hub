@@ -31,24 +31,30 @@ class PlayerModel(Base):
 class TeamModel(Base):
     __tablename__ = "teams"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    org_code: Mapped[str] = mapped_column(String(50), unique=False)
+    org_code: Mapped[str] = mapped_column(String(50), index=True) 
     competition_id: Mapped[int] = mapped_column(ForeignKey("competitions.id"))
     name: Mapped[str] = mapped_column(String(100))
     abbreviation: Mapped[Optional[str]] = mapped_column(String(3), nullable=False)
-    team_captain: Mapped[uuid.UUID] = mapped_column(ForeignKey("players.id"), nullable=False)
+    
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     status: Mapped[TeamStatus] = mapped_column(String(20), default=TeamStatus.PENDING) 
 
     competition: Mapped["CompetitionModel"] = relationship("CompetitionModel")
-    
+
+    team_captain: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("players.id", use_alter=True, name="fk_team_captain_id"), 
+        nullable=True
+    )
+
     players: Mapped[List["PlayerModel"]] = relationship(
         "PlayerModel", 
         back_populates="team",
-        foreign_keys="[PlayerModel.team_id]"
+        foreign_keys=[PlayerModel.team_id]
     )
     
-    captain: Mapped[PlayerModel] = relationship(
+    # CORREÇÃO 3: Relacionamento para acessar o objeto do Capitão
+    captain: Mapped[Optional["PlayerModel"]] = relationship(
         "PlayerModel",
         foreign_keys=[team_captain],
-        post_update=True 
+        post_update=True
     )

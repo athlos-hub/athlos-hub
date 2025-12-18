@@ -29,7 +29,8 @@ class CompetitionModel(Base):
     
     name: Mapped[str] = mapped_column(String(100))
     status: Mapped[CompetitionStatus] = mapped_column(String, default="PENDING")
-    
+    sport_ruleset_id: Mapped[int] = mapped_column(ForeignKey("sport_rulesets.id"))
+
     start_date: Mapped[datetime]
     end_date: Mapped[datetime]
     
@@ -49,5 +50,5 @@ class CompetitionModel(Base):
     
     sport_ruleset: Mapped["SportRulesetModel"] = relationship(
         "SportRulesetModel", 
-        back_populates="competition"
+        back_populates="competitions"
     )
