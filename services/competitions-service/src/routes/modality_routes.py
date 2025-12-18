@@ -7,7 +7,7 @@ from src.services.modality_service import ModalityService
 
 from src.routes.routes import get_session
 
-router = APIRouter(prefix="/modalities", tags=["Modalities"])
+router = APIRouter(prefix="/modalities", tags=["modalities"])
 
 @router.post("/", response_model=ModalityResponseSchema, status_code=status.HTTP_201_CREATED)
 async def create_modality(
