@@ -80,4 +80,10 @@ class Settings(BaseSettings):
     LOG_LEVEL: str
     LOG_FORMAT: str
 
+    # Bucket S3
+    AWS_BUCKET_REGION: str
+    AWS_BUCKET_NAME: str
+    AWS_BUCKET_ACCESS_KEY_ID: str
+    AWS_BUCKET_SECRET_ACCESS_KEY: str
+
 settings = Settings()

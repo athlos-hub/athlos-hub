@@ -17,9 +17,9 @@ class OrgRole:
 
 
 async def get_user_org_role(
-        org_id: UUID = Path(..., title="ID da Organização"),
-        user: User = Depends(AuthService.get_current_db_user),
-        session: AsyncSession = Depends(get_session)
+        org_id: UUID,
+        user: User,
+        session: AsyncSession
 ) -> str:
 
     org = await session.get(Organization, org_id)

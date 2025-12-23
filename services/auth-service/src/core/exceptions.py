@@ -21,3 +21,11 @@ class OrganizationAlreadyExists(AppException):
             status_code=status.HTTP_409_CONFLICT,
             code="ORGANIZATION_ALREADY_EXISTS"
         )
+
+class OrganizationNotFoundError(AppException):
+    def __init__(self, identifier: str):
+        super().__init__(
+            message=f"Organização {identifier} não encontrada",
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="ORGANIZATION_NOT_FOUND"
+        )
