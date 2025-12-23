@@ -118,7 +118,11 @@ export default function PlayerHeader({ session }: PlayerHeaderProps) {
                                 <DropdownMenuContent>
                                     <DropdownMenuLabel>Minha conta</DropdownMenuLabel>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem>Perfil</DropdownMenuItem>
+                                    <DropdownMenuItem asChild>
+                                        <Link href="/perfil" className="cursor-pointer">
+                                            Meu Perfil
+                                        </Link>
+                                    </DropdownMenuItem>
                                     <DropdownMenuItem className="p-0">
                                         <LogoutButton />
                                     </DropdownMenuItem>
