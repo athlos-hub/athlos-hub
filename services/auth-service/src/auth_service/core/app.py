@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Gerenciador de contexto para o ciclo de vida da aplicação."""
+
     setup_logging(log_level_str=settings.LOG_LEVEL, env=settings.ENV)
 
     startup_logger = logging.getLogger("app.startup")
@@ -53,10 +55,12 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
+    """Cria a aplicação FastAPI."""
+
     app = FastAPI(
         title="Keycloak Authentication API",
-        description="API de autenticação Keycloak + keycloak_schema",
-        version="3.0.0",
+        description="API de autenticação Keycloak",
+        version="1.0.0",
         lifespan=lifespan,
     )
 

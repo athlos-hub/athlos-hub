@@ -12,6 +12,8 @@ MONOREPO_ROOT = SERVICE_ROOT.parent.parent
 
 
 class Settings(BaseSettings):
+    """Configurações da aplicação."""
+
     model_config = SettingsConfigDict(
         env_file=[MONOREPO_ROOT / ".env", SERVICE_ROOT / ".env"],
         env_file_encoding="utf-8",
