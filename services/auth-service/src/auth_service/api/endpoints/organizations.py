@@ -4,7 +4,7 @@ import logging
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Query, Security, status
+from fastapi import APIRouter, File, Form, Query, Security, UploadFile, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from auth_service.api.deps import (
@@ -17,11 +17,9 @@ from auth_service.infrastructure.database.models.enums import OrganizationPrivac
 from auth_service.schemas.organization import (
     MembersListResponse,
     OrganizationAdminWithRole,
-    OrganizationCreate,
     OrganizationGetPublic,
     OrganizationMemberResponse,
     OrganizationResponse,
-    OrganizationUpdate,
     OrganizationWithRole,
     OrganizerResponse,
     OrganizersListResponse,
@@ -43,22 +41,28 @@ optional_bearer = HTTPBearer(auto_error=False)
 
 
 @router.post(
-    "", response_model=OrganizationResponse, status_code=status.HTTP_201_CREATED
+    "",
+    response_model=OrganizationResponse,
+    status_code=status.HTTP_201_CREATED,
 )
 async def create_organization(
-    org_data: OrganizationCreate,
     org_service: OrganizationServiceDep,
     current_user: CurrentUserDep,
+    name: str = Form(...),
+    description: str = Form(...),
+    privacy: OrganizationPrivacy = Form(...),
+    logo: UploadFile | None = File(None),
 ):
     """Cria uma nova organização."""
 
     org = await org_service.create_organization(
-        name=org_data.name,
+        name=name,
         owner=current_user,
-        description=org_data.description,
-        logo_url=org_data.logo_url,
-        privacy=org_data.privacy,
+        description=description,
+        privacy=privacy,
+        logo=logo,
     )
+
     logger.info(f"Organização criada: {org.slug} por usuário {current_user.id}")
     return org
 
@@ -122,17 +126,32 @@ async def get_organization_by_slug(
     return OrganizationGetPublic.model_validate(org)
 
 
-@router.patch("/{org_slug}", response_model=OrganizationResponse)
+@router.put("/{org_slug}", response_model=OrganizationResponse)
 async def update_organization(
     org_slug: str,
-    org_data: OrganizationUpdate,
     org_service: OrganizationServiceDep,
     user: CurrentUserDep,
+    name: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    privacy: Optional[OrganizationPrivacy] = Form(None),
+    logo: Optional[UploadFile] = File(None),
 ):
-    """Atualiza organização (apenas proprietário)."""
+    """Atualiza uma organização existente."""
 
-    update_data = org_data.model_dump(exclude_unset=True)
-    org = await org_service.update_organization(org_slug, user, update_data)
+    update_data = {
+        "name": name,
+        "description": description,
+        "privacy": privacy,
+    }
+    update_data = {k: v for k, v in update_data.items() if v is not None}
+
+    org = await org_service.update_organization(
+        slug=org_slug,
+        user=user,
+        data=update_data,
+        logo=logo,
+    )
+
     logger.info(f"Organização {org_slug} atualizada por usuário {user.id}")
     return org
 
