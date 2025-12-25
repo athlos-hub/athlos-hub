@@ -92,14 +92,19 @@ class UserService:
         logger.info(f"Novo usuário criado: {created_user.email}")
         return created_user
 
-    async def delete_user(self, user_id: UUID) -> bool:
-        """Deleta um usuário por ID."""
+    async def suspend_user(self, user_id: UUID) -> None:
+        """Suspende um usuário por ID."""
 
-        success = await self._user_repo.delete(user_id)
-        if success:
+        try:
+            user = await self._user_repo.suspend(user_id)
+            if user is None:
+                raise UserNotFoundError(str(user_id))
+
             await self._user_repo.commit()
-            logger.info(f"Usuário {user_id} deletado")
-        return success
+
+        except Exception:
+            await self._user_repo.rollback()
+            raise
 
     async def is_user_active(self, user_id: UUID) -> bool:
         """Verifica se o usuário está ativo."""

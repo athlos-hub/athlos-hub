@@ -69,15 +69,19 @@ class UserRepository(IUserRepository):
             await self._session.refresh(user)
         return user
 
-    async def delete(self, user_id: UUID) -> bool:
-        """Deleta usuário por ID."""
+    async def suspend(self, user_id: UUID) -> User | None:
+        """Suspende usuário por ID."""
         user = await self.get_by_id(user_id)
         if not user:
-            return False
+            return None
 
-        await self._session.delete(user)
+        if not user.enabled:
+            return user
+
+        user.enabled = False
+
         await self._session.flush()
-        return True
+        return user
 
     async def save(self, user: User) -> User:
         """Salva (adiciona ou atualiza) uma entidade de usuário."""
