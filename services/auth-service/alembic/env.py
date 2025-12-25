@@ -1,11 +1,12 @@
-from logging.config import fileConfig
-from sqlalchemy import engine_from_config, text
-from sqlalchemy import pool
-from alembic import context
-import sys
 import os
+import sys
+from logging.config import fileConfig
 from pathlib import Path
+
 from dotenv import load_dotenv
+from sqlalchemy import engine_from_config, pool, text
+
+from alembic import context
 
 service_env = Path(__file__).resolve().parents[1] / ".env"
 if service_env.exists():
@@ -13,9 +14,12 @@ if service_env.exists():
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from models.base import Base
-from models.user import User
-from models.organization import Organization, OrganizationOrganizer
+from auth_service.infrastructure.database.base import Base
+from auth_service.infrastructure.database.models.organization_model import (
+    Organization,
+    OrganizationOrganizer,
+)
+from auth_service.infrastructure.database.models.user_model import User
 
 config = context.config
 
@@ -106,6 +110,10 @@ def run_migrations_online():
             context.run_migrations()
 
 
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    run_migrations_online()
 if context.is_offline_mode():
     run_migrations_offline()
 else:
