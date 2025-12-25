@@ -2,6 +2,7 @@
 
 import logging
 from typing import List
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
@@ -24,6 +25,22 @@ async def get_users_admin(user_service: UserServiceDep):
     """Obtém todos os usuários (apenas admin)."""
 
     return await user_service.get_all_users()
+
+
+@router.delete(
+    "/users/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_role(["admin"]))],
+)
+async def suspend_user_by_admin(
+    user_service: UserServiceDep,
+    user_id: UUID,
+):
+    """Suspende um usuário (apenas admin)."""
+
+    await user_service.suspend_user(user_id)
+    logger.info(f"Usuário {user_id} suspenso por admin")
+    return
 
 
 @router.delete(
