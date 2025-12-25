@@ -4,8 +4,10 @@ import logging
 from typing import Optional, Sequence
 from uuid import UUID
 
+from fastapi import UploadFile
 from slugify import slugify
 
+from auth_service.core.config import settings
 from auth_service.core.exceptions import (
     AlreadyOwnerError,
     CannotRemoveOwnerError,
@@ -53,6 +55,7 @@ from auth_service.infrastructure.database.models.user_model import User
 from auth_service.infrastructure.repositories.organization_member_repository import (
     OrgRole,
 )
+from auth_service.utils.upload_image import upload_image
 
 logger = logging.getLogger(__name__)
 
@@ -77,15 +80,9 @@ class OrganizationService:
         name: str,
         owner: User,
         description: Optional[str] = None,
-        logo_url: Optional[str] = None,
         privacy: OrganizationPrivacy = OrganizationPrivacy.PUBLIC,
+        logo: UploadFile | None = None,
     ) -> Organization:
-        """
-        Cria uma nova organização.
-
-        Raises:
-            OrganizationAlreadyExistsError: Se organização com mesmo slug existir.
-        """
         generated_slug = slugify(name)
 
         if await self._org_repo.exists_by_slug(generated_slug):
@@ -95,7 +92,6 @@ class OrganizationService:
             name=name,
             slug=generated_slug,
             description=description,
-            logo_url=logo_url,
             privacy=privacy,
             join_policy=OrganizationJoinPolicy.REQUEST_ONLY,
             owner_id=owner.id,
@@ -109,6 +105,18 @@ class OrganizationService:
             status=MemberStatus.ACTIVE,
         )
         await self._member_repo.create(owner_member)
+
+        if logo:
+            result = upload_image(
+                file=logo,
+                organization_id=str(created_org.id),
+                aws_access_key_id=settings.AWS_BUCKET_ACCESS_KEY_ID,
+                aws_secret_access_key=settings.AWS_BUCKET_SECRET_ACCESS_KEY,
+                aws_region=settings.AWS_BUCKET_REGION,
+                aws_bucket=settings.AWS_BUCKET_NAME,
+                prefix="organizations",
+            )
+            created_org.logo_url = result["url"]
 
         await self._org_repo.commit()
 
@@ -169,32 +177,36 @@ class OrganizationService:
         return await self._member_repo.get_user_organizations_with_role(user.id, roles)
 
     async def update_organization(
-        self, slug: str, user: User, data: dict
+        self,
+        slug: str,
+        user: User,
+        data: dict,
+        logo: UploadFile | None = None,
     ) -> Organization:
-        """
-        Update organization.
-
-        Raises:
-            OrganizationNotFoundError: Se a organização não for encontrada.
-            NotOwnerError: Se o usuário não for o proprietário.
-            OrganizationAlreadyExistsError: Se o novo slug conflitar.
-        """
         org = await self._org_repo.get_by_slug(slug)
 
         if not org:
             raise OrganizationNotFoundError(slug)
 
         if org.owner_id != user.id:
-            logger.warning(
-                f"Tentativa de atualização não autorizada de {slug} por {user.id}"
-            )
             raise NotOwnerError("atualizar a organização")
+
+        if logo:
+            result = upload_image(
+                file=logo,
+                organization_id=str(org.id),
+                aws_access_key_id=settings.AWS_BUCKET_ACCESS_KEY_ID,
+                aws_secret_access_key=settings.AWS_BUCKET_SECRET_ACCESS_KEY,
+                aws_region=settings.AWS_BUCKET_REGION,
+                aws_bucket=settings.AWS_BUCKET_NAME,
+                prefix="organizations",
+            )
+            data["logo_url"] = result["url"]
 
         updated_org = await self._org_repo.update(org.id, data)
         await self._org_repo.commit()
 
-        logger.info(f"Organização {slug} atualizada por usuário {user.id}")
-        return updated_org  # type: ignore
+        return updated_org
 
     async def delete_organization_by_owner(self, slug: str, user: User) -> None:
         """

@@ -7,7 +7,6 @@ from datetime import timedelta
 from typing import Any, Optional
 from urllib.parse import urlencode
 
-import boto3
 from common.exceptions import AppException
 from common.exceptions import InvalidCredentialsError as CommonInvalidCredentialsError
 from common.exceptions import TokenExpiredError as CommonTokenExpiredError
@@ -18,7 +17,6 @@ from jose import jwt
 from keycloak import KeycloakAdmin, KeycloakOpenID
 from keycloak.exceptions import KeycloakAuthenticationError, KeycloakPostError
 from sqlalchemy.exc import IntegrityError
-from upload_s3.main import upload_file
 
 from auth_service.core.config import settings
 from auth_service.core.exceptions import (
@@ -42,6 +40,7 @@ from auth_service.core.exceptions import (
 from auth_service.domain.interfaces.repositories import IUserRepository
 from auth_service.infrastructure.database.models.user_model import User
 from auth_service.schemas.auth import KeycloakTokenResponse, TokenResponse
+from auth_service.utils.upload_image import upload_image
 
 logger = logging.getLogger(__name__)
 
@@ -388,13 +387,14 @@ class AuthenticationService:
             avatar_url = None
             if avatar:
                 try:
-                    result = self.upload_avatar(
+                    result = upload_image(
                         avatar,
                         user_id=new_user_id,
                         aws_access_key_id=settings.AWS_BUCKET_ACCESS_KEY_ID,
                         aws_secret_access_key=settings.AWS_BUCKET_SECRET_ACCESS_KEY,
                         aws_region=settings.AWS_BUCKET_REGION,
                         aws_bucket=settings.AWS_BUCKET_NAME,
+                        prefix="avatars",
                     )
                     avatar_url = result["url"]
 
@@ -720,61 +720,6 @@ class AuthenticationService:
         except Exception as e:
             logger.error(f"Erro ao obter roles do Keycloak: {e}")
             raise AppException("Não foi possível obter os perfis do usuário")
-
-    @staticmethod
-    def upload_avatar(
-        file: UploadFile,
-        user_id: str,
-        aws_access_key_id: str,
-        aws_secret_access_key: str,
-        aws_region: str,
-        aws_bucket: str,
-    ) -> dict[str, str]:
-        """Faz upload do avatar do usuário para o S3."""
-
-        allowed_types = {
-            "image/jpeg",
-            "image/png",
-            "image/gif",
-            "image/webp",
-            "image/jpg",
-        }
-        if file.content_type not in allowed_types:
-            raise AvatarUploadError("Tipo de arquivo não permitido. Use apenas imagens")
-
-        file.file.seek(0, 2)
-        file_size = file.file.tell()
-        file.file.seek(0)
-
-        if file_size > 5 * 1024 * 1024:
-            raise AvatarUploadError("Arquivo muito grande. Máximo: 5MB")
-
-        s3 = boto3.client(
-            "s3",
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
-            region_name=aws_region,
-        )
-
-        try:
-            response = s3.list_objects_v2(
-                Bucket=aws_bucket, Prefix=f"avatars/{user_id}/"
-            )
-            if "Contents" in response:
-                for obj in response["Contents"]:
-                    s3.delete_object(Bucket=aws_bucket, Key=obj["Key"])
-        except Exception:
-            pass
-
-        result = upload_file(
-            file,
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
-            aws_region=aws_region,
-            aws_bucket=aws_bucket,
-        )
-
-        return result
 
     @staticmethod
     def get_google_auth_url() -> str:
