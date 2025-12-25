@@ -1,3 +1,5 @@
+"""Endpoints de health"""
+
 import asyncio
 import logging
 
@@ -5,7 +7,7 @@ from database.client import db
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 
-from auth_service.domain.services.auth_service import AuthService
+from auth_service.domain.services.authentication_service import AuthenticationService
 
 router = APIRouter(tags=["Health"])
 logger = logging.getLogger(__name__)
@@ -13,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 @router.get("/health")
 async def health_check():
+    """Verifica a saúde dos serviços."""
+
     health_status = {"status": "healthy", "checks": {}}
 
     try:
@@ -28,7 +32,7 @@ async def health_check():
         health_status["status"] = "unhealthy"
 
     try:
-        await asyncio.wait_for(AuthService.get_public_key(), timeout=5.0)
+        await asyncio.wait_for(AuthenticationService.get_public_key(), timeout=5.0)
         health_status["checks"]["keycloak"] = "ok"
     except asyncio.TimeoutError:
         health_status["checks"]["keycloak"] = "error: request timeout"

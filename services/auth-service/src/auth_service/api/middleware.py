@@ -1,3 +1,5 @@
+"""Middleware de autenticação"""
+
 import logging
 from typing import Callable
 
@@ -9,7 +11,7 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp
 
 from auth_service.core.config import settings
-from auth_service.domain.services.auth_service import AuthService
+from auth_service.domain.services.authentication_service import AuthenticationService
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +29,13 @@ class KeycloakAuthMiddleware(BaseHTTPMiddleware):
         }
 
     def _is_public_path(self, path: str) -> bool:
+        """Verifica se o caminho é público."""
+
         return any(path.startswith(p) for p in self.public_paths)
 
     async def dispatch(self, request: Request, call_next: Callable):
+        """Middleware de autenticação."""
+
         if request.method == "OPTIONS":
             return await call_next(request)
 
@@ -45,7 +51,7 @@ class KeycloakAuthMiddleware(BaseHTTPMiddleware):
             token = auth_header.split(" ", 1)[1]
 
             try:
-                public_key = await AuthService.get_public_key()
+                public_key = await AuthenticationService.get_public_key()
 
                 payload = JwtHandler.decode_token(
                     token=token,
