@@ -73,7 +73,7 @@ export const authOptions: NextAuthOptions = {
                     let tokens: BackendLoginResponse;
                     try {
                         const response = await apiPost<BackendLoginResponse>(`/auth/login`, {
-                            username: credentials.email,
+                            email: credentials.email,
                             password: credentials.password,
                         }, false);
 
@@ -111,7 +111,7 @@ export const authOptions: NextAuthOptions = {
                     let userProfile: BackendUserResponse | null = null;
 
                     try {
-                        const meResp = await axiosAPI<BackendUserResponse>({ endpoint: '/auth/me', method: 'GET', withAuth: true, bearerToken: tokens.access_token });
+                        const meResp = await axiosAPI<BackendUserResponse>({ endpoint: '/users/me', method: 'GET', withAuth: true, bearerToken: tokens.access_token });
 
                         userProfile = meResp.data;
                     } catch {
