@@ -67,6 +67,58 @@ def _get_keycloak_admin() -> KeycloakAdmin:
 
 
 class AuthenticationService:
+
+    @staticmethod
+    def generate_reset_password_token(user_id: str, expiry_hours: int = 2) -> str:
+        """Gera token JWT para reset de senha."""
+        payload = {
+            "sub": user_id,
+            "iat": datetime.datetime.utcnow(),
+            "exp": datetime.datetime.utcnow() + timedelta(hours=expiry_hours),
+            "type": "reset_password",
+        }
+        return jwt.encode(payload, settings.EMAIL_TOKEN_SECRET, algorithm="HS256")
+
+    @staticmethod
+    def decode_reset_password_token(token: str) -> dict[str, Any]:
+        """Decodifica e valida token de reset de senha."""
+        try:
+            payload = JwtHandler.decode_email_token(
+                token=token,
+                secret_key=settings.EMAIL_TOKEN_SECRET,
+            )
+            if payload.get("type") != "reset_password":
+                raise InvalidTokenError("Tipo de token inválido para reset de senha.")
+            return payload
+        except CommonTokenExpiredError:
+            raise TokenExpiredError()
+        except Exception as e:
+            raise InvalidTokenError(str(e))
+
+    async def get_user_info_for_password_reset(self, email: str) -> dict[str, Any]:
+        """Obtém informações do usuário para reset de senha. Lança erro se não existir."""
+        user = await self._user_repo.get_by_email(email)
+        if not user:
+            logger.warning(f"Tentativa de reset para email não encontrado: {email}")
+            raise UserNotFoundError(email)
+        return {
+            "user_id": str(user.keycloak_id),
+            "email": str(user.email),
+            "name": user.first_name or user.username,
+        }
+
+    async def reset_user_password(self, user_id: str, new_password: str) -> None:
+        """Atualiza a senha do usuário no Keycloak."""
+        try:
+            keycloak_admin = _get_keycloak_admin()
+            await run_in_threadpool(
+                keycloak_admin.set_user_password, user_id, new_password, False
+            )
+            logger.info(f"Senha redefinida para usuário {user_id}")
+        except Exception as e:
+            logger.error(f"Erro ao redefinir senha para usuário {user_id}: {e}")
+            raise AppException("Erro ao redefinir senha. Tente novamente.")
+
     """Serviço para operações de autenticação com injeção de dependência."""
 
     _public_key_cache: Optional[str] = None
