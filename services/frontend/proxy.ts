@@ -10,6 +10,10 @@ export async function proxy(req: NextRequest) {
 
     const { pathname, searchParams } = req.nextUrl;
 
+    if (pathname.startsWith("/reset-password")) {
+        return NextResponse.next();
+    }
+
     if (token) {
         if (pathname.startsWith("/auth") || pathname === "/verify") {
             return NextResponse.redirect(new URL("/", req.url));

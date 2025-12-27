@@ -4,10 +4,14 @@ import logging
 from typing import Any, Optional, Sequence
 from uuid import UUID
 
+from fastapi import UploadFile
+
+from auth_service.core.config import settings
 from auth_service.core.exceptions import UsernameAlreadyInUseError, UserNotFoundError
 from auth_service.domain.interfaces.external_services import IKeycloakService
 from auth_service.domain.interfaces.repositories import IUserRepository
 from auth_service.infrastructure.database.models.user_model import User
+from auth_service.utils.upload_image import upload_image
 
 logger = logging.getLogger(__name__)
 
@@ -92,14 +96,19 @@ class UserService:
         logger.info(f"Novo usuário criado: {created_user.email}")
         return created_user
 
-    async def delete_user(self, user_id: UUID) -> bool:
-        """Deleta um usuário por ID."""
+    async def suspend_user(self, user_id: UUID) -> None:
+        """Suspende um usuário por ID."""
 
-        success = await self._user_repo.delete(user_id)
-        if success:
+        try:
+            user = await self._user_repo.suspend(user_id)
+            if user is None:
+                raise UserNotFoundError(str(user_id))
+
             await self._user_repo.commit()
-            logger.info(f"Usuário {user_id} deletado")
-        return success
+
+        except Exception:
+            await self._user_repo.rollback()
+            raise
 
     async def is_user_active(self, user_id: UUID) -> bool:
         """Verifica se o usuário está ativo."""
@@ -113,7 +122,7 @@ class UserService:
         first_name: Optional[str] = None,
         last_name: Optional[str] = None,
         username: Optional[str] = None,
-        avatar_url: Optional[str] = None,
+        avatar: Optional[UploadFile] = None,
     ) -> User:
         """Atualiza perfil do usuário no Keycloak e banco de dados local."""
 
@@ -148,7 +157,18 @@ class UserService:
             updates_keycloak["username"] = username
             updates_db["username"] = username
 
-        if avatar_url is not None:
+        if avatar:
+            result = upload_image(
+                avatar,
+                user_id=user.keycloak_id,
+                aws_access_key_id=settings.AWS_BUCKET_ACCESS_KEY_ID,
+                aws_secret_access_key=settings.AWS_BUCKET_SECRET_ACCESS_KEY,
+                aws_region=settings.AWS_BUCKET_REGION,
+                aws_bucket=settings.AWS_BUCKET_NAME,
+                prefix="avatars",
+            )
+
+            avatar_url = result["url"]
             updates_db["avatar_url"] = avatar_url
             if "attributes" not in updates_keycloak:
                 updates_keycloak["attributes"] = {}

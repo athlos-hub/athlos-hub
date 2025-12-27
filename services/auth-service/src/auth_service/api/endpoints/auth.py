@@ -13,7 +13,9 @@ from auth_service.schemas.auth import (
     LoginRequest,
     LogoutRequest,
     RefreshTokenRequest,
+    RequestResetPasswordEmail,
     ResendEmailRequest,
+    ResetPasswordRequest,
     TokenResponse,
 )
 
@@ -161,6 +163,63 @@ async def resend_verification_email(
         "success": True,
         "message": "Link de verificação reenviado com sucesso.",
     }
+
+
+@router.post("/request-reset-password")
+async def request_reset_password(
+    auth_service: AuthenticationServiceDep,
+    payload: RequestResetPasswordEmail,
+    background: BackgroundTasks,
+):
+    """Solicita reset de senha: envia email com link de redefinição."""
+
+    try:
+        user_info = await auth_service.get_user_info_for_password_reset(payload.email)
+    except Exception as e:
+        from fastapi import HTTPException
+
+        from auth_service.core.exceptions import UserNotFoundError
+
+        if isinstance(e, UserNotFoundError):
+            raise HTTPException(
+                status_code=404, detail="Usuário não encontrado para este email."
+            )
+        raise
+    token = AuthenticationService.generate_reset_password_token(user_info["user_id"])
+    reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+    MailService.send_email_background(
+        background,
+        to=user_info["email"],
+        subject="Redefinição de senha - AthlosHub",
+        template_name="reset_password.html",
+        context={
+            "name": user_info["name"],
+            "reset_link": reset_link,
+            "expiry_hours": 2,
+            "company_name": "AthlosHub",
+            "support_email": "suporte@athloshub.com.br",
+            "logo_url": "https://upload.wikimedia.org/wikipedia/commons/3/36/Logo_nike_principal.jpg",
+        },
+    )
+    logger.info(f"Email de reset de senha enviado para: {user_info['email']}")
+    return {
+        "success": True,
+        "message": "Um link de redefinição foi enviado para o email.",
+    }
+
+
+@router.post("/reset-password/{token}")
+async def reset_password(
+    auth_service: AuthenticationServiceDep,
+    token: str,
+    payload: ResetPasswordRequest,
+):
+    """Recebe nova senha e token, redefine senha no Keycloak."""
+
+    user_id = AuthenticationService.decode_reset_password_token(token)["sub"]
+    await auth_service.reset_user_password(user_id, payload.new_password)
+    logger.info(f"Senha redefinida para usuário: {user_id}")
+    return {"success": True, "message": "Senha redefinida com sucesso."}
 
 
 @router.get("/google/url")
