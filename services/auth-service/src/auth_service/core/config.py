@@ -91,3 +91,7 @@ class Settings(BaseSettings):
 
 
 settings = Settings()  # type: ignore
+
+
+print("SETTINGS ID:", id(settings))
+print("KEYCLOAK_URL:", settings.KEYCLOAK_URL)
