@@ -2,9 +2,9 @@ import boto3
 from uuid import uuid4
 from fastapi import UploadFile
 
-def upload_file(file: UploadFile, aws_access_key_id, aws_secret_access_key, aws_region, aws_bucket):
+def upload_file(file: UploadFile, aws_access_key_id, aws_secret_access_key, aws_region, aws_bucket, prefix):
 
-    file_key = f"media/{uuid4()}_{file.filename}"
+    file_key = f"{prefix}{uuid4()}_{file.filename}"
 
     s3 = boto3.client(
         "s3",

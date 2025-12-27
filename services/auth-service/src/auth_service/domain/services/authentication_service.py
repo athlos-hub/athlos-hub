@@ -7,7 +7,6 @@ from datetime import timedelta
 from typing import Any, Optional
 from urllib.parse import urlencode
 
-import boto3
 from common.exceptions import AppException
 from common.exceptions import InvalidCredentialsError as CommonInvalidCredentialsError
 from common.exceptions import TokenExpiredError as CommonTokenExpiredError
@@ -18,7 +17,6 @@ from jose import jwt
 from keycloak import KeycloakAdmin, KeycloakOpenID
 from keycloak.exceptions import KeycloakAuthenticationError, KeycloakPostError
 from sqlalchemy.exc import IntegrityError
-from upload_s3.main import upload_file
 
 from auth_service.core.config import settings
 from auth_service.core.exceptions import (
@@ -42,6 +40,7 @@ from auth_service.core.exceptions import (
 from auth_service.domain.interfaces.repositories import IUserRepository
 from auth_service.infrastructure.database.models.user_model import User
 from auth_service.schemas.auth import KeycloakTokenResponse, TokenResponse
+from auth_service.utils.upload_image import upload_image
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +67,58 @@ def _get_keycloak_admin() -> KeycloakAdmin:
 
 
 class AuthenticationService:
+
+    @staticmethod
+    def generate_reset_password_token(user_id: str, expiry_hours: int = 2) -> str:
+        """Gera token JWT para reset de senha."""
+        payload = {
+            "sub": user_id,
+            "iat": datetime.datetime.utcnow(),
+            "exp": datetime.datetime.utcnow() + timedelta(hours=expiry_hours),
+            "type": "reset_password",
+        }
+        return jwt.encode(payload, settings.EMAIL_TOKEN_SECRET, algorithm="HS256")
+
+    @staticmethod
+    def decode_reset_password_token(token: str) -> dict[str, Any]:
+        """Decodifica e valida token de reset de senha."""
+        try:
+            payload = JwtHandler.decode_email_token(
+                token=token,
+                secret_key=settings.EMAIL_TOKEN_SECRET,
+            )
+            if payload.get("type") != "reset_password":
+                raise InvalidTokenError("Tipo de token inválido para reset de senha.")
+            return payload
+        except CommonTokenExpiredError:
+            raise TokenExpiredError()
+        except Exception as e:
+            raise InvalidTokenError(str(e))
+
+    async def get_user_info_for_password_reset(self, email: str) -> dict[str, Any]:
+        """Obtém informações do usuário para reset de senha. Lança erro se não existir."""
+        user = await self._user_repo.get_by_email(email)
+        if not user:
+            logger.warning(f"Tentativa de reset para email não encontrado: {email}")
+            raise UserNotFoundError(email)
+        return {
+            "user_id": str(user.keycloak_id),
+            "email": str(user.email),
+            "name": user.first_name or user.username,
+        }
+
+    async def reset_user_password(self, user_id: str, new_password: str) -> None:
+        """Atualiza a senha do usuário no Keycloak."""
+        try:
+            keycloak_admin = _get_keycloak_admin()
+            await run_in_threadpool(
+                keycloak_admin.set_user_password, user_id, new_password, False
+            )
+            logger.info(f"Senha redefinida para usuário {user_id}")
+        except Exception as e:
+            logger.error(f"Erro ao redefinir senha para usuário {user_id}: {e}")
+            raise AppException("Erro ao redefinir senha. Tente novamente.")
+
     """Serviço para operações de autenticação com injeção de dependência."""
 
     _public_key_cache: Optional[str] = None
@@ -388,13 +439,14 @@ class AuthenticationService:
             avatar_url = None
             if avatar:
                 try:
-                    result = self.upload_avatar(
+                    result = upload_image(
                         avatar,
                         user_id=new_user_id,
                         aws_access_key_id=settings.AWS_BUCKET_ACCESS_KEY_ID,
                         aws_secret_access_key=settings.AWS_BUCKET_SECRET_ACCESS_KEY,
                         aws_region=settings.AWS_BUCKET_REGION,
                         aws_bucket=settings.AWS_BUCKET_NAME,
+                        prefix="avatars",
                     )
                     avatar_url = result["url"]
 
@@ -720,61 +772,6 @@ class AuthenticationService:
         except Exception as e:
             logger.error(f"Erro ao obter roles do Keycloak: {e}")
             raise AppException("Não foi possível obter os perfis do usuário")
-
-    @staticmethod
-    def upload_avatar(
-        file: UploadFile,
-        user_id: str,
-        aws_access_key_id: str,
-        aws_secret_access_key: str,
-        aws_region: str,
-        aws_bucket: str,
-    ) -> dict[str, str]:
-        """Faz upload do avatar do usuário para o S3."""
-
-        allowed_types = {
-            "image/jpeg",
-            "image/png",
-            "image/gif",
-            "image/webp",
-            "image/jpg",
-        }
-        if file.content_type not in allowed_types:
-            raise AvatarUploadError("Tipo de arquivo não permitido. Use apenas imagens")
-
-        file.file.seek(0, 2)
-        file_size = file.file.tell()
-        file.file.seek(0)
-
-        if file_size > 5 * 1024 * 1024:
-            raise AvatarUploadError("Arquivo muito grande. Máximo: 5MB")
-
-        s3 = boto3.client(
-            "s3",
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
-            region_name=aws_region,
-        )
-
-        try:
-            response = s3.list_objects_v2(
-                Bucket=aws_bucket, Prefix=f"avatars/{user_id}/"
-            )
-            if "Contents" in response:
-                for obj in response["Contents"]:
-                    s3.delete_object(Bucket=aws_bucket, Key=obj["Key"])
-        except Exception:
-            pass
-
-        result = upload_file(
-            file,
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
-            aws_region=aws_region,
-            aws_bucket=aws_bucket,
-        )
-
-        return result
 
     @staticmethod
     def get_google_auth_url() -> str:

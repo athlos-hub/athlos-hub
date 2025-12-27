@@ -138,10 +138,16 @@ export default function LoginPage() {
         </button>
       </form>
 
-      <span className="text-[#7C838A]">
-        Não tem conta?{" "}
-        <Link href="/auth/cadastro" className="text-main hover:underline">
-          Cadastre-se
+
+      <span className="text-[#7C838A] flex flex-col gap-1 items-center">
+        <span>
+          Não tem conta?{" "}
+          <Link href="/auth/cadastro" className="text-main hover:underline">
+            Cadastre-se
+          </Link>
+        </span>
+        <Link href="/auth/login/forgot-password" className="text-main hover:underline text-sm mt-2">
+          Esqueci minha senha
         </Link>
       </span>
 

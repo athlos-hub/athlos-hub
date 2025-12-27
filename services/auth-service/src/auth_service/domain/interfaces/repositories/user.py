@@ -47,6 +47,6 @@ class IUserRepository(IBaseRepository):
         ...
 
     @abstractmethod
-    async def delete(self, user_id: UUID) -> bool:
-        """Deleta usuário por ID."""
+    async def suspend(self, user_id: UUID) -> bool:
+        """Suspende usuário por ID."""
         ...

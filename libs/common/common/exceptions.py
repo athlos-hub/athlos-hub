@@ -9,17 +9,17 @@ class AppException(Exception):
         super().__init__(self.message)
 
 class InvalidCredentialsError(AppException):
-    def __init__(self):
+    def __init__(self, message: str = "Email ou senha incorretos"):
         super().__init__(
-            message="Email ou senha incorretos",
+            message=message,
             status_code=status.HTTP_401_UNAUTHORIZED,
             code="INVALID_CREDENTIALS"
         )
 
 class TokenExpiredError(AppException):
-    def __init__(self):
+    def __init__(self, message: str = "Token expirado"):
         super().__init__(
-            message="Token expirado",
+            message=message,
             status_code=status.HTTP_401_UNAUTHORIZED,
             code="TOKEN_EXPIRED"
         )

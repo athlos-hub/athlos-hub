@@ -7,8 +7,6 @@ from uuid import UUID
 from fastapi import APIRouter, File, Form, UploadFile, status
 
 from auth_service.api.deps import CurrentUserDep, OrganizationServiceDep, UserServiceDep
-from auth_service.core.config import settings
-from auth_service.domain.services.authentication_service import AuthenticationService
 from auth_service.schemas.user import UserPublic
 
 logger = logging.getLogger(__name__)
@@ -43,24 +41,12 @@ async def update_user_info(
 ):
     """Atualiza informações do usuário atual."""
 
-    avatar_url = None
-    if avatar:
-        result = AuthenticationService.upload_avatar(
-            avatar,
-            user_id=user.keycloak_id,
-            aws_access_key_id=settings.AWS_BUCKET_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_BUCKET_SECRET_ACCESS_KEY,
-            aws_region=settings.AWS_BUCKET_REGION,
-            aws_bucket=settings.AWS_BUCKET_NAME,
-        )
-        avatar_url = result["url"]
-
     updated_user = await user_service.update_user_profile(
         user=user,
         first_name=first_name,
         last_name=last_name,
         username=username,
-        avatar_url=avatar_url,
+        avatar=avatar,
     )
 
     logger.info(f"Usuário {user.id} atualizou seu perfil")
