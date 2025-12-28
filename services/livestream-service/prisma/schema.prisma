@@ -4,4 +4,27 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  schemas  = ["livestream_schema"]
+}
+
+enum LiveStatus {
+  scheduled
+  live
+  finished
+  cancelled
+
+  @@schema("livestream_schema")
+}
+
+model Live {
+  id              String     @id @default(uuid())
+  externalMatchId String     @unique @map("external_match_id")
+  organizationId  String     @map("organization_id")
+  streamKey       String     @map("stream_key")
+  status          LiveStatus @default(scheduled)
+  startedAt       DateTime?  @map("started_at")
+  endedAt         DateTime?  @map("ended_at")
+  createdAt       DateTime   @default(now()) @map("created_at")
+
+  @@schema("livestream_schema")
 }

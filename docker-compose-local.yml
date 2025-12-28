@@ -49,6 +49,15 @@ services:
       retries: 5
       start_period: 60s
 
+  mediamtx:
+    container_name: sports_livestream_mtx
+    image: bluenviron/mediamtx:1-ffmpeg
+    ports:
+      - "1935:1935"
+      - "8888:8888"
+    networks:
+      - sports-local-network
+
 volumes:
   postgres_local_data: {}
 
