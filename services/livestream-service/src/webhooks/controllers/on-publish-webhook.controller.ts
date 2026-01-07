@@ -24,22 +24,22 @@ export class OnPublishWebhookController {
       const streamKey = dto.path.replace(/^\//, '');
 
       if (!streamKey) {
-        this.logger.warn('Empty stream key received');
+        this.logger.warn('Stream key vazia recebida');
         throw new BadRequestException('Stream key is required');
       }
 
       const liveId = await this.validateStreamKeyService.execute(streamKey);
 
-      this.logger.log(`Stream publish accepted for live ${liveId} with key ${streamKey}`);
+      this.logger.log(`Publicação de stream aceita para live ${liveId} com key ${streamKey}`);
 
       return;
     } catch (error) {
       if (error instanceof UnauthorizedException) {
-        this.logger.warn(`Stream publish rejected: ${error.message}`);
+        this.logger.warn(`Publicação de stream rejeitada: ${error.message}`);
         throw error;
       }
 
-      this.logger.error('Error processing onPublish webhook', error);
+      this.logger.error('Erro ao processar webhook onPublish', error);
       throw error;
     }
   }
