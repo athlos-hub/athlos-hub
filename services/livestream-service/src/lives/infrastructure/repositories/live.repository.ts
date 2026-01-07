@@ -38,4 +38,16 @@ export class LiveRepository implements ILiveRepository {
     });
     return LiveMapper.toDomain(prismaLive);
   }
+
+  async save(live: Live): Promise<Live> {
+    const prismaLive = await this.prisma.live.update({
+      where: { id: live.id },
+      data: {
+        status: LiveMapper.toPrisma(live.status),
+        startedAt: live.startedAt,
+        endedAt: live.endedAt,
+      },
+    });
+    return LiveMapper.toDomain(prismaLive);
+  }
 }
