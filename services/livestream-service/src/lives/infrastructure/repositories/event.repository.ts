@@ -4,6 +4,7 @@ import { IEventRepository } from '../../domain/repositories/event.interface.js';
 import { MatchEvent } from '../../domain/entities/match-event.entity.js';
 import { MatchEventType } from '../../domain/enums/match-event-type.enum.js';
 import { EventTimestamp } from '../../domain/value-objects/event-timestamp.vo.js';
+import { EventPostgresRepository } from './event-postgres.repository.js';
 import type { Redis } from 'ioredis';
 
 interface EventPayload {
@@ -25,7 +26,10 @@ export class EventRepository implements IEventRepository, OnModuleDestroy {
   private subscriber: Redis | null = null;
   private subscriptions = new Map<string, (event: MatchEvent) => void>();
 
-  constructor(private redisService: RedisService) {}
+  constructor(
+    private redisService: RedisService,
+    private postgresRepository: EventPostgresRepository,
+  ) {}
 
   async publishEvent(event: MatchEvent): Promise<void> {
     const redis = this.redisService.getClient();
@@ -42,6 +46,8 @@ export class EventRepository implements IEventRepository, OnModuleDestroy {
     await redis.publish(channel, JSON.stringify(payload));
 
     await this.saveEventToHistory(event);
+
+    await this.postgresRepository.save(event);
 
     this.logger.log(`Evento ${event.type} publicado no canal ${channel} para live ${event.liveId}`);
   }

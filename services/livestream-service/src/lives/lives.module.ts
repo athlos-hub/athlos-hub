@@ -21,6 +21,7 @@ import { LiveRepository } from './infrastructure/repositories/live.repository.js
 import { StreamKeyRepository } from './infrastructure/repositories/stream-key.repository.js';
 import { ChatRepository } from './infrastructure/repositories/chat.repository.js';
 import { EventRepository } from './infrastructure/repositories/event.repository.js';
+import { EventPostgresRepository } from './infrastructure/repositories/event-postgres.repository.js';
 import { ConfigModule } from '@nestjs/config';
 
 @Module({
@@ -40,6 +41,7 @@ import { ConfigModule } from '@nestjs/config';
     StreamKeyRepository,
     ChatRepository,
     EventRepository,
+    EventPostgresRepository,
     LiveGateway,
     {
       provide: 'ILiveRepository',
@@ -108,6 +110,7 @@ import { ConfigModule } from '@nestjs/config';
     StreamKeyRepository,
     ChatRepository,
     EventRepository,
+    EventPostgresRepository,
     LiveGateway,
   ],
 })
