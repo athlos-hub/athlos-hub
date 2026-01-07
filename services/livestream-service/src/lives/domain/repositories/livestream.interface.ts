@@ -11,6 +11,12 @@ export interface ILiveRepository {
 
   findById(id: string): Promise<Live | null>;
 
+  findMany(filters?: {
+    status?: LiveStatus;
+    organizationId?: string;
+    externalMatchId?: string;
+  }): Promise<Live[]>;
+
   updateStatus(id: string, status: LiveStatus): Promise<Live>;
 
   save(live: Live): Promise<Live>;
