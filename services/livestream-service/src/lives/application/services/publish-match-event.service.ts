@@ -1,20 +1,24 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import type { ILiveRepository } from '../../domain/repositories/livestream.interface.js';
-import { LiveGateway } from '../../presentation/gateways/live.gateway.js';
+import type { IEventRepository } from '../../domain/repositories/event.interface.js';
+import { MatchEvent } from '../../domain/entities/match-event.entity.js';
+import { MatchEventType } from '../../domain/enums/match-event-type.enum.js';
+import { randomUUID } from 'node:crypto';
 
 @Injectable()
 export class PublishMatchEventService {
   constructor(
     @Inject('ILiveRepository')
     private liveRepo: ILiveRepository,
-    private liveGateway: LiveGateway,
+    @Inject('IEventRepository')
+    private eventRepo: IEventRepository,
   ) {}
 
   async execute(
     liveId: string,
-    eventType: string,
-    eventData: Record<string, unknown>,
-  ): Promise<void> {
+    eventType: MatchEventType,
+    payload: Record<string, unknown>,
+  ): Promise<MatchEvent> {
     const live = await this.liveRepo.findById(liveId);
 
     if (!live) {
@@ -22,13 +26,15 @@ export class PublishMatchEventService {
     }
 
     if (!live.isLive()) {
-      throw new NotFoundException(`Live ${liveId} não está ativa no momento`);
+      throw new BadRequestException(
+        `Não é possível publicar eventos para live ${liveId} - status atual: ${live.status}`,
+      );
     }
 
-    this.liveGateway.emitMatchEvent(liveId, {
-      eventType,
-      ...eventData,
-      timestamp: new Date(),
-    });
+    const event = MatchEvent.create(randomUUID(), liveId, eventType, payload);
+
+    await this.eventRepo.publishEvent(event);
+
+    return event;
   }
 }
