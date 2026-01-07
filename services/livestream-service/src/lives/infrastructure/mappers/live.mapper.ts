@@ -24,6 +24,9 @@ export class LiveMapper {
       prismaLive.organizationId,
       prismaLive.streamKey,
       this.statusToDomain[prismaLive.status],
+      prismaLive.startedAt,
+      prismaLive.endedAt,
+      prismaLive.createdAt,
     );
   }
 

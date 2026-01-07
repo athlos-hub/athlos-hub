@@ -12,4 +12,6 @@ export interface ILiveRepository {
   findById(id: string): Promise<Live | null>;
 
   updateStatus(id: string, status: LiveStatus): Promise<Live>;
+
+  save(live: Live): Promise<Live>;
 }
