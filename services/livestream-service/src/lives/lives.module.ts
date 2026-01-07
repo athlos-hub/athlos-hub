@@ -6,12 +6,14 @@ import { CancelLiveService } from './application/services/cancel-live.service.js
 import { GetLiveByIdService } from './application/services/get-live-by-id.service.js';
 import { ListLivesService } from './application/services/list-lives.service.js';
 import { ChatService } from './application/services/chat.service.js';
+import { PublishMatchEventService } from './application/services/publish-match-event.service.js';
 import { CreateLiveController } from './presentation/controllers/create-livestream.controller.js';
 import { StartLiveController } from './presentation/controllers/start-live.controller.js';
 import { FinishLiveController } from './presentation/controllers/finish-live.controller.js';
 import { CancelLiveController } from './presentation/controllers/cancel-live.controller.js';
 import { GetLiveByIdController } from './presentation/controllers/get-live-by-id.controller.js';
 import { ListLivesController } from './presentation/controllers/list-lives.controller.js';
+import { PublishMatchEventController } from './presentation/controllers/publish-match-event.controller.js';
 import { LiveGateway } from './presentation/gateways/live.gateway.js';
 import { LiveRepository } from './infrastructure/repositories/live.repository.js';
 import { StreamKeyRepository } from './infrastructure/repositories/stream-key.repository.js';
@@ -27,6 +29,7 @@ import { ConfigModule } from '@nestjs/config';
     CancelLiveController,
     GetLiveByIdController,
     ListLivesController,
+    PublishMatchEventController,
   ],
   providers: [
     LiveRepository,
@@ -73,6 +76,10 @@ import { ConfigModule } from '@nestjs/config';
       provide: ChatService,
       useClass: ChatService,
     },
+    {
+      provide: PublishMatchEventService,
+      useClass: PublishMatchEventService,
+    },
   ],
   exports: [
     CreateLiveService,
@@ -82,6 +89,7 @@ import { ConfigModule } from '@nestjs/config';
     GetLiveByIdService,
     ListLivesService,
     ChatService,
+    PublishMatchEventService,
     LiveRepository,
     StreamKeyRepository,
     ChatRepository,
