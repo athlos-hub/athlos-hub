@@ -21,11 +21,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.client.on('error', (err) => {
-      this.logger.error('Redis Client Error', err);
+      this.logger.error('Erro no cliente Redis', err);
     });
 
     this.client.on('connect', () => {
-      this.logger.log('Redis Client Connected');
+      this.logger.log('Cliente Redis conectado');
     });
   }
 
