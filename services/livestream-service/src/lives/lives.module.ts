@@ -6,6 +6,7 @@ import { CreateLiveController } from './presentation/controllers/create-livestre
 import { StartLiveController } from './presentation/controllers/start-live.controller.js';
 import { FinishLiveController } from './presentation/controllers/finish-live.controller.js';
 import { LiveRepository } from './infrastructure/repositories/live.repository.js';
+import { StreamKeyRepository } from './infrastructure/repositories/stream-key.repository.js';
 import { ConfigModule } from '@nestjs/config';
 
 @Module({
@@ -13,9 +14,14 @@ import { ConfigModule } from '@nestjs/config';
   controllers: [CreateLiveController, StartLiveController, FinishLiveController],
   providers: [
     LiveRepository,
+    StreamKeyRepository,
     {
       provide: 'ILiveRepository',
       useExisting: LiveRepository,
+    },
+    {
+      provide: 'IStreamKeyRepository',
+      useExisting: StreamKeyRepository,
     },
     {
       provide: CreateLiveService,
@@ -30,6 +36,12 @@ import { ConfigModule } from '@nestjs/config';
       useClass: FinishLiveService,
     },
   ],
-  exports: [CreateLiveService, StartLiveService, FinishLiveService, LiveRepository],
+  exports: [
+    CreateLiveService,
+    StartLiveService,
+    FinishLiveService,
+    LiveRepository,
+    StreamKeyRepository,
+  ],
 })
 export class LivesModule {}
