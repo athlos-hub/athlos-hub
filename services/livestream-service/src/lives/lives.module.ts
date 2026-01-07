@@ -5,6 +5,7 @@ import { FinishLiveService } from './application/services/finish-live.service.js
 import { CancelLiveService } from './application/services/cancel-live.service.js';
 import { GetLiveByIdService } from './application/services/get-live-by-id.service.js';
 import { ListLivesService } from './application/services/list-lives.service.js';
+import { ChatService } from './application/services/chat.service.js';
 import { CreateLiveController } from './presentation/controllers/create-livestream.controller.js';
 import { StartLiveController } from './presentation/controllers/start-live.controller.js';
 import { FinishLiveController } from './presentation/controllers/finish-live.controller.js';
@@ -14,6 +15,7 @@ import { ListLivesController } from './presentation/controllers/list-lives.contr
 import { LiveGateway } from './presentation/gateways/live.gateway.js';
 import { LiveRepository } from './infrastructure/repositories/live.repository.js';
 import { StreamKeyRepository } from './infrastructure/repositories/stream-key.repository.js';
+import { ChatRepository } from './infrastructure/repositories/chat.repository.js';
 import { ConfigModule } from '@nestjs/config';
 
 @Module({
@@ -29,6 +31,7 @@ import { ConfigModule } from '@nestjs/config';
   providers: [
     LiveRepository,
     StreamKeyRepository,
+    ChatRepository,
     LiveGateway,
     {
       provide: 'ILiveRepository',
@@ -37,6 +40,10 @@ import { ConfigModule } from '@nestjs/config';
     {
       provide: 'IStreamKeyRepository',
       useExisting: StreamKeyRepository,
+    },
+    {
+      provide: 'IChatRepository',
+      useExisting: ChatRepository,
     },
     {
       provide: CreateLiveService,
@@ -62,6 +69,10 @@ import { ConfigModule } from '@nestjs/config';
       provide: ListLivesService,
       useClass: ListLivesService,
     },
+    {
+      provide: ChatService,
+      useClass: ChatService,
+    },
   ],
   exports: [
     CreateLiveService,
@@ -70,8 +81,10 @@ import { ConfigModule } from '@nestjs/config';
     CancelLiveService,
     GetLiveByIdService,
     ListLivesService,
+    ChatService,
     LiveRepository,
     StreamKeyRepository,
+    ChatRepository,
     LiveGateway,
   ],
 })
