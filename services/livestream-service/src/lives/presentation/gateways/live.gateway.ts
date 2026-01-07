@@ -11,6 +11,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { Inject, Logger } from '@nestjs/common';
 import type { IChatRepository } from '../../domain/repositories/chat.interface.js';
+import type { IEventRepository } from '../../domain/repositories/event.interface.js';
 
 interface JoinLiveRoomPayload {
   liveId: string;
@@ -39,6 +40,8 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   constructor(
     @Inject('IChatRepository')
     private chatRepo: IChatRepository,
+    @Inject('IEventRepository')
+    private eventRepo: IEventRepository,
   ) {}
 
   afterInit() {
@@ -66,8 +69,15 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
     if (!this.activeRooms.has(liveId)) {
       await this.subscribeToLiveChat(liveId);
+      await this.subscribeToLiveEvents(liveId);
       this.activeRooms.add(liveId);
     }
+
+    const recentEvents = await this.eventRepo.getRecentEvents(liveId, 50);
+    client.emit(
+      'events-history',
+      recentEvents.map((e) => e.toJSON()),
+    );
 
     return {
       event: 'joined-live',
@@ -89,6 +99,7 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     const roomSize = (await this.server.in(room).fetchSockets()).length;
     if (roomSize === 0 && this.activeRooms.has(liveId)) {
       await this.chatRepo.unsubscribe(liveId);
+      await this.eventRepo.unsubscribe(liveId);
       this.activeRooms.delete(liveId);
     }
 
@@ -128,6 +139,16 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     });
   }
 
+  private async subscribeToLiveEvents(liveId: string) {
+    await this.eventRepo.subscribe(liveId, (event) => {
+      const room = `live:${liveId}`;
+
+      this.server.to(room).emit('match-event', event.toJSON());
+
+      this.logger.log(`Evento ${event.type} transmitido para sala ${room}`);
+    });
+  }
+
   emitLiveEvent(liveId: string, eventType: string, data: unknown) {
     const room = `live:${liveId}`;
 
@@ -142,9 +163,5 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   emitLiveStatusChange(liveId: string, status: string) {
     this.emitLiveEvent(liveId, 'status-change', { status });
-  }
-
-  emitMatchEvent(liveId: string, eventData: unknown) {
-    this.emitLiveEvent(liveId, 'match-event', eventData);
   }
 }
