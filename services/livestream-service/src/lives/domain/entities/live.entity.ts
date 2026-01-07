@@ -2,10 +2,6 @@ import { LiveStatus } from '../enums/live-status.enum.js';
 import { InvalidLiveTransitionException } from '../exceptions/invalid-live-transition.exception.js';
 import { LiveAlreadyFinishedException } from '../exceptions/live-already-finished.exception.js';
 
-/**
- * Live Aggregate Root
- * Represents a livestream with all its business rules and invariants
- */
 export class Live {
   private _id: string;
   private _externalMatchId: string;
@@ -36,7 +32,6 @@ export class Live {
     this._createdAt = createdAt;
   }
 
-  // Getters
   get id(): string {
     return this._id;
   }
@@ -69,13 +64,6 @@ export class Live {
     return this._createdAt;
   }
 
-  // Business methods
-
-  /**
-   * Start the live (scheduled → live)
-   * @throws InvalidLiveTransitionException if current status is not SCHEDULED
-   * @throws LiveAlreadyFinishedException if live is already finished or cancelled
-   */
   start(): void {
     this.ensureNotFinished();
 
@@ -87,10 +75,6 @@ export class Live {
     this._startedAt = new Date();
   }
 
-  /**
-   * Finish the live (live → finished)
-   * @throws InvalidLiveTransitionException if current status is not LIVE
-   */
   finish(): void {
     if (this._status !== LiveStatus.LIVE) {
       throw new InvalidLiveTransitionException(this._status, LiveStatus.FINISHED);
@@ -100,10 +84,6 @@ export class Live {
     this._endedAt = new Date();
   }
 
-  /**
-   * Cancel the live (scheduled → cancelled)
-   * @throws InvalidLiveTransitionException if current status is not SCHEDULED
-   */
   cancel(): void {
     if (this._status !== LiveStatus.SCHEDULED) {
       throw new InvalidLiveTransitionException(this._status, LiveStatus.CANCELLED);
@@ -113,23 +93,14 @@ export class Live {
     this._endedAt = new Date();
   }
 
-  /**
-   * Check if the live is active (currently streaming)
-   */
   isLive(): boolean {
     return this._status === LiveStatus.LIVE;
   }
 
-  /**
-   * Check if the live is scheduled
-   */
   isScheduled(): boolean {
     return this._status === LiveStatus.SCHEDULED;
   }
 
-  /**
-   * Check if the live has ended (finished or cancelled)
-   */
   hasEnded(): boolean {
     return this._status === LiveStatus.FINISHED || this._status === LiveStatus.CANCELLED;
   }
