@@ -1,12 +1,14 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { ILiveRepository } from '../../domain/repositories/livestream.interface.js';
 import { Live } from '../../domain/entities/live.entity.js';
+import { LiveGateway } from '../../presentation/gateways/live.gateway.js';
 
 @Injectable()
 export class CancelLiveService {
   constructor(
     @Inject('ILiveRepository')
     private liveRepo: ILiveRepository,
+    private liveGateway: LiveGateway,
   ) {}
 
   async execute(liveId: string): Promise<Live> {
@@ -18,6 +20,10 @@ export class CancelLiveService {
 
     live.cancel();
 
-    return this.liveRepo.save(live);
+    const updatedLive = await this.liveRepo.save(live);
+
+    this.liveGateway.emitLiveStatusChange(liveId, 'cancelled');
+
+    return updatedLive;
   }
 }

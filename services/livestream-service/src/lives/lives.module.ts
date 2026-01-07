@@ -11,6 +11,7 @@ import { FinishLiveController } from './presentation/controllers/finish-live.con
 import { CancelLiveController } from './presentation/controllers/cancel-live.controller.js';
 import { GetLiveByIdController } from './presentation/controllers/get-live-by-id.controller.js';
 import { ListLivesController } from './presentation/controllers/list-lives.controller.js';
+import { LiveGateway } from './presentation/gateways/live.gateway.js';
 import { LiveRepository } from './infrastructure/repositories/live.repository.js';
 import { StreamKeyRepository } from './infrastructure/repositories/stream-key.repository.js';
 import { ConfigModule } from '@nestjs/config';
@@ -28,6 +29,7 @@ import { ConfigModule } from '@nestjs/config';
   providers: [
     LiveRepository,
     StreamKeyRepository,
+    LiveGateway,
     {
       provide: 'ILiveRepository',
       useExisting: LiveRepository,
@@ -70,6 +72,7 @@ import { ConfigModule } from '@nestjs/config';
     ListLivesService,
     LiveRepository,
     StreamKeyRepository,
+    LiveGateway,
   ],
 })
 export class LivesModule {}
