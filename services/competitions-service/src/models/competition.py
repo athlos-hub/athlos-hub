@@ -39,6 +39,9 @@ class CompetitionModel(Base):
     min_members_per_team: Mapped[int] = mapped_column(Integer, default=5)
     max_members_per_team: Mapped[int] = mapped_column(Integer, default=20)
     
+    teams_per_group: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    teams_qualified_per_group: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
     image: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     
     # Relacionamentos

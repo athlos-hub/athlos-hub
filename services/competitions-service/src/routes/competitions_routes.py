@@ -5,7 +5,7 @@ from typing import List
 # Ajuste o import do db conforme sua estrutura (src.core.client ou src.dependencies)
 from src.routes.routes import get_session
 from src.services.competitions_service import CompetitionService
-from src.services.competition_generator import StructureGeneratorService
+from src.services.competition_generator.competition_generator import StructureGeneratorService
 from src.schemas.competition_schema import (
     CompetitionCreate, 
     CompetitionResponse, 
