@@ -121,7 +121,7 @@ export default function PerfilPage() {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center py-16">
+            <div className="flex items-center justify-center">
                 <div className="text-lg text-gray-500">Carregando...</div>
             </div>
         );
@@ -132,7 +132,7 @@ export default function PerfilPage() {
     }
 
     return (
-        <div className="flex flex-col items-center justify-center gap-8 py-24 w-full max-w-[37.5rem] h-screen mx-auto">
+        <div className="flex flex-col items-center justify-center gap-8 w-full max-w-150 h-screen mx-auto">
             <h1 className="text-3xl font-bold">Meu Perfil</h1>
 
             <form onSubmit={handleSubmit(onSubmit)} className="w-full flex flex-col gap-8">

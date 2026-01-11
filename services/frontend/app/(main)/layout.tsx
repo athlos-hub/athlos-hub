@@ -10,7 +10,7 @@ interface MainLayoutProps {
 export default async function MainLayout({ children }: MainLayoutProps) {
     const session = await getServerSession(authOptions);
     return (
-        <div className="max-w-[80rem] mx-auto w-full px-[2.5rem]">
+        <div className="max-w-7xl mx-auto w-full py-32">
             <PlayerHeader session={session} />
             {children}
         </div>
