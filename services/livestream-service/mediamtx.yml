@@ -1,0 +1,18 @@
+logLevel: info
+
+api: yes
+apiAddress: :9997
+
+hls: yes
+hlsAddress: :8888
+hlsAlwaysRemux: yes
+hlsVariant: lowLatency
+hlsSegmentCount: 7
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
+
+externalAuthenticationURL: http://host.docker.internal:3333/webhooks/mediamtx-auth
+
+paths:
+  "~^live/.+$":
+    source: publisher

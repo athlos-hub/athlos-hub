@@ -53,13 +53,36 @@ services:
     container_name: sports_livestream_mtx
     image: bluenviron/mediamtx:1-ffmpeg
     ports:
-      - "1935:1935"
-      - "8888:8888"
+      - "1935:1935"    # RTMP
+      - "8888:8888"    # HLS
+      - "8889:8889"    # WebRTC
+      - "9997:9997"    # API
+    volumes:
+      - ./services/livestream-service/mediamtx.yml:/mediamtx.yml:ro
     networks:
       - sports-local-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  redis-local:
+    container_name: sports_redis_local
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_local_data:/data
+    networks:
+      - sports-local-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_local_data: {}
+  redis_local_data: {}
 
 networks:
   sports-local-network:

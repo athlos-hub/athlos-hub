@@ -15,7 +15,7 @@ export const dropdownData: Record<string, DropdownData> = {
                 label: "Jogos",
                 description: "Acompanhe jogos e resultados",
                 subItems: [
-                    { label: "Assistir ao Vivo", description: "Transmissões em tempo real", href: "/jogos/ao-vivo" },
+                    { label: "Assistir ao Vivo", description: "Transmissões em tempo real", href: "/jogos" },
                     { label: "Próximos Jogos", description: "Calendário de partidas", href: "/jogos/proximos" },
                     { label: "Resultados", description: "Histórico de resultados", href: "/jogos/resultados" },
                     { label: "Estatísticas", description: "Análise de desempenho", href: "/jogos/estatisticas" }

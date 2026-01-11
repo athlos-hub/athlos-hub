@@ -16,6 +16,7 @@ import { GetLiveByIdController } from './presentation/controllers/get-live-by-id
 import { ListLivesController } from './presentation/controllers/list-lives.controller.js';
 import { PublishMatchEventController } from './presentation/controllers/publish-match-event.controller.js';
 import { GetMatchEventsHistoryController } from './presentation/controllers/get-match-events-history.controller.js';
+import { GetChatHistoryController } from './presentation/controllers/get-chat-history.controller.js';
 import { LiveGateway } from './presentation/gateways/live.gateway.js';
 import { LiveRepository } from './infrastructure/repositories/live.repository.js';
 import { StreamKeyRepository } from './infrastructure/repositories/stream-key.repository.js';
@@ -35,6 +36,7 @@ import { ConfigModule } from '@nestjs/config';
     ListLivesController,
     PublishMatchEventController,
     GetMatchEventsHistoryController,
+    GetChatHistoryController,
   ],
   providers: [
     LiveRepository,
@@ -97,6 +99,10 @@ import { ConfigModule } from '@nestjs/config';
     },
   ],
   exports: [
+    'ILiveRepository',
+    'IStreamKeyRepository',
+    'IChatRepository',
+    'IEventRepository',
     CreateLiveService,
     StartLiveService,
     FinishLiveService,
