@@ -68,7 +68,7 @@ export default function ResetPasswordPage({ token, email }: ResetPasswordPagePro
 
   if (success) {
     return (
-      <div className="flex flex-col items-center max-w-[37.5rem] mx-auto min-h-screen justify-center py-36">
+      <div className="flex flex-col items-center max-w-150 mx-auto min-h-screen justify-center">
         <span className="text-2xl text-center font-medium text-green-600">Senha redefinida com sucesso!</span>
         <span>Redirecionando para login...</span>
       </div>
@@ -76,7 +76,7 @@ export default function ResetPasswordPage({ token, email }: ResetPasswordPagePro
   }
 
   return (
-    <div className="flex flex-col items-center max-w-[37.5rem] mx-auto min-h-screen justify-center py-36">
+    <div className="flex flex-col items-center max-w-150 mx-auto min-h-screen justify-center">
       <span className="text-2xl text-center font-medium mb-8">Redefinir senha</span>
       <form onSubmit={handleSubmit(onSubmit)} className="w-full flex flex-col gap-8">
         <div className="flex flex-col gap-4">

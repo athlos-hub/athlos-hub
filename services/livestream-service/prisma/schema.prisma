@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["livestream_schema"]
+}
+
+enum LiveStatus {
+  scheduled
+  live
+  finished
+  cancelled
+
+  @@schema("livestream_schema")
+}
+
+model Live {
+  id              String      @id @default(uuid())
+  externalMatchId String      @unique @map("external_match_id")
+  organizationId  String      @map("organization_id")
+  streamKey       String      @map("stream_key")
+  status          LiveStatus  @default(scheduled)
+  startedAt       DateTime?   @map("started_at")
+  endedAt         DateTime?   @map("ended_at")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  events          LiveEvent[]
+
+  @@index([organizationId])
+  @@schema("livestream_schema")
+}
+
+model LiveEvent {
+  id        String   @id @default(uuid())
+  liveId    String   @map("live_id")
+  type      String
+  payload   Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  live Live @relation(fields: [liveId], references: [id], onDelete: Cascade)
+
+  @@index([liveId])
+  @@index([liveId, createdAt])
+  @@schema("livestream_schema")
+}

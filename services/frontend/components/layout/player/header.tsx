@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { RiHome5Line } from "react-icons/ri";
 import { MdOutlineSportsBaseball } from "react-icons/md";
-import { LuBox } from "react-icons/lu";
+import { LuBox, LuTv } from "react-icons/lu";
 import { FiUsers } from "react-icons/fi";
 import { FaChevronDown } from "react-icons/fa6";
 import { dropdownData } from '@/data/dropdownData';
@@ -50,7 +50,7 @@ export default function PlayerHeader({ session }: PlayerHeaderProps) {
     return (
         <div className="w-full fixed top-0 left-0 z-50 bg-white shadow-md">
             <div className="w-full flex items-center justify-between py-4 bg-white">
-                <div className="max-w-[80rem] mx-auto w-full flex items-center justify-between">
+                <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
                     <Image
                         src="/logo.svg"
                         alt="Logo Oficial do AthlosHub"

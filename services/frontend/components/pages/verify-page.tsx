@@ -61,14 +61,14 @@ export default function VerifyEmailPage({ token, email }: VerifyEmailPageProps) 
 
     if (!token) {
         return (
-            <div className="min-h-screen flex items-center justify-center py-36">
+            <div className="min-h-screen flex items-center justify-center">
                 <div className="max-w-md w-full">
                     <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6 border border-gray-100">
                         <div className="flex justify-center">
                             <div className="relative">
                                 <div className="absolute inset-0 bg-blue-400 rounded-full blur-xl opacity-30 animate-pulse"></div>
                                 <div className="relative bg-main p-4 rounded-full">
-                                    <Mail className="w-12 h-12 text-[#fff]" strokeWidth={2} />
+                                    <Mail className="w-12 h-12 text-white" strokeWidth={2} />
                                 </div>
                             </div>
                         </div>
