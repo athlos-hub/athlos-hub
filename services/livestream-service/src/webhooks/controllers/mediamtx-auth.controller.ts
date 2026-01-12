@@ -7,11 +7,14 @@ import {
   Logger,
   UnauthorizedException,
   Headers,
+  UseGuards,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { MediaMTXAuthDto } from '../dto/mediamtx-auth.dto.js';
 import { ValidateStreamKeyService } from '../services/validate-stream-key.service.js';
 
 @Controller('webhooks')
+@UseGuards(ThrottlerGuard)
 export class MediaMTXAuthController {
   private readonly logger = new Logger(MediaMTXAuthController.name);
 
@@ -19,6 +22,7 @@ export class MediaMTXAuthController {
 
   @Post('mediamtx-auth')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ short: { limit: 10, ttl: 60000 } })
   async authenticate(
     @Body() dto: MediaMTXAuthDto,
     @Headers('authorization') authorization?: string,
