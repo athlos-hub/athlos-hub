@@ -10,6 +10,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Inject, Logger } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { IChatRepository } from '../../domain/repositories/chat.interface.js';
 import type { IEventRepository } from '../../domain/repositories/event.interface.js';
 
@@ -24,6 +25,7 @@ interface ChatMessagePayload {
   message: string;
 }
 
+@SkipThrottle()
 @WebSocketGateway({
   cors: {
     origin: '*',
@@ -36,6 +38,10 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   private readonly logger = new Logger(LiveGateway.name);
   private activeRooms = new Set<string>();
+  
+  private chatRateLimits = new Map<string, { count: number; resetAt: number }>();
+  private readonly CHAT_MESSAGE_LIMIT = 5;
+  private readonly CHAT_WINDOW_MS = 10000;
 
   constructor(
     @Inject('IChatRepository')
@@ -54,6 +60,7 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   handleDisconnect(client: Socket) {
     this.logger.log(`Cliente desconectado: ${client.id}`);
+    this.cleanupOldRateLimits();
   }
 
   @SubscribeMessage('join-live')
@@ -123,6 +130,20 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   ) {
     const { liveId, userId, userName, message } = payload;
 
+    if (!this.checkChatRateLimit(userId)) {
+      this.logger.warn(
+        `Rate limit excedido para usuário ${userId} (${userName}) na live ${liveId}`,
+      );
+      client.emit('rate-limit-exceeded', {
+        message: 'Você está enviando mensagens muito rápido. Aguarde alguns segundos.',
+        retryAfter: this.getChatRateLimitRetryAfter(userId),
+      });
+      return {
+        event: 'chat-message-error',
+        data: { success: false, error: 'rate_limit_exceeded' },
+      };
+    }
+
     await this.chatRepo.publishMessage(liveId, {
       userId,
       userName,
@@ -136,6 +157,43 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       event: 'chat-message-sent',
       data: { success: true },
     };
+  }
+
+  private checkChatRateLimit(userId: string): boolean {
+    const now = Date.now();
+    const userLimit = this.chatRateLimits.get(userId);
+
+    if (!userLimit || now > userLimit.resetAt) {
+      this.chatRateLimits.set(userId, {
+        count: 1,
+        resetAt: now + this.CHAT_WINDOW_MS,
+      });
+      return true;
+    }
+
+    if (userLimit.count >= this.CHAT_MESSAGE_LIMIT) {
+      return false;
+    }
+
+    userLimit.count++;
+    return true;
+  }
+
+  private getChatRateLimitRetryAfter(userId: string): number {
+    const userLimit = this.chatRateLimits.get(userId);
+    if (!userLimit) return 0;
+
+    const now = Date.now();
+    return Math.max(0, Math.ceil((userLimit.resetAt - now) / 1000));
+  }
+
+  private cleanupOldRateLimits() {
+    const now = Date.now();
+    for (const [userId, limit] of this.chatRateLimits.entries()) {
+      if (now > limit.resetAt + this.CHAT_WINDOW_MS * 2) {
+        this.chatRateLimits.delete(userId);
+      }
+    }
   }
 
   private async subscribeToLiveChat(liveId: string) {
