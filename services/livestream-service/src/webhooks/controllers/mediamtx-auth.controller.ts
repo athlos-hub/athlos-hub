@@ -6,29 +6,30 @@ import {
   HttpStatus,
   Logger,
   UnauthorizedException,
+  Headers,
 } from '@nestjs/common';
 import { MediaMTXAuthDto } from '../dto/mediamtx-auth.dto.js';
 import { ValidateStreamKeyService } from '../services/validate-stream-key.service.js';
-
 
 @Controller('webhooks')
 export class MediaMTXAuthController {
   private readonly logger = new Logger(MediaMTXAuthController.name);
 
-  constructor(
-    private readonly validateStreamKeyService: ValidateStreamKeyService,
-  ) {}
+  constructor(private readonly validateStreamKeyService: ValidateStreamKeyService) {}
 
   @Post('mediamtx-auth')
   @HttpCode(HttpStatus.OK)
-  async authenticate(@Body() dto: MediaMTXAuthDto): Promise<void> {
+  async authenticate(
+    @Body() dto: MediaMTXAuthDto,
+    @Headers('authorization') authorization?: string,
+  ): Promise<void> {
     this.logger.log(
       `MediaMTX auth request: action=${dto.action}, path=${dto.path}, ip=${dto.ip}, protocol=${dto.protocol}`,
     );
 
     try {
       if (dto.action === 'publish') {
-        await this.handlePublishAuth(dto);
+        await this.handlePublishAuth(dto, authorization);
       } else if (dto.action === 'read') {
         this.logger.log(`Leitura permitida para path: ${dto.path}`);
         return;
@@ -48,7 +49,7 @@ export class MediaMTXAuthController {
     }
   }
 
-  private async handlePublishAuth(dto: MediaMTXAuthDto): Promise<void> {
+  private async handlePublishAuth(dto: MediaMTXAuthDto, jwtToken?: string): Promise<void> {
     const streamKey = this.extractStreamKey(dto.path);
 
     if (!streamKey) {
@@ -59,7 +60,7 @@ export class MediaMTXAuthController {
     this.logger.log(`🔑 Validando stream key: ${streamKey}`);
 
     try {
-      const liveId = await this.validateStreamKeyService.execute(streamKey);
+      const liveId = await this.validateStreamKeyService.execute(streamKey, jwtToken);
 
       this.logger.log(
         `✅ Stream key ${streamKey} válida! Live ${liveId} iniciada. Publicação aceita de IP ${dto.ip}`,

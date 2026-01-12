@@ -6,7 +6,7 @@ import { IStreamKeyRepository } from '../../domain/repositories/stream-key.inter
 export class StreamKeyRepository implements IStreamKeyRepository {
   private readonly STREAM_KEY_PREFIX = 'livestream:streamkey:';
   private readonly ACTIVE_KEY_PREFIX = 'livestream:active:';
-  private readonly DEFAULT_TTL = 24 * 60 * 60; // 24 hours in seconds
+  private readonly DEFAULT_TTL = 24 * 60 * 60;
 
   constructor(private redisService: RedisService) {}
 
@@ -21,11 +21,46 @@ export class StreamKeyRepository implements IStreamKeyRepository {
     await redis.setex(key, ttlInSeconds, liveId);
   }
 
-  async findLiveIdByStreamKey(streamKey: string): Promise<string | null> {
+  async saveWithMetadata(
+    streamKey: string,
+    metadata: {
+      liveId: string;
+      organizationId: string;
+    },
+    ttlInSeconds: number = this.DEFAULT_TTL,
+  ): Promise<void> {
     const redis = this.redisService.getClient();
     const key = this.getStreamKeyRedisKey(streamKey);
 
-    return redis.get(key);
+    await redis.setex(key, ttlInSeconds, JSON.stringify(metadata));
+  }
+
+  async getMetadata(streamKey: string): Promise<{
+    liveId: string;
+    organizationId: string;
+  } | null> {
+    const redis = this.redisService.getClient();
+    const key = this.getStreamKeyRedisKey(streamKey);
+
+    const data = await redis.get(key);
+
+    if (!data) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(data);
+    } catch {
+      return {
+        liveId: data,
+        organizationId: '',
+      };
+    }
+  }
+
+  async findLiveIdByStreamKey(streamKey: string): Promise<string | null> {
+    const metadata = await this.getMetadata(streamKey);
+    return metadata?.liveId || null;
   }
 
   async isValid(streamKey: string): Promise<boolean> {

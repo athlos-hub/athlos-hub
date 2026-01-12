@@ -64,8 +64,13 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     const { liveId } = payload;
     const room = `live:${liveId}`;
 
-    await client.join(room);
-    this.logger.log(`Cliente ${client.id} entrou na sala ${room}`);
+    const rooms = Array.from(client.rooms);
+    const alreadyInRoom = rooms.includes(room);
+
+    if (!alreadyInRoom) {
+      await client.join(room);
+      this.logger.log(`Cliente ${client.id} entrou na sala ${room}`);
+    }
 
     if (!this.activeRooms.has(liveId)) {
       await this.subscribeToLiveChat(liveId);
@@ -73,11 +78,13 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       this.activeRooms.add(liveId);
     }
 
-    const recentEvents = await this.eventRepo.getRecentEvents(liveId, 50);
-    client.emit(
-      'events-history',
-      recentEvents.map((e) => e.toJSON()),
-    );
+    if (!alreadyInRoom) {
+      const recentEvents = await this.eventRepo.getRecentEvents(liveId, 50);
+      client.emit(
+        'events-history',
+        recentEvents.map((e) => e.toJSON()),
+      );
+    }
 
     return {
       event: 'joined-live',

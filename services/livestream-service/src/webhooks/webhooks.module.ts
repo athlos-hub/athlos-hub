@@ -4,9 +4,10 @@ import { MediaMTXAuthController } from './controllers/mediamtx-auth.controller.j
 import { ValidateStreamKeyService } from './services/validate-stream-key.service.js';
 import { AutoFinishLiveService } from './services/auto-finish-live.service.js';
 import { LivesModule } from '../lives/lives.module.js';
+import { PrismaModule } from '../prisma/prisma.module.js';
 
 @Module({
-  imports: [LivesModule],
+  imports: [LivesModule, PrismaModule],
   controllers: [
     OnPublishDoneWebhookController,
     MediaMTXAuthController,
