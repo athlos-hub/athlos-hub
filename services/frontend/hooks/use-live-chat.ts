@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useWebSocket } from "./use-websocket";
 import { getChatHistory } from "@/actions/lives";
+import { toast } from "sonner";
 import type { ChatMessage, JoinLivePayload, ChatMessagePayload } from "@/types/livestream";
 
 const WEBSOCKET_URL = process.env.NEXT_PUBLIC_LIVESTREAM_API_URL || "http://localhost:3333";
@@ -73,12 +74,22 @@ export function useLiveChat(liveId: string, userId: string, userName: string) {
       setIsLoading(false);
     };
 
+    const handleRateLimit = (...args: unknown[]) => {
+      const data = args[0] as { message: string; retryAfter: number };
+      toast.warning(data.message, {
+        description: `Aguarde ${data.retryAfter} segundos antes de enviar outra mensagem`,
+        duration: data.retryAfter * 1000,
+      });
+    };
+
     on("chat-message", handleChatMessage);
     on("joined-live", handleJoined);
+    on("rate-limit-exceeded", handleRateLimit);
 
     return () => {
       off("chat-message", handleChatMessage);
       off("joined-live", handleJoined);
+      off("rate-limit-exceeded", handleRateLimit);
     };
   }, [isConnected, liveId, emit, on, off]);
 
