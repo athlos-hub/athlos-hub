@@ -27,6 +27,7 @@ model Live {
   createdAt       DateTime    @default(now()) @map("created_at")
   events          LiveEvent[]
 
+  @@index([organizationId])
   @@schema("livestream_schema")
 }
 

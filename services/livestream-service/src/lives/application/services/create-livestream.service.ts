@@ -24,7 +24,10 @@ export class CreateLiveService {
       status: LiveStatus.SCHEDULED,
     });
 
-    await this.streamKeyRepo.save(live.id, streamKey);
+    await this.streamKeyRepo.saveWithMetadata(streamKey, {
+      liveId: live.id,
+      organizationId: dto.organizationId,
+    });
 
     return live;
   }
