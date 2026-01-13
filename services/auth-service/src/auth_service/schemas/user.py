@@ -32,6 +32,7 @@ class UserAdmin(UserOrgMember):
 
 class MemberRequestUser(BaseModel):
     id: UUID
+    username: str
     email: EmailStr
     first_name: Optional[str] = None
     last_name: Optional[str] = None
