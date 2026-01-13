@@ -125,7 +125,7 @@ export function JoinViaLinkClient({ organizationSlug }: JoinViaLinkClientProps) 
                   <h3 className="text-lg font-semibold mb-2">Erro ao processar convite</h3>
                   <p className="text-muted-foreground">{errorMessage}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="gap-2 flex items-center justify-center">
                   <Button variant="outline" onClick={() => router.push("/organizations")}>
                     Ver Organizações
                   </Button>
