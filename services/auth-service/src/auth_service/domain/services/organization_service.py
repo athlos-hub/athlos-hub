@@ -119,6 +119,8 @@ class OrganizationService:
             created_org.logo_url = result["url"]
 
         await self._org_repo.commit()
+        
+        await self._org_repo._session.refresh(created_org)
 
         logger.info(f"Organização criada: {created_org.slug} por usuário {owner.id}")
         return created_org

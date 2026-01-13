@@ -64,7 +64,8 @@ async def create_organization(
     )
 
     logger.info(f"Organização criada: {org.slug} por usuário {current_user.id}")
-    return org
+    
+    return OrganizationResponse.model_validate(org)
 
 
 @router.get("", response_model=List[OrganizationGetPublic])

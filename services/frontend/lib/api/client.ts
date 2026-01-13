@@ -31,9 +31,7 @@ export async function axiosAPI<TypeResponse = unknown>({
         }
 
         if (withAttachment && data instanceof FormData) {
-            config.headers = {
-                "Content-Type": "multipart/form-data",
-            };
+            config.headers = {};
         } else {
             config.headers = {
                 "Content-Type": "application/json",
