@@ -269,6 +269,9 @@ class OrganizationService:
 
         org.join_policy = join_policy
         await self._org_repo.commit()
+        
+        # Busca novamente para evitar DetachedInstanceError
+        org = await self._org_repo.get_by_slug(slug)
 
         logger.info(f"Política de adesão de {slug} atualizada para {join_policy.value}")
         return org

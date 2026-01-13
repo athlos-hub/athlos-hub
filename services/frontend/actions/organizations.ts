@@ -97,13 +97,30 @@ export async function getMyOrganizations(
 export async function getOrganizationBySlug(
   slug: string,
   withAuth: boolean = false
-): Promise<OrganizationResponse | OrganizationGetPublic> {
+): Promise<OrganizationResponse | OrganizationGetPublic | OrganizationWithRole | OrganizationAdminWithRole> {
   try {
     const response = await axiosAPI<OrganizationResponse | OrganizationGetPublic>({
       endpoint: `/organizations/${slug}`,
       method: "GET",
       withAuth,
     });
+
+    if (withAuth) {
+      try {
+        const myOrgsResponse = await axiosAPI<(OrganizationWithRole | OrganizationAdminWithRole)[]>({
+          endpoint: "/organizations/me",
+          method: "GET",
+          withAuth: true,
+        });
+
+        const orgWithRole = myOrgsResponse.data.find(org => org.slug === slug);
+        if (orgWithRole) {
+          return { ...response.data, role: orgWithRole.role } as OrganizationAdminWithRole;
+        }
+      } catch (error) {
+        console.warn("Falha ao buscar role do usuário:", error);
+      }
+    }
 
     return response.data;
   } catch (error) {
