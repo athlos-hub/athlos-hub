@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, UserPlus, UserCheck, UserX, Clock, MoreVertical, Trash2, Shield, ShieldOff } from "lucide-react";
+import { Users, UserPlus, UserCheck, UserX, Clock, MoreVertical, Trash2, Shield, ShieldOff, Search, Filter } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     DropdownMenu,
@@ -14,6 +15,7 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
+    DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import {
     AlertDialog,
@@ -53,6 +55,16 @@ export function MembersSection({ organization, isAdmin, isOwner }: MembersSectio
     const [sentInvites, setSentInvites] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [roleFilter, setRoleFilter] = useState<{
+        owner: boolean;
+        organizer: boolean;
+        member: boolean;
+    }>({
+        owner: true,
+        organizer: true,
+        member: true,
+    });
     const [confirmDialog, setConfirmDialog] = useState<{
         open: boolean;
         type: "remove" | "demote" | null;
@@ -199,11 +211,29 @@ export function MembersSection({ organization, isAdmin, isOwner }: MembersSectio
         setConfirmDialog({ open: false, type: null, userId: "", username: "" });
     };
 
-    const totalPages = Math.ceil(members.length / itemsPerPage);
-    const paginatedMembers = members.slice(
+    const filteredMembers = members.filter((member: any) => {
+        const matchesSearch = 
+            member.user?.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            member.user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            member.user?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            member.user?.last_name?.toLowerCase().includes(searchTerm.toLowerCase());
+
+        if (!matchesSearch) return false;
+
+        if (member.is_owner) return roleFilter.owner;
+        if (organizers.has(member.user?.id)) return roleFilter.organizer;
+        return roleFilter.member;
+    });
+
+    const totalPages = Math.ceil(filteredMembers.length / itemsPerPage);
+    const paginatedMembers = filteredMembers.slice(
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     );
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, roleFilter]);
 
     return (
         <Card>
@@ -215,7 +245,9 @@ export function MembersSection({ organization, isAdmin, isOwner }: MembersSectio
                             Membros
                         </CardTitle>
                         <CardDescription>
-                            {members.length} {members.length === 1 ? "membro" : "membros"} na organização
+                            {filteredMembers.length === members.length
+                                ? `${members.length} ${members.length === 1 ? "membro" : "membros"} na organização`
+                                : `${filteredMembers.length} de ${members.length} ${members.length === 1 ? "membro" : "membros"}`}
                         </CardDescription>
                     </div>
                     {isAdmin && allowsInvite && (
@@ -251,11 +283,60 @@ export function MembersSection({ organization, isAdmin, isOwner }: MembersSectio
                             )}
                         </TabsList>
 
-                        {/* Lista de Membros */}
                         <TabsContent value="members" className="space-y-4">
-                            {paginatedMembers.length === 0 ? (
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <div className="relative flex-1">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Buscar por nome, username ou email..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="pl-9"
+                                    />
+                                </div>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" size="default" className="shrink-0">
+                                            <Filter className="h-4 w-4 mr-2" />
+                                            Filtrar
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-48">
+                                        <DropdownMenuLabel>Filtrar por cargo</DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuCheckboxItem
+                                            checked={roleFilter.owner}
+                                            onCheckedChange={(checked) =>
+                                                setRoleFilter({ ...roleFilter, owner: checked })
+                                            }
+                                        >
+                                            Proprietário
+                                        </DropdownMenuCheckboxItem>
+                                        <DropdownMenuCheckboxItem
+                                            checked={roleFilter.organizer}
+                                            onCheckedChange={(checked) =>
+                                                setRoleFilter({ ...roleFilter, organizer: checked })
+                                            }
+                                        >
+                                            Organizadores
+                                        </DropdownMenuCheckboxItem>
+                                        <DropdownMenuCheckboxItem
+                                            checked={roleFilter.member}
+                                            onCheckedChange={(checked) =>
+                                                setRoleFilter({ ...roleFilter, member: checked })
+                                            }
+                                        >
+                                            Membros
+                                        </DropdownMenuCheckboxItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+
+                            {filteredMembers.length === 0 ? (
                                 <p className="text-muted-foreground text-center py-8">
-                                    Nenhum membro ainda
+                                    {searchTerm || !roleFilter.owner || !roleFilter.organizer || !roleFilter.member
+                                        ? "Nenhum membro encontrado com os filtros selecionados"
+                                        : "Nenhum membro ainda"}
                                 </p>
                             ) : (
                                 <>
@@ -453,7 +534,6 @@ export function MembersSection({ organization, isAdmin, isOwner }: MembersSectio
                 )}
             </CardContent>
 
-            {/* AlertDialog de Confirmação */}
             <AlertDialog open={confirmDialog.open} onOpenChange={(open) => !open && setConfirmDialog({ open: false, type: null, userId: "", username: "" })}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
