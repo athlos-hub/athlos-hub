@@ -12,7 +12,9 @@ import { DeleteOrganizationDialog } from "./delete-organization-dialog";
 import { ManageOrganizersDialog } from "./manage-organizers-dialog";
 import { TransferOwnershipDialog } from "./transfer-ownership-dialog";
 import { InviteLinkDialog } from "./invite-link-dialog";
+import { LeaveOrganizationDialog } from "./leave-organization-dialog";
 import { MembersSection } from "./members-section";
+import { OrganizationOverview } from "./organization-overview";
 import { OrgRole, OrganizationStatus } from "@/types/organization";
 import type { OrganizationResponse, OrganizationWithRole, OrganizationAdminWithRole, OrganizationGetPublic } from "@/types/organization";
 
@@ -24,6 +26,7 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
     const userRole = 'role' in organization ? organization.role : null;
     const isOwner = userRole === OrgRole.OWNER;
     const isAdmin = userRole === OrgRole.OWNER || userRole === OrgRole.ORGANIZER;
+    const isOrganizer = userRole === OrgRole.ORGANIZER;
     
     const isFullOrganization = 'status' in organization && 'join_policy' in organization;
     const isPending = isFullOrganization && organization.status === OrganizationStatus.PENDING;
@@ -108,8 +111,24 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
                             </div>
                         </>
                     )}
+
+                    {!isOwner && userRole && (
+                        <>
+                            <hr className="my-4 border-border" />
+                            <div className="flex flex-wrap gap-3">
+                                <LeaveOrganizationDialog 
+                                    organizationSlug={organization.slug}
+                                    organizationName={organization.name}
+                                    isOwner={isOwner}
+                                    isOrganizer={isOrganizer}
+                                />
+                            </div>
+                        </>
+                    )}
                 </CardContent>
             </Card>
+
+            <OrganizationOverview slug={organization.slug} isMember={!!userRole} />
 
             {isFullOrganization && !isPending && (
                 <MembersSection 
