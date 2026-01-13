@@ -137,7 +137,7 @@ export function ManageOrganizersDialog({ organization }: ManageOrganizersDialogP
           Gerenciar Organizadores
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[520px]">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle className="text-xl">Gerenciar Organizadores</DialogTitle>
           <DialogDescription className="text-base pt-2">

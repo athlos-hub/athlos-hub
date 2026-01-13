@@ -68,7 +68,7 @@ export function DeleteOrganizationDialog({
                     Deletar Organização
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px]">
                 <DialogHeader>
                     <div className="flex items-center gap-2 text-destructive">
                         <AlertTriangle className="h-5 w-5" />
