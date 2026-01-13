@@ -1,14 +1,42 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, UserPlus, UserCheck, UserX, Clock } from "lucide-react";
+import { Users, UserPlus, UserCheck, UserX, Clock, MoreVertical, Trash2, Shield, ShieldOff } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { InviteMemberDialog } from "./invite-member-dialog";
-import { getOrganizationMembers, getPendingRequests, getSentInvites, approveJoinRequest, rejectJoinRequest, getOrganizationOrganizers } from "@/actions/organizations";
+import { 
+    getOrganizationMembers, 
+    getPendingRequests, 
+    getSentInvites, 
+    approveJoinRequest, 
+    rejectJoinRequest, 
+    getOrganizationOrganizers,
+    removeMember,
+    addOrganizer,
+    removeOrganizer
+} from "@/actions/organizations";
 import { OrganizationResponse, OrganizationJoinPolicy, OrgRole } from "@/types/organization";
 import { toast } from "sonner";
 
@@ -25,6 +53,17 @@ export function MembersSection({ organization, isAdmin, isOwner }: MembersSectio
     const [sentInvites, setSentInvites] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
+    const [confirmDialog, setConfirmDialog] = useState<{
+        open: boolean;
+        type: "remove" | "demote" | null;
+        userId: string;
+        username: string;
+    }>({
+        open: false,
+        type: null,
+        userId: "",
+        username: "",
+    });
     const itemsPerPage = 10;
 
     const joinPolicy = organization.join_policy;
@@ -94,6 +133,70 @@ export function MembersSection({ organization, isAdmin, isOwner }: MembersSectio
         } catch (error) {
             toast.error("Erro ao rejeitar solicitação");
         }
+    };
+
+    const handleRemoveMember = async (userId: string, username: string) => {
+        setConfirmDialog({
+            open: true,
+            type: "remove",
+            userId,
+            username,
+        });
+    };
+
+    const handlePromoteToOrganizer = async (userId: string, username: string) => {
+        try {
+            const result = await addOrganizer(organization.slug, userId);
+            if (result.success) {
+                toast.success(`${username} foi promovido a organizador`);
+                loadData();
+            } else {
+                toast.error(result.error || "Erro ao promover membro");
+            }
+        } catch (error) {
+            toast.error("Erro ao promover membro");
+        }
+    };
+
+    const handleDemoteOrganizer = async (userId: string, username: string) => {
+        setConfirmDialog({
+            open: true,
+            type: "demote",
+            userId,
+            username,
+        });
+    };
+
+    const confirmAction = async () => {
+        const { type, userId, username } = confirmDialog;
+
+        if (type === "remove") {
+            try {
+                const result = await removeMember(organization.slug, userId);
+                if (result.success) {
+                    toast.success("Membro removido com sucesso");
+                    loadData();
+                } else {
+                    toast.error(result.error || "Erro ao remover membro");
+                }
+            } catch (error) {
+                toast.error("Erro ao remover membro");
+            }
+        } else if (type === "demote") {
+            try {
+                const result = await removeOrganizer(organization.slug, userId);
+                if (result.success) {
+                    toast.success(`${username} foi rebaixado a membro comum`);
+                    loadData();
+                } else {
+                    toast.error(result.error || "Erro ao rebaixar organizador");
+                }
+            } catch (error) {
+                toast.error("Erro ao rebaixar organizador");
+            }
+        }
+
+        setConfirmDialog({ open: false, type: null, userId: "", username: "" });
     };
 
     const totalPages = Math.ceil(members.length / itemsPerPage);
@@ -183,6 +286,47 @@ export function MembersSection({ organization, isAdmin, isOwner }: MembersSectio
                                                         <Badge variant="secondary">Organizador</Badge>
                                                     ) : (
                                                         <Badge variant="outline">Membro</Badge>
+                                                    )}
+                                                    
+                                                    {/* Menu de Ações - Apenas para admins e não para o próprio owner */}
+                                                    {isAdmin && !member.is_owner && (
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                                    <MoreVertical className="h-4 w-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                                                <DropdownMenuSeparator />
+                                                                
+                                                                {organizers.has(member.user?.id) ? (
+                                                                    <DropdownMenuItem
+                                                                        onClick={() => handleDemoteOrganizer(member.user.id, member.user.username)}
+                                                                        className="text-yellow-600"
+                                                                    >
+                                                                        <ShieldOff className="h-4 w-4 mr-2" />
+                                                                        Remover Organizador
+                                                                    </DropdownMenuItem>
+                                                                ) : (
+                                                                    <DropdownMenuItem
+                                                                        onClick={() => handlePromoteToOrganizer(member.user.id, member.user.username)}
+                                                                    >
+                                                                        <Shield className="h-4 w-4 mr-2" />
+                                                                        Promover a Organizador
+                                                                    </DropdownMenuItem>
+                                                                )}
+                                                                
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem
+                                                                    onClick={() => handleRemoveMember(member.user.id, member.user.username)}
+                                                                    className="text-destructive"
+                                                                >
+                                                                    <Trash2 className="h-4 w-4 mr-2" />
+                                                                    Remover Membro
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
                                                     )}
                                                 </div>
                                             </div>
@@ -308,6 +452,42 @@ export function MembersSection({ organization, isAdmin, isOwner }: MembersSectio
                     </Tabs>
                 )}
             </CardContent>
+
+            {/* AlertDialog de Confirmação */}
+            <AlertDialog open={confirmDialog.open} onOpenChange={(open) => !open && setConfirmDialog({ open: false, type: null, userId: "", username: "" })}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            {confirmDialog.type === "remove" && "Remover Membro"}
+                            {confirmDialog.type === "demote" && "Remover Organizador"}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {confirmDialog.type === "remove" && (
+                                <>
+                                    Tem certeza que deseja remover <strong>{confirmDialog.username}</strong> da organização?
+                                    Esta ação não pode ser desfeita.
+                                </>
+                            )}
+                            {confirmDialog.type === "demote" && (
+                                <>
+                                    Tem certeza que deseja remover <strong>{confirmDialog.username}</strong> do cargo de organizador?
+                                    O usuário continuará como membro comum da organização.
+                                </>
+                            )}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={confirmAction}
+                            className={confirmDialog.type === "remove" ? "bg-destructive hover:bg-destructive/90" : ""}
+                        >
+                            {confirmDialog.type === "remove" && "Remover"}
+                            {confirmDialog.type === "demote" && "Remover Organizador"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </Card>
     );
 }
