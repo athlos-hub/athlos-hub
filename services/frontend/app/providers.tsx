@@ -2,6 +2,7 @@
 
 import { SessionProvider } from "next-auth/react";
 import { Toaster } from "sonner";
+import { TokenRefreshProvider } from "@/components/providers/TokenRefreshProvider";
 
 interface ProvidersProps {
     children: React.ReactNode;
@@ -10,7 +11,9 @@ interface ProvidersProps {
 export default function Providers({ children }: ProvidersProps) {
     return (
         <SessionProvider>
-            {children}
+            <TokenRefreshProvider>
+                {children}
+            </TokenRefreshProvider>
             <Toaster />
         </SessionProvider>
     );
