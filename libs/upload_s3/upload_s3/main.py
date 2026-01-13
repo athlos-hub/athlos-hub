@@ -2,7 +2,14 @@ import boto3
 from uuid import uuid4
 from fastapi import UploadFile
 
-def upload_file(file: UploadFile, aws_access_key_id, aws_secret_access_key, aws_region, aws_bucket, prefix):
+def upload_file(
+    file: UploadFile,
+    aws_access_key_id: str,
+    aws_secret_access_key: str,
+    aws_region: str,
+    aws_bucket: str,
+    prefix: str
+):
 
     file_key = f"{prefix}{uuid4()}_{file.filename}"
 
