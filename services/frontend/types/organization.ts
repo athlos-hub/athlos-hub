@@ -105,6 +105,8 @@ export interface OrganizerResponse {
   added_at: string;
 }
 
+export type OrganizationOrganizerResponse = OrganizerResponse;
+
 export interface OrganizersListResponse {
   total: number;
   organizers: OrganizerResponse[];

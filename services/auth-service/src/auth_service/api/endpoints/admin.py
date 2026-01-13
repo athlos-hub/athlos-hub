@@ -74,7 +74,7 @@ async def accept_organization(
 
     org = await org_service.admin_accept_organization(org_slug)
     logger.info(f"Organização {org_slug} aceita por admin {user.id}")
-    return org
+    return OrganizationResponse.model_validate(org)
 
 
 @router.delete(

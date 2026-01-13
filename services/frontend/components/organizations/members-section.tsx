@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InviteMemberDialog } from "./invite-member-dialog";
-import { getOrganizationMembers, getPendingRequests, getSentInvites, approveJoinRequest, rejectJoinRequest } from "@/actions/organizations";
+import { getOrganizationMembers, getPendingRequests, getSentInvites, approveJoinRequest, rejectJoinRequest, getOrganizationOrganizers } from "@/actions/organizations";
 import { OrganizationResponse, OrganizationJoinPolicy, OrgRole } from "@/types/organization";
 import { toast } from "sonner";
 
@@ -20,6 +20,7 @@ interface MembersSectionProps {
 
 export function MembersSection({ organization, isAdmin, isOwner }: MembersSectionProps) {
     const [members, setMembers] = useState<any[]>([]);
+    const [organizers, setOrganizers] = useState<Set<string>>(new Set());
     const [pendingRequests, setPendingRequests] = useState<any[]>([]);
     const [sentInvites, setSentInvites] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -48,13 +49,15 @@ export function MembersSection({ organization, isAdmin, isOwner }: MembersSectio
     const loadData = async () => {
         setIsLoading(true);
         try {
-            const [membersData, requestsData, invitesData] = await Promise.all([
+            const [membersData, organizersData, requestsData, invitesData] = await Promise.all([
                 getOrganizationMembers(organization.slug),
+                getOrganizationOrganizers(organization.slug),
                 allowsRequest && isAdmin ? getPendingRequests(organization.slug).catch(() => ({ total: 0, requests: [] })) : Promise.resolve({ total: 0, requests: [] }),
                 allowsInvite && isAdmin ? getSentInvites(organization.slug).catch(() => ({ total: 0, requests: [] })) : Promise.resolve({ total: 0, requests: [] })
             ]);
 
             setMembers(membersData.members || []);
+            setOrganizers(new Set(organizersData.organizers?.map((org: any) => org.user.id) || []));
             setPendingRequests(requestsData.requests || []);
             setSentInvites(invitesData.requests || []);
         } catch (error) {
@@ -174,12 +177,13 @@ export function MembersSection({ organization, isAdmin, isOwner }: MembersSectio
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                    {member.is_owner && (
-                                                        <Badge variant="default">Dono</Badge>
+                                                    {member.is_owner ? (
+                                                        <Badge variant="default">Proprietário</Badge>
+                                                    ) : organizers.has(member.user?.id) ? (
+                                                        <Badge variant="secondary">Organizador</Badge>
+                                                    ) : (
+                                                        <Badge variant="outline">Membro</Badge>
                                                     )}
-                                                    <Badge variant={member.status === "ACTIVE" ? "secondary" : "outline"}>
-                                                        {member.status}
-                                                    </Badge>
                                                 </div>
                                             </div>
                                         ))}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Building2, Calendar, Lock, Globe, Trophy, AlertCircle, Users } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { EditOrganizationDialog } from "./edit-organization-dialog";
 import { SettingsDialog } from "./settings-dialog";
 import { DeleteOrganizationDialog } from "./delete-organization-dialog";
+import { ManageOrganizersDialog } from "./manage-organizers-dialog";
 import { MembersSection } from "./members-section";
 import { OrgRole, OrganizationStatus } from "@/types/organization";
 import type { OrganizationResponse, OrganizationWithRole, OrganizationAdminWithRole, OrganizationGetPublic } from "@/types/organization";
@@ -90,6 +92,9 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
                             <div className="flex flex-wrap gap-3">
                                 <EditOrganizationDialog organization={organization as OrganizationResponse} />
                                 <SettingsDialog organization={organization as OrganizationResponse} />
+                                {!isPending && (
+                                    <ManageOrganizersDialog organization={organization as OrganizationResponse} />
+                                )}
                                 <DeleteOrganizationDialog 
                                     organizationName={organization.name}
                                     organizationSlug={organization.slug}
