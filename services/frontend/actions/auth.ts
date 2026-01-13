@@ -164,7 +164,7 @@ interface UpdateUserResponse {
 export async function getUserProfile(): Promise<UserProfileResponse> {
     try {
         const response = await axiosAPI<UserProfileResponse>({
-            endpoint: "/auth/me",
+            endpoint: "/users/me",
             method: "GET",
             withAuth: true,
         });
