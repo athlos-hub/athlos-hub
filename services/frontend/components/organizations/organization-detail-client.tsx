@@ -10,6 +10,7 @@ import { EditOrganizationDialog } from "./edit-organization-dialog";
 import { SettingsDialog } from "./settings-dialog";
 import { DeleteOrganizationDialog } from "./delete-organization-dialog";
 import { ManageOrganizersDialog } from "./manage-organizers-dialog";
+import { TransferOwnershipDialog } from "./transfer-ownership-dialog";
 import { MembersSection } from "./members-section";
 import { OrgRole, OrganizationStatus } from "@/types/organization";
 import type { OrganizationResponse, OrganizationWithRole, OrganizationAdminWithRole, OrganizationGetPublic } from "@/types/organization";
@@ -93,7 +94,10 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
                                 <EditOrganizationDialog organization={organization as OrganizationResponse} />
                                 <SettingsDialog organization={organization as OrganizationResponse} />
                                 {!isPending && (
-                                    <ManageOrganizersDialog organization={organization as OrganizationResponse} />
+                                    <>
+                                        <ManageOrganizersDialog organization={organization as OrganizationResponse} />
+                                        <TransferOwnershipDialog organization={organization as OrganizationResponse} />
+                                    </>
                                 )}
                                 <DeleteOrganizationDialog 
                                     organizationName={organization.name}
