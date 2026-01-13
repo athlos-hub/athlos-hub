@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from auth_service.domain.interfaces.repositories import IOrganizationMemberRepository
-from auth_service.infrastructure.database.models.enums import MemberStatus
+from auth_service.infrastructure.database.models.enums import MemberStatus, OrganizationStatus
 from auth_service.infrastructure.database.models.organization_model import (
     Organization,
     OrganizationMember,
@@ -168,6 +168,19 @@ class OrganizationMemberRepository(IOrganizationMemberRepository):
             return []
 
         stmt = stmt.where(or_(*filters))
+        
+        stmt = stmt.where(
+            or_(
+                and_(
+                    Organization.owner_id == user_id,
+                    Organization.status.in_([OrganizationStatus.ACTIVE, OrganizationStatus.PENDING])
+                ),
+                and_(
+                    Organization.owner_id != user_id,
+                    Organization.status == OrganizationStatus.ACTIVE
+                )
+            )
+        )
         stmt = stmt.order_by(Organization.created_at.desc())
 
         result = await self._session.execute(stmt)

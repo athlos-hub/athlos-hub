@@ -114,7 +114,7 @@ export default function OrganizationsPage() {
             {activeTab === "public" && (
               <div className="space-y-4">
                 {publicOrgs.length === 0 ? (
-                  <div className="text-center py-12 bg-gray-50 rounded-xl">
+                  <div className="text-center py-12">
                     <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                     <p className="text-gray-600">Nenhuma organização pública encontrada</p>
                   </div>

@@ -1,13 +1,15 @@
 "use client";
 
-import { Building2, Calendar, Lock, Globe, Trophy } from "lucide-react";
+import { Building2, Calendar, Lock, Globe, Trophy, AlertCircle, Users } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { EditOrganizationDialog } from "./edit-organization-dialog";
 import { SettingsDialog } from "./settings-dialog";
+import { DeleteOrganizationDialog } from "./delete-organization-dialog";
 import { MembersSection } from "./members-section";
-import { OrgRole } from "@/types/organization";
+import { OrgRole, OrganizationStatus } from "@/types/organization";
 import type { OrganizationResponse, OrganizationWithRole, OrganizationAdminWithRole, OrganizationGetPublic } from "@/types/organization";
 
 interface OrganizationDetailClientProps {
@@ -20,9 +22,21 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
     const isAdmin = userRole === OrgRole.OWNER || userRole === OrgRole.ORGANIZER;
     
     const isFullOrganization = 'status' in organization && 'join_policy' in organization;
+    const isPending = isFullOrganization && organization.status === OrganizationStatus.PENDING;
 
     return (
         <div className="space-y-6">
+            {isPending && isOwner && (
+                <Alert className="bg-yellow-50 border-yellow-300">
+                    <AlertCircle className="h-4 w-4 text-yellow-700" />
+                    <AlertTitle className="text-yellow-700">Organização Pendente de Aprovação</AlertTitle>
+                    <AlertDescription className="text-yellow-600">
+                        Sua organização está aguardando aprovação dos administradores. 
+                        Assim que aprovada, ela ficará visível publicamente e você poderá convidar membros.
+                    </AlertDescription>
+                </Alert>
+            )}
+            
             <Card>
                 <CardHeader>
                     <div className="flex items-start justify-between">
@@ -34,7 +48,14 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
                                 </AvatarFallback>
                             </Avatar>
                             <div>
-                                <CardTitle className="text-2xl">{organization.name}</CardTitle>
+                                <div className="flex items-center gap-2">
+                                    <CardTitle className="text-2xl">{organization.name}</CardTitle>
+                                    {isPending && (
+                                        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                                            Pendente
+                                        </Badge>
+                                    )}
+                                </div>
                                 <CardDescription>{organization.description}</CardDescription>
                             </div>
                         </div>
@@ -66,16 +87,20 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
                     {isOwner && isFullOrganization && (
                         <>
                             <hr className="my-4 border-border" />
-                            <div className="flex gap-3">
+                            <div className="flex flex-wrap gap-3">
                                 <EditOrganizationDialog organization={organization as OrganizationResponse} />
                                 <SettingsDialog organization={organization as OrganizationResponse} />
+                                <DeleteOrganizationDialog 
+                                    organizationName={organization.name}
+                                    organizationSlug={organization.slug}
+                                />
                             </div>
                         </>
                     )}
                 </CardContent>
             </Card>
 
-            {isFullOrganization && (
+            {isFullOrganization && !isPending && (
                 <MembersSection 
                     organization={organization as OrganizationResponse & { role?: string }} 
                     isAdmin={isAdmin}
@@ -83,15 +108,35 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
                 />
             )}
 
+            {isPending && isOwner && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Users className="h-5 w-5" />
+                            Membros
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="py-8 text-center text-muted-foreground">
+                        <p>A gestão de membros estará disponível após a aprovação da organização.</p>
+                    </CardContent>
+                </Card>
+            )}
+
             <Card>
                 <CardHeader>
-                    <CardTitle>
-                        <Trophy className="h-5 w-5 inline mr-2" />
+                    <CardTitle className="flex items-center gap-2">
+                        <Trophy className="h-5 w-5" />
                         Competições
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-muted-foreground">Nenhuma competição ainda</p>
+                    {isPending && isOwner ? (
+                        <div className="py-8 text-center text-muted-foreground">
+                            <p>A criação de competições estará disponível após a aprovação da organização.</p>
+                        </div>
+                    ) : (
+                        <p className="text-muted-foreground">Nenhuma competição ainda</p>
+                    )}
                 </CardContent>
             </Card>
         </div>

@@ -2,17 +2,18 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { OrganizationGetPublic, OrganizationPrivacy, OrgRole } from "@/types/organization";
+import { OrganizationGetPublic, OrganizationPrivacy, OrganizationStatus, OrgRole } from "@/types/organization";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Lock, Globe } from "lucide-react";
+import { Building2, Lock, Globe, Clock } from "lucide-react";
 
 interface OrganizationCardProps {
-  organization: OrganizationGetPublic & { role?: string };
+  organization: OrganizationGetPublic & { role?: string; status?: OrganizationStatus };
   showRole?: boolean;
 }
 
 export function OrganizationCard({ organization, showRole = false }: OrganizationCardProps) {
   const isPrivate = organization.privacy === OrganizationPrivacy.PRIVATE;
+  const isPending = organization.status === OrganizationStatus.PENDING;
   
   const getRoleBadge = (role: string) => {
     const roleConfig = {
@@ -41,28 +42,38 @@ export function OrganizationCard({ organization, showRole = false }: Organizatio
             )}
           </div>
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <h3 className="text-lg font-semibold text-gray-900 group-hover:text-main transition-colors truncate">
-                {organization.name}
-              </h3>
-              
-              <div className="flex items-center gap-2 shrink-0">
-                {isPrivate ? (
-                  <div title="Privada"><Lock className="w-4 h-4 text-gray-500" /></div>
-                ) : (
-                  <div title="Pública"><Globe className="w-4 h-4 text-gray-500" /></div>
-                )}
+          <div className="flex-1 min-w-0 flex flex-col justify-between min-h-16">
+            <div>
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <h3 className="text-lg font-semibold text-gray-900 group-hover:text-main transition-colors truncate">
+                    {organization.name}
+                  </h3>
+                  {isPending && (
+                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300 shrink-0">
+                      <Clock className="w-3 h-3 mr-1" />
+                      Pendente
+                    </Badge>
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-2 shrink-0">
+                  {isPrivate ? (
+                    <div title="Privada"><Lock className="w-4 h-4 text-gray-500" /></div>
+                  ) : (
+                    <div title="Pública"><Globe className="w-4 h-4 text-gray-500" /></div>
+                  )}
+                </div>
               </div>
+
+              {organization.description && (
+                <p className="text-sm text-gray-600 line-clamp-2 mb-3">
+                  {organization.description}
+                </p>
+              )}
             </div>
 
-            {organization.description && (
-              <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-                {organization.description}
-              </p>
-            )}
-
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-xs text-gray-500 font-mono">
                 @{organization.slug}
               </span>
