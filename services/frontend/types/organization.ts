@@ -69,6 +69,7 @@ export interface OrganizationGetPublic extends OrganizationBase {
   id: string;
   slug: string;
   owner_id: string;
+  created_at: string;
 }
 
 export interface OrganizationResponse extends OrganizationGetPublic {
@@ -131,6 +132,7 @@ export interface TeamOverviewResponse {
   members: OrganizationMemberResponse[];
   total_members: number;
   total_organizers: number;
+  created_at: string;
 }
 
 export interface UpdateJoinPolicyRequest {

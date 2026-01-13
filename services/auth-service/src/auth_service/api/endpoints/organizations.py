@@ -460,6 +460,7 @@ async def get_organization_team_overview(
         members=members_list,
         total_members=len(members_list),
         total_organizers=len(organizers_list),
+        created_at=org.created_at,
     )
 
 

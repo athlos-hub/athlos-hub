@@ -40,6 +40,7 @@ class OrganizationGetPublic(OrganizationBase):
     id: UUID
     slug: str
     owner_id: UUID
+    created_at: datetime
 
 
 class OrganizationResponse(OrganizationGetPublic):
@@ -99,6 +100,7 @@ class TeamOverviewResponse(BaseModel):
     members: list[OrganizationMemberResponse]
     total_members: int
     total_organizers: int
+    created_at: datetime
 
 
 class TransferOwnershipRequest(BaseModel):
