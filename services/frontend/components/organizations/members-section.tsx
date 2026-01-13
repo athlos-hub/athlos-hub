@@ -37,7 +37,8 @@ import {
     getOrganizationOrganizers,
     removeMember,
     addOrganizer,
-    removeOrganizer
+    removeOrganizer,
+    cancelInvite
 } from "@/actions/organizations";
 import { OrganizationResponse, OrganizationJoinPolicy, OrgRole } from "@/types/organization";
 import { toast } from "sonner";
@@ -67,7 +68,7 @@ export function MembersSection({ organization, isAdmin, isOwner }: MembersSectio
     });
     const [confirmDialog, setConfirmDialog] = useState<{
         open: boolean;
-        type: "remove" | "demote" | null;
+        type: "remove" | "demote" | "cancel" | null;
         userId: string;
         username: string;
     }>({
@@ -205,6 +206,20 @@ export function MembersSection({ organization, isAdmin, isOwner }: MembersSectio
                 }
             } catch (error) {
                 toast.error("Erro ao rebaixar organizador");
+            }
+        }
+
+        if (type === "cancel") {
+            try {
+                const result = await cancelInvite(organization.slug, userId);
+                if (result.success) {
+                    toast.success("Convite cancelado");
+                    loadData();
+                } else {
+                    toast.error(result.error || "Erro ao cancelar convite");
+                }
+            } catch (error) {
+                toast.error("Erro ao cancelar convite");
             }
         }
 
@@ -520,10 +535,33 @@ export function MembersSection({ organization, isAdmin, isOwner }: MembersSectio
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <Badge variant="outline">
-                                                    <Clock className="h-3 w-3 mr-1" />
-                                                    Pendente
-                                                </Badge>
+                                                <div className="flex items-center gap-2">
+                                                    <Badge variant="outline">
+                                                        <Clock className="h-3 w-3 mr-1" />
+                                                        Pendente
+                                                    </Badge>
+
+                                                    {isAdmin && (
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                                    <MoreVertical className="h-4 w-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem
+                                                                    onClick={() => setConfirmDialog({ open: true, type: "cancel", userId: invite.user.id, username: invite.user.username })}
+                                                                    className="text-destructive"
+                                                                >
+                                                                    <Trash2 className="h-4 w-4 mr-2" />
+                                                                    Cancelar Convite
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    )}
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -540,6 +578,7 @@ export function MembersSection({ organization, isAdmin, isOwner }: MembersSectio
                         <AlertDialogTitle>
                             {confirmDialog.type === "remove" && "Remover Membro"}
                             {confirmDialog.type === "demote" && "Remover Organizador"}
+                            {confirmDialog.type === "cancel" && "Cancelar Convite"}
                         </AlertDialogTitle>
                         <AlertDialogDescription>
                             {confirmDialog.type === "remove" && (
@@ -554,16 +593,23 @@ export function MembersSection({ organization, isAdmin, isOwner }: MembersSectio
                                     O usuário continuará como membro comum da organização.
                                 </>
                             )}
+                            {confirmDialog.type === "cancel" && (
+                                <>
+                                    Tem certeza que deseja cancelar o convite enviado para <strong>{confirmDialog.username}</strong>?
+                                    O usuário não poderá mais aceitar este convite.
+                                </>
+                            )}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={confirmAction}
-                            className={confirmDialog.type === "remove" ? "bg-destructive hover:bg-destructive/90" : ""}
+                            className={confirmDialog.type === "remove" || confirmDialog.type === "cancel" ? "bg-destructive hover:bg-destructive/90" : ""}
                         >
                             {confirmDialog.type === "remove" && "Remover"}
                             {confirmDialog.type === "demote" && "Remover Organizador"}
+                            {confirmDialog.type === "cancel" && "Cancelar Convite"}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
