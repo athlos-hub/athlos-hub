@@ -125,7 +125,7 @@ export function TransferOwnershipDialog({ organization, onSuccess }: TransferOwn
           Transferir Propriedade
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[550px]">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[550px]">
         <DialogHeader>
           <DialogTitle className="text-xl flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />

@@ -84,7 +84,7 @@ export function InviteMemberDialog({ organizationSlug, onSuccess }: InviteMember
                     Convidar Membro
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>Convidar Membro</DialogTitle>
                     <DialogDescription>
