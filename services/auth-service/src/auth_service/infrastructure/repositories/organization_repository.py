@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from auth_service.domain.interfaces.repositories import IOrganizationRepository
-from auth_service.infrastructure.database.models.enums import OrganizationPrivacy
+from auth_service.infrastructure.database.models.enums import OrganizationPrivacy, OrganizationStatus
 from auth_service.infrastructure.database.models.organization_model import Organization
 
 logger = logging.getLogger(__name__)
@@ -48,14 +48,31 @@ class OrganizationRepository(IOrganizationRepository):
         limit: int = 50,
         offset: int = 0,
     ) -> Sequence[Organization]:
-        """Obtém todas as organizações com filtros opcionais."""
+        """Obtém todas as organizações ativas com filtros opcionais."""
         stmt = select(Organization)
+        
+        stmt = stmt.where(Organization.status == OrganizationStatus.ACTIVE)
 
         if privacy:
             stmt = stmt.where(Organization.privacy == privacy)
 
         stmt = stmt.order_by(Organization.name.asc())
         stmt = stmt.limit(limit).offset(offset)
+
+        result = await self._session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_all_admin(
+        self,
+        status_filter: Optional[OrganizationStatus] = None,
+    ) -> Sequence[Organization]:
+        """Obtém todas as organizações com filtro opcional de status (para admin)."""
+        stmt = select(Organization)
+
+        if status_filter:
+            stmt = stmt.where(Organization.status == status_filter)
+
+        stmt = stmt.order_by(Organization.created_at.desc())
 
         result = await self._session.execute(stmt)
         return result.scalars().all()

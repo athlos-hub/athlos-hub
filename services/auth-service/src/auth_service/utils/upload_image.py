@@ -74,4 +74,3 @@ def upload_image(
     )
 
     return result
-    return result

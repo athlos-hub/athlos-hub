@@ -154,6 +154,13 @@ export const authOptions: NextAuthOptions = {
             }
 
             if (trigger === "update" && session) {
+                if (session.accessToken) {
+                    token.accessToken = session.accessToken;
+                }
+                if (session.refreshToken) {
+                    token.refreshToken = session.refreshToken;
+                }
+                
                 if (session.user) {
                     token.picture = session.user.image ?? token.picture;
                     token.name = session.user.name ?? token.name;

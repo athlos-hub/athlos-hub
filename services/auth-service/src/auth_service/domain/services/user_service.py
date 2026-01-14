@@ -187,3 +187,27 @@ class UserService:
                 return updated_user
 
         return db_user
+
+
+    async def suspend_user(self, user_id: UUID) -> None:
+        """Suspende um usuário (admin)."""
+
+        user = await self._user_repo.get_by_id(user_id)
+        if not user:
+            raise UserNotFoundError(str(user_id))
+
+        await self._user_repo.update(user_id, {"enabled": False})
+        await self._user_repo.commit()
+        logger.info(f"Usuário {user_id} suspenso")
+
+
+    async def unsuspend_user(self, user_id: UUID) -> None:
+        """Reativa um usuário suspenso (admin)."""
+
+        user = await self._user_repo.get_by_id(user_id)
+        if not user:
+            raise UserNotFoundError(str(user_id))
+
+        await self._user_repo.update(user_id, {"enabled": True})
+        await self._user_repo.commit()
+        logger.info(f"Usuário {user_id} reativado")

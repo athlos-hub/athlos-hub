@@ -32,7 +32,7 @@ export default function LivesPage() {
     <div className="min-h-screen space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Jogos</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Jogos</h1>
           <p className="text-muted-foreground mt-1">
             Assista as transmissões ao vivo da sua equipe preferida
           </p>

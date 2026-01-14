@@ -40,6 +40,7 @@ class OrganizationGetPublic(OrganizationBase):
     id: UUID
     slug: str
     owner_id: UUID
+    created_at: datetime
 
 
 class OrganizationResponse(OrganizationGetPublic):
@@ -49,7 +50,7 @@ class OrganizationResponse(OrganizationGetPublic):
     updated_at: datetime
 
 
-class OrganizationWithRole(OrganizationGetPublic):
+class OrganizationWithRole(OrganizationResponse):
     role: str
 
     model_config = ConfigDict(from_attributes=True)
@@ -99,7 +100,27 @@ class TeamOverviewResponse(BaseModel):
     members: list[OrganizationMemberResponse]
     total_members: int
     total_organizers: int
+    created_at: datetime
 
 
 class TransferOwnershipRequest(BaseModel):
     new_owner_id: UUID
+
+
+class OrganizationInviteResponse(BaseModel):
+    id: UUID
+    organization: OrganizationGetPublic
+    status: MemberStatus
+    invited_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OrganizationRequestResponse(BaseModel):
+    id: UUID
+    organization: OrganizationGetPublic
+    status: MemberStatus
+    requested_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+

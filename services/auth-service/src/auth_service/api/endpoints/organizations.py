@@ -64,7 +64,8 @@ async def create_organization(
     )
 
     logger.info(f"Organização criada: {org.slug} por usuário {current_user.id}")
-    return org
+    
+    return OrganizationResponse.model_validate(org)
 
 
 @router.get("", response_model=List[OrganizationGetPublic])
@@ -109,7 +110,7 @@ async def get_my_organizations(
     return response_list
 
 
-@router.get("/{org_slug}", response_model=OrganizationResponse | OrganizationGetPublic)
+@router.get("/{org_slug}", response_model=OrganizationWithRole | OrganizationAdminWithRole | OrganizationGetPublic)
 async def get_organization_by_slug(
     org_slug: str,
     org_service: OrganizationServiceDep,
@@ -120,8 +121,14 @@ async def get_organization_by_slug(
 
     org = await org_service.get_organization_by_slug(org_slug, user)
 
-    if user and org.owner_id == user.id:
-        return org
+    if user:
+        role = await org_service.get_user_role_in_org(org, user)
+        setattr(org, "role", role)
+        
+        if role == OrgRole.OWNER:
+            return OrganizationAdminWithRole.model_validate(org)
+        elif role in [OrgRole.ORGANIZER, OrgRole.MEMBER]:
+            return OrganizationWithRole.model_validate(org)
 
     return OrganizationGetPublic.model_validate(org)
 
@@ -459,6 +466,7 @@ async def get_organization_team_overview(
         members=members_list,
         total_members=len(members_list),
         total_organizers=len(organizers_list),
+        created_at=org.created_at,
     )
 
 

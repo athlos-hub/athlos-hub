@@ -119,6 +119,8 @@ class OrganizationService:
             created_org.logo_url = result["url"]
 
         await self._org_repo.commit()
+        
+        await self._org_repo._session.refresh(created_org)
 
         logger.info(f"Organização criada: {created_org.slug} por usuário {owner.id}")
         return created_org
@@ -132,12 +134,20 @@ class OrganizationService:
         Raises:
             OrganizationNotFoundError: Se a organização não for encontrada.
             OrganizationAccessDeniedError: Se o usuário não tiver acesso.
+            OrganizationInactiveError: Se a organização estiver inativa/excluída.
         """
 
         org = await self._org_repo.get_by_slug(slug)
 
         if not org:
             raise OrganizationNotFoundError(slug)
+        
+        if user and org.owner_id == user.id:
+            if org.status in {OrganizationStatus.ACTIVE, OrganizationStatus.PENDING}:
+                return org
+        
+        if org.status != OrganizationStatus.ACTIVE:
+            raise OrganizationInactiveError()
 
         if user:
             user_role = await self._get_user_role_in_org(org, user)
@@ -166,6 +176,12 @@ class OrganizationService:
     ) -> Sequence[Organization]:
         """Obtém todas as organizações com filtros opcionais."""
         return await self._org_repo.get_all(privacy, limit, offset)
+
+    async def get_organizations_by_status(
+        self, status_filter: OrganizationStatus
+    ) -> Sequence[Organization]:
+        """Obtém organizações por status (para admin)."""
+        return await self._org_repo.get_all_admin(status_filter)
 
     async def get_user_organizations(
         self, user: User, roles: Optional[set[str]] = None
@@ -267,6 +283,8 @@ class OrganizationService:
 
         org.join_policy = join_policy
         await self._org_repo.commit()
+        
+        org = await self._org_repo.get_by_slug(slug)
 
         logger.info(f"Política de adesão de {slug} atualizada para {join_policy.value}")
         return org
@@ -423,11 +441,15 @@ class OrganizationService:
             NotOwnerOrOrganizerError: Se o convidador não for proprietário ou organizador.
             UserNotFoundError: Se o usuário convidado não for encontrado ou não estiver ativo.
             MembershipAlreadyExistsError: Se o usuário já tiver relacionamento.
+            OrganizationInactiveError: Se a organização não estiver ativa.
         """
         org = await self._organizer_repo.is_owner_or_organizer(slug, inviter.id)
 
         if not org:
             raise NotOwnerOrOrganizerError("convidar usuários")
+
+        if org.status != OrganizationStatus.ACTIVE:
+            raise OrganizationInactiveError()
 
         invited_user = await self._user_repo.get_by_id(user_id)
         if not invited_user or not invited_user.enabled:
@@ -457,11 +479,15 @@ class OrganizationService:
         Raises:
             NotOwnerOrOrganizerError: Se o admin não for proprietário ou organizador.
             InviteNotFoundError: Se o convite não for encontrado.
+            OrganizationInactiveError: Se a organização não estiver ativa.
         """
         org = await self._organizer_repo.is_owner_or_organizer(slug, admin.id)
 
         if not org:
             raise NotOwnerOrOrganizerError("cancelar convites")
+
+        if org.status != OrganizationStatus.ACTIVE:
+            raise OrganizationInactiveError()
 
         membership = await self._member_repo.get_membership_by_status(
             org.id, user_id, MemberStatus.INVITED
@@ -483,6 +509,7 @@ class OrganizationService:
 
         Raises:
             MembershipNotFoundError: Se a solicitação não for encontrada ou sem permissão.
+            OrganizationInactiveError: Se a organização não estiver ativa.
         """
         membership = await self._member_repo.get_pending_membership_for_approval(
             membership_id, slug, admin.id
@@ -492,6 +519,10 @@ class OrganizationService:
             raise MembershipNotFoundError(
                 "Solicitação não encontrada ou você não tem permissão para aprová-la."
             )
+
+        org = await self._org_repo.get_by_slug(slug)
+        if org and org.status != OrganizationStatus.ACTIVE:
+            raise OrganizationInactiveError()
 
         await self._member_repo.update_status(membership, MemberStatus.ACTIVE)
         await self._member_repo.commit()
@@ -507,6 +538,7 @@ class OrganizationService:
 
         Raises:
             MembershipNotFoundError: Se a solicitação não for encontrada ou sem permissão.
+            OrganizationInactiveError: Se a organização não estiver ativa.
         """
         membership = await self._member_repo.get_pending_membership_for_approval(
             membership_id, slug, admin.id
@@ -516,6 +548,10 @@ class OrganizationService:
             raise MembershipNotFoundError(
                 "Solicitação não encontrada ou você não tem permissão para rejeitá-la."
             )
+
+        org = await self._org_repo.get_by_slug(slug)
+        if org and org.status != OrganizationStatus.ACTIVE:
+            raise OrganizationInactiveError()
 
         await self._member_repo.delete(membership)
         await self._member_repo.commit()
@@ -532,11 +568,15 @@ class OrganizationService:
             CannotRemoveOwnerError: Se tentar remover o proprietário.
             CannotRemoveSelfError: Se tentar remover a si mesmo.
             MembershipNotFoundError: Se o membro não for encontrado.
+            OrganizationInactiveError: Se a organização não estiver ativa.
         """
         org = await self._org_repo.get_by_slug(slug)
 
         if not org:
             raise OrganizationNotFoundError(slug)
+
+        if org.status != OrganizationStatus.ACTIVE:
+            raise OrganizationInactiveError()
 
         is_owner = org.owner_id == admin.id
         is_organizer = await self._organizer_repo.is_organizer(org.id, admin.id)
@@ -598,6 +638,22 @@ class OrganizationService:
 
         return await self._member_repo.get_sent_invites(org.id)
 
+    async def get_user_invites(self, user: User) -> Sequence[OrganizationMember]:
+        """
+        Get all organization invites received by user (status INVITED).
+
+        Returns list of pending invites to organizations.
+        """
+        return await self._member_repo.get_user_invites(user.id)
+
+    async def get_user_requests(self, user: User) -> Sequence[OrganizationMember]:
+        """
+        Get all organization requests sent by user (status REQUESTED).
+
+        Returns list of pending requests to join organizations.
+        """
+        return await self._member_repo.get_user_requests(user.id)
+
     async def get_members(self, slug: str, user: User) -> Sequence[OrganizationMember]:
         """
         Get organization members.
@@ -656,11 +712,15 @@ class OrganizationService:
             OwnerNotNeedOrganizerError: Se tentar tornar o proprietário um organizador.
             OrganizerAlreadyExistsError: Se o usuário já for um organizador.
             MustBeActiveMemberError: Se o usuário não for um membro ativo.
+            OrganizationInactiveError: Se a organização não estiver ativa.
         """
         org = await self._org_repo.get_by_slug(slug)
 
         if not org:
             raise OrganizationNotFoundError(slug)
+
+        if org.status != OrganizationStatus.ACTIVE:
+            raise OrganizationInactiveError()
 
         if org.owner_id != owner.id:
             raise NotOwnerError("adicionar organizadores")
@@ -694,11 +754,15 @@ class OrganizationService:
             OrganizationNotFoundError: Se a organização não for encontrada.
             NotOwnerError: Se o usuário não for o proprietário.
             OrganizerNotFoundError: Se o usuário não for um organizador.
+            OrganizationInactiveError: Se a organização não estiver ativa.
         """
         org = await self._org_repo.get_by_slug(slug)
 
         if not org:
             raise OrganizationNotFoundError(slug)
+
+        if org.status != OrganizationStatus.ACTIVE:
+            raise OrganizationInactiveError()
 
         if org.owner_id != owner.id:
             raise NotOwnerError("remover organizadores")
@@ -728,11 +792,15 @@ class OrganizationService:
             AlreadyOwnerError: Se tentar transferir para si mesmo.
             NewOwnerNotActiveMemberError: Se o novo proprietário não for um membro ativo.
             UserNotFoundError: Se o novo proprietário não for encontrado ou estiver desabilitado.
+            OrganizationInactiveError: Se a organização não estiver ativa.
         """
         org = await self._org_repo.get_by_slug(slug)
 
         if not org:
             raise OrganizationNotFoundError(slug)
+
+        if org.status != OrganizationStatus.ACTIVE:
+            raise OrganizationInactiveError()
 
         if org.owner_id != owner.id:
             raise NotOwnerError("transferir a propriedade")
@@ -866,6 +934,33 @@ class OrganizationService:
 
         logger.info(f"Organização {slug} suspensa por admin")
 
+    async def admin_unsuspend_organization(self, slug: str) -> None:
+        """
+        Admin action to unsuspend organization.
+
+        Raises:
+            OrganizationNotFoundError: Se a organização não for encontrada.
+            OrganizationStatusConflictError: Se a organização não estiver suspensa.
+        """
+        org = await self._org_repo.get_by_slug(slug)
+
+        if not org:
+            raise OrganizationNotFoundError(slug)
+
+        if org.status != OrganizationStatus.SUSPENDED:
+            raise OrganizationStatusConflictError("Organização não está suspensa.")
+
+        org.status = OrganizationStatus.ACTIVE
+        await self._org_repo.commit()
+
+        logger.info(f"Organização {slug} reativada por admin")
+
+    async def get_all_organizations_admin(
+        self, status_filter: Optional[OrganizationStatus] = None
+    ) -> Sequence[Organization]:
+        """Obtém todas as organizações com filtro de status (apenas admin)."""
+        return await self._org_repo.get_all_admin(status_filter)
+
     async def _get_user_role_in_org(self, org: Organization, user: User) -> str:
         """Obtém função do usuário em uma organização."""
         logger.warning(
@@ -890,6 +985,10 @@ class OrganizationService:
             return OrgRole.MEMBER
 
         return OrgRole.NONE
+
+    async def get_user_role_in_org(self, org: Organization, user: User) -> str:
+        """Método público para obter função do usuário em uma organização."""
+        return await self._get_user_role_in_org(org, user)
 
     async def _validate_can_join(
         self, org: Organization, user: User, via_link: bool
