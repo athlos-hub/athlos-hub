@@ -35,6 +35,13 @@ class CompetitionBase(BaseModel):
     
     image: Optional[str] = Field(None, description="URL da imagem da competição")
 
+    teams_qualified_per_group: Optional[int] = Field(
+        None, ge=1, description="Número de times classificados por grupo (se aplicável)"
+    )
+    teams_per_group: Optional[int] = Field(
+        None, ge=1, description="Número de times por grupo (se aplicável)"
+    )
+
 class CompetitionCreate(CompetitionBase):
     """
     Schema de criação flexível:
