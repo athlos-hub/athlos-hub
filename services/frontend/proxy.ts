@@ -2,6 +2,15 @@ import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+function extractRolesFromToken(accessToken: string): string[] {
+    try {
+        const payload = JSON.parse(Buffer.from(accessToken.split('.')[1], 'base64').toString());
+        return payload?.realm_access?.roles || [];
+    } catch {
+        return [];
+    }
+}
+
 export async function proxy(req: NextRequest) {
     const token = await getToken({
         req,
@@ -15,8 +24,27 @@ export async function proxy(req: NextRequest) {
     }
 
     if (token) {
+        const roles = token.accessToken ? extractRolesFromToken(token.accessToken as string) : [];
+        const isAdmin = roles.includes('admin');
+
         if (pathname.startsWith("/auth") || pathname === "/verify") {
-            return NextResponse.redirect(new URL("/", req.url));
+            const redirectUrl = isAdmin ? "/admin" : "/";
+            return NextResponse.redirect(new URL(redirectUrl, req.url));
+        }
+
+        if (pathname.startsWith("/admin")) {
+            if (!isAdmin) {
+                return NextResponse.redirect(new URL("/", req.url));
+            }
+            return NextResponse.next();
+        }
+
+        if (isAdmin) {
+            return NextResponse.redirect(new URL("/admin", req.url));
+        }
+    } else {
+        if (pathname.startsWith("/admin")) {
+            return NextResponse.redirect(new URL("/auth/login", req.url));
         }
     }
 

@@ -8,6 +8,7 @@ from fastapi import APIRouter, File, Form, UploadFile, status
 
 from auth_service.api.deps import CurrentUserDep, OrganizationServiceDep, UserServiceDep
 from auth_service.schemas.user import UserPublic
+from auth_service.schemas.organization import OrganizationInviteResponse, OrganizationRequestResponse
 
 logger = logging.getLogger(__name__)
 
@@ -99,3 +100,44 @@ async def leave_organization(
     await org_service.leave_organization(org_slug, user)
     logger.info(f"Usuário {user.id} saiu da organização {org_slug}")
     return
+
+
+@router.get("/organizations/invites", response_model=list[OrganizationInviteResponse])
+async def get_my_organization_invites(
+    org_service: OrganizationServiceDep,
+    user: CurrentUserDep,
+):
+    """Obtém todos os convites de organização recebidos pelo usuário."""
+
+    invites = await org_service.get_user_invites(user)
+
+    return [
+        OrganizationInviteResponse(
+            id=invite.id,
+            organization=invite.organization,
+            status=invite.status,
+            invited_at=invite.created_at,
+        )
+        for invite in invites
+    ]
+
+
+@router.get("/organizations/requests", response_model=list[OrganizationRequestResponse])
+async def get_my_organization_requests(
+    org_service: OrganizationServiceDep,
+    user: CurrentUserDep,
+):
+    """Obtém todas as solicitações de organização enviadas pelo usuário."""
+
+    requests = await org_service.get_user_requests(user)
+
+    return [
+        OrganizationRequestResponse(
+            id=request.id,
+            organization=request.organization,
+            status=request.status,
+            requested_at=request.created_at,
+        )
+        for request in requests
+    ]
+
