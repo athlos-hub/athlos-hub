@@ -14,6 +14,8 @@ import {
   OrganizationPrivacy,
   OrganizationJoinPolicy,
   OrganizationListItem,
+  OrganizationInviteResponse,
+  OrganizationRequestResponse,
 } from "@/types/organization";
 
 interface ActionResponse {
@@ -534,3 +536,38 @@ export async function transferOwnership(
     return { success: false, error: "Erro ao transferir propriedade" };
   }
 }
+
+export async function getMyInvites(): Promise<OrganizationInviteResponse[]> {
+  try {
+    const response = await axiosAPI<OrganizationInviteResponse[]>({
+      endpoint: "/users/organizations/invites",
+      method: "GET",
+      withAuth: true,
+    });
+
+    return response.data;
+  } catch (error) {
+    if (error instanceof APIException) {
+      throw error;
+    }
+    throw new Error("Erro ao buscar convites");
+  }
+}
+
+export async function getMyRequests(): Promise<OrganizationRequestResponse[]> {
+  try {
+    const response = await axiosAPI<OrganizationRequestResponse[]>({
+      endpoint: "/users/organizations/requests",
+      method: "GET",
+      withAuth: true,
+    });
+
+    return response.data;
+  } catch (error) {
+    if (error instanceof APIException) {
+      throw error;
+    }
+    throw new Error("Erro ao buscar solicitações");
+  }
+}
+

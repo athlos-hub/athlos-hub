@@ -211,6 +211,44 @@ class OrganizationMemberRepository(IOrganizationMemberRepository):
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_user_invites(self, user_id: UUID) -> Sequence[OrganizationMember]:
+        """Obtém todos os convites recebidos por um usuário (status INVITED)."""
+        stmt = (
+            select(OrganizationMember)
+            .options(
+                joinedload(OrganizationMember.organization),
+                joinedload(OrganizationMember.user),
+            )
+            .where(
+                OrganizationMember.user_id == user_id,
+                OrganizationMember.status == MemberStatus.INVITED,
+            )
+            .join(Organization, OrganizationMember.organization_id == Organization.id)
+            .where(Organization.status == OrganizationStatus.ACTIVE)
+            .order_by(OrganizationMember.created_at.desc())
+        )
+        result = await self._session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_user_requests(self, user_id: UUID) -> Sequence[OrganizationMember]:
+        """Obtém todas as solicitações enviadas por um usuário (status PENDING)."""
+        stmt = (
+            select(OrganizationMember)
+            .options(
+                joinedload(OrganizationMember.organization),
+                joinedload(OrganizationMember.user),
+            )
+            .where(
+                OrganizationMember.user_id == user_id,
+                OrganizationMember.status == MemberStatus.PENDING,
+            )
+            .join(Organization, OrganizationMember.organization_id == Organization.id)
+            .where(Organization.status == OrganizationStatus.ACTIVE)
+            .order_by(OrganizationMember.created_at.desc())
+        )
+        result = await self._session.execute(stmt)
+        return result.scalars().all()
+
     async def exists_membership(
         self, org_id: UUID, user_id: UUID, statuses: list[MemberStatus]
     ) -> bool:

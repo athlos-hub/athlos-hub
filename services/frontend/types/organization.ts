@@ -143,6 +143,20 @@ export interface TransferOwnershipRequest {
   new_owner_id: string;
 }
 
+export interface OrganizationInviteResponse {
+  id: string;
+  organization: OrganizationGetPublic;
+  status: MemberStatus;
+  invited_at: string;
+}
+
+export interface OrganizationRequestResponse {
+  id: string;
+  organization: OrganizationGetPublic;
+  status: MemberStatus;
+  requested_at: string;
+}
+
 export type OrganizationListItem = OrganizationWithRole | OrganizationAdminWithRole;
 
 export interface OrganizationFormData {

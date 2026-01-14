@@ -105,3 +105,22 @@ class TeamOverviewResponse(BaseModel):
 
 class TransferOwnershipRequest(BaseModel):
     new_owner_id: UUID
+
+
+class OrganizationInviteResponse(BaseModel):
+    id: UUID
+    organization: OrganizationGetPublic
+    status: MemberStatus
+    invited_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OrganizationRequestResponse(BaseModel):
+    id: UUID
+    organization: OrganizationGetPublic
+    status: MemberStatus
+    requested_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
