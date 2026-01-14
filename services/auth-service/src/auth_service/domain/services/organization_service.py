@@ -633,6 +633,22 @@ class OrganizationService:
 
         return await self._member_repo.get_sent_invites(org.id)
 
+    async def get_user_invites(self, user: User) -> Sequence[OrganizationMember]:
+        """
+        Get all organization invites received by user (status INVITED).
+
+        Returns list of pending invites to organizations.
+        """
+        return await self._member_repo.get_user_invites(user.id)
+
+    async def get_user_requests(self, user: User) -> Sequence[OrganizationMember]:
+        """
+        Get all organization requests sent by user (status REQUESTED).
+
+        Returns list of pending requests to join organizations.
+        """
+        return await self._member_repo.get_user_requests(user.id)
+
     async def get_members(self, slug: str, user: User) -> Sequence[OrganizationMember]:
         """
         Get organization members.
