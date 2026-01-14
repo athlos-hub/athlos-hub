@@ -59,7 +59,7 @@ export function Pagination({
                             variant={currentPage === page ? "default" : "outline"}
                             size="sm"
                             onClick={() => onPageChange(page)}
-                            className="w-10"
+                            className={currentPage === page ? "w-10 bg-main hover:bg-main/90" : "w-10"}
                         >
                             {page}
                         </Button>

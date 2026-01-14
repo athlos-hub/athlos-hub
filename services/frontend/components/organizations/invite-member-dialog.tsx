@@ -79,7 +79,7 @@ export function InviteMemberDialog({ organizationSlug, onSuccess }: InviteMember
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button size="sm">
+                <Button size="sm" className="bg-main hover:bg-main/90 text-white">
                     <UserPlus className="h-4 w-4 mr-2" />
                     Convidar Membro
                 </Button>
@@ -142,7 +142,7 @@ export function InviteMemberDialog({ organizationSlug, onSuccess }: InviteMember
                             >
                                 Cancelar
                             </Button>
-                            <Button type="submit" disabled={isLoading}>
+                            <Button type="submit" disabled={isLoading} className="bg-main hover:bg-main/90 text-white">
                                 {isLoading ? "Enviando..." : "Enviar Convite"}
                             </Button>
                         </div>

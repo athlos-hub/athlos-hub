@@ -257,7 +257,7 @@ export function MembersSection({ organization, isAdmin, isOwner, isOrganizer }: 
                 <div className="flex items-center justify-between">
                     <div>
                         <CardTitle>
-                            <Users className="h-5 w-5 inline mr-2" />
+                            <Users className="h-5 w-5 inline mr-2 text-main" />
                             Membros
                         </CardTitle>
                         <CardDescription>
@@ -378,7 +378,7 @@ export function MembersSection({ organization, isAdmin, isOwner, isOrganizer }: 
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     {member.is_owner ? (
-                                                        <Badge variant="default">Proprietário</Badge>
+                                                        <Badge className="bg-main hover:bg-main/90 text-white">Proprietário</Badge>
                                                     ) : organizers.has(member.user?.id) ? (
                                                         <Badge variant="secondary">Organizador</Badge>
                                                     ) : (
@@ -410,6 +410,7 @@ export function MembersSection({ organization, isAdmin, isOwner, isOrganizer }: 
                                                                     isOwner && (
                                                                         <DropdownMenuItem
                                                                             onClick={() => handlePromoteToOrganizer(member.user.id, member.user.username)}
+                                                                            className="text-main"
                                                                         >
                                                                             <Shield className="h-4 w-4 mr-2" />
                                                                             Promover a Organizador
@@ -494,7 +495,7 @@ export function MembersSection({ organization, isAdmin, isOwner, isOrganizer }: 
                                                 <div className="flex items-center gap-2">
                                                     <Button
                                                         size="sm"
-                                                        variant="default"
+                                                        className="bg-green-600 hover:bg-green-700 text-white"
                                                         onClick={() => handleApproveRequest(request.user.id)}
                                                     >
                                                         <UserCheck className="h-4 w-4 mr-1" />

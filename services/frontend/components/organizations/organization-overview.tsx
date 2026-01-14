@@ -56,7 +56,7 @@ export function OrganizationOverview({ slug, isMember = false }: Props) {
     <Card>
       <CardHeader className="pb-0">
         <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5" />
+          <Users className="h-5 w-5 text-main" />
           Visão Geral
         </CardTitle>
       </CardHeader>

@@ -243,7 +243,7 @@ export function ManageOrganizersDialog({ organization }: ManageOrganizersDialogP
           <Button 
             onClick={handleSave} 
             disabled={submitting || !hasChanges() || loading}
-            className="min-w-[140px]"
+            className="min-w-[140px] bg-main hover:bg-main/90 text-white"
           >
             {submitting ? (
               <>
