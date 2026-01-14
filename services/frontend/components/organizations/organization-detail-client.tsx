@@ -25,8 +25,8 @@ interface OrganizationDetailClientProps {
 export function OrganizationDetailClient({ organization }: OrganizationDetailClientProps) {
     const userRole = 'role' in organization ? organization.role : null;
     const isOwner = userRole === OrgRole.OWNER;
-    const isAdmin = userRole === OrgRole.OWNER || userRole === OrgRole.ORGANIZER;
     const isOrganizer = userRole === OrgRole.ORGANIZER;
+    const isAdmin = isOwner || isOrganizer;
     
     const isFullOrganization = 'status' in organization && 'join_policy' in organization;
     const isPending = isFullOrganization && organization.status === OrganizationStatus.PENDING;
@@ -91,7 +91,7 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
                         )}
                     </div>
 
-                    {isOwner && isFullOrganization && (
+                    {isOwner && !isOrganizer && isFullOrganization && (
                         <>
                             <hr className="my-4 border-border" />
                             <div className="flex flex-wrap gap-3">
@@ -112,7 +112,22 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
                         </>
                     )}
 
-                    {!isOwner && userRole && (
+                    {isOrganizer && !isOwner && isFullOrganization && !isPending && (
+                        <>
+                            <hr className="my-4 border-border" />
+                            <div className="flex flex-wrap gap-3">
+                                <InviteLinkDialog organization={organization as OrganizationResponse} />
+                                <LeaveOrganizationDialog 
+                                    organizationSlug={organization.slug}
+                                    organizationName={organization.name}
+                                    isOwner={false}
+                                    isOrganizer={true}
+                                />
+                            </div>
+                        </>
+                    )}
+
+                    {!isOwner && !isOrganizer && userRole && (
                         <>
                             <hr className="my-4 border-border" />
                             <div className="flex flex-wrap gap-3">
@@ -135,6 +150,7 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
                     organization={organization as OrganizationResponse & { role?: string }} 
                     isAdmin={isAdmin}
                     isOwner={isOwner}
+                    isOrganizer={isOrganizer}
                 />
             )}
 
