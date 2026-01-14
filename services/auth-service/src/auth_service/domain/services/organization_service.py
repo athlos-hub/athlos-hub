@@ -503,10 +503,48 @@ class OrganizationService:
         if not membership:
             raise InviteNotFoundError()
 
+        org = await self._org_repo.get_by_id(membership.organization_id)
+        
         await self._member_repo.delete(membership)
         await self._member_repo.commit()
 
         logger.info(f"Usuário {user.id} recusou convite para {slug}")
+        
+        if org:
+            user_name = user.username
+            if user.first_name:
+                if user.last_name:
+                    user_name = f"{user.first_name} {user.last_name}"
+                else:
+                    user_name = user.first_name
+            
+            await self._send_notification(
+                user_id=org.owner_id,
+                notification_type="organization_invite_declined",
+                title="Convite recusado",
+                message=f"{user_name} recusou o convite para {org.name}",
+                organization=org,
+                extra_data={
+                    "declined_by_id": str(user.id),
+                    "declined_by_name": user_name,
+                },
+                action_url=f"/organizations/{org.slug}"
+            )
+            
+            organizers = await self._organizer_repo.get_organizers_by_org(org.id)
+            for organizer in organizers:
+                await self._send_notification(
+                    user_id=organizer.user_id,
+                    notification_type="organization_invite_declined",
+                    title="Convite recusado",
+                    message=f"{user_name} recusou o convite para {org.name}",
+                    organization=org,
+                    extra_data={
+                        "declined_by_id": str(user.id),
+                        "declined_by_name": user_name,
+                    },
+                    action_url=f"/organizations/{org.slug}"
+                )
 
     async def leave_organization(self, slug: str, user: User) -> None:
         """
@@ -675,6 +713,20 @@ class OrganizationService:
         await self._member_repo.commit()
 
         logger.info(f"Admin {admin.id} cancelou convite de {user_id} para {slug}")
+        
+        invited_user = await self._user_repo.get_by_id(user_id)
+        if invited_user:
+            await self._send_notification(
+                user_id=invited_user.id,
+                notification_type="organization_invite_cancelled",
+                title="Convite cancelado",
+                message=f"O convite para {org.name} foi cancelado",
+                organization=org,
+                extra_data={
+                    "cancelled_by_id": str(admin.id),
+                },
+                action_url="/organizations"
+            )
 
     async def approve_join_request(
         self, slug: str, admin: User, membership_id: UUID

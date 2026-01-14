@@ -11,6 +11,9 @@ export enum NotificationType {
   ORGANIZATION_ORGANIZER_ADDED = 'organization_organizer_added',
   ORGANIZATION_ORGANIZER_REMOVED = 'organization_organizer_removed',
   
+  ORGANIZATION_INVITE_CANCELLED = 'organization_invite_cancelled',
+  ORGANIZATION_INVITE_DECLINED = 'organization_invite_declined',
+  
   GENERAL = 'general',
 }
 
