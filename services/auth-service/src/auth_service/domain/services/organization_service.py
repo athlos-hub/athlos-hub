@@ -354,8 +354,6 @@ class OrganizationService:
 
         logger.info(f"Usuário {user.id} solicitou adesão à organização {slug}")
         
-        # Notificar owner e organizers sobre a solicitação
-        # Montar nome do solicitante
         user_name = user.username
         if user.first_name:
             if user.last_name:
@@ -363,7 +361,6 @@ class OrganizationService:
             else:
                 user_name = user.first_name
         
-        # Notificar owner
         await self._send_notification(
             user_id=org.owner_id,
             notification_type="organization_join_request",
@@ -377,7 +374,6 @@ class OrganizationService:
             action_url=f"/organizations/{org.slug}/requests"
         )
         
-        # Notificar organizers
         organizers = await self._organizer_repo.get_organizers_by_org(org.id)
         for organizer in organizers:
             await self._send_notification(
@@ -544,6 +540,41 @@ class OrganizationService:
         await self._member_repo.commit()
 
         logger.info(f"Usuário {user.id} saiu da organização {slug}")
+        
+        user_name = user.username
+        if user.first_name:
+            if user.last_name:
+                user_name = f"{user.first_name} {user.last_name}"
+            else:
+                user_name = user.first_name
+        
+        await self._send_notification(
+            user_id=org.owner_id,
+            notification_type="organization_member_left",
+            title="Um membro saiu da organização",
+            message=f"{user_name} saiu de {org.name}",
+            organization=org,
+            extra_data={
+                "member_id": str(user.id),
+                "member_name": user_name,
+            },
+            action_url=f"/organizations/{org.slug}"
+        )
+        
+        organizers = await self._organizer_repo.get_organizers_by_org(org.id)
+        for organizer in organizers:
+            await self._send_notification(
+                user_id=organizer.user_id,
+                notification_type="organization_member_left",
+                title="Um membro saiu da organização",
+                message=f"{user_name} saiu de {org.name}",
+                organization=org,
+                extra_data={
+                    "member_id": str(user.id),
+                    "member_name": user_name,
+                },
+                action_url=f"/organizations/{org.slug}"
+            )
 
     async def invite_user(self, slug: str, inviter: User, user_id: UUID) -> None:
         """
@@ -673,7 +704,6 @@ class OrganizationService:
 
         logger.info(f"Admin {admin.id} aprovou solicitação {membership_id}")
         
-        # Notificar usuário que solicitou entrada
         requester = await self._user_repo.get_by_id(membership.user_id)
         if requester and org:
             await self._send_notification(
@@ -718,7 +748,6 @@ class OrganizationService:
 
         logger.info(f"Admin {admin.id} rejeitou solicitação {membership_id}")
         
-        # Notificar usuário que solicitou entrada
         requester = await self._user_repo.get_by_id(membership.user_id)
         if requester and org:
             await self._send_notification(
@@ -778,6 +807,22 @@ class OrganizationService:
 
         await self._member_repo.delete(membership)
         await self._member_repo.commit()
+
+        logger.info(f"Admin {admin.id} removeu membro {member_user_id} da organização {slug}")
+        
+        removed_user = await self._user_repo.get_by_id(member_user_id)
+        if removed_user:
+            await self._send_notification(
+                user_id=removed_user.id,
+                notification_type="organization_member_removed",
+                title="Você foi removido de uma organização",
+                message=f"Você foi removido da organização {org.name}",
+                organization=org,
+                extra_data={
+                    "removed_by_id": str(admin.id),
+                },
+                action_url="/organizations"
+            )
 
         logger.info(f"Admin {admin.id} removeu membro {member_user_id} de {slug}")
 
@@ -919,6 +964,21 @@ class OrganizationService:
         await self._organizer_repo.commit()
 
         logger.info(f"Usuário {owner.id} promoveu {user_id} a organizador em {slug}")
+        
+        promoted_user = await self._user_repo.get_by_id(user_id)
+        if promoted_user:
+            await self._send_notification(
+                user_id=promoted_user.id,
+                notification_type="organization_organizer_added",
+                title="Você foi promovido a organizador",
+                message=f"Você agora é organizador de {org.name}",
+                organization=org,
+                extra_data={
+                    "promoted_by_id": str(owner.id),
+                },
+                action_url=f"/organizations/{org.slug}"
+            )
+        
         return created
 
     async def remove_organizer(self, slug: str, owner: User, user_id: UUID) -> None:
@@ -954,6 +1014,20 @@ class OrganizationService:
         await self._organizer_repo.commit()
 
         logger.info(f"Usuário {owner.id} removeu organizador {user_id} de {slug}")
+        
+        demoted_user = await self._user_repo.get_by_id(user_id)
+        if demoted_user:
+            await self._send_notification(
+                user_id=demoted_user.id,
+                notification_type="organization_organizer_removed",
+                title="Você não é mais organizador",
+                message=f"Você não é mais organizador de {org.name}",
+                organization=org,
+                extra_data={
+                    "removed_by_id": str(owner.id),
+                },
+                action_url=f"/organizations/{org.slug}"
+            )
 
     async def transfer_ownership(
         self, slug: str, owner: User, new_owner_id: UUID
