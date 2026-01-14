@@ -190,26 +190,58 @@ class OrganizationMemberRepository(IOrganizationMemberRepository):
         self, membership_id: UUID, org_slug: str, approver_id: UUID
     ) -> Optional[OrganizationMember]:
         """Obtém associação pendente se o aprovador tiver permissão."""
-        stmt = (
-            select(OrganizationMember)
-            .join(Organization, OrganizationMember.organization_id == Organization.id)
-            .where(
-                OrganizationMember.id == membership_id,
-                Organization.slug == org_slug,
-                OrganizationMember.status == MemberStatus.PENDING,
-                or_(
-                    Organization.owner_id == approver_id,
-                    exists().where(
-                        and_(
-                            OrganizationOrganizer.organization_id == Organization.id,
-                            OrganizationOrganizer.user_id == approver_id,
-                        )
-                    ),
-                ),
-            )
+        
+        # First, let's check if the membership exists
+        check_stmt = select(OrganizationMember).where(
+            OrganizationMember.id == membership_id
         )
-        result = await self._session.execute(stmt)
-        return result.scalar_one_or_none()
+        check_result = await self._session.execute(check_stmt)
+        membership = check_result.scalar_one_or_none()
+        
+        if not membership:
+            logger.warning(f"Membership {membership_id} not found")
+            return None
+            
+        logger.info(f"Membership found: id={membership.id}, status={membership.status}, org_id={membership.organization_id}")
+        
+        # Check if org slug matches
+        org_stmt = select(Organization).where(
+            Organization.id == membership.organization_id,
+            Organization.slug == org_slug
+        )
+        org_result = await self._session.execute(org_stmt)
+        org = org_result.scalar_one_or_none()
+        
+        if not org:
+            logger.warning(f"Organization with slug {org_slug} not found or doesn't match membership org_id")
+            return None
+            
+        logger.info(f"Organization found: id={org.id}, slug={org.slug}, owner_id={org.owner_id}")
+        
+        # Check if status is PENDING
+        if membership.status != MemberStatus.PENDING:
+            logger.warning(f"Membership status is {membership.status}, not PENDING")
+            return None
+        
+        # Check if approver is owner
+        if org.owner_id == approver_id:
+            logger.info(f"Approver {approver_id} is the owner")
+            return membership
+            
+        # Check if approver is organizer
+        organizer_stmt = select(OrganizationOrganizer).where(
+            OrganizationOrganizer.organization_id == org.id,
+            OrganizationOrganizer.user_id == approver_id
+        )
+        organizer_result = await self._session.execute(organizer_stmt)
+        organizer = organizer_result.scalar_one_or_none()
+        
+        if organizer:
+            logger.info(f"Approver {approver_id} is an organizer")
+            return membership
+            
+        logger.warning(f"Approver {approver_id} is neither owner nor organizer")
+        return None
 
     async def get_user_invites(self, user_id: UUID) -> Sequence[OrganizationMember]:
         """Obtém todos os convites recebidos por um usuário (status INVITED)."""

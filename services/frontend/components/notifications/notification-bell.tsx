@@ -46,6 +46,12 @@ export default function NotificationBell() {
         return '🏢';
       case 'organization_accepted':
         return '✅';
+      case 'organization_join_request':
+        return '📥';
+      case 'organization_request_approved':
+        return '🎉';
+      case 'organization_request_rejected':
+        return '❌';
       case 'general':
         return '🔔';
       default:
@@ -141,17 +147,15 @@ export default function NotificationBell() {
             )}
           </div>
 
-          {notifications.length > 0 && (
-            <div className="p-3 border-t border-gray-200 text-center">
-              <Link
-                href="/notifications"
-                className="text-sm text-main hover:text-main/80 font-medium"
-                onClick={() => setIsOpen(false)}
-              >
-                Ver todas as notificações
-              </Link>
-            </div>
-          )}
+          <div className="p-3 border-t border-gray-200 text-center">
+            <Link
+              href="/notifications"
+              className="text-sm text-main hover:text-main/80 font-medium"
+              onClick={() => setIsOpen(false)}
+            >
+              Ver todas as notificações
+            </Link>
+          </div>
         </div>
       )}
     </div>

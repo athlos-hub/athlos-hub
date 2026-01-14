@@ -29,6 +29,13 @@ export default function NotificationsPage() {
         return '🏢';
       case 'organization_accepted':
         return '✅';
+      // Fase 1: Fluxo de Entrada
+      case 'organization_join_request':
+        return '📥';
+      case 'organization_request_approved':
+        return '🎉';
+      case 'organization_request_rejected':
+        return '❌';
       case 'general':
         return '🔔';
       default:
