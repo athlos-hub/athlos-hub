@@ -12,8 +12,8 @@ import { dropdownData } from '@/data/dropdownData';
 import DropdownNavbar from "@/components/layout/player/dropdown-navbar";
 import {Session} from "next-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {IoMdNotificationsOutline} from "react-icons/io";
 import {LogoutButton} from "@/components/layout/player/logout-button";
+import NotificationBell from "@/components/notifications/notification-bell";
 
 import {
     DropdownMenu,
@@ -100,7 +100,7 @@ export default function PlayerHeader({ session }: PlayerHeaderProps) {
 
                     {session ? (
                         <div className="flex items-center gap-6">
-                            <IoMdNotificationsOutline size={20} className="cursor-pointer" />
+                            <NotificationBell />
                             <DropdownMenu>
                                 <DropdownMenuTrigger className="focus:outline-none" asChild={true}>
                                     <Avatar className="cursor-pointer">
