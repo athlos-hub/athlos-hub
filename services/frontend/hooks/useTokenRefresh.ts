@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useEffect, useRef } from "react";
 import { getTokenExpiryTime } from "@/lib/token-utils";
 
@@ -25,7 +25,16 @@ export function useTokenRefresh(minutesBeforeExpiry: number = 5, checkIntervalSe
             const timeRemaining = getTokenExpiryTime(session.accessToken);
             const thresholdSeconds = minutesBeforeExpiry * 60;
 
-            if (timeRemaining <= thresholdSeconds && timeRemaining > 0) {
+            if (timeRemaining <= 0) {
+                console.warn("⚠️ Token expirado. Fazendo logout...");
+                await signOut({ 
+                    callbackUrl: "/auth/login",
+                    redirect: true 
+                });
+                return;
+            }
+
+            if (timeRemaining <= thresholdSeconds) {
                 refreshingRef.current = true;
 
                 try {
@@ -42,9 +51,19 @@ export function useTokenRefresh(minutesBeforeExpiry: number = 5, checkIntervalSe
                         });
 
                         console.log("✅ Token renovado automaticamente");
+                    } else {
+                        console.error("❌ Falha ao renovar token. Fazendo logout...");
+                        await signOut({ 
+                            callbackUrl: "/auth/login",
+                            redirect: true 
+                        });
                     }
                 } catch (error) {
                     console.error("❌ Erro ao renovar token:", error);
+                    await signOut({ 
+                        callbackUrl: "/auth/login",
+                        redirect: true 
+                    });
                 } finally {
                     refreshingRef.current = false;
                 }
