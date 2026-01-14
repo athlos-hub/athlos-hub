@@ -954,6 +954,10 @@ class OrganizationService:
 
         return OrgRole.NONE
 
+    async def get_user_role_in_org(self, org: Organization, user: User) -> str:
+        """Método público para obter função do usuário em uma organização."""
+        return await self._get_user_role_in_org(org, user)
+
     async def _validate_can_join(
         self, org: Organization, user: User, via_link: bool
     ) -> None:

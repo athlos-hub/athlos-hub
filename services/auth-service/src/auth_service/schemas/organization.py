@@ -50,7 +50,7 @@ class OrganizationResponse(OrganizationGetPublic):
     updated_at: datetime
 
 
-class OrganizationWithRole(OrganizationGetPublic):
+class OrganizationWithRole(OrganizationResponse):
     role: str
 
     model_config = ConfigDict(from_attributes=True)

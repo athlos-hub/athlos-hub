@@ -47,9 +47,10 @@ interface MembersSectionProps {
     organization: OrganizationResponse & { role?: string };
     isAdmin: boolean;
     isOwner: boolean;
+    isOrganizer: boolean;
 }
 
-export function MembersSection({ organization, isAdmin, isOwner }: MembersSectionProps) {
+export function MembersSection({ organization, isAdmin, isOwner, isOrganizer }: MembersSectionProps) {
     const [members, setMembers] = useState<any[]>([]);
     const [organizers, setOrganizers] = useState<Set<string>>(new Set());
     const [pendingRequests, setPendingRequests] = useState<any[]>([]);
@@ -384,8 +385,7 @@ export function MembersSection({ organization, isAdmin, isOwner }: MembersSectio
                                                         <Badge variant="outline">Membro</Badge>
                                                     )}
                                                     
-                                                    {/* Menu de Ações - Apenas para admins e não para o próprio owner */}
-                                                    {isAdmin && !member.is_owner && (
+                                                    {isAdmin && !member.is_owner && !(isOrganizer && organizers.has(member.user?.id)) && (
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
                                                                 <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -397,30 +397,38 @@ export function MembersSection({ organization, isAdmin, isOwner }: MembersSectio
                                                                 <DropdownMenuSeparator />
                                                                 
                                                                 {organizers.has(member.user?.id) ? (
-                                                                    <DropdownMenuItem
-                                                                        onClick={() => handleDemoteOrganizer(member.user.id, member.user.username)}
-                                                                        className="text-yellow-600"
-                                                                    >
-                                                                        <ShieldOff className="h-4 w-4 mr-2" />
-                                                                        Remover Organizador
-                                                                    </DropdownMenuItem>
+                                                                    isOwner && (
+                                                                        <DropdownMenuItem
+                                                                            onClick={() => handleDemoteOrganizer(member.user.id, member.user.username)}
+                                                                            className="text-yellow-600"
+                                                                        >
+                                                                            <ShieldOff className="h-4 w-4 mr-2" />
+                                                                            Remover Organizador
+                                                                        </DropdownMenuItem>
+                                                                    )
                                                                 ) : (
-                                                                    <DropdownMenuItem
-                                                                        onClick={() => handlePromoteToOrganizer(member.user.id, member.user.username)}
-                                                                    >
-                                                                        <Shield className="h-4 w-4 mr-2" />
-                                                                        Promover a Organizador
-                                                                    </DropdownMenuItem>
+                                                                    isOwner && (
+                                                                        <DropdownMenuItem
+                                                                            onClick={() => handlePromoteToOrganizer(member.user.id, member.user.username)}
+                                                                        >
+                                                                            <Shield className="h-4 w-4 mr-2" />
+                                                                            Promover a Organizador
+                                                                        </DropdownMenuItem>
+                                                                    )
                                                                 )}
                                                                 
-                                                                <DropdownMenuSeparator />
-                                                                <DropdownMenuItem
-                                                                    onClick={() => handleRemoveMember(member.user.id, member.user.username)}
-                                                                    className="text-destructive"
-                                                                >
-                                                                    <Trash2 className="h-4 w-4 mr-2" />
-                                                                    Remover Membro
-                                                                </DropdownMenuItem>
+                                                                {(!organizers.has(member.user?.id) || isOwner) && (
+                                                                    <>
+                                                                        {(isOwner || !organizers.has(member.user?.id)) && <DropdownMenuSeparator />}
+                                                                        <DropdownMenuItem
+                                                                            onClick={() => handleRemoveMember(member.user.id, member.user.username)}
+                                                                            className="text-destructive"
+                                                                        >
+                                                                            <Trash2 className="h-4 w-4 mr-2" />
+                                                                            Remover Membro
+                                                                        </DropdownMenuItem>
+                                                                    </>
+                                                                )}
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
                                                     )}
