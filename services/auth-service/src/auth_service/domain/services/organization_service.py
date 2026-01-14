@@ -4,6 +4,7 @@ import logging
 from typing import Optional, Sequence
 from uuid import UUID
 
+import httpx
 from fastapi import UploadFile
 from slugify import slugify
 
@@ -381,6 +382,39 @@ class OrganizationService:
 
         logger.info(f"Usuário {user.id} aceitou convite para {slug}")
 
+        org = await self._org_repo.get_by_slug(slug)
+        if org:
+            try:
+                member_name = user.username
+                if user.first_name:
+                    if user.last_name:
+                        member_name = f"{user.first_name} {user.last_name}"
+                    else:
+                        member_name = user.first_name
+                
+                async with httpx.AsyncClient() as client:
+                    await client.post(
+                        "http://localhost:8003/api/v1/notifications/send",
+                        json={
+                            "user_id": str(org.owner_id),
+                            "type": "organization_accepted",
+                            "title": "Convite Aceito",
+                            "message": f"{member_name} aceitou o convite para sua organização",
+                            "extra_data": {
+                                "organization_id": str(org.id),
+                                "organization_name": org.name,
+                                "organization_slug": org.slug,
+                                "member_name": member_name,
+                                "member_id": str(user.id)
+                            },
+                            "action_url": f"/organizations/{org.slug}/members"
+                        },
+                        timeout=5.0
+                    )
+                    logger.info(f"Notificação de aceite enviada para owner {org.owner_id}")
+            except Exception as e:
+                logger.error(f"Erro ao enviar notificação de aceite: {e}")
+
     async def decline_invite(self, slug: str, user: User) -> None:
         """
         Decline an organization invite.
@@ -471,6 +505,38 @@ class OrganizationService:
         await self._member_repo.commit()
 
         logger.info(f"Usuário {inviter.id} convidou {user_id} para {slug}")
+
+        try:
+            inviter_name = inviter.username
+            if inviter.first_name:
+                if inviter.last_name:
+                    inviter_name = f"{inviter.first_name} {inviter.last_name}"
+                else:
+                    inviter_name = inviter.first_name
+            
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    "http://localhost:8003/api/v1/notifications/send",
+                    json={
+                        "user_id": str(user_id),
+                        "type": "organization_invite",
+                        "title": "Convite para Organização",
+                        "message": f"Você foi convidado para participar de {org.name}",
+                        "extra_data": {
+                            "organization_id": str(org.id),
+                            "organization_name": org.name,
+                            "organization_slug": org.slug,
+                            "inviter_name": inviter_name,
+                            "inviter_id": str(inviter.id),
+                            "role": "member"
+                        },
+                        "action_url": f"/organizations/{org.slug}/invites"
+                    },
+                    timeout=5.0
+                )
+                logger.info(f"Notificação de convite enviada para {user_id}")
+        except Exception as e:
+            logger.error(f"Erro ao enviar notificação de convite: {e}")
 
     async def cancel_invite(self, slug: str, admin: User, user_id: UUID) -> None:
         """
