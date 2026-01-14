@@ -60,6 +60,10 @@ export default function NotificationBell() {
         return '⭐';
       case 'organization_organizer_removed':
         return '📉';
+      case 'organization_invite_cancelled':
+        return '🚫';
+      case 'organization_invite_declined':
+        return '👎';
       case 'general':
         return '🔔';
       default:
