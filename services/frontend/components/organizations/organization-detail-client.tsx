@@ -66,7 +66,7 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
                                 <CardDescription>{organization.description}</CardDescription>
                             </div>
                         </div>
-                        <Badge variant={organization.privacy === "PRIVATE" ? "secondary" : "outline"}>
+                        <Badge variant={organization.privacy === "PRIVATE" ? "secondary" : "outline"} className={organization.privacy === "PRIVATE" ? "" : "border-main text-main"}>
                             {organization.privacy === "PRIVATE" ? (
                                 <>
                                     <Lock className="h-3 w-3 mr-1" />
@@ -85,7 +85,7 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
                     <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
                         {'created_at' in organization && (
                             <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4" />
+                                <Calendar className="h-4 w-4 text-main" />
                                 Criada em {new Date(organization.created_at).toLocaleDateString("pt-BR")}
                             </div>
                         )}

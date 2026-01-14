@@ -275,7 +275,7 @@ export default function AdminPage() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-2">
-                        <Shield className="w-8 h-8" />
+                        <Shield className="w-8 h-8 text-main" />
                         Painel Administrativo
                     </h1>
                     <p className="text-gray-600">Gerencie usuários e organizações da plataforma</p>
@@ -491,8 +491,8 @@ export default function AdminPage() {
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <Button
-                                                            variant="default"
                                                             size="sm"
+                                                            className="bg-main hover:bg-main/90 text-white"
                                                             onClick={() => handleUnsuspendUser(user.id, user.username)}
                                                             disabled={!!actioningId}
                                                         >
@@ -759,8 +759,8 @@ export default function AdminPage() {
                                                         </div>
                                                     </div>
                                                     <Button
-                                                        variant="default"
                                                         size="sm"
+                                                        className="bg-main hover:bg-main/90 text-white"
                                                         onClick={() => handleUnsuspendOrg(org.slug, org.name)}
                                                         disabled={!!actioningId}
                                                     >
@@ -822,8 +822,10 @@ export default function AdminPage() {
                         <AlertDialogAction
                             onClick={confirmAction}
                             className={
-                                confirmDialog.type === "accept-org" || confirmDialog.type === "unsuspend-org" || confirmDialog.type === "unsuspend-user"
+                                confirmDialog.type === "accept-org"
                                     ? "bg-green-600 hover:bg-green-700"
+                                    : confirmDialog.type === "unsuspend-org" || confirmDialog.type === "unsuspend-user"
+                                    ? "bg-main hover:bg-main/90"
                                     : "bg-destructive hover:bg-destructive/90"
                             }
                         >

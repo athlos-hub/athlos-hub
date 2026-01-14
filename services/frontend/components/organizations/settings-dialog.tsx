@@ -161,7 +161,7 @@ export function SettingsDialog({ organization }: SettingsDialogProps) {
                     >
                         Cancelar
                     </Button>
-                    <Button onClick={handleSubmit} disabled={isLoading}>
+                    <Button onClick={handleSubmit} disabled={isLoading} className="bg-main hover:bg-main/90 text-white">
                         {isLoading ? "Salvando..." : "Salvar Configurações"}
                     </Button>
                 </div>

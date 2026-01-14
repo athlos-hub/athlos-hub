@@ -231,7 +231,7 @@ export function EditOrganizationDialog({ organization }: EditOrganizationDialogP
                             >
                                 Cancelar
                             </Button>
-                            <Button type="submit" disabled={isLoading}>
+                            <Button type="submit" disabled={isLoading} className="bg-main hover:bg-main/90 text-white">
                                 {isLoading ? "Salvando..." : "Salvar Alterações"}
                             </Button>
                         </div>
