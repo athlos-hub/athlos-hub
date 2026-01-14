@@ -75,6 +75,44 @@ class OrganizationService:
         self._member_repo = member_repository
         self._organizer_repo = organizer_repository
         self._user_repo = user_repository
+    
+    async def _send_notification(
+        self,
+        user_id: UUID,
+        notification_type: str,
+        title: str,
+        message: str,
+        organization: Organization,
+        extra_data: dict = None,
+        action_url: str = None
+    ):
+        """Helper para enviar notificações de forma consistente."""
+        try:
+            base_extra_data = {
+                "organization_id": str(organization.id),
+                "organization_name": organization.name,
+                "organization_slug": organization.slug,
+            }
+            
+            if extra_data:
+                base_extra_data.update(extra_data)
+            
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    "http://localhost:8003/api/v1/notifications/send",
+                    json={
+                        "user_id": str(user_id),
+                        "type": notification_type,
+                        "title": title,
+                        "message": message,
+                        "extra_data": base_extra_data,
+                        "action_url": action_url or f"/organizations/{organization.slug}"
+                    },
+                    timeout=5.0
+                )
+                logger.info(f"Notificação {notification_type} enviada para {user_id}")
+        except Exception as e:
+            logger.error(f"Erro ao enviar notificação {notification_type}: {e}")
 
     async def create_organization(
         self,
@@ -315,6 +353,46 @@ class OrganizationService:
         await self._member_repo.commit()
 
         logger.info(f"Usuário {user.id} solicitou adesão à organização {slug}")
+        
+        # Notificar owner e organizers sobre a solicitação
+        # Montar nome do solicitante
+        user_name = user.username
+        if user.first_name:
+            if user.last_name:
+                user_name = f"{user.first_name} {user.last_name}"
+            else:
+                user_name = user.first_name
+        
+        # Notificar owner
+        await self._send_notification(
+            user_id=org.owner_id,
+            notification_type="organization_join_request",
+            title="Nova Solicitação de Entrada",
+            message=f"{user_name} solicitou entrar em {org.name}",
+            organization=org,
+            extra_data={
+                "requester_name": user_name,
+                "requester_id": str(user.id),
+            },
+            action_url=f"/organizations/{org.slug}/requests"
+        )
+        
+        # Notificar organizers
+        organizers = await self._organizer_repo.get_organizers_by_org(org.id)
+        for organizer in organizers:
+            await self._send_notification(
+                user_id=organizer.user_id,
+                notification_type="organization_join_request",
+                title="Nova Solicitação de Entrada",
+                message=f"{user_name} solicitou entrar em {org.name}",
+                organization=org,
+                extra_data={
+                    "requester_name": user_name,
+                    "requester_id": str(user.id),
+                },
+                action_url=f"/organizations/{org.slug}/requests"
+            )
+        
         return created
 
     async def cancel_join_request(self, slug: str, user: User) -> None:
@@ -594,6 +672,22 @@ class OrganizationService:
         await self._member_repo.commit()
 
         logger.info(f"Admin {admin.id} aprovou solicitação {membership_id}")
+        
+        # Notificar usuário que solicitou entrada
+        requester = await self._user_repo.get_by_id(membership.user_id)
+        if requester and org:
+            await self._send_notification(
+                user_id=requester.id,
+                notification_type="organization_request_approved",
+                title="Solicitação Aprovada",
+                message=f"Sua solicitação para entrar em {org.name} foi aprovada!",
+                organization=org,
+                extra_data={
+                    "approver_id": str(admin.id),
+                },
+                action_url=f"/organizations/{org.slug}"
+            )
+        
         return membership
 
     async def reject_join_request(
@@ -623,6 +717,21 @@ class OrganizationService:
         await self._member_repo.commit()
 
         logger.info(f"Admin {admin.id} rejeitou solicitação {membership_id}")
+        
+        # Notificar usuário que solicitou entrada
+        requester = await self._user_repo.get_by_id(membership.user_id)
+        if requester and org:
+            await self._send_notification(
+                user_id=requester.id,
+                notification_type="organization_request_rejected",
+                title="Solicitação Rejeitada",
+                message=f"Sua solicitação para entrar em {org.name} foi rejeitada",
+                organization=org,
+                extra_data={
+                    "rejecter_id": str(admin.id),
+                },
+                action_url=f"/organizations"
+            )
 
     async def remove_member(self, slug: str, admin: User, member_user_id: UUID) -> None:
         """
