@@ -177,6 +177,12 @@ class OrganizationService:
         """Obtém todas as organizações com filtros opcionais."""
         return await self._org_repo.get_all(privacy, limit, offset)
 
+    async def get_organizations_by_status(
+        self, status_filter: OrganizationStatus
+    ) -> Sequence[Organization]:
+        """Obtém organizações por status (para admin)."""
+        return await self._org_repo.get_all_admin(status_filter)
+
     async def get_user_organizations(
         self, user: User, roles: Optional[set[str]] = None
     ) -> Sequence[tuple[Organization, str]]:
@@ -278,7 +284,6 @@ class OrganizationService:
         org.join_policy = join_policy
         await self._org_repo.commit()
         
-        # Busca novamente para evitar DetachedInstanceError
         org = await self._org_repo.get_by_slug(slug)
 
         logger.info(f"Política de adesão de {slug} atualizada para {join_policy.value}")
@@ -928,6 +933,33 @@ class OrganizationService:
         await self._org_repo.commit()
 
         logger.info(f"Organização {slug} suspensa por admin")
+
+    async def admin_unsuspend_organization(self, slug: str) -> None:
+        """
+        Admin action to unsuspend organization.
+
+        Raises:
+            OrganizationNotFoundError: Se a organização não for encontrada.
+            OrganizationStatusConflictError: Se a organização não estiver suspensa.
+        """
+        org = await self._org_repo.get_by_slug(slug)
+
+        if not org:
+            raise OrganizationNotFoundError(slug)
+
+        if org.status != OrganizationStatus.SUSPENDED:
+            raise OrganizationStatusConflictError("Organização não está suspensa.")
+
+        org.status = OrganizationStatus.ACTIVE
+        await self._org_repo.commit()
+
+        logger.info(f"Organização {slug} reativada por admin")
+
+    async def get_all_organizations_admin(
+        self, status_filter: Optional[OrganizationStatus] = None
+    ) -> Sequence[Organization]:
+        """Obtém todas as organizações com filtro de status (apenas admin)."""
+        return await self._org_repo.get_all_admin(status_filter)
 
     async def _get_user_role_in_org(self, org: Organization, user: User) -> str:
         """Obtém função do usuário em uma organização."""

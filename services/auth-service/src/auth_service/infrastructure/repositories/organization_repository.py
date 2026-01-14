@@ -62,6 +62,21 @@ class OrganizationRepository(IOrganizationRepository):
         result = await self._session.execute(stmt)
         return result.scalars().all()
 
+    async def get_all_admin(
+        self,
+        status_filter: Optional[OrganizationStatus] = None,
+    ) -> Sequence[Organization]:
+        """Obtém todas as organizações com filtro opcional de status (para admin)."""
+        stmt = select(Organization)
+
+        if status_filter:
+            stmt = stmt.where(Organization.status == status_filter)
+
+        stmt = stmt.order_by(Organization.created_at.desc())
+
+        result = await self._session.execute(stmt)
+        return result.scalars().all()
+
     async def exists_by_slug(self, slug: str) -> bool:
         """Verifica se organização com slug existe."""
         stmt = select(Organization.id).where(Organization.slug == slug)
