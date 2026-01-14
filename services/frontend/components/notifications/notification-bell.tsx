@@ -52,6 +52,14 @@ export default function NotificationBell() {
         return '🎉';
       case 'organization_request_rejected':
         return '❌';
+      case 'organization_member_removed':
+        return '🚪';
+      case 'organization_member_left':
+        return '👋';
+      case 'organization_organizer_added':
+        return '⭐';
+      case 'organization_organizer_removed':
+        return '📉';
       case 'general':
         return '🔔';
       default:

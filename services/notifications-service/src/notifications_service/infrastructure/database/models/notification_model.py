@@ -20,6 +20,11 @@ class NotificationType(str, Enum):
     ORGANIZATION_REQUEST_APPROVED = "organization_request_approved"
     ORGANIZATION_REQUEST_REJECTED = "organization_request_rejected"
     
+    ORGANIZATION_MEMBER_REMOVED = "organization_member_removed"
+    ORGANIZATION_MEMBER_LEFT = "organization_member_left"
+    ORGANIZATION_ORGANIZER_ADDED = "organization_organizer_added"
+    ORGANIZATION_ORGANIZER_REMOVED = "organization_organizer_removed"
+    
     GENERAL = "general"
 
 
