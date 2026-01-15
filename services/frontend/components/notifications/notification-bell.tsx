@@ -64,6 +64,18 @@ export default function NotificationBell() {
         return '🚫';
       case 'organization_invite_declined':
         return '👎';
+      case 'organization_ownership_received':
+        return '👑';
+      case 'organization_ownership_transferred':
+        return '🔄';
+      case 'organization_approved':
+        return '✨';
+      case 'organization_suspended':
+        return '⛔';
+      case 'organization_unsuspended':
+        return '🟢';
+      case 'organization_deleted':
+        return '🗑️';
       case 'general':
         return '🔔';
       default:

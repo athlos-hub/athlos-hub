@@ -10,6 +10,7 @@ from notifications_service.api.dependencies import (
     get_current_user_id,
 )
 from notifications_service.domain.services import NotificationService
+
 from notifications_service.schemas import (
     NotificationResponse,
     NotificationListResponse,
@@ -76,6 +77,26 @@ async def mark_all_as_read(
     """Marca todas as notificações como lidas."""
     count = await service.mark_all_as_read(user_id)
     return {"message": f"{count} notificações marcadas como lidas"}
+
+
+@router.delete("/clear-all", status_code=status.HTTP_200_OK)
+async def clear_all_notifications(
+    service: Annotated[NotificationService, Depends(get_notification_service)],
+    user_id: Annotated[UUID, Depends(get_current_user_id)],
+):
+    """Deleta todas as notificações do usuário."""
+    count = await service.clear_all_notifications(user_id)
+    return {"message": f"{count} notificações deletadas"}
+
+
+@router.delete("/{notification_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_notification(
+    notification_id: UUID,
+    service: Annotated[NotificationService, Depends(get_notification_service)],
+    user_id: Annotated[UUID, Depends(get_current_user_id)],
+):
+    """Deleta uma notificação específica."""
+    await service.delete_notification(notification_id, user_id)
 
 
 @router.post("/send", response_model=NotificationResponse, status_code=status.HTTP_201_CREATED)

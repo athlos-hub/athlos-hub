@@ -14,14 +14,25 @@ export enum NotificationType {
   ORGANIZATION_INVITE_CANCELLED = 'organization_invite_cancelled',
   ORGANIZATION_INVITE_DECLINED = 'organization_invite_declined',
   
+  ORGANIZATION_OWNERSHIP_RECEIVED = 'organization_ownership_received',
+  ORGANIZATION_OWNERSHIP_TRANSFERRED = 'organization_ownership_transferred',
+  
+  ORGANIZATION_APPROVED = 'organization_approved',
+  ORGANIZATION_SUSPENDED = 'organization_suspended',
+  ORGANIZATION_UNSUSPENDED = 'organization_unsuspended',
+  ORGANIZATION_DELETED = 'organization_deleted',
+  
   GENERAL = 'general',
 }
 
 export interface NotificationMetadata {
   organization_id?: string;
   organization_name?: string;
+  organization_slug?: string;
   inviter_name?: string;
   member_name?: string;
+  requester_name?: string;
+  requester_id?: string;
   competition_id?: string;
   competition_name?: string;
   livestream_id?: string;

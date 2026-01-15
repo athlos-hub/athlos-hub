@@ -251,3 +251,47 @@ class NotificationService:
         )
         
         return await self.create_notification(notification_data)
+
+    async def delete_notification(
+        self,
+        notification_id: UUID,
+        user_id: UUID,
+    ) -> None:
+        """
+        Deleta uma notificação específica.
+        
+        Args:
+            notification_id: ID da notificação
+            user_id: ID do usuário (para verificar acesso)
+        """
+        notification = await self.notification_repo.get_by_id(notification_id)
+        
+        if not notification:
+            raise NotificationNotFoundException(str(notification_id))
+        
+        if notification.user_id != user_id:
+            raise NotificationAccessDeniedException()
+        
+        await self.notification_repo.delete(notification)
+        await self.notification_repo.session.commit()
+        
+        logger.info(f"Notificação {notification_id} deletada pelo usuário {user_id}")
+
+    async def clear_all_notifications(
+        self,
+        user_id: UUID,
+    ) -> int:
+        """
+        Deleta todas as notificações do usuário.
+        
+        Args:
+            user_id: ID do usuário
+            
+        Returns:
+            Número de notificações deletadas
+        """
+        count = await self.notification_repo.delete_all_by_user(user_id)
+        await self.notification_repo.session.commit()
+        
+        logger.info(f"{count} notificações deletadas para o usuário {user_id}")
+        return count
