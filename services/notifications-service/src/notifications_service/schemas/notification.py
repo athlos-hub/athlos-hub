@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class NotificationBase(BaseModel):
@@ -13,7 +13,6 @@ class NotificationBase(BaseModel):
     type: str
     title: str
     message: str
-    extra_data: Optional[Dict[str, Any]] = None
     action_url: Optional[str] = None
 
 
@@ -21,6 +20,7 @@ class NotificationCreate(NotificationBase):
     """Schema para criação de notificação."""
 
     user_id: UUID
+    extra_data: Optional[Dict[str, Any]] = None
 
 
 class NotificationResponse(NotificationBase):
@@ -32,9 +32,9 @@ class NotificationResponse(NotificationBase):
     read_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
+    extra_data: Optional[Dict[str, Any]] = Field(None, serialization_alias="metadata")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class NotificationListResponse(BaseModel):

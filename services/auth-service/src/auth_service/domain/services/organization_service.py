@@ -370,6 +370,7 @@ class OrganizationService:
             extra_data={
                 "requester_name": user_name,
                 "requester_id": str(user.id),
+                "membership_id": str(created.id),
             },
             action_url=f"/organizations/{org.slug}/requests"
         )
@@ -385,6 +386,7 @@ class OrganizationService:
                 extra_data={
                     "requester_name": user_name,
                     "requester_id": str(user.id),
+                    "membership_id": str(created.id),
                 },
                 action_url=f"/organizations/{org.slug}/requests"
             )
@@ -1127,6 +1129,39 @@ class OrganizationService:
         logger.info(
             f"Propriedade de {slug} transferida de {old_owner_id} para {new_owner_id}"
         )
+        
+        new_owner_name = new_owner_user.username
+        if new_owner_user.first_name:
+            if new_owner_user.last_name:
+                new_owner_name = f"{new_owner_user.first_name} {new_owner_user.last_name}"
+            else:
+                new_owner_name = new_owner_user.first_name
+        
+        await self._send_notification(
+            user_id=new_owner_id,
+            notification_type="organization_ownership_received",
+            title="Você é o novo proprietário",
+            message=f"Você agora é o proprietário de {org.name}",
+            organization=org,
+            extra_data={
+                "previous_owner_id": str(old_owner_id),
+            },
+            action_url=f"/organizations/{org.slug}"
+        )
+        
+        await self._send_notification(
+            user_id=old_owner_id,
+            notification_type="organization_ownership_transferred",
+            title="Propriedade transferida",
+            message=f"A propriedade de {org.name} foi transferida para {new_owner_name}",
+            organization=org,
+            extra_data={
+                "new_owner_id": str(new_owner_id),
+                "new_owner_name": new_owner_name,
+            },
+            action_url=f"/organizations/{org.slug}"
+        )
+        
         return org
 
     async def get_team_overview(self, slug: str, user: User) -> dict:
@@ -1184,11 +1219,40 @@ class OrganizationService:
         if org.status == OrganizationStatus.PENDING:
             org.status = OrganizationStatus.REJECTED
             logger.info(f"Organização {slug} rejeitada por admin")
+            action_text = "rejeitada"
         else:
             org.status = OrganizationStatus.EXCLUDED
             logger.info(f"Organização {slug} excluída por admin")
+            action_text = "excluída"
 
         await self._org_repo.commit()
+        
+        await self._send_notification(
+            user_id=org.owner_id,
+            notification_type="organization_deleted",
+            title=f"Organização {action_text}",
+            message=f"A organização {org.name} foi {action_text} pela plataforma",
+            organization=org,
+            extra_data={
+                "action": action_text,
+            },
+            action_url="/organizations"
+        )
+        
+        active_members = await self._member_repo.get_members(org.id)
+        for member in active_members:
+            if member.status == MemberStatus.ACTIVE and member.user_id != org.owner_id:
+                await self._send_notification(
+                    user_id=member.user_id,
+                    notification_type="organization_deleted",
+                    title=f"Organização {action_text}",
+                    message=f"A organização {org.name} foi {action_text} pela plataforma",
+                    organization=org,
+                    extra_data={
+                        "action": action_text,
+                    },
+                    action_url="/organizations"
+                )
 
     async def admin_accept_organization(self, slug: str) -> Organization:
         """
@@ -1212,6 +1276,17 @@ class OrganizationService:
         await self._org_repo.commit()
 
         logger.info(f"Organização {slug} aceita por admin")
+        
+        await self._send_notification(
+            user_id=org.owner_id,
+            notification_type="organization_approved",
+            title="Organização aprovada",
+            message=f"Sua organização {org.name} foi aprovada pela plataforma!",
+            organization=org,
+            extra_data={},
+            action_url=f"/organizations/{org.slug}"
+        )
+        
         return org
 
     async def admin_suspend_organization(self, slug: str) -> None:
@@ -1234,6 +1309,28 @@ class OrganizationService:
         await self._org_repo.commit()
 
         logger.info(f"Organização {slug} suspensa por admin")
+        
+        await self._send_notification(
+            user_id=org.owner_id,
+            notification_type="organization_suspended",
+            title="Organização suspensa",
+            message=f"A organização {org.name} foi suspensa pela plataforma",
+            organization=org,
+            extra_data={},
+            action_url=f"/organizations/{org.slug}"
+        )
+        
+        organizers = await self._organizer_repo.get_organizers_by_org(org.id)
+        for organizer in organizers:
+            await self._send_notification(
+                user_id=organizer.user_id,
+                notification_type="organization_suspended",
+                title="Organização suspensa",
+                message=f"A organização {org.name} foi suspensa pela plataforma",
+                organization=org,
+                extra_data={},
+                action_url=f"/organizations/{org.slug}"
+            )
 
     async def admin_unsuspend_organization(self, slug: str) -> None:
         """
@@ -1255,6 +1352,28 @@ class OrganizationService:
         await self._org_repo.commit()
 
         logger.info(f"Organização {slug} reativada por admin")
+        
+        await self._send_notification(
+            user_id=org.owner_id,
+            notification_type="organization_unsuspended",
+            title="Organização reativada",
+            message=f"A organização {org.name} foi reativada!",
+            organization=org,
+            extra_data={},
+            action_url=f"/organizations/{org.slug}"
+        )
+        
+        organizers = await self._organizer_repo.get_organizers_by_org(org.id)
+        for organizer in organizers:
+            await self._send_notification(
+                user_id=organizer.user_id,
+                notification_type="organization_unsuspended",
+                title="Organização reativada",
+                message=f"A organização {org.name} foi reativada!",
+                organization=org,
+                extra_data={},
+                action_url=f"/organizations/{org.slug}"
+            )
 
     async def get_all_organizations_admin(
         self, status_filter: Optional[OrganizationStatus] = None

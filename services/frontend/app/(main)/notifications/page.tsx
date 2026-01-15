@@ -1,16 +1,30 @@
 "use client"
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useNotifications } from '@/hooks/use-notifications';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Notification } from '@/types/notification';
-import Link from 'next/link';
-import { Bell, Check, Filter } from 'lucide-react';
+import { Bell, Check, Filter, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function NotificationsPage() {
+  const router = useRouter();
   const [showUnreadOnly, setShowUnreadOnly] = useState(true);
-  const { notifications, unreadCount, loading, markAsRead, markAllAsRead, fetchNotifications } = useNotifications(true);
+  const [clearing, setClearing] = useState(false);
+  const [showClearDialog, setShowClearDialog] = useState(false);
+  const { notifications, unreadCount, loading, markAsRead, markAllAsRead, clearAllNotifications, fetchNotifications } = useNotifications(true);
 
   const handleFilterChange = async (unreadOnly: boolean) => {
     setShowUnreadOnly(unreadOnly);
@@ -20,6 +34,20 @@ export default function NotificationsPage() {
   const handleNotificationClick = async (notification: Notification) => {
     if (!notification.is_read) {
       await markAsRead(notification.id);
+    }
+    router.push(`/notifications/${notification.id}`);
+  };
+
+  const handleClearAll = async () => {
+    try {
+      setClearing(true);
+      await clearAllNotifications();
+      toast.success('Todas as notificações foram deletadas');
+      setShowClearDialog(false);
+    } catch (error) {
+      toast.error('Erro ao deletar notificações');
+    } finally {
+      setClearing(false);
     }
   };
 
@@ -47,6 +75,18 @@ export default function NotificationsPage() {
         return '🚫';
       case 'organization_invite_declined':
         return '👎';
+      case 'organization_ownership_received':
+        return '👑';
+      case 'organization_ownership_transferred':
+        return '🔄';
+      case 'organization_approved':
+        return '✨';
+      case 'organization_suspended':
+        return '⛔';
+      case 'organization_unsuspended':
+        return '🟢';
+      case 'organization_deleted':
+        return '🗑️';
       case 'general':
         return '🔔';
       default:
@@ -77,16 +117,49 @@ export default function NotificationsPage() {
             }
           </p>
         </div>
-        {unreadCount > 0 && (
-          <button
-            onClick={markAllAsRead}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-main hover:bg-main/90 text-white rounded-lg transition-colors font-medium"
-          >
-            <Check className="w-4 h-4" />
-            Marcar todas como lidas
-          </button>
-        )}
+        <div className="flex gap-2">
+          {unreadCount > 0 && (
+            <button
+              onClick={markAllAsRead}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-main hover:bg-main/90 text-white rounded-lg transition-colors font-medium"
+            >
+              <Check className="w-4 h-4" />
+              Marcar todas como lidas
+            </button>
+          )}
+          {notifications.length > 0 && (
+            <button
+              onClick={() => setShowClearDialog(true)}
+              disabled={clearing}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4" />
+              Limpar tudo
+            </button>
+          )}
+        </div>
       </div>
+
+      <AlertDialog open={showClearDialog} onOpenChange={setShowClearDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deletar todas as notificações?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Todas as suas notificações serão permanentemente deletadas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={clearing}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleClearAll}
+              disabled={clearing}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {clearing ? 'Deletando...' : 'Deletar tudo'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
         <div className="flex items-center gap-4">
@@ -170,15 +243,9 @@ export default function NotificationsPage() {
                   <p className="text-gray-700 mb-3">
                     {notification.message}
                   </p>
-                  {notification.action_url && (
-                    <Link
-                      href={notification.action_url}
-                      className="inline-flex items-center text-sm font-medium text-main hover:text-main/80 transition-colors"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      Ver detalhes →
-                    </Link>
-                  )}
+                  <span className="inline-flex items-center text-sm font-medium text-main">
+                    Ver detalhes →
+                  </span>
                 </div>
               </div>
             </div>

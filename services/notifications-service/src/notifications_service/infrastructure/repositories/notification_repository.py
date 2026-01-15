@@ -83,11 +83,19 @@ class NotificationRepository(INotificationRepository):
         )
         return result.scalar_one()
 
-    async def delete(self, notification_id: UUID) -> bool:
+    async def delete(self, notification: Notification) -> None:
         """Deleta uma notificação."""
-        notification = await self.get_by_id(notification_id)
-        if notification:
+        await self.session.delete(notification)
+
+    async def delete_all_by_user(self, user_id: UUID) -> int:
+        """Deleta todas as notificações de um usuário."""
+        result = await self.session.execute(
+            select(Notification).where(Notification.user_id == user_id)
+        )
+        notifications = result.scalars().all()
+        
+        count = len(notifications)
+        for notification in notifications:
             await self.session.delete(notification)
-            await self.session.commit()
-            return True
-        return False
+        
+        return count

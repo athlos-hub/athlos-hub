@@ -43,4 +43,13 @@ export const notificationsApi = {
     const response = await axios.get<UnreadCountResponse>(`${API_BASE}/unread-count`);
     return response.data.count;
   },
+
+  async deleteNotification(notificationId: string): Promise<void> {
+    await axios.delete(`${API_BASE}/${notificationId}`);
+  },
+
+  async clearAllNotifications(): Promise<{ message: string }> {
+    const response = await axios.delete(`${API_BASE}/clear-all`);
+    return response.data;
+  },
 };

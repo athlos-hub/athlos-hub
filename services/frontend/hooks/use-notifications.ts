@@ -59,6 +59,28 @@ export function useNotifications(unreadOnlyInitial: boolean = false, autoRefresh
     }
   };
 
+  const deleteNotification = async (notificationId: string) => {
+    try {
+      await notificationsApi.deleteNotification(notificationId);
+      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+      await fetchUnreadCount();
+    } catch (err: any) {
+      console.error('Erro ao deletar notificação:', err);
+      throw err;
+    }
+  };
+
+  const clearAllNotifications = async () => {
+    try {
+      await notificationsApi.clearAllNotifications();
+      setNotifications([]);
+      setUnreadCount(0);
+    } catch (err: any) {
+      console.error('Erro ao limpar todas as notificações:', err);
+      throw err;
+    }
+  };
+
   const refresh = async () => {
     await fetchNotifications();
     await fetchUnreadCount();
@@ -86,6 +108,8 @@ export function useNotifications(unreadOnlyInitial: boolean = false, autoRefresh
     error,
     markAsRead,
     markAllAsRead,
+    deleteNotification,
+    clearAllNotifications,
     refresh,
     fetchNotifications,
   };

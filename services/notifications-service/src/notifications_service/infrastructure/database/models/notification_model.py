@@ -28,6 +28,14 @@ class NotificationType(str, Enum):
     ORGANIZATION_INVITE_CANCELLED = "organization_invite_cancelled"
     ORGANIZATION_INVITE_DECLINED = "organization_invite_declined"
     
+    ORGANIZATION_OWNERSHIP_RECEIVED = "organization_ownership_received"
+    ORGANIZATION_OWNERSHIP_TRANSFERRED = "organization_ownership_transferred"
+    
+    ORGANIZATION_APPROVED = "organization_approved"
+    ORGANIZATION_SUSPENDED = "organization_suspended"
+    ORGANIZATION_UNSUSPENDED = "organization_unsuspended"
+    ORGANIZATION_DELETED = "organization_deleted"
+    
     GENERAL = "general"
 
 
