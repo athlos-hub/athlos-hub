@@ -121,9 +121,9 @@ export function MembersSection({ organization, isAdmin, isOwner, isOrganizer }: 
         }
     };
 
-    const handleApproveRequest = async (userId: string) => {
+    const handleApproveRequest = async (membershipId: string) => {
         try {
-            const result = await approveJoinRequest(organization.slug, userId);
+            const result = await approveJoinRequest(organization.slug, membershipId);
             if (result.success) {
                 toast.success("Solicitação aprovada!");
                 loadData();
@@ -135,9 +135,9 @@ export function MembersSection({ organization, isAdmin, isOwner, isOrganizer }: 
         }
     };
 
-    const handleRejectRequest = async (userId: string) => {
+    const handleRejectRequest = async (membershipId: string) => {
         try {
-            const result = await rejectJoinRequest(organization.slug, userId);
+            const result = await rejectJoinRequest(organization.slug, membershipId);
             if (result.success) {
                 toast.success("Solicitação rejeitada");
                 loadData();
@@ -496,7 +496,7 @@ export function MembersSection({ organization, isAdmin, isOwner, isOrganizer }: 
                                                     <Button
                                                         size="sm"
                                                         className="bg-green-600 hover:bg-green-700 text-white"
-                                                        onClick={() => handleApproveRequest(request.user.id)}
+                                                        onClick={() => handleApproveRequest(request.id)}
                                                     >
                                                         <UserCheck className="h-4 w-4 mr-1" />
                                                         Aprovar
@@ -504,7 +504,7 @@ export function MembersSection({ organization, isAdmin, isOwner, isOrganizer }: 
                                                     <Button
                                                         size="sm"
                                                         variant="destructive"
-                                                        onClick={() => handleRejectRequest(request.user.id)}
+                                                        onClick={() => handleRejectRequest(request.id)}
                                                     >
                                                         <UserX className="h-4 w-4 mr-1" />
                                                         Rejeitar
@@ -614,7 +614,13 @@ export function MembersSection({ organization, isAdmin, isOwner, isOrganizer }: 
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={confirmAction}
-                            className={confirmDialog.type === "remove" || confirmDialog.type === "cancel" ? "bg-destructive hover:bg-destructive/90" : ""}
+                            className={
+                                confirmDialog.type === "remove" || confirmDialog.type === "cancel" 
+                                    ? "bg-destructive hover:bg-destructive/90" 
+                                    : confirmDialog.type === "demote"
+                                    ? "bg-main hover:bg-main/90"
+                                    : ""
+                            }
                         >
                             {confirmDialog.type === "remove" && "Remover"}
                             {confirmDialog.type === "demote" && "Remover Organizador"}
