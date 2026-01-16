@@ -13,9 +13,10 @@ import { ManageOrganizersDialog } from "./manage-organizers-dialog";
 import { TransferOwnershipDialog } from "./transfer-ownership-dialog";
 import { InviteLinkDialog } from "./invite-link-dialog";
 import { LeaveOrganizationDialog } from "./leave-organization-dialog";
+import { RequestToJoinButton } from "./request-to-join-button";
 import { MembersSection } from "./members-section";
 import { OrganizationOverview } from "./organization-overview";
-import { OrgRole, OrganizationStatus } from "@/types/organization";
+import { OrgRole, OrganizationStatus, OrganizationJoinPolicy } from "@/types/organization";
 import type { OrganizationResponse, OrganizationWithRole, OrganizationAdminWithRole, OrganizationGetPublic } from "@/types/organization";
 
 interface OrganizationDetailClientProps {
@@ -27,9 +28,23 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
     const isOwner = userRole === OrgRole.OWNER;
     const isOrganizer = userRole === OrgRole.ORGANIZER;
     const isAdmin = isOwner || isOrganizer;
+    const isMember = !!userRole;
     
     const isFullOrganization = 'status' in organization && 'join_policy' in organization;
     const isPending = isFullOrganization && organization.status === OrganizationStatus.PENDING;
+    
+    const canRequestToJoin = 
+        !isMember && 
+        isFullOrganization && 
+        !isPending && 
+        organization.status === OrganizationStatus.ACTIVE &&
+        organization.join_policy !== null &&
+        [
+            OrganizationJoinPolicy.REQUEST_ONLY,
+            OrganizationJoinPolicy.INVITE_AND_REQUEST,
+            OrganizationJoinPolicy.REQUEST_AND_LINK,
+            OrganizationJoinPolicy.ALL
+        ].includes(organization.join_policy);
 
     return (
         <div className="space-y-6">
@@ -140,12 +155,24 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
                             </div>
                         </>
                     )}
+
+                    {canRequestToJoin && (
+                        <>
+                            <hr className="my-4 border-border" />
+                            <div className="flex flex-wrap gap-3">
+                                <RequestToJoinButton 
+                                    organizationSlug={organization.slug}
+                                    organizationName={organization.name}
+                                />
+                            </div>
+                        </>
+                    )}
                 </CardContent>
             </Card>
 
             <OrganizationOverview slug={organization.slug} isMember={!!userRole} />
 
-            {isFullOrganization && !isPending && (
+            {isMember && isFullOrganization && !isPending && (
                 <MembersSection 
                     organization={organization as OrganizationResponse & { role?: string }} 
                     isAdmin={isAdmin}

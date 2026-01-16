@@ -4,6 +4,7 @@ import logging
 from typing import Optional, Sequence
 from uuid import UUID
 
+import httpx
 from fastapi import UploadFile
 from slugify import slugify
 
@@ -74,6 +75,44 @@ class OrganizationService:
         self._member_repo = member_repository
         self._organizer_repo = organizer_repository
         self._user_repo = user_repository
+    
+    async def _send_notification(
+        self,
+        user_id: UUID,
+        notification_type: str,
+        title: str,
+        message: str,
+        organization: Organization,
+        extra_data: dict = None,
+        action_url: str = None
+    ):
+        """Helper para enviar notificações de forma consistente."""
+        try:
+            base_extra_data = {
+                "organization_id": str(organization.id),
+                "organization_name": organization.name,
+                "organization_slug": organization.slug,
+            }
+            
+            if extra_data:
+                base_extra_data.update(extra_data)
+            
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    "http://localhost:8003/api/v1/notifications/send",
+                    json={
+                        "user_id": str(user_id),
+                        "type": notification_type,
+                        "title": title,
+                        "message": message,
+                        "extra_data": base_extra_data,
+                        "action_url": action_url or f"/organizations/{organization.slug}"
+                    },
+                    timeout=5.0
+                )
+                logger.info(f"Notificação {notification_type} enviada para {user_id}")
+        except Exception as e:
+            logger.error(f"Erro ao enviar notificação {notification_type}: {e}")
 
     async def create_organization(
         self,
@@ -314,6 +353,44 @@ class OrganizationService:
         await self._member_repo.commit()
 
         logger.info(f"Usuário {user.id} solicitou adesão à organização {slug}")
+        
+        user_name = user.username
+        if user.first_name:
+            if user.last_name:
+                user_name = f"{user.first_name} {user.last_name}"
+            else:
+                user_name = user.first_name
+        
+        await self._send_notification(
+            user_id=org.owner_id,
+            notification_type="organization_join_request",
+            title="Nova Solicitação de Entrada",
+            message=f"{user_name} solicitou entrar em {org.name}",
+            organization=org,
+            extra_data={
+                "requester_name": user_name,
+                "requester_id": str(user.id),
+                "membership_id": str(created.id),
+            },
+            action_url=f"/organizations/{org.slug}/requests"
+        )
+        
+        organizers = await self._organizer_repo.get_organizers_by_org(org.id)
+        for organizer in organizers:
+            await self._send_notification(
+                user_id=organizer.user_id,
+                notification_type="organization_join_request",
+                title="Nova Solicitação de Entrada",
+                message=f"{user_name} solicitou entrar em {org.name}",
+                organization=org,
+                extra_data={
+                    "requester_name": user_name,
+                    "requester_id": str(user.id),
+                    "membership_id": str(created.id),
+                },
+                action_url=f"/organizations/{org.slug}/requests"
+            )
+        
         return created
 
     async def cancel_join_request(self, slug: str, user: User) -> None:
@@ -381,6 +458,39 @@ class OrganizationService:
 
         logger.info(f"Usuário {user.id} aceitou convite para {slug}")
 
+        org = await self._org_repo.get_by_slug(slug)
+        if org:
+            try:
+                member_name = user.username
+                if user.first_name:
+                    if user.last_name:
+                        member_name = f"{user.first_name} {user.last_name}"
+                    else:
+                        member_name = user.first_name
+                
+                async with httpx.AsyncClient() as client:
+                    await client.post(
+                        "http://localhost:8003/api/v1/notifications/send",
+                        json={
+                            "user_id": str(org.owner_id),
+                            "type": "organization_accepted",
+                            "title": "Convite Aceito",
+                            "message": f"{member_name} aceitou o convite para sua organização",
+                            "extra_data": {
+                                "organization_id": str(org.id),
+                                "organization_name": org.name,
+                                "organization_slug": org.slug,
+                                "member_name": member_name,
+                                "member_id": str(user.id)
+                            },
+                            "action_url": f"/organizations/{org.slug}/members"
+                        },
+                        timeout=5.0
+                    )
+                    logger.info(f"Notificação de aceite enviada para owner {org.owner_id}")
+            except Exception as e:
+                logger.error(f"Erro ao enviar notificação de aceite: {e}")
+
     async def decline_invite(self, slug: str, user: User) -> None:
         """
         Decline an organization invite.
@@ -395,10 +505,48 @@ class OrganizationService:
         if not membership:
             raise InviteNotFoundError()
 
+        org = await self._org_repo.get_by_id(membership.organization_id)
+        
         await self._member_repo.delete(membership)
         await self._member_repo.commit()
 
         logger.info(f"Usuário {user.id} recusou convite para {slug}")
+        
+        if org:
+            user_name = user.username
+            if user.first_name:
+                if user.last_name:
+                    user_name = f"{user.first_name} {user.last_name}"
+                else:
+                    user_name = user.first_name
+            
+            await self._send_notification(
+                user_id=org.owner_id,
+                notification_type="organization_invite_declined",
+                title="Convite recusado",
+                message=f"{user_name} recusou o convite para {org.name}",
+                organization=org,
+                extra_data={
+                    "declined_by_id": str(user.id),
+                    "declined_by_name": user_name,
+                },
+                action_url=f"/organizations/{org.slug}"
+            )
+            
+            organizers = await self._organizer_repo.get_organizers_by_org(org.id)
+            for organizer in organizers:
+                await self._send_notification(
+                    user_id=organizer.user_id,
+                    notification_type="organization_invite_declined",
+                    title="Convite recusado",
+                    message=f"{user_name} recusou o convite para {org.name}",
+                    organization=org,
+                    extra_data={
+                        "declined_by_id": str(user.id),
+                        "declined_by_name": user_name,
+                    },
+                    action_url=f"/organizations/{org.slug}"
+                )
 
     async def leave_organization(self, slug: str, user: User) -> None:
         """
@@ -432,6 +580,41 @@ class OrganizationService:
         await self._member_repo.commit()
 
         logger.info(f"Usuário {user.id} saiu da organização {slug}")
+        
+        user_name = user.username
+        if user.first_name:
+            if user.last_name:
+                user_name = f"{user.first_name} {user.last_name}"
+            else:
+                user_name = user.first_name
+        
+        await self._send_notification(
+            user_id=org.owner_id,
+            notification_type="organization_member_left",
+            title="Um membro saiu da organização",
+            message=f"{user_name} saiu de {org.name}",
+            organization=org,
+            extra_data={
+                "member_id": str(user.id),
+                "member_name": user_name,
+            },
+            action_url=f"/organizations/{org.slug}"
+        )
+        
+        organizers = await self._organizer_repo.get_organizers_by_org(org.id)
+        for organizer in organizers:
+            await self._send_notification(
+                user_id=organizer.user_id,
+                notification_type="organization_member_left",
+                title="Um membro saiu da organização",
+                message=f"{user_name} saiu de {org.name}",
+                organization=org,
+                extra_data={
+                    "member_id": str(user.id),
+                    "member_name": user_name,
+                },
+                action_url=f"/organizations/{org.slug}"
+            )
 
     async def invite_user(self, slug: str, inviter: User, user_id: UUID) -> None:
         """
@@ -472,6 +655,38 @@ class OrganizationService:
 
         logger.info(f"Usuário {inviter.id} convidou {user_id} para {slug}")
 
+        try:
+            inviter_name = inviter.username
+            if inviter.first_name:
+                if inviter.last_name:
+                    inviter_name = f"{inviter.first_name} {inviter.last_name}"
+                else:
+                    inviter_name = inviter.first_name
+            
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    "http://localhost:8003/api/v1/notifications/send",
+                    json={
+                        "user_id": str(user_id),
+                        "type": "organization_invite",
+                        "title": "Convite para Organização",
+                        "message": f"Você foi convidado para participar de {org.name}",
+                        "extra_data": {
+                            "organization_id": str(org.id),
+                            "organization_name": org.name,
+                            "organization_slug": org.slug,
+                            "inviter_name": inviter_name,
+                            "inviter_id": str(inviter.id),
+                            "role": "member"
+                        },
+                        "action_url": f"/organizations/{org.slug}/invites"
+                    },
+                    timeout=5.0
+                )
+                logger.info(f"Notificação de convite enviada para {user_id}")
+        except Exception as e:
+            logger.error(f"Erro ao enviar notificação de convite: {e}")
+
     async def cancel_invite(self, slug: str, admin: User, user_id: UUID) -> None:
         """
         Cancel a sent invite.
@@ -500,6 +715,20 @@ class OrganizationService:
         await self._member_repo.commit()
 
         logger.info(f"Admin {admin.id} cancelou convite de {user_id} para {slug}")
+        
+        invited_user = await self._user_repo.get_by_id(user_id)
+        if invited_user:
+            await self._send_notification(
+                user_id=invited_user.id,
+                notification_type="organization_invite_cancelled",
+                title="Convite cancelado",
+                message=f"O convite para {org.name} foi cancelado",
+                organization=org,
+                extra_data={
+                    "cancelled_by_id": str(admin.id),
+                },
+                action_url="/organizations"
+            )
 
     async def approve_join_request(
         self, slug: str, admin: User, membership_id: UUID
@@ -528,6 +757,21 @@ class OrganizationService:
         await self._member_repo.commit()
 
         logger.info(f"Admin {admin.id} aprovou solicitação {membership_id}")
+        
+        requester = await self._user_repo.get_by_id(membership.user_id)
+        if requester and org:
+            await self._send_notification(
+                user_id=requester.id,
+                notification_type="organization_request_approved",
+                title="Solicitação Aprovada",
+                message=f"Sua solicitação para entrar em {org.name} foi aprovada!",
+                organization=org,
+                extra_data={
+                    "approver_id": str(admin.id),
+                },
+                action_url=f"/organizations/{org.slug}"
+            )
+        
         return membership
 
     async def reject_join_request(
@@ -557,6 +801,20 @@ class OrganizationService:
         await self._member_repo.commit()
 
         logger.info(f"Admin {admin.id} rejeitou solicitação {membership_id}")
+        
+        requester = await self._user_repo.get_by_id(membership.user_id)
+        if requester and org:
+            await self._send_notification(
+                user_id=requester.id,
+                notification_type="organization_request_rejected",
+                title="Solicitação Rejeitada",
+                message=f"Sua solicitação para entrar em {org.name} foi rejeitada",
+                organization=org,
+                extra_data={
+                    "rejecter_id": str(admin.id),
+                },
+                action_url=f"/organizations"
+            )
 
     async def remove_member(self, slug: str, admin: User, member_user_id: UUID) -> None:
         """
@@ -603,6 +861,22 @@ class OrganizationService:
 
         await self._member_repo.delete(membership)
         await self._member_repo.commit()
+
+        logger.info(f"Admin {admin.id} removeu membro {member_user_id} da organização {slug}")
+        
+        removed_user = await self._user_repo.get_by_id(member_user_id)
+        if removed_user:
+            await self._send_notification(
+                user_id=removed_user.id,
+                notification_type="organization_member_removed",
+                title="Você foi removido de uma organização",
+                message=f"Você foi removido da organização {org.name}",
+                organization=org,
+                extra_data={
+                    "removed_by_id": str(admin.id),
+                },
+                action_url="/organizations"
+            )
 
         logger.info(f"Admin {admin.id} removeu membro {member_user_id} de {slug}")
 
@@ -744,6 +1018,21 @@ class OrganizationService:
         await self._organizer_repo.commit()
 
         logger.info(f"Usuário {owner.id} promoveu {user_id} a organizador em {slug}")
+        
+        promoted_user = await self._user_repo.get_by_id(user_id)
+        if promoted_user:
+            await self._send_notification(
+                user_id=promoted_user.id,
+                notification_type="organization_organizer_added",
+                title="Você foi promovido a organizador",
+                message=f"Você agora é organizador de {org.name}",
+                organization=org,
+                extra_data={
+                    "promoted_by_id": str(owner.id),
+                },
+                action_url=f"/organizations/{org.slug}"
+            )
+        
         return created
 
     async def remove_organizer(self, slug: str, owner: User, user_id: UUID) -> None:
@@ -779,6 +1068,20 @@ class OrganizationService:
         await self._organizer_repo.commit()
 
         logger.info(f"Usuário {owner.id} removeu organizador {user_id} de {slug}")
+        
+        demoted_user = await self._user_repo.get_by_id(user_id)
+        if demoted_user:
+            await self._send_notification(
+                user_id=demoted_user.id,
+                notification_type="organization_organizer_removed",
+                title="Você não é mais organizador",
+                message=f"Você não é mais organizador de {org.name}",
+                organization=org,
+                extra_data={
+                    "removed_by_id": str(owner.id),
+                },
+                action_url=f"/organizations/{org.slug}"
+            )
 
     async def transfer_ownership(
         self, slug: str, owner: User, new_owner_id: UUID
@@ -826,6 +1129,39 @@ class OrganizationService:
         logger.info(
             f"Propriedade de {slug} transferida de {old_owner_id} para {new_owner_id}"
         )
+        
+        new_owner_name = new_owner_user.username
+        if new_owner_user.first_name:
+            if new_owner_user.last_name:
+                new_owner_name = f"{new_owner_user.first_name} {new_owner_user.last_name}"
+            else:
+                new_owner_name = new_owner_user.first_name
+        
+        await self._send_notification(
+            user_id=new_owner_id,
+            notification_type="organization_ownership_received",
+            title="Você é o novo proprietário",
+            message=f"Você agora é o proprietário de {org.name}",
+            organization=org,
+            extra_data={
+                "previous_owner_id": str(old_owner_id),
+            },
+            action_url=f"/organizations/{org.slug}"
+        )
+        
+        await self._send_notification(
+            user_id=old_owner_id,
+            notification_type="organization_ownership_transferred",
+            title="Propriedade transferida",
+            message=f"A propriedade de {org.name} foi transferida para {new_owner_name}",
+            organization=org,
+            extra_data={
+                "new_owner_id": str(new_owner_id),
+                "new_owner_name": new_owner_name,
+            },
+            action_url=f"/organizations/{org.slug}"
+        )
+        
         return org
 
     async def get_team_overview(self, slug: str, user: User) -> dict:
@@ -883,11 +1219,40 @@ class OrganizationService:
         if org.status == OrganizationStatus.PENDING:
             org.status = OrganizationStatus.REJECTED
             logger.info(f"Organização {slug} rejeitada por admin")
+            action_text = "rejeitada"
         else:
             org.status = OrganizationStatus.EXCLUDED
             logger.info(f"Organização {slug} excluída por admin")
+            action_text = "excluída"
 
         await self._org_repo.commit()
+        
+        await self._send_notification(
+            user_id=org.owner_id,
+            notification_type="organization_deleted",
+            title=f"Organização {action_text}",
+            message=f"A organização {org.name} foi {action_text} pela plataforma",
+            organization=org,
+            extra_data={
+                "action": action_text,
+            },
+            action_url="/organizations"
+        )
+        
+        active_members = await self._member_repo.get_members(org.id)
+        for member in active_members:
+            if member.status == MemberStatus.ACTIVE and member.user_id != org.owner_id:
+                await self._send_notification(
+                    user_id=member.user_id,
+                    notification_type="organization_deleted",
+                    title=f"Organização {action_text}",
+                    message=f"A organização {org.name} foi {action_text} pela plataforma",
+                    organization=org,
+                    extra_data={
+                        "action": action_text,
+                    },
+                    action_url="/organizations"
+                )
 
     async def admin_accept_organization(self, slug: str) -> Organization:
         """
@@ -911,6 +1276,17 @@ class OrganizationService:
         await self._org_repo.commit()
 
         logger.info(f"Organização {slug} aceita por admin")
+        
+        await self._send_notification(
+            user_id=org.owner_id,
+            notification_type="organization_approved",
+            title="Organização aprovada",
+            message=f"Sua organização {org.name} foi aprovada pela plataforma!",
+            organization=org,
+            extra_data={},
+            action_url=f"/organizations/{org.slug}"
+        )
+        
         return org
 
     async def admin_suspend_organization(self, slug: str) -> None:
@@ -933,6 +1309,28 @@ class OrganizationService:
         await self._org_repo.commit()
 
         logger.info(f"Organização {slug} suspensa por admin")
+        
+        await self._send_notification(
+            user_id=org.owner_id,
+            notification_type="organization_suspended",
+            title="Organização suspensa",
+            message=f"A organização {org.name} foi suspensa pela plataforma",
+            organization=org,
+            extra_data={},
+            action_url=f"/organizations/{org.slug}"
+        )
+        
+        organizers = await self._organizer_repo.get_organizers_by_org(org.id)
+        for organizer in organizers:
+            await self._send_notification(
+                user_id=organizer.user_id,
+                notification_type="organization_suspended",
+                title="Organização suspensa",
+                message=f"A organização {org.name} foi suspensa pela plataforma",
+                organization=org,
+                extra_data={},
+                action_url=f"/organizations/{org.slug}"
+            )
 
     async def admin_unsuspend_organization(self, slug: str) -> None:
         """
@@ -954,6 +1352,28 @@ class OrganizationService:
         await self._org_repo.commit()
 
         logger.info(f"Organização {slug} reativada por admin")
+        
+        await self._send_notification(
+            user_id=org.owner_id,
+            notification_type="organization_unsuspended",
+            title="Organização reativada",
+            message=f"A organização {org.name} foi reativada!",
+            organization=org,
+            extra_data={},
+            action_url=f"/organizations/{org.slug}"
+        )
+        
+        organizers = await self._organizer_repo.get_organizers_by_org(org.id)
+        for organizer in organizers:
+            await self._send_notification(
+                user_id=organizer.user_id,
+                notification_type="organization_unsuspended",
+                title="Organização reativada",
+                message=f"A organização {org.name} foi reativada!",
+                organization=org,
+                extra_data={},
+                action_url=f"/organizations/{org.slug}"
+            )
 
     async def get_all_organizations_admin(
         self, status_filter: Optional[OrganizationStatus] = None

@@ -110,7 +110,7 @@ async def get_my_organizations(
     return response_list
 
 
-@router.get("/{org_slug}", response_model=OrganizationWithRole | OrganizationAdminWithRole | OrganizationGetPublic)
+@router.get("/{org_slug}", response_model=OrganizationWithRole | OrganizationAdminWithRole | OrganizationResponse | OrganizationGetPublic)
 async def get_organization_by_slug(
     org_slug: str,
     org_service: OrganizationServiceDep,
@@ -129,6 +129,9 @@ async def get_organization_by_slug(
             return OrganizationAdminWithRole.model_validate(org)
         elif role in [OrgRole.ORGANIZER, OrgRole.MEMBER]:
             return OrganizationWithRole.model_validate(org)
+        else:
+            # User is authenticated but not a member - return full response with status and join_policy
+            return OrganizationResponse.model_validate(org)
 
     return OrganizationGetPublic.model_validate(org)
 
