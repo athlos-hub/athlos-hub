@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { notificationsApi } from '@/lib/api/notifications';
+import { useNotificationsSSE } from './use-notifications-sse';
 import type { Notification, NotificationListResponse } from '@/types/notification';
 
 export function useNotifications(unreadOnlyInitial: boolean = false, autoRefresh: boolean = false, refreshInterval: number = 30000) {
@@ -9,16 +10,24 @@ export function useNotifications(unreadOnlyInitial: boolean = false, autoRefresh
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [unreadOnly, setUnreadOnly] = useState<boolean>(unreadOnlyInitial);
+  const unreadOnlyRef = useRef(unreadOnlyInitial);
+  
+  useEffect(() => {
+    unreadOnlyRef.current = unreadOnly;
+  }, [unreadOnly]);
 
   const fetchNotifications = async (unreadOnly: boolean = false) => {
     try {
       setLoading(true);
-      const response: NotificationListResponse = await notificationsApi.getNotifications(1, 50, unreadOnly);
-      setNotifications(response.items);
       setError(null);
+      const response: NotificationListResponse = await notificationsApi.getNotifications(1, 50, unreadOnly);
+      setNotifications(response.items || []);
+      setUnreadOnly(unreadOnly);
     } catch (err: any) {
-      setError(err.message || 'Erro ao buscar notificações');
-      console.error('Erro ao buscar notificações:', err);
+      const errorMessage = err.message || 'Erro ao buscar notificações';
+      setError(errorMessage);
+      setNotifications([]);
     } finally {
       setLoading(false);
     }
@@ -29,33 +38,44 @@ export function useNotifications(unreadOnlyInitial: boolean = false, autoRefresh
       const count = await notificationsApi.getUnreadCount();
       setUnreadCount(count);
     } catch (err: any) {
-      console.error('Erro ao buscar contagem:', err);
     }
   };
 
   const markAsRead = async (notificationId: string) => {
     try {
-      await notificationsApi.markAsRead(notificationId);
-      setNotifications((prev) =>
-        prev.map((n) =>
+      setNotifications((prev) => {
+        const updated = prev.map((n) =>
           n.id === notificationId ? { ...n, is_read: true, read_at: new Date().toISOString() } : n
-        )
-      );
-      await fetchUnreadCount();
+        );
+        if (unreadOnly) {
+          return updated.filter((n) => n.id !== notificationId || !n.is_read);
+        }
+        return updated;
+      });
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+      
+      await notificationsApi.markAsRead(notificationId);
     } catch (err: any) {
-      console.error('Erro ao marcar como lida:', err);
+      await fetchNotifications(unreadOnly);
+      await fetchUnreadCount();
     }
   };
 
   const markAllAsRead = async () => {
     try {
-      await notificationsApi.markAllAsRead();
-      setNotifications((prev) =>
-        prev.map((n) => ({ ...n, is_read: true, read_at: new Date().toISOString() }))
-      );
+      setNotifications((prev) => {
+        const updated = prev.map((n) => ({ ...n, is_read: true, read_at: new Date().toISOString() }));
+        if (unreadOnly) {
+          return [];
+        }
+        return updated;
+      });
       setUnreadCount(0);
+      
+      await notificationsApi.markAllAsRead();
     } catch (err: any) {
-      console.error('Erro ao marcar todas como lidas:', err);
+      await fetchNotifications(unreadOnly);
+      await fetchUnreadCount();
     }
   };
 
@@ -65,7 +85,6 @@ export function useNotifications(unreadOnlyInitial: boolean = false, autoRefresh
       setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
       await fetchUnreadCount();
     } catch (err: any) {
-      console.error('Erro ao deletar notificação:', err);
       throw err;
     }
   };
@@ -76,19 +95,77 @@ export function useNotifications(unreadOnlyInitial: boolean = false, autoRefresh
       setNotifications([]);
       setUnreadCount(0);
     } catch (err: any) {
-      console.error('Erro ao limpar todas as notificações:', err);
       throw err;
     }
   };
 
   const refresh = async () => {
-    await fetchNotifications();
+    await fetchNotifications(unreadOnly);
     await fetchUnreadCount();
   };
 
+  const handleNewNotification = useCallback((notification: Notification) => {
+    setNotifications((prev) => {
+      const currentUnreadOnly = unreadOnlyRef.current;
+      const exists = prev.some(n => n.id === notification.id);
+      
+      if (exists) {
+        const updated = prev.map(n => {
+          if (n.id === notification.id) {
+            return notification;
+          }
+          return n;
+        });
+        
+        if (currentUnreadOnly && notification.is_read) {
+          return updated.filter(n => n.id !== notification.id || !n.is_read);
+        }
+        return updated;
+      }
+      
+      if (currentUnreadOnly && notification.is_read) {
+        return prev;
+      }
+      
+      return [notification, ...prev];
+    });
+  }, []);
+
+  const handleUnreadCountUpdate = useCallback((count: number) => {
+    setUnreadCount(count);
+  }, []);
+
+  useNotificationsSSE({
+    onNotification: handleNewNotification,
+    onUnreadCountUpdate: handleUnreadCountUpdate,
+    onError: (err) => {
+      setError(err.message);
+    },
+  });
+
   useEffect(() => {
-    fetchNotifications(unreadOnlyInitial);
-    fetchUnreadCount();
+    let isMounted = true;
+    
+    const loadInitialData = async () => {
+      try {
+        if (isMounted) {
+          await fetchNotifications(unreadOnlyInitial);
+        }
+        if (isMounted) {
+          await fetchUnreadCount();
+        }
+      } catch (err) {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+    
+    loadInitialData();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
