@@ -614,7 +614,13 @@ export function MembersSection({ organization, isAdmin, isOwner, isOrganizer }: 
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={confirmAction}
-                            className={confirmDialog.type === "remove" || confirmDialog.type === "cancel" ? "bg-destructive hover:bg-destructive/90" : ""}
+                            className={
+                                confirmDialog.type === "remove" || confirmDialog.type === "cancel" 
+                                    ? "bg-destructive hover:bg-destructive/90" 
+                                    : confirmDialog.type === "demote"
+                                    ? "bg-main hover:bg-main/90"
+                                    : ""
+                            }
                         >
                             {confirmDialog.type === "remove" && "Remover"}
                             {confirmDialog.type === "demote" && "Remover Organizador"}
