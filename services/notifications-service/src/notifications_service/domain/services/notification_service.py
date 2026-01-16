@@ -12,6 +12,7 @@ from notifications_service.core.exceptions import (
 from notifications_service.domain.interfaces.repositories import INotificationRepository
 from notifications_service.infrastructure.database.models import Notification, NotificationType
 from notifications_service.infrastructure.external import novu_client
+from notifications_service.infrastructure.sse import sse_manager
 from notifications_service.schemas import (
     NotificationCreate,
     NotificationResponse,
@@ -71,7 +72,22 @@ class NotificationService:
             except Exception as e:
                 logger.error(f"Erro ao enviar notificação para Novu: {e}")
         
-        return NotificationResponse.model_validate(notification)
+        notification_response = NotificationResponse.model_validate(notification)
+        
+        try:
+            notification_dict = notification_response.model_dump(mode='json')
+            logger.info(f"Enviando notificação via SSE para usuário {notification_data.user_id}: {notification_dict.get('id')}")
+            await sse_manager.send_notification(
+                user_id=notification_data.user_id,
+                notification_data=notification_dict
+            )
+            unread_count = await self.count_unread(notification_data.user_id)
+            logger.info(f"Enviando atualização de contagem via SSE para usuário {notification_data.user_id}: {unread_count}")
+            await sse_manager.send_unread_count_update(notification_data.user_id, unread_count)
+        except Exception as e:
+            logger.error(f"Erro ao enviar notificação via SSE: {e}", exc_info=True)
+        
+        return notification_response
 
     async def get_notification(
         self,
@@ -158,7 +174,22 @@ class NotificationService:
         if not notification:
             raise NotificationNotFoundException(str(notification_id))
         
-        return NotificationResponse.model_validate(notification)
+        notification_response = NotificationResponse.model_validate(notification)
+        
+        try:
+            notification_dict = notification_response.model_dump(mode='json')
+            logger.info(f"Enviando notificação atualizada via SSE para usuário {user_id}: {notification_dict.get('id')}")
+            await sse_manager.send_notification(
+                user_id=user_id,
+                notification_data=notification_dict
+            )
+            unread_count = await self.count_unread(user_id)
+            logger.info(f"Enviando atualização de contagem via SSE para usuário {user_id}: {unread_count}")
+            await sse_manager.send_unread_count_update(user_id, unread_count)
+        except Exception as e:
+            logger.error(f"Erro ao enviar atualização via SSE: {e}", exc_info=True)
+        
+        return notification_response
 
     async def mark_all_as_read(self, user_id: UUID) -> int:
         """
@@ -170,7 +201,15 @@ class NotificationService:
         Returns:
             Número de notificações marcadas como lidas
         """
-        return await self.notification_repo.mark_all_as_read(user_id)
+        count = await self.notification_repo.mark_all_as_read(user_id)
+        
+        try:
+            unread_count = await self.count_unread(user_id)
+            await sse_manager.send_unread_count_update(user_id, unread_count)
+        except Exception as e:
+            logger.error(f"Erro ao enviar atualização de contagem via SSE: {e}")
+        
+        return count
 
     async def count_unread(self, user_id: UUID) -> int:
         """
@@ -275,6 +314,12 @@ class NotificationService:
         await self.notification_repo.delete(notification)
         await self.notification_repo.session.commit()
         
+        try:
+            unread_count = await self.count_unread(user_id)
+            await sse_manager.send_unread_count_update(user_id, unread_count)
+        except Exception as e:
+            logger.error(f"Erro ao enviar atualização de contagem via SSE: {e}")
+        
         logger.info(f"Notificação {notification_id} deletada pelo usuário {user_id}")
 
     async def clear_all_notifications(
@@ -292,6 +337,12 @@ class NotificationService:
         """
         count = await self.notification_repo.delete_all_by_user(user_id)
         await self.notification_repo.session.commit()
+        
+        try:
+            unread_count = await self.count_unread(user_id)
+            await sse_manager.send_unread_count_update(user_id, unread_count)
+        except Exception as e:
+            logger.error(f"Erro ao enviar atualização de contagem via SSE: {e}")
         
         logger.info(f"{count} notificações deletadas para o usuário {user_id}")
         return count

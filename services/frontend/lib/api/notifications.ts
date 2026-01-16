@@ -20,7 +20,13 @@ export const notificationsApi = {
         page_size: pageSize, 
         unread_only: unreadOnly 
       },
+      timeout: 10000,
     });
+    
+    if (!response.data || !response.data.items) {
+      throw new Error('Formato de resposta inválido');
+    }
+    
     return response.data;
   },
 
@@ -40,8 +46,15 @@ export const notificationsApi = {
   },
 
   async getUnreadCount(): Promise<number> {
-    const response = await axios.get<UnreadCountResponse>(`${API_BASE}/unread-count`);
-    return response.data.count;
+    const response = await axios.get<UnreadCountResponse>(`${API_BASE}/unread-count`, {
+      timeout: 5000,
+    });
+    
+    if (response.data && typeof response.data.count === 'number') {
+      return response.data.count;
+    }
+    
+    return 0;
   },
 
   async deleteNotification(notificationId: string): Promise<void> {

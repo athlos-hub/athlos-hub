@@ -1,15 +1,19 @@
 """Rotas de notificações."""
 
+import asyncio
+import json
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
+from fastapi.responses import StreamingResponse
 
 from notifications_service.api.dependencies import (
     get_notification_service,
     get_current_user_id,
 )
 from notifications_service.domain.services import NotificationService
+from notifications_service.infrastructure.sse import sse_manager
 
 from notifications_service.schemas import (
     NotificationResponse,
@@ -47,6 +51,43 @@ async def get_unread_count(
     """Retorna a contagem de notificações não lidas."""
     count = await service.count_unread(user_id)
     return UnreadCountResponse(count=count)
+
+
+@router.get("/stream")
+async def stream_notifications(
+    user_id: UUID = Query(..., description="ID do usuário"),
+):
+    """
+    Stream de notificações em tempo real usando Server-Sent Events (SSE).
+    
+    O cliente mantém uma conexão aberta e recebe notificações em tempo real.
+    """
+    async def event_generator():
+        queue = await sse_manager.connect(user_id)
+        
+        try:
+            yield f"data: {json.dumps({'type': 'connected', 'data': {'message': 'Conectado ao stream de notificações'}})}\n\n"
+            
+            while True:
+                try:
+                    event_data = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    yield f"data: {event_data}\n\n"
+                except asyncio.TimeoutError:
+                    yield f": heartbeat\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            await sse_manager.disconnect(user_id, queue)
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
 
 
 @router.get("/{notification_id}", response_model=NotificationResponse)
