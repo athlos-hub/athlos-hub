@@ -1,15 +1,26 @@
 import Link from "next/link";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { LiveStatusBadge } from "./live-status-badge";
 import type { Live } from "@/types/livestream";
-import { Calendar, Play } from "lucide-react";
+import { Calendar, Play, CalendarPlus } from "lucide-react";
 
 interface LiveCardProps {
   live: Live;
+  isSelected?: boolean;
+  onSelect?: (checked: boolean) => void;
+  onAddToCalendar?: () => void;
+  isAddingToCalendar?: boolean;
 }
 
-export function LiveCard({ live }: LiveCardProps) {
+export function LiveCard({
+  live,
+  isSelected = false,
+  onSelect,
+  onAddToCalendar,
+  isAddingToCalendar = false,
+}: LiveCardProps) {
   const formattedDate = live.startedAt
     ? new Date(live.startedAt).toLocaleString("pt-BR")
     : new Date(live.createdAt).toLocaleString("pt-BR");
@@ -18,7 +29,16 @@ export function LiveCard({ live }: LiveCardProps) {
     <Card className="hover:shadow-lg transition-shadow duration-300 flex flex-col h-full">
       <CardHeader className="space-y-2">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-lg">Live #{live.id.slice(0, 8)}</h3>
+          <div className="flex items-center gap-2">
+            {onSelect && (
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={(checked) => onSelect(checked === true)}
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
+            <h3 className="font-semibold text-lg">Live #{live.id.slice(0, 8)}</h3>
+          </div>
           <LiveStatusBadge status={live.status} />
         </div>
       </CardHeader>
@@ -33,7 +53,6 @@ export function LiveCard({ live }: LiveCardProps) {
             <span className="text-muted-foreground min-w-24 shrink-0">Organização:</span>
             <span className="font-medium break-all line-clamp-2">{live.organizationId}</span>
           </div>
-          
         </div>
       </CardContent>
 
@@ -42,12 +61,29 @@ export function LiveCard({ live }: LiveCardProps) {
           <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
           <span className="text-muted-foreground text-xs">{formattedDate}</span>
         </div>
-        <Link href={`/jogos/${live.id}`} className="w-full">
-          <Button className="w-full gap-2 cursor-pointer bg-main hover:bg-main/90 text-white">
-            <Play className="w-4 h-4" />
-            Acessar Live
-          </Button>
-        </Link>
+        <div className="w-full flex gap-2">
+          {onAddToCalendar && (
+            <Button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onAddToCalendar();
+              }}
+              disabled={isAddingToCalendar}
+              className="gap-2 flex-1"
+              variant="outline"
+            >
+              <CalendarPlus className="w-4 h-4" />
+              Calendário
+            </Button>
+          )}
+          <Link href={`/jogos/${live.id}`} className={onAddToCalendar ? "flex-1" : "w-full"}>
+            <Button className="w-full gap-2 cursor-pointer bg-main hover:bg-main/90 text-white">
+              <Play className="w-4 h-4" />
+              Acessar
+            </Button>
+          </Link>
+        </div>
       </CardFooter>
     </Card>
   );

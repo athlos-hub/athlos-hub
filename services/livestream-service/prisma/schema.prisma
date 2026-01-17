@@ -44,3 +44,34 @@ model LiveEvent {
   @@index([liveId, createdAt])
   @@schema("livestream_schema")
 }
+
+model GoogleCalendarToken {
+  id           String    @id @default(uuid())
+  userId       String    @unique @map("user_id")
+  accessToken  String    @map("access_token")
+  refreshToken String?   @map("refresh_token")
+  expiresAt    DateTime  @map("expires_at")
+  scope        String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  events       GoogleCalendarEvent[]
+
+  @@schema("livestream_schema")
+}
+
+model GoogleCalendarEvent {
+  id           String    @id @default(uuid())
+  userId       String    @map("user_id")
+  liveId       String    @map("live_id")
+  eventId      String    @map("event_id")
+  htmlLink     String?   @map("html_link")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  
+  token        GoogleCalendarToken @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@unique([userId, liveId])
+  @@index([userId])
+  @@index([liveId])
+  @@schema("livestream_schema")
+}
