@@ -12,6 +12,7 @@ interface LiveCardProps {
   onSelect?: (checked: boolean) => void;
   onAddToCalendar?: () => void;
   isAddingToCalendar?: boolean;
+  canAddToCalendar?: boolean;
 }
 
 export function LiveCard({
@@ -20,6 +21,7 @@ export function LiveCard({
   onSelect,
   onAddToCalendar,
   isAddingToCalendar = false,
+  canAddToCalendar = true,
 }: LiveCardProps) {
   const formattedDate = live.startedAt
     ? new Date(live.startedAt).toLocaleString("pt-BR")
@@ -30,7 +32,7 @@ export function LiveCard({
       <CardHeader className="space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {onSelect && (
+            {onSelect && canAddToCalendar && (
               <Checkbox
                 checked={isSelected}
                 onCheckedChange={(checked) => onSelect(checked === true)}
@@ -62,7 +64,7 @@ export function LiveCard({
           <span className="text-muted-foreground text-xs">{formattedDate}</span>
         </div>
         <div className="w-full flex gap-2">
-          {onAddToCalendar && (
+          {onAddToCalendar && canAddToCalendar && (
             <Button
               onClick={(e) => {
                 e.preventDefault();
@@ -77,7 +79,18 @@ export function LiveCard({
               Calendário
             </Button>
           )}
-          <Link href={`/jogos/${live.id}`} className={onAddToCalendar ? "flex-1" : "w-full"}>
+          {onAddToCalendar && !canAddToCalendar && (
+            <Button
+              disabled
+              className="gap-2 flex-1"
+              variant="outline"
+              title="Apenas lives agendadas podem ser adicionadas ao calendário"
+            >
+              <CalendarPlus className="w-4 h-4" />
+              Calendário
+            </Button>
+          )}
+          <Link href={`/jogos/${live.id}`} className={onAddToCalendar && canAddToCalendar ? "flex-1" : "w-full"}>
             <Button className="w-full gap-2 cursor-pointer bg-main hover:bg-main/90 text-white">
               <Play className="w-4 h-4" />
               Acessar
