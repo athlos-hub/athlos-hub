@@ -1,9 +1,10 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, BadRequestException } from '@nestjs/common';
 import { google } from 'googleapis';
 import { GoogleOAuthService } from './google-oauth.service.js';
 import type { ILiveRepository } from '../../../lives/domain/repositories/livestream.interface.js';
 import { Inject } from '@nestjs/common';
 import { GoogleCalendarEventRepository } from '../../infrastructure/repositories/google-calendar-event.repository.js';
+import { LiveStatus } from '../../../lives/domain/enums/live-status.enum.js';
 
 @Injectable()
 export class GoogleCalendarApiService {
@@ -53,7 +54,13 @@ export class GoogleCalendarApiService {
     const live = await this.liveRepository.findById(liveId);
 
     if (!live) {
-      throw new Error(`Live com ID ${liveId} não encontrada`);
+      throw new BadRequestException(`Live com ID ${liveId} não encontrada`);
+    }
+
+    if (live.status !== LiveStatus.SCHEDULED) {
+      throw new BadRequestException(
+        `Apenas lives agendadas podem ser adicionadas ao Google Calendar. Status atual: ${live.status}`
+      );
     }
 
     const accessToken = await this.oauthService.getValidAccessToken(userId);
