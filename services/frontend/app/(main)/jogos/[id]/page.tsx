@@ -11,6 +11,8 @@ import { LiveStatusDisplay } from "@/components/livestream/live-status-display";
 import { StreamKeyDisplay } from "@/components/livestream/stream-key-display";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getLiveById, finishLive, cancelLive } from "@/actions/lives";
+import { getMyOrganizations } from "@/actions/organizations";
+import { OrgRole } from "@/types/organization";
 import { useLiveStatus } from "@/hooks/use-live-status";
 import type { Live } from "@/types/livestream";
 import { toast } from "sonner";
@@ -24,6 +26,7 @@ export default function LiveDetailPage() {
   const [initialLive, setInitialLive] = useState<Live | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [userOrgRole, setUserOrgRole] = useState<string | null>(null);
 
   const liveId = params?.id as string;
 
@@ -37,6 +40,15 @@ export default function LiveDetailPage() {
         const data = await getLiveById(liveId);
         setInitialLive(data);
         updateLive(data);
+        // fetch user's organizations to determine role on this live's organization
+        try {
+          const myOrgs = await getMyOrganizations();
+          const match = myOrgs.find((o: any) => o.id === data.organizationId);
+          setUserOrgRole(match?.role ?? null);
+        } catch (err) {
+          // ignore - treat as non-member
+          setUserOrgRole(null);
+        }
       } catch (error) {
         console.error("Erro ao carregar live:", error);
         toast.error("Erro ao carregar live");
@@ -128,7 +140,7 @@ export default function LiveDetailPage() {
         </Link>
 
         <div className="flex items-center gap-2">
-          {live.status === "scheduled" && (
+          {((userOrgRole === OrgRole.OWNER) || (userOrgRole === OrgRole.ORGANIZER)) && live.status === "scheduled" && (
             <Button
               onClick={handleCancel}
               disabled={isUpdating}
@@ -140,7 +152,7 @@ export default function LiveDetailPage() {
             </Button>
           )}
 
-          {live.status === "live" && (
+          {((userOrgRole === OrgRole.OWNER) || (userOrgRole === OrgRole.ORGANIZER)) && live.status === "live" && (
             <Button
               onClick={handleFinish}
               disabled={isUpdating}
@@ -160,7 +172,7 @@ export default function LiveDetailPage() {
         endedAt={live.endedAt}
       />
 
-      {(live.status === "scheduled" || live.status === "live") && (
+      {((userOrgRole === OrgRole.OWNER) || (userOrgRole === OrgRole.ORGANIZER)) && (live.status === "scheduled" || live.status === "live") && (
         <StreamKeyDisplay streamKey={live.streamKey} />
       )}
 
