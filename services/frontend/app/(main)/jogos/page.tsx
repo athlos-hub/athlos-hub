@@ -11,13 +11,25 @@ import {
   generateMultipleGoogleCalendarUrls,
   getGoogleCalendarOAuthStatus,
   createGoogleCalendarEvent,
+  createGoogleCalendarEventWithForce,
   createMultipleGoogleCalendarEvents,
+  checkGoogleCalendarEventsExistence,
   getGoogleCalendarOAuthUrl,
 } from "@/actions/lives";
 import type { Live } from "@/types/livestream";
 import { LiveStatus } from "@/types/livestream";
 import { Plus, Calendar, CalendarCheck, CalendarX, Filter } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 
 export default function LivesPage() {
@@ -26,6 +38,8 @@ export default function LivesPage() {
   const [selectedLives, setSelectedLives] = useState<Set<string>>(new Set());
   const [isAddingToCalendar, setIsAddingToCalendar] = useState(false);
   const [isGoogleCalendarAuthorized, setIsGoogleCalendarAuthorized] = useState<boolean | null>(null);
+  const [showAlreadyAddedDialog, setShowAlreadyAddedDialog] = useState(false);
+  const [pendingLiveToForce, setPendingLiveToForce] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<LiveStatus | "all">("all");
 
   useEffect(() => {
@@ -52,6 +66,27 @@ export default function LivesPage() {
     loadLives();
     checkGoogleCalendarAuth();
   }, []);
+
+  const [calendarEventSet, setCalendarEventSet] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    async function fetchEventExistence() {
+      if (isGoogleCalendarAuthorized === false) return;
+      if (allLives.length === 0) return;
+
+      const schedulableIds = allLives.filter((l) => l.status === LiveStatus.SCHEDULED).map((l) => l.id);
+      if (schedulableIds.length === 0) return;
+
+      try {
+        const results: Array<{ liveId: string; exists: boolean; eventId: string; htmlLink: string }> = await checkGoogleCalendarEventsExistence(schedulableIds);
+        const set = new Set<string>(results.filter((r) => r.exists).map((r) => r.liveId));
+        setCalendarEventSet(set);
+      } catch (error) {
+      }
+    }
+
+    fetchEventExistence();
+  }, [allLives, isGoogleCalendarAuthorized]);
 
   const lives = useMemo(() => {
     if (statusFilter === "all") {
@@ -107,9 +142,10 @@ export default function LivesPage() {
       }
 
       const result = await createGoogleCalendarEvent(liveId);
-      
+
       if (result.alreadyExists) {
-        toast.info("Este jogo já foi adicionado ao seu Google Calendar");
+        setPendingLiveToForce(liveId);
+        setShowAlreadyAddedDialog(true);
       } else {
         toast.success("Evento adicionado ao Google Calendar com sucesso!");
       }
@@ -188,11 +224,33 @@ export default function LivesPage() {
     }
   };
 
+  const handleForceAdd = async () => {
+    if (!pendingLiveToForce) return;
+
+    try {
+      setIsAddingToCalendar(true);
+      const result = await createGoogleCalendarEventWithForce(pendingLiveToForce, true);
+      if (result.success) {
+        toast.success('Evento adicionado ao Google Calendar com sucesso!');
+      } else {
+        toast.error('Não foi possível adicionar o evento');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Não foi possível adicionar ao Google Calendar';
+      toast.error(errorMessage);
+    } finally {
+      setIsAddingToCalendar(false);
+      setShowAlreadyAddedDialog(false);
+      setPendingLiveToForce(null);
+    }
+  };
+
   const schedulableLives = lives.filter((live) => live.status === LiveStatus.SCHEDULED);
   const hasSelection = selectedLives.size > 0;
   const allSelected = schedulableLives.length > 0 && selectedLives.size === schedulableLives.length;
 
   return (
+    <>
     <div className="min-h-screen space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -335,14 +393,33 @@ export default function LivesPage() {
                 live={live}
                 isSelected={selectedLives.has(live.id)}
                 onSelect={(checked) => handleSelectLive(live.id, checked)}
-                onAddToCalendar={() => handleAddToCalendar(live.id)}
+        onAddToCalendar={() => handleAddToCalendar(live.id)}
                 isAddingToCalendar={isAddingToCalendar}
-                      canAddToCalendar={live.status === LiveStatus.SCHEDULED}
+          canAddToCalendar={live.status === LiveStatus.SCHEDULED}
+          hasCalendarEvent={calendarEventSet.has(live.id)}
               />
             ))}
           </div>
         </div>
       )}
     </div>
+      <AlertDialog open={showAlreadyAddedDialog} onOpenChange={setShowAlreadyAddedDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Jogo já adicionado</AlertDialogTitle>
+            <AlertDialogDescription>
+              Este jogo já foi adicionado ao seu Google Calendar. Deseja adicioná-lo novamente?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isAddingToCalendar}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleForceAdd} disabled={isAddingToCalendar} className="bg-main hover:bg-main/90 text-white">
+              Adicionar novamente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
+

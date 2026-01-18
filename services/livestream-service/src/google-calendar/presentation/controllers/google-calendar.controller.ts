@@ -81,6 +81,7 @@ export class GoogleCalendarController {
       user.sub,
       dto.liveId,
       frontendBaseUrl,
+      dto.force === true,
     );
 
     return {
@@ -110,5 +111,18 @@ export class GoogleCalendarController {
       success: true,
       results,
     };
+  }
+
+  @Get('events')
+  @HttpCode(HttpStatus.OK)
+  async getEventsExistence(
+    @CurrentUser() user: JwtPayload,
+    @Query('liveIds') liveIdsQuery: string,
+  ) {
+    const liveIds = liveIdsQuery ? liveIdsQuery.split(',').filter(Boolean) : [];
+
+    const results = await this.calendarApiService.checkMultipleEventsExistence(user.sub, liveIds);
+
+    return { results };
   }
 }
