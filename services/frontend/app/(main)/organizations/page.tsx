@@ -69,33 +69,34 @@ export default function OrganizationsPage() {
         )}
       </div>
 
-      <div className="border-b border-gray-200">
-        <div className="flex gap-8">
-          <button
-            onClick={() => setActiveTab("public")}
-            className={`pb-4 border-b-2 transition-colors flex items-center gap-2 ${
-              activeTab === "public"
-                ? "border-main text-main"
-                : "border-transparent text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            <Building2 className="w-5 h-5" />
-            Organizações Públicas
-          </button>
-
-          {session && (
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+        <div className="flex items-center gap-4">
+          <Building2 className="w-5 h-5 text-gray-600" />
+          <div className="flex gap-2">
             <button
-              onClick={() => setActiveTab("my-organizations")}
-              className={`pb-4 border-b-2 transition-colors flex items-center gap-2 ${
-                activeTab === "my-organizations"
-                  ? "border-main text-main"
-                  : "border-transparent text-gray-600 hover:text-gray-900"
+              onClick={() => setActiveTab("public")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === "public"
+                  ? "bg-main text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              <Users className="w-5 h-5" />
-              Minhas Organizações
+              Organizações Públicas
             </button>
-          )}
+
+            {session && (
+              <button
+                onClick={() => setActiveTab("my-organizations")}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === "my-organizations"
+                    ? "bg-main text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Minhas Organizações
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
