@@ -37,13 +37,14 @@ export class GoogleCalendarApiService {
     userId: string,
     liveId: string,
     frontendBaseUrl: string,
+    force: boolean = false,
   ): Promise<{ eventId: string; htmlLink: string; alreadyExists: boolean }> {
     const existing = await this.checkEventExists(userId, liveId);
-    if (existing.exists) {
+    if (existing.exists && !force) {
       if (!existing.eventId || !existing.htmlLink) {
         throw new Error('Evento do Google Calendar existente está inconsistente');
       }
-    
+
       return {
         eventId: existing.eventId,
         htmlLink: existing.htmlLink,
@@ -145,6 +146,22 @@ export class GoogleCalendarApiService {
     return results.map((result) =>
       result.status === 'fulfilled' ? result.value : result.reason,
     );
+  }
+
+  async checkMultipleEventsExistence(userId: string, liveIds: string[]) {
+    const results = await Promise.all(
+      liveIds.map(async (liveId) => {
+        const existing = await this.eventRepository.findByUserIdAndLiveId(userId, liveId);
+        return {
+          liveId,
+          exists: !!existing,
+          eventId: existing?.eventId || '',
+          htmlLink: existing?.htmlLink || '',
+        };
+      }),
+    );
+
+    return results;
   }
 
   private getStartDate(live: NonNullable<Awaited<ReturnType<typeof this.liveRepository.findById>>>): Date {

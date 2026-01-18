@@ -13,6 +13,7 @@ interface LiveCardProps {
   onAddToCalendar?: () => void;
   isAddingToCalendar?: boolean;
   canAddToCalendar?: boolean;
+  hasCalendarEvent?: boolean;
 }
 
 export function LiveCard({
@@ -22,6 +23,7 @@ export function LiveCard({
   onAddToCalendar,
   isAddingToCalendar = false,
   canAddToCalendar = true,
+  hasCalendarEvent = false,
 }: LiveCardProps) {
   const formattedDate = live.startedAt
     ? new Date(live.startedAt).toLocaleString("pt-BR")
@@ -39,7 +41,14 @@ export function LiveCard({
                 onClick={(e) => e.stopPropagation()}
               />
             )}
-            <h3 className="font-semibold text-lg">Live #{live.id.slice(0, 8)}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-lg">Live #{live.id.slice(0, 8)}</h3>
+              {hasCalendarEvent && (
+                <span title="Este jogo já foi adicionado ao seu Google Calendar" aria-label="Já adicionado ao Google Calendar">
+                  <Calendar className="w-4 h-4 text-green-600" />
+                </span>
+              )}
+            </div>
           </div>
           <LiveStatusBadge status={live.status} />
         </div>

@@ -180,6 +180,14 @@ export async function createGoogleCalendarEvent(liveId: string): Promise<CreateC
   });
 }
 
+export async function createGoogleCalendarEventWithForce(liveId: string, force: boolean): Promise<CreateCalendarEventResponse> {
+  return livestreamAPI<CreateCalendarEventResponse>('/google-calendar/create-event', {
+    method: 'POST',
+    data: { liveId, force },
+    requireAuth: true,
+  });
+}
+
 export async function createMultipleGoogleCalendarEvents(
   liveIds: string[]
 ): Promise<CreateMultipleCalendarEventsResponse> {
@@ -191,6 +199,20 @@ export async function createMultipleGoogleCalendarEvents(
       requireAuth: true,
     }
   );
+}
+
+export async function checkGoogleCalendarEventsExistence(liveIds: string[]): Promise<Array<{ liveId: string; exists: boolean; eventId: string; htmlLink: string }>> {
+  const params = {
+    liveIds: liveIds.join(','),
+  };
+
+  return livestreamAPI<{ results: Array<{ liveId: string; exists: boolean; eventId: string; htmlLink: string }> }>(
+    '/google-calendar/events',
+    {
+      params,
+      requireAuth: true,
+    }
+  ).then((r) => r.results);
 }
 
 export interface GoogleCalendarOAuthUrlResponse {
