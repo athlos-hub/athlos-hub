@@ -7,6 +7,7 @@ import { LivesModule } from './lives/lives.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { RedisModule } from './redis/redis.module.js';
 import { WebhooksModule } from './webhooks/webhooks.module.js';
+import { GoogleCalendarModule } from './google-calendar/google-calendar.module.js';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { WebhooksModule } from './webhooks/webhooks.module.js';
     AuthModule,
     LivesModule,
     WebhooksModule,
+    GoogleCalendarModule,
   ],
 })
 export class AppModule {}

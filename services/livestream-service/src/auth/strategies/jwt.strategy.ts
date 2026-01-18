@@ -31,7 +31,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       },
       algorithms: ['RS256'],
       issuer: `${keycloakConfig.url}/realms/${keycloakConfig.realm}`,
-      audience: keycloakConfig.clientId,
     });
   }
 
