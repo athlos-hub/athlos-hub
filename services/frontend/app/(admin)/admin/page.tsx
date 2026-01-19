@@ -49,10 +49,11 @@ const isAdminUser = (u: UserAdmin) => {
     const anyU = u as any;
     if (!anyU) return false;
     if (typeof anyU.is_admin === 'boolean') return anyU.is_admin;
+    if (Array.isArray(anyU.roles) && (anyU.roles.includes('admin') || anyU.roles.includes('ADMIN'))) return true;
+    if (typeof anyU.is_admin === 'boolean') return anyU.is_admin;
     if (typeof anyU.isAdmin === 'boolean') return anyU.isAdmin;
     if (typeof anyU.admin === 'boolean') return anyU.admin;
     if (typeof anyU.role === 'string' && anyU.role.toLowerCase() === 'admin') return true;
-    if (Array.isArray(anyU.roles) && (anyU.roles.includes('admin') || anyU.roles.includes('ADMIN'))) return true;
     return false;
 }
 
@@ -430,18 +431,18 @@ export default function AdminPage() {
                                                                 {user.username?.substring(0, 2).toUpperCase()}
                                                             </AvatarFallback>
                                                         </Avatar>
-                                                        <div>
-                                                            <p className="font-medium">{user.username}</p>
-                                                            <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <div >
+                                                                <p className="font-medium">{user.username}</p>
                                                                 {user.first_name && (
                                                                     <p className="text-sm text-gray-500">
                                                                         {user.first_name} {user.last_name}
                                                                     </p>
                                                                 )}
-                                                                {isAdminUser(user) && (
-                                                                    <Badge className="ml-2" variant="outline">Administrador</Badge>
-                                                                )}
                                                             </div>
+                                                            {isAdminUser(user) && (
+                                                                <Badge className="ml-2 self-center" variant="outline">Administrador</Badge>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </TableCell>
@@ -486,7 +487,7 @@ export default function AdminPage() {
                                                         </Button>
                                                     )}
                                                     {isAdminUser(user) && (
-                                                        <div className="text-sm text-gray-500">Conta administrativa</div>
+                                                        <div className="text-sm text-gray-500 flex items-center justify-end">Conta administrativa</div>
                                                     )}
                                                 </TableCell>
                                             </TableRow>

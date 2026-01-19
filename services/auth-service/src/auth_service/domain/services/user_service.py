@@ -12,6 +12,8 @@ from auth_service.domain.interfaces.external_services import IKeycloakService
 from auth_service.domain.interfaces.repositories import IUserRepository
 from auth_service.infrastructure.database.models.user_model import User
 from auth_service.utils.upload_image import upload_image
+from auth_service.domain.services.authentication_service import AuthenticationService
+from auth_service.schemas.user import UserAdmin
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +63,34 @@ class UserService:
         """Obtém todos os usuários (admin)."""
 
         return await self._user_repo.get_all()
+
+    async def get_all_users_with_roles(self) -> Sequence[UserAdmin]:
+        """Obtém todos os usuários e enriquece com roles do Keycloak (admin).
+
+        Retorna uma lista de objetos `UserAdmin` (pydantic) com campos adicionais
+        `roles` e `is_admin` para uso no frontend/admin endpoints.
+        """
+
+        users = await self._user_repo.get_all()
+        results: list[UserAdmin] = []
+        for u in users:
+            roles = []
+            try:
+                roles = AuthenticationService.get_role_from_user(u.keycloak_id) or []
+            except Exception:
+                roles = []
+
+            is_admin_flag = any(r.lower() == "admin" for r in roles)
+
+            user_dict = {
+                **{k: getattr(u, k) for k in u.__dict__ if not k.startswith('_')},
+                "roles": roles,
+                "is_admin": is_admin_flag,
+            }
+            user_data = UserAdmin.model_validate(user_dict)
+            results.append(user_data)
+
+        return results
 
     async def update_user(
         self,
