@@ -28,6 +28,8 @@ class UserAdmin(UserOrgMember):
     keycloak_id: str
     created_at: datetime
     updated_at: datetime
+    roles: Optional[list[str]] = None
+    is_admin: Optional[bool] = None
 
 
 class MemberRequestUser(BaseModel):

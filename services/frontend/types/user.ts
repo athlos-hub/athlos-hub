@@ -17,4 +17,6 @@ export interface UserAdmin extends UserOrgMember {
     keycloak_id: string;
     created_at: string;
     updated_at: string;
+    roles?: string[];
+    is_admin?: boolean;
 }
