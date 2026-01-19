@@ -114,43 +114,48 @@ export default function OrganizationInvitesPage() {
             Gerencie seus convites de organizações e solicitações pendentes
           </p>
         </div>
+
+  {/* no CTA on invites page */}
       </div>
 
-      <div className="border-b border-gray-200">
-        <div className="flex gap-8">
-          <button
-            onClick={() => setActiveTab("invites")}
-            className={`pb-4 border-b-2 transition-colors flex items-center gap-2 ${
-              activeTab === "invites"
-                ? "border-main text-main"
-                : "border-transparent text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            <Mail className="w-5 h-5" />
-            Convites Recebidos
-            {invites.length > 0 && (
-              <Badge variant="secondary" className="ml-2">
-                {invites.length}
-              </Badge>
-            )}
-          </button>
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+        <div className="flex items-center gap-4">
+          <Mail className="w-5 h-5 text-gray-600" />
+          <div className="flex gap-2">
+            <button
+              onClick={() => setActiveTab("invites")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                activeTab === "invites"
+                  ? "bg-main text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              <Mail className="w-4 h-4" />
+              Convites Recebidos
+              {invites.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {invites.length}
+                </Badge>
+              )}
+            </button>
 
-          <button
-            onClick={() => setActiveTab("requests")}
-            className={`pb-4 border-b-2 transition-colors flex items-center gap-2 ${
-              activeTab === "requests"
-                ? "border-main text-main"
-                : "border-transparent text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            <Send className="w-5 h-5" />
-            Minhas Solicitações
-            {requests.length > 0 && (
-              <Badge variant="secondary" className="ml-2">
-                {requests.length}
-              </Badge>
-            )}
-          </button>
+            <button
+              onClick={() => setActiveTab("requests")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                activeTab === "requests"
+                  ? "bg-main text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              <Send className="w-4 h-4" />
+              Minhas Solicitações
+              {requests.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {requests.length}
+                </Badge>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
