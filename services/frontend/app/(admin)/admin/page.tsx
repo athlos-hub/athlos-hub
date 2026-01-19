@@ -25,7 +25,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Shield, Users, Building2, Search, Check, X, Ban, Loader2 } from "lucide-react";
+import { Shield, Users, Building2, Search, Check, X, Ban, Loader2, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { UserAdmin } from "@/types/user";
 import { OrganizationResponse, OrganizationStatus } from "@/types/organization";
@@ -44,6 +44,17 @@ import {
 type TabType = "users" | "suspended-users" | "organizations" | "pending-orgs" | "suspended-orgs";
 
 const ITEMS_PER_PAGE = 10;
+
+const isAdminUser = (u: UserAdmin) => {
+    const anyU = u as any;
+    if (!anyU) return false;
+    if (typeof anyU.is_admin === 'boolean') return anyU.is_admin;
+    if (typeof anyU.isAdmin === 'boolean') return anyU.isAdmin;
+    if (typeof anyU.admin === 'boolean') return anyU.admin;
+    if (typeof anyU.role === 'string' && anyU.role.toLowerCase() === 'admin') return true;
+    if (Array.isArray(anyU.roles) && (anyU.roles.includes('admin') || anyU.roles.includes('ADMIN'))) return true;
+    return false;
+}
 
 export default function AdminPage() {
     const [activeTab, setActiveTab] = useState<TabType>("users");
@@ -80,27 +91,62 @@ export default function AdminPage() {
     });
 
     useEffect(() => {
-        loadData();
+        fetchData(activeTab);
     }, [activeTab]);
 
-    const loadData = async () => {
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const fetchData = async (tab?: TabType) => {
         setIsLoading(true);
         try {
-            if (activeTab === "users") {
+            if (!tab) {
+                const [usersData, orgsActive, orgsPending, orgsSuspended] = await Promise.all([
+                    getAllUsers(),
+                    getAllOrganizations(OrganizationStatus.ACTIVE),
+                    getAllOrganizations(OrganizationStatus.PENDING),
+                    getAllOrganizations(OrganizationStatus.SUSPENDED),
+                ]);
+
+                const activeUsers = usersData.filter(u => u.enabled);
+                activeUsers.sort((a, b) => {
+                    const aAdmin = isAdminUser(a) ? 0 : 1;
+                    const bAdmin = isAdminUser(b) ? 0 : 1;
+                    if (aAdmin !== bAdmin) return aAdmin - bAdmin;
+                    return (a.username || "").localeCompare(b.username || "");
+                });
+
+                const suspendedUsersData = usersData.filter(u => !u.enabled && !isAdminUser(u));
+
+                setUsers(activeUsers);
+                setSuspendedUsers(suspendedUsersData);
+                setOrganizations(orgsActive);
+                setPendingOrgs(orgsPending);
+                setSuspendedOrgs(orgsSuspended);
+                return;
+            }
+
+            if (tab === "users") {
                 const usersData = await getAllUsers();
                 const activeUsers = usersData.filter(u => u.enabled);
+                activeUsers.sort((a, b) => {
+                    const aAdmin = isAdminUser(a) ? 0 : 1;
+                    const bAdmin = isAdminUser(b) ? 0 : 1;
+                    if (aAdmin !== bAdmin) return aAdmin - bAdmin;
+                    return (a.username || "").localeCompare(b.username || "");
+                });
                 setUsers(activeUsers);
-            } else if (activeTab === "suspended-users") {
+            } else if (tab === "suspended-users") {
                 const usersData = await getAllUsers();
-                const suspendedUsersData = usersData.filter(u => !u.enabled);
-                setSuspendedUsers(suspendedUsersData);
-            } else if (activeTab === "organizations") {
+                setSuspendedUsers(usersData.filter(u => !u.enabled && !isAdminUser(u)));
+            } else if (tab === "organizations") {
                 const orgs = await getAllOrganizations(OrganizationStatus.ACTIVE);
                 setOrganizations(orgs);
-            } else if (activeTab === "pending-orgs") {
+            } else if (tab === "pending-orgs") {
                 const orgs = await getAllOrganizations(OrganizationStatus.PENDING);
                 setPendingOrgs(orgs);
-            } else if (activeTab === "suspended-orgs") {
+            } else if (tab === "suspended-orgs") {
                 const orgs = await getAllOrganizations(OrganizationStatus.SUSPENDED);
                 setSuspendedOrgs(orgs);
             }
@@ -197,7 +243,7 @@ export default function AdminPage() {
                     toast.success(`Organização ${name} reativada`);
                     break;
             }
-            await loadData();
+            await fetchData(activeTab);
         } catch (error) {
             const message = error instanceof Error ? error.message : "Erro ao executar ação";
             toast.error(message);
@@ -274,8 +320,7 @@ export default function AdminPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-2">
-                        <Shield className="w-8 h-8 text-main" />
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">
                         Painel Administrativo
                     </h1>
                     <p className="text-gray-600">Gerencie usuários e organizações da plataforma</p>
@@ -283,34 +328,63 @@ export default function AdminPage() {
             </div>
 
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabType)}>
-                <TabsList className="grid w-full grid-cols-5">
-                    <TabsTrigger value="users" className="flex items-center gap-2">
-                        <Users className="w-4 h-4" />
-                        Usuários ({users.length})
-                    </TabsTrigger>
-                    <TabsTrigger value="suspended-users" className="flex items-center gap-2">
-                        <Ban className="w-4 h-4" />
-                        Usuários Suspensos ({suspendedUsers.length})
-                    </TabsTrigger>
-                    <TabsTrigger value="organizations" className="flex items-center gap-2">
-                        <Building2 className="w-4 h-4" />
-                        Organizações Ativas ({organizations.length})
-                    </TabsTrigger>
-                    <TabsTrigger value="pending-orgs" className="flex items-center gap-2">
-                        <Building2 className="w-4 h-4" />
-                        Organizações Pendentes ({pendingOrgs.length})
-                    </TabsTrigger>
-                    <TabsTrigger value="suspended-orgs" className="flex items-center gap-2">
-                        <Ban className="w-4 h-4" />
-                        Organizações Suspensas ({suspendedOrgs.length})
-                    </TabsTrigger>
-                </TabsList>
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+                    <div className="flex items-center gap-4">
+                        <Filter className="w-5 h-5 text-gray-600" />
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setActiveTab('users')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                    activeTab === 'users' ? 'bg-main text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                            >
+                                Usuários ({users.length})
+                            </button>
 
-                <TabsContent value="users">
+                            <button
+                                onClick={() => setActiveTab('suspended-users')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                    activeTab === 'suspended-users' ? 'bg-main text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                            >
+                                Usuários Suspensos ({suspendedUsers.length})
+                            </button>
+
+                            <button
+                                onClick={() => setActiveTab('organizations')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                    activeTab === 'organizations' ? 'bg-main text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                            >
+                                Organizações Ativas ({organizations.length})
+                            </button>
+
+                            <button
+                                onClick={() => setActiveTab('pending-orgs')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                    activeTab === 'pending-orgs' ? 'bg-main text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                            >
+                                Organizações Pendentes ({pendingOrgs.length})
+                            </button>
+
+                            <button
+                                onClick={() => setActiveTab('suspended-orgs')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                    activeTab === 'suspended-orgs' ? 'bg-main text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                            >
+                                Organizações Suspensas ({suspendedOrgs.length})
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <TabsContent value="users" className="mt-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Usuários da Plataforma</CardTitle>
-                            <CardDescription>Gerencie todos os usuários cadastrados</CardDescription>
+                            <CardTitle className="text-2xl">Usuários da Plataforma</CardTitle>
+                            <CardDescription className="text-md">Gerencie todos os usuários cadastrados</CardDescription>
                             <div className="relative mt-4">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                                 <Input
@@ -358,11 +432,16 @@ export default function AdminPage() {
                                                         </Avatar>
                                                         <div>
                                                             <p className="font-medium">{user.username}</p>
-                                                            {user.first_name && (
-                                                                <p className="text-sm text-gray-500">
-                                                                    {user.first_name} {user.last_name}
-                                                                </p>
-                                                            )}
+                                                            <div className="flex items-center gap-2">
+                                                                {user.first_name && (
+                                                                    <p className="text-sm text-gray-500">
+                                                                        {user.first_name} {user.last_name}
+                                                                    </p>
+                                                                )}
+                                                                {isAdminUser(user) && (
+                                                                    <Badge className="ml-2" variant="outline">Administrador</Badge>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </TableCell>
@@ -389,7 +468,7 @@ export default function AdminPage() {
                                                     {new Date(user.created_at).toLocaleDateString("pt-BR")}
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    {user.enabled && (
+                                                    {user.enabled && !isAdminUser(user) && (
                                                         <Button
                                                             size="sm"
                                                             variant="destructive"
@@ -405,6 +484,9 @@ export default function AdminPage() {
                                                                 </>
                                                             )}
                                                         </Button>
+                                                    )}
+                                                    {isAdminUser(user) && (
+                                                        <div className="text-sm text-gray-500">Conta administrativa</div>
                                                     )}
                                                 </TableCell>
                                             </TableRow>
