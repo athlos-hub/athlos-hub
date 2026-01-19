@@ -31,11 +31,9 @@ export default async function AdminLayout({
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto w-full py-32">
             <AdminHeader />
-            <div className="container mx-auto py-8 mt-20">
-                {children}
-            </div>
+            {children}
         </div>
     );
 }
