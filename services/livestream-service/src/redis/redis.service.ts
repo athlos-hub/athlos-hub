@@ -18,6 +18,8 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         const delay = Math.min(times * 50, 2000);
         return delay;
       },
+      enableReadyCheck: false,
+      maxRetriesPerRequest: null,
     });
 
     this.client.on('error', (err) => {
@@ -26,6 +28,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
     this.client.on('connect', () => {
       this.logger.log('Cliente Redis conectado');
+    });
+
+    this.client.on('ready', () => {
+      this.logger.log('Cliente Redis pronto');
     });
   }
 

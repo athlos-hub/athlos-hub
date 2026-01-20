@@ -14,14 +14,15 @@ export function StreamKeyDisplay({ streamKey }: StreamKeyDisplayProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  const streamKeyDisplay = streamKey;
+
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(streamKey);
+      await navigator.clipboard.writeText(streamKeyDisplay);
       setCopied(true);
       toast.success("Stream key copiada!");
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error("Erro ao copiar:", error);
       toast.error("Erro ao copiar stream key");
     }
   };
@@ -45,7 +46,7 @@ export function StreamKeyDisplay({ streamKey }: StreamKeyDisplayProps) {
           </label>
           <div className="flex items-center gap-2">
             <div className="flex-1 bg-muted rounded-md px-3 py-2 font-mono text-sm break-all">
-              {isVisible ? streamKey : maskedKey}
+              {isVisible ? streamKeyDisplay : maskedKey}
             </div>
             <Button
               variant="outline"

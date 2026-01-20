@@ -6,15 +6,12 @@ import {
   HttpStatus,
   Logger,
   UnauthorizedException,
-  Headers,
-  UseGuards,
 } from '@nestjs/common';
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
 import { MediaMTXAuthDto } from '../dto/mediamtx-auth.dto.js';
 import { ValidateStreamKeyService } from '../services/validate-stream-key.service.js';
 
 @Controller('webhooks')
-@UseGuards(ThrottlerGuard)
 export class MediaMTXAuthController {
   private readonly logger = new Logger(MediaMTXAuthController.name);
 
@@ -23,17 +20,14 @@ export class MediaMTXAuthController {
   @Post('mediamtx-auth')
   @HttpCode(HttpStatus.OK)
   @Throttle({ short: { limit: 10, ttl: 60000 } })
-  async authenticate(
-    @Body() dto: MediaMTXAuthDto,
-    @Headers('authorization') authorization?: string,
-  ): Promise<void> {
+  async authenticate(@Body() dto: MediaMTXAuthDto): Promise<void> {
     this.logger.log(
       `MediaMTX auth request: action=${dto.action}, path=${dto.path}, ip=${dto.ip}, protocol=${dto.protocol}`,
     );
 
     try {
       if (dto.action === 'publish') {
-        await this.handlePublishAuth(dto, authorization);
+        await this.handlePublishAuth(dto);
       } else if (dto.action === 'read') {
         this.logger.log(`Leitura permitida para path: ${dto.path}`);
         return;
@@ -53,32 +47,21 @@ export class MediaMTXAuthController {
     }
   }
 
-  private async handlePublishAuth(dto: MediaMTXAuthDto, jwtToken?: string): Promise<void> {
+  private async handlePublishAuth(dto: MediaMTXAuthDto): Promise<void> {
     const streamKey = this.extractStreamKey(dto.path);
 
     if (!streamKey) {
-      this.logger.warn(`❌ Stream key vazia no path: ${dto.path}`);
+      this.logger.warn(`Stream key vazia no path: ${dto.path}`);
       throw new UnauthorizedException('Invalid stream key');
     }
 
-    this.logger.log(`🔑 Validando stream key: ${streamKey}`);
+    this.logger.log(`Validando stream key: ${streamKey}`);
 
-    try {
-      const liveId = await this.validateStreamKeyService.execute(streamKey, jwtToken);
+    const liveId = await this.validateStreamKeyService.execute(streamKey);
 
-      this.logger.log(
-        `✅ Stream key ${streamKey} válida! Live ${liveId} iniciada. Publicação aceita de IP ${dto.ip}`,
-      );
-
-      return;
-    } catch (error) {
-      if (error instanceof UnauthorizedException) {
-        this.logger.warn(`❌ Stream key ${streamKey} inválida ou expirada`);
-        throw error;
-      }
-
-      throw error;
-    }
+    this.logger.log(
+      `Stream key ${streamKey} válida! Live ${liveId} iniciada. Publicação aceita de IP ${dto.ip}`,
+    );
   }
 
   private extractStreamKey(path: string): string {
@@ -89,7 +72,17 @@ export class MediaMTXAuthController {
     }
 
     if (cleanPath.startsWith('live/')) {
-      return cleanPath.replace('live/', '');
+      let streamKey = cleanPath.replace('live/', '');
+      const queryIndex = streamKey.indexOf('?');
+      if (queryIndex !== -1) {
+        streamKey = streamKey.substring(0, queryIndex);
+      }
+      return streamKey;
+    }
+
+    const queryIndex = cleanPath.indexOf('?');
+    if (queryIndex !== -1) {
+      return cleanPath.substring(0, queryIndex);
     }
 
     return cleanPath;

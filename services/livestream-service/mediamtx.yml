@@ -1,4 +1,4 @@
-logLevel: info
+logLevel: debug
 
 api: yes
 apiAddress: :9997
@@ -11,7 +11,11 @@ hlsSegmentCount: 7
 hlsSegmentDuration: 1s
 hlsPartDuration: 200ms
 
-externalAuthenticationURL: http://host.docker.internal:3333/webhooks/mediamtx-auth
+authMethod: http
+authHTTPAddress: http://host.docker.internal:3333/webhooks/mediamtx-auth
+authHTTPExclude:
+  - action: api
+  - action: metrics
 
 paths:
   "~^live/.+$":
