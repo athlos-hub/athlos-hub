@@ -4,6 +4,16 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { LivePlayer } from "@/components/livestream/live-player";
 import { LiveChat } from "@/components/livestream/live-chat";
 import { LiveEvents } from "@/components/livestream/live-events";
@@ -27,6 +37,8 @@ export default function LiveDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [userOrgRole, setUserOrgRole] = useState<string | null>(null);
+  const [showFinishDialog, setShowFinishDialog] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   const liveId = params?.id as string;
 
@@ -40,13 +52,11 @@ export default function LiveDetailPage() {
         const data = await getLiveById(liveId);
         setInitialLive(data);
         updateLive(data);
-        // fetch user's organizations to determine role on this live's organization
         try {
           const myOrgs = await getMyOrganizations();
           const match = myOrgs.find((o: any) => o.id === data.organizationId);
           setUserOrgRole(match?.role ?? null);
         } catch (err) {
-          // ignore - treat as non-member
           setUserOrgRole(null);
         }
       } catch (error) {
@@ -63,17 +73,6 @@ export default function LiveDetailPage() {
   const handleFinish = async () => {
     if (!liveId || isUpdating) return;
 
-    const confirmed = window.confirm(
-      "⚠️ Tem certeza que deseja ENCERRAR esta live?\n\n" +
-      "Isso irá:\n" +
-      "- Parar a transmissão imediatamente\n" +
-      "- Desconectar todos os espectadores\n" +
-      "- Mudar o status para 'Finalizada'\n\n" +
-      "Esta ação NÃO pode ser desfeita!"
-    );
-    
-    if (!confirmed) return;
-
     setIsUpdating(true);
     try {
       const updatedLive = await finishLive(liveId);
@@ -84,14 +83,12 @@ export default function LiveDetailPage() {
       toast.error("Erro ao finalizar live");
     } finally {
       setIsUpdating(false);
+      setShowFinishDialog(false);
     }
   };
 
   const handleCancel = async () => {
     if (!liveId || isUpdating) return;
-
-    const confirmed = window.confirm("Tem certeza que deseja cancelar esta live?");
-    if (!confirmed) return;
 
     setIsUpdating(true);
     try {
@@ -103,6 +100,7 @@ export default function LiveDetailPage() {
       toast.error("Erro ao cancelar live");
     } finally {
       setIsUpdating(false);
+      setShowCancelDialog(false);
     }
   };
 
@@ -142,7 +140,7 @@ export default function LiveDetailPage() {
         <div className="flex items-center gap-2">
           {((userOrgRole === OrgRole.OWNER) || (userOrgRole === OrgRole.ORGANIZER)) && live.status === "scheduled" && (
             <Button
-              onClick={handleCancel}
+              onClick={() => setShowCancelDialog(true)}
               disabled={isUpdating}
               variant="outline"
               className="gap-2"
@@ -154,7 +152,7 @@ export default function LiveDetailPage() {
 
           {((userOrgRole === OrgRole.OWNER) || (userOrgRole === OrgRole.ORGANIZER)) && live.status === "live" && (
             <Button
-              onClick={handleFinish}
+              onClick={() => setShowFinishDialog(true)}
               disabled={isUpdating}
               variant="destructive"
               className="gap-2"
@@ -192,7 +190,66 @@ export default function LiveDetailPage() {
         </div>
       </div>
 
-      <LiveEvents liveId={liveId} liveStatus={live.status} />
+      <LiveEvents 
+        liveId={liveId} 
+        liveStatus={live.status} 
+        canCreateEvents={(userOrgRole === OrgRole.OWNER) || (userOrgRole === OrgRole.ORGANIZER)}
+      />
+
+      <AlertDialog open={showFinishDialog} onOpenChange={setShowFinishDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Encerrar Live</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="text-sm text-muted-foreground space-y-3">
+                <p>Tem certeza que deseja <strong>encerrar</strong> esta live?</p>
+                <div>
+                  <span>Isso irá:</span>
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>Parar a transmissão imediatamente</li>
+                    <li>Desconectar todos os espectadores</li>
+                    <li>Mudar o status para &quot;Finalizada&quot;</li>
+                  </ul>
+                </div>
+                <p className="font-semibold text-destructive">Esta ação NÃO pode ser desfeita!</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isUpdating}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleFinish}
+              disabled={isUpdating}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isUpdating ? "Encerrando..." : "Encerrar Live"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar Live</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja <strong>cancelar</strong> esta live?
+              <br /><br />
+              A live será marcada como cancelada e não poderá mais ser iniciada.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isUpdating}>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancel}
+              disabled={isUpdating}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isUpdating ? "Cancelando..." : "Cancelar Live"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

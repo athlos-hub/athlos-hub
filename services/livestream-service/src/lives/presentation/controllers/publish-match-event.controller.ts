@@ -9,6 +9,7 @@ import {
   Inject,
   UnauthorizedException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PublishMatchEventService } from '../../application/services/publish-match-event.service.js';
 import { PublishMatchEventDto } from '../dto/publish-match-event.dto.js';
@@ -21,6 +22,8 @@ import { PrismaService } from '../../../prisma/prisma.service.js';
 @Controller('lives')
 @UseGuards(JwtAuthGuard)
 export class PublishMatchEventController {
+  private readonly logger = new Logger(PublishMatchEventController.name);
+
   constructor(
     private readonly publishMatchEventService: PublishMatchEventService,
     @Inject('ILiveRepository')
@@ -33,18 +36,24 @@ export class PublishMatchEventController {
   async publishEvent(
     @Param('id') id: string,
     @Body() dto: PublishMatchEventDto,
-    @CurrentUser() user: { userId: string; keycloakId: string },
+    @CurrentUser() user: { sub: string; email: string },
   ): Promise<MatchEventResponseDto> {
+    this.logger.log(`Publicando evento para live ${id}, user: ${JSON.stringify(user)}`);
+    
     const live = await this.liveRepo.findById(id);
     
     if (!live) {
       throw new BadRequestException('Live não encontrada');
     }
 
+    this.logger.log(`Live encontrada, organizationId: ${live.organizationId}`);
+
     const hasPermission = await this.validateUserPermission(
-      user.keycloakId,
+      user.sub,
       live.organizationId,
     );
+
+    this.logger.log(`Permissão: ${hasPermission}`);
 
     if (!hasPermission) {
       throw new UnauthorizedException(
@@ -58,30 +67,48 @@ export class PublishMatchEventController {
   }
 
   private async validateUserPermission(
-    keycloakId: string,
+    keycloakSub: string,
     organizationId: string,
   ): Promise<boolean> {
-    const ownerResult = await this.prisma.$queryRawUnsafe<{ keycloak_id: string }[]>(
-      `SELECT u.keycloak_id 
-       FROM auth_schema.organizations o 
-       JOIN auth_schema.users u ON o.owner_id = u.id 
-       WHERE o.id = $1`,
-      organizationId,
-    );
+    this.logger.log(`Validando permissão: keycloakSub=${keycloakSub}, orgId=${organizationId}`);
+    
+    try {
+      const ownerResult = await this.prisma.$queryRawUnsafe<{ keycloak_id: string }[]>(
+        `SELECT u.keycloak_id 
+         FROM "auth_schema"."organizations" o 
+         JOIN "auth_schema"."users" u ON o.owner_id = u.id 
+         WHERE o.id = $1`,
+        organizationId,
+      );
 
-    if (ownerResult.length > 0 && ownerResult[0].keycloak_id === keycloakId) {
-      return true;
+      this.logger.log(`Owner result: ${JSON.stringify(ownerResult)}`);
+
+      if (ownerResult.length > 0 && ownerResult[0].keycloak_id === keycloakSub) {
+        this.logger.log('Usuário é dono da organização');
+        return true;
+      }
+
+      const organizerResult = await this.prisma.$queryRawUnsafe<{ keycloak_id: string }[]>(
+        `SELECT u.keycloak_id 
+         FROM "auth_schema"."organization_organizers" oo 
+         JOIN "auth_schema"."users" u ON oo.user_id = u.id 
+         WHERE oo.organization_id = $1 AND u.keycloak_id = $2`,
+        organizationId,
+        keycloakSub,
+      );
+
+      this.logger.log(`Organizer result: ${JSON.stringify(organizerResult)}`);
+
+      if (organizerResult.length > 0) {
+        this.logger.log('Usuário é organizador');
+        return true;
+      }
+
+      this.logger.warn(`Usuário ${keycloakSub} não tem permissão na organização ${organizationId}`);
+      return false;
+    } catch (error) {
+      this.logger.error(`Erro ao validar permissão: ${error}`);
+      return false;
     }
-
-    const organizerResult = await this.prisma.$queryRawUnsafe<{ keycloak_id: string }[]>(
-      `SELECT u.keycloak_id 
-       FROM auth_schema.organization_organizers oo 
-       JOIN auth_schema.users u ON oo.user_id = u.id 
-       WHERE oo.organization_id = $1 AND u.keycloak_id = $2`,
-      organizationId,
-      keycloakId,
-    );
-
-    return organizerResult.length > 0;
   }
 }

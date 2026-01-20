@@ -31,7 +31,7 @@ export class CancelLiveController {
   @HttpCode(HttpStatus.OK)
   async cancel(
     @Param('id') id: string,
-    @CurrentUser() user: { userId: string; keycloakId: string },
+    @CurrentUser() user: { sub: string; email: string },
   ): Promise<LiveResponseDto> {
     try {
       const live = await this.liveRepo.findById(id);
@@ -41,7 +41,7 @@ export class CancelLiveController {
       }
 
       const hasPermission = await this.validateUserPermission(
-        user.keycloakId,
+        user.sub,
         live.organizationId,
       );
 
@@ -62,7 +62,7 @@ export class CancelLiveController {
   }
 
   private async validateUserPermission(
-    keycloakId: string,
+    keycloakSub: string,
     organizationId: string,
   ): Promise<boolean> {
     const ownerResult = await this.prisma.$queryRawUnsafe<{ keycloak_id: string }[]>(
@@ -73,7 +73,7 @@ export class CancelLiveController {
       organizationId,
     );
 
-    if (ownerResult.length > 0 && ownerResult[0].keycloak_id === keycloakId) {
+    if (ownerResult.length > 0 && ownerResult[0].keycloak_id === keycloakSub) {
       return true;
     }
 
@@ -83,7 +83,7 @@ export class CancelLiveController {
        JOIN auth_schema.users u ON oo.user_id = u.id 
        WHERE oo.organization_id = $1 AND u.keycloak_id = $2`,
       organizationId,
-      keycloakId,
+      keycloakSub,
     );
 
     return organizerResult.length > 0;
