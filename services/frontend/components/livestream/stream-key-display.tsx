@@ -22,7 +22,7 @@ export function StreamKeyDisplay({ streamKey }: StreamKeyDisplayProps) {
       setCopied(true);
       toast.success("Stream key copiada!");
       setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
+    } catch (error) { 
       toast.error("Erro ao copiar stream key");
     }
   };

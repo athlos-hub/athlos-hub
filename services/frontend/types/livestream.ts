@@ -6,16 +6,17 @@ export enum LiveStatus {
 }
 
 export enum MatchEventType {
-  GOAL = 'GOAL',
-  FOUL = 'FOUL',
-  YELLOW_CARD = 'YELLOW_CARD',
-  RED_CARD = 'RED_CARD',
-  SUBSTITUTION = 'SUBSTITUTION',
+  SCORE = 'SCORE',
   PERIOD_START = 'PERIOD_START',
   PERIOD_END = 'PERIOD_END',
-  PENALTY = 'PENALTY',
-  OWN_GOAL = 'OWN_GOAL',
-  VAR_REVIEW = 'VAR_REVIEW',
+  TIMEOUT = 'TIMEOUT',
+  SUBSTITUTION = 'SUBSTITUTION',
+  FOUL = 'FOUL',
+  WARNING = 'WARNING',
+  EJECTION = 'EJECTION',
+  REVIEW = 'REVIEW',
+  INJURY = 'INJURY',
+  CUSTOM = 'CUSTOM',
 }
 
 export interface Live {

@@ -3,7 +3,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import axios, { AxiosError } from "axios";
-import type { Live, CreateLiveDto, ListLivesParams, ChatMessage } from "@/types/livestream";
+import type { Live, CreateLiveDto, ListLivesParams, ChatMessage, MatchEvent, MatchEventType } from "@/types/livestream";
 
 const LIVESTREAM_API_URL = process.env.LIVESTREAM_API_URL || "http://localhost:3333";
 
@@ -18,7 +18,6 @@ async function livestreamAPI<T>(
 ): Promise<T> {
   const session = await getServerSession(authOptions);
 
-  // Verificar se a autenticação é necessária
   const requireAuth = options?.requireAuth ?? false;
   if (requireAuth && !session?.accessToken) {
     throw new Error("Você precisa estar autenticado para realizar esta ação");
@@ -46,16 +45,6 @@ async function livestreamAPI<T>(
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError<{ message?: string; detail?: string }>;
-    
-    // Log para debug
-    console.error('[livestreamAPI Error]', {
-      endpoint,
-      method: options?.method || "GET",
-      status: axiosError.response?.status,
-      statusText: axiosError.response?.statusText,
-      data: axiosError.response?.data,
-      hasAuth: !!session?.accessToken,
-    });
     
     const message =
       axiosError.response?.data?.message ||
@@ -220,7 +209,6 @@ export interface GoogleCalendarOAuthUrlResponse {
 }
 
 export async function getGoogleCalendarOAuthUrl(redirect?: string): Promise<string> {
-  // Chama o endpoint do backend que retorna a URL OAuth (já autenticado via server action)
   const params: Record<string, string> = {};
   if (redirect) {
     params.redirect = redirect;
@@ -235,4 +223,29 @@ export async function getGoogleCalendarOAuthUrl(redirect?: string): Promise<stri
   );
   
   return response.url;
+}
+
+export interface PublishMatchEventDto {
+  type: MatchEventType;
+  payload: Record<string, unknown>;
+}
+
+export async function publishMatchEvent(
+  liveId: string,
+  data: PublishMatchEventDto
+): Promise<MatchEvent> {
+  return livestreamAPI<MatchEvent>(`/lives/${liveId}/events`, {
+    method: "POST",
+    data,
+    requireAuth: true,
+  });
+}
+
+export async function getMatchEventsHistory(
+  liveId: string,
+  limit: number = 50
+): Promise<MatchEvent[]> {
+  return livestreamAPI<MatchEvent[]>(`/lives/${liveId}/events`, {
+    params: { limit },
+  });
 }

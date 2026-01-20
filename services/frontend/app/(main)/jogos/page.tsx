@@ -89,8 +89,21 @@ export default function LivesPage() {
   }, [allLives, isGoogleCalendarAuthorized]);
 
   const lives = useMemo(() => {
+    const statusPriority: Record<string, number> = {
+      [LiveStatus.LIVE]: 0,
+      [LiveStatus.SCHEDULED]: 1,
+      [LiveStatus.FINISHED]: 2,
+      [LiveStatus.CANCELLED]: 3,
+    };
+
+    const sortByStatus = (a: Live, b: Live) => {
+      const priorityA = statusPriority[a.status] ?? 99;
+      const priorityB = statusPriority[b.status] ?? 99;
+      return priorityA - priorityB;
+    };
+
     if (statusFilter === "all") {
-      return allLives;
+      return [...allLives].sort(sortByStatus);
     }
     return allLives.filter((live) => live.status === statusFilter as LiveStatus);
   }, [allLives, statusFilter]);
