@@ -1,17 +1,17 @@
-import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, ValidateIf } from 'class-validator';
 
 export class MediaMTXAuthDto {
   @IsNotEmpty()
   @IsString()
   ip!: string;
 
-  @IsNotEmpty()
+  @ValidateIf((o) => o.user !== undefined)
   @IsString()
-  user!: string;
+  user?: string;
 
-  @IsNotEmpty()
+  @ValidateIf((o) => o.password !== undefined)
   @IsString()
-  password!: string;
+  password?: string;
 
   @IsNotEmpty()
   @IsString()
