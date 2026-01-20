@@ -1,6 +1,6 @@
 from sqlalchemy import String, Integer, ForeignKey, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 from src.models.base import Base
 
@@ -11,7 +11,6 @@ class SportRulesetModel(Base):
     __tablename__ = "sport_rulesets"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    competition_id: Mapped[int] = mapped_column(ForeignKey("competitions.id"), unique=True)
     
     name: Mapped[str] = mapped_column(String(50))
     
@@ -23,5 +22,7 @@ class SportRulesetModel(Base):
     
     has_break_segments: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    # Back Reference
-    competition: Mapped["CompetitionModel"] = relationship(back_populates="sport_ruleset")
+    competitions: Mapped[List["CompetitionModel"]] = relationship(
+        "CompetitionModel", 
+        back_populates="sport_ruleset"
+    )
