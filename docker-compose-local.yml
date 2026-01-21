@@ -1,0 +1,118 @@
+services:
+  kong:
+    container_name: sports_kong_gateway
+    image: kong:3.9
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      KONG_PROXY_LISTEN: 0.0.0.0:8000
+      KONG_LOG_LEVEL: info
+    volumes:
+      - ./kong:/kong:ro
+    ports:
+      - "8100:8000"
+      - "8101:8001"
+    networks:
+      - sports-local-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  postgres-local:
+    container_name: sports_postgres_local
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: sports_platform_hmg
+      POSTGRES_USER: sports_user_hmg
+      POSTGRES_PASSWORD: ${DB_PASSWORD_HMG}
+      POSTGRES_HOST_AUTH_METHOD: md5
+    volumes:
+      - postgres_local_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    networks:
+      - sports-local-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sports_user_hmg -d sports_platform_hmg"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  keycloak-local:
+    container_name: sports_keycloak_local
+    image: quay.io/keycloak/keycloak:23.0.0
+    ports:
+      - "8080:8080"
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres-local:5432/sports_platform_hmg?currentSchema=keycloak_schema
+      KC_DB_USERNAME: keycloak_service_hmg
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USERNAME}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+    command: start-dev
+    depends_on:
+      postgres-local:
+        condition: service_healthy
+    networks:
+      - sports-local-network
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  mediamtx:
+    container_name: sports_livestream_mtx
+    image: bluenviron/mediamtx:1-ffmpeg
+    ports:
+      - "1935:1935"    # RTMP
+      - "8888:8888"    # HLS
+      - "8889:8889"    # WebRTC
+      - "9997:9997"    # API
+    volumes:
+      - ./services/livestream-service/mediamtx.yml:/mediamtx.yml:ro
+    networks:
+      - sports-local-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  redis-local:
+    container_name: sports_redis_local
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_local_data:/data
+    networks:
+      - sports-local-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_local_data: {}
+  redis_local_data: {}
+
+networks:
+  sports-local-network:
+    driver: bridge

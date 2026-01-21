@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["livestream_schema"]
+}
+
+enum LiveStatus {
+  scheduled
+  live
+  finished
+  cancelled
+
+  @@schema("livestream_schema")
+}
+
+model Live {
+  id              String      @id @default(uuid())
+  externalMatchId String      @unique @map("external_match_id")
+  organizationId  String      @map("organization_id")
+  streamKey       String      @map("stream_key")
+  status          LiveStatus  @default(scheduled)
+  startedAt       DateTime?   @map("started_at")
+  endedAt         DateTime?   @map("ended_at")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  events          LiveEvent[]
+
+  @@index([organizationId])
+  @@schema("livestream_schema")
+}
+
+model LiveEvent {
+  id        String   @id @default(uuid())
+  liveId    String   @map("live_id")
+  type      String
+  payload   Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  live Live @relation(fields: [liveId], references: [id], onDelete: Cascade)
+
+  @@index([liveId])
+  @@index([liveId, createdAt])
+  @@schema("livestream_schema")
+}
+
+model GoogleCalendarToken {
+  id           String    @id @default(uuid())
+  userId       String    @unique @map("user_id")
+  accessToken  String    @map("access_token")
+  refreshToken String?   @map("refresh_token")
+  expiresAt    DateTime  @map("expires_at")
+  scope        String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  events       GoogleCalendarEvent[]
+
+  @@schema("livestream_schema")
+}
+
+model GoogleCalendarEvent {
+  id           String    @id @default(uuid())
+  userId       String    @map("user_id")
+  liveId       String    @map("live_id")
+  eventId      String    @map("event_id")
+  htmlLink     String?   @map("html_link")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  
+  token        GoogleCalendarToken @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@unique([userId, liveId])
+  @@index([userId])
+  @@index([liveId])
+  @@schema("livestream_schema")
+}
