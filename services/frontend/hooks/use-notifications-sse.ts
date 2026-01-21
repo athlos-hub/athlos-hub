@@ -42,8 +42,8 @@ export function useNotificationsSSE(options: UseNotificationsSSEOptions = {}) {
     }
 
     try {
-      const notificationsApiUrl = process.env.NEXT_PUBLIC_NOTIFICATIONS_API_URL || 'http://localhost:8003/api/v1';
-      const url = `${notificationsApiUrl}/notifications/stream?user_id=${session.user.id}`;
+      const apiGatewayUrl = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8100/api/v1';
+      const url = `${apiGatewayUrl}/notifications/stream?user_id=${session.user.id}`;
       
       const eventSource = new EventSource(url);
       eventSourceRef.current = eventSource;

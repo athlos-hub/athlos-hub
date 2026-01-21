@@ -105,6 +105,7 @@ export class GoogleCalendarController {
       user.sub,
       dto.liveIds,
       frontendBaseUrl,
+      dto.force === true,
     );
 
     return {

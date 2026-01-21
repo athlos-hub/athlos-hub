@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import axios from 'axios';
 
-const NOTIFICATIONS_API_URL = process.env.NEXT_PUBLIC_NOTIFICATIONS_API_URL || 'http://localhost:8003/api/v1';
+const API_GATEWAY_URL = process.env.API_BASE_URL || 'http://localhost:8100/api/v1';
 
 export async function GET(
   request: NextRequest,
@@ -19,7 +19,7 @@ export async function GET(
     const { id } = await params;
 
     const response = await axios.get(
-      `${NOTIFICATIONS_API_URL}/notifications/${id}`,
+      `${API_GATEWAY_URL}/notifications/${id}`,
       {
         headers: {
           'x-user-id': session.user.id,
@@ -50,7 +50,7 @@ export async function DELETE(
     const { id } = await params;
 
     await axios.delete(
-      `${NOTIFICATIONS_API_URL}/notifications/${id}`,
+      `${API_GATEWAY_URL}/notifications/${id}`,
       {
         headers: {
           'x-user-id': session.user.id,

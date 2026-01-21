@@ -43,4 +43,7 @@ export class CreateMultipleCalendarEventsDto {
   @IsOptional()
   @IsString()
   frontendBaseUrl?: string;
+
+  @IsOptional()
+  force?: boolean;
 }
