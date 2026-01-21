@@ -120,10 +120,11 @@ export class GoogleCalendarApiService {
     userId: string,
     liveIds: string[],
     frontendBaseUrl: string,
+    force: boolean = false,
   ): Promise<Array<{ liveId: string; eventId: string; htmlLink: string; success: boolean; alreadyExists: boolean; error?: string }>> {
     const results = await Promise.allSettled(
       liveIds.map((liveId) =>
-        this.createEvent(userId, liveId, frontendBaseUrl).then(
+        this.createEvent(userId, liveId, frontendBaseUrl, force).then(
           (result) => ({ 
             liveId, 
             eventId: result.eventId, 

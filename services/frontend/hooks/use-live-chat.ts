@@ -6,7 +6,7 @@ import { getChatHistory } from "@/actions/lives";
 import { toast } from "sonner";
 import type { ChatMessage, JoinLivePayload, ChatMessagePayload } from "@/types/livestream";
 
-const WEBSOCKET_URL = process.env.NEXT_PUBLIC_LIVESTREAM_API_URL || "http://localhost:3333";
+const WEBSOCKET_URL = process.env.NEXT_PUBLIC_LIVESTREAM_WS_URL || "http://localhost:3333";
 
 export function useLiveChat(liveId: string, userId: string, userName: string) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);

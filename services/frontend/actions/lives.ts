@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import axios, { AxiosError } from "axios";
 import type { Live, CreateLiveDto, ListLivesParams, ChatMessage, MatchEvent, MatchEventType } from "@/types/livestream";
 
-const LIVESTREAM_API_URL = process.env.LIVESTREAM_API_URL || "http://localhost:3333";
+const API_GATEWAY_URL = process.env.API_BASE_URL || "http://localhost:8100/api/v1";
 
 async function livestreamAPI<T>(
   endpoint: string,
@@ -33,7 +33,7 @@ async function livestreamAPI<T>(
 
   try {
     const response = await axios<T>({
-      baseURL: LIVESTREAM_API_URL,
+      baseURL: API_GATEWAY_URL,
       url: endpoint,
       method: options?.method || "GET",
       data: options?.data,
@@ -178,13 +178,14 @@ export async function createGoogleCalendarEventWithForce(liveId: string, force: 
 }
 
 export async function createMultipleGoogleCalendarEvents(
-  liveIds: string[]
+  liveIds: string[],
+  force: boolean = false
 ): Promise<CreateMultipleCalendarEventsResponse> {
   return livestreamAPI<CreateMultipleCalendarEventsResponse>(
     '/google-calendar/create-multiple-events',
     {
       method: 'POST',
-      data: { liveIds },
+      data: { liveIds, force },
       requireAuth: true,
     }
   );
