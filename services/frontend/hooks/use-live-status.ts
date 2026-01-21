@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useWebSocket } from "./use-websocket";
 import type { Live, JoinLivePayload } from "@/types/livestream";
 
-const WEBSOCKET_URL = process.env.NEXT_PUBLIC_LIVESTREAM_API_URL || "http://localhost:3333";
+const WEBSOCKET_URL = process.env.NEXT_PUBLIC_LIVESTREAM_WS_URL || "http://localhost:3333";
 
 export function useLiveStatus(liveId: string, initialLive: Live | null) {
   const [live, setLive] = useState<Live | null>(initialLive);
