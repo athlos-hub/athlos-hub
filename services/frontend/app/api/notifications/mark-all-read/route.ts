@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import axios from 'axios';
 
-const NOTIFICATIONS_API_URL = process.env.NEXT_PUBLIC_NOTIFICATIONS_API_URL || 'http://localhost:8003/api/v1';
+const API_GATEWAY_URL = process.env.API_BASE_URL || 'http://localhost:8100/api/v1';
 
 export async function POST() {
   try {
@@ -14,7 +14,7 @@ export async function POST() {
     }
 
     const response = await axios.post(
-      `${NOTIFICATIONS_API_URL}/notifications/mark-all-read`,
+      `${API_GATEWAY_URL}/notifications/mark-all-read`,
       {},
       {
         headers: {

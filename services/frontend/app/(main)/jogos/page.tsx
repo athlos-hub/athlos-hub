@@ -41,6 +41,12 @@ export default function LivesPage() {
   const [showAlreadyAddedDialog, setShowAlreadyAddedDialog] = useState(false);
   const [pendingLiveToForce, setPendingLiveToForce] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<LiveStatus | "all">("all");
+  
+  const [showMultipleAlreadyAddedDialog, setShowMultipleAlreadyAddedDialog] = useState(false);
+  const [pendingMultipleLives, setPendingMultipleLives] = useState<{
+    newLives: string[];
+    existingLives: string[];
+  } | null>(null);
 
   useEffect(() => {
     async function loadLives() {
@@ -195,33 +201,22 @@ export default function LivesPage() {
     }
 
     try {
-      setIsAddingToCalendar(true);
-
       if (!isGoogleCalendarAuthorized) {
         const oauthUrl = await getGoogleCalendarOAuthUrl(`/jogos`);
         window.location.href = oauthUrl;
         return;
       }
 
-      const result = await createMultipleGoogleCalendarEvents(schedulableIds);
+      const newLives = schedulableIds.filter((id) => !calendarEventSet.has(id));
+      const existingLives = schedulableIds.filter((id) => calendarEventSet.has(id));
 
-      const newEventsCount = result.results.filter((r) => r.success && !r.alreadyExists).length;
-      const existingEventsCount = result.results.filter((r) => r.success && r.alreadyExists).length;
-      const failCount = result.results.filter((r) => !r.success).length;
-
-      if (newEventsCount > 0) {
-        toast.success(`${newEventsCount} evento(s) adicionado(s) ao Google Calendar com sucesso!`);
+      if (existingLives.length > 0) {
+        setPendingMultipleLives({ newLives, existingLives });
+        setShowMultipleAlreadyAddedDialog(true);
+        return;
       }
 
-      if (existingEventsCount > 0) {
-        toast.info(`${existingEventsCount} jogo(s) já estavam no seu Google Calendar`);
-      }
-
-      if (failCount > 0) {
-        toast.warning(`${failCount} evento(s) falharam ao ser adicionados`);
-      }
-
-      setSelectedLives(new Set());
+      await executeAddMultipleToCalendar(schedulableIds, false);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Não foi possível adicionar ao Google Calendar";
       
@@ -232,9 +227,66 @@ export default function LivesPage() {
       }
       
       toast.error(errorMessage);
+    }
+  };
+
+  const executeAddMultipleToCalendar = async (liveIds: string[], forceAll: boolean) => {
+    try {
+      setIsAddingToCalendar(true);
+
+      const result = await createMultipleGoogleCalendarEvents(liveIds, forceAll);
+
+      const newEventsCount = result.results.filter((r) => r.success && !r.alreadyExists).length;
+      const existingEventsCount = result.results.filter((r) => r.success && r.alreadyExists).length;
+      const failCount = result.results.filter((r) => !r.success).length;
+
+      if (newEventsCount > 0) {
+        toast.success(`${newEventsCount} evento(s) adicionado(s) ao Google Calendar com sucesso!`);
+      }
+
+      if (existingEventsCount > 0 && !forceAll) {
+        toast.info(`${existingEventsCount} jogo(s) já estavam no seu Google Calendar`);
+      }
+
+      if (failCount > 0) {
+        toast.warning(`${failCount} evento(s) falharam ao ser adicionados`);
+      }
+
+      const addedIds = result.results.filter((r) => r.success).map((r) => r.liveId);
+      setCalendarEventSet((prev) => new Set([...prev, ...addedIds]));
+      
+      setSelectedLives(new Set());
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Não foi possível adicionar ao Google Calendar";
+      toast.error(errorMessage);
     } finally {
       setIsAddingToCalendar(false);
     }
+  };
+
+  const handleAddOnlyNewLives = async () => {
+    if (!pendingMultipleLives) return;
+    
+    setShowMultipleAlreadyAddedDialog(false);
+    
+    if (pendingMultipleLives.newLives.length > 0) {
+      await executeAddMultipleToCalendar(pendingMultipleLives.newLives, false);
+    } else {
+      toast.info("Todos os jogos selecionados já estão no seu calendário");
+    }
+    
+    setPendingMultipleLives(null);
+  };
+
+  const handleForceAddAllLives = async () => {
+    if (!pendingMultipleLives) return;
+    
+    setShowMultipleAlreadyAddedDialog(false);
+    
+    const allLiveIds = [...pendingMultipleLives.newLives, ...pendingMultipleLives.existingLives];
+    await executeAddMultipleToCalendar(allLiveIds, true);
+    
+    setPendingMultipleLives(null);
   };
 
   const handleForceAdd = async () => {
@@ -428,6 +480,54 @@ export default function LivesPage() {
             <AlertDialogCancel disabled={isAddingToCalendar}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleForceAdd} disabled={isAddingToCalendar} className="bg-main hover:bg-main/90 text-white">
               Adicionar novamente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showMultipleAlreadyAddedDialog} onOpenChange={setShowMultipleAlreadyAddedDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Alguns jogos já foram adicionados</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <span className="block">
+                  {pendingMultipleLives?.existingLives.length === 1
+                    ? "1 jogo selecionado já está no seu Google Calendar."
+                    : `${pendingMultipleLives?.existingLives.length} jogos selecionados já estão no seu Google Calendar.`}
+                </span>
+                {pendingMultipleLives?.newLives.length ? (
+                  <span className="block">
+                    {pendingMultipleLives.newLives.length === 1
+                      ? "1 jogo novo será adicionado."
+                      : `${pendingMultipleLives.newLives.length} jogos novos serão adicionados.`}
+                  </span>
+                ) : (
+                  <span className="block">Não há jogos novos para adicionar.</span>
+                )}
+                <span className="block font-medium pt-2">O que você deseja fazer?</span>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel disabled={isAddingToCalendar}>
+              Cancelar
+            </AlertDialogCancel>
+            {pendingMultipleLives?.newLives.length ? (
+              <AlertDialogAction 
+                onClick={handleAddOnlyNewLives} 
+                disabled={isAddingToCalendar}
+                className="bg-gray-600 hover:bg-gray-700 text-white"
+              >
+                Adicionar apenas novos ({pendingMultipleLives.newLives.length})
+              </AlertDialogAction>
+            ) : null}
+            <AlertDialogAction 
+              onClick={handleForceAddAllLives} 
+              disabled={isAddingToCalendar}
+              className="bg-main hover:bg-main/90 text-white"
+            >
+              Adicionar todos ({(pendingMultipleLives?.newLives.length || 0) + (pendingMultipleLives?.existingLives.length || 0)})
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

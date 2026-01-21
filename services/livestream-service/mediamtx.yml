@@ -12,7 +12,7 @@ hlsSegmentDuration: 1s
 hlsPartDuration: 200ms
 
 authMethod: http
-authHTTPAddress: http://host.docker.internal:3333/webhooks/mediamtx-auth
+authHTTPAddress: http://host.docker.internal:3333/api/v1/webhooks/mediamtx-auth
 authHTTPExclude:
   - action: api
   - action: metrics

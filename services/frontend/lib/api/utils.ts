@@ -67,7 +67,7 @@ export function parseErrorMessage(errorData: unknown): string {
 }
 
 export function getBaseURL(): string {
-    return process.env.API_BASE_URL || "http://localhost:8000/api/v1";
+    return process.env.API_BASE_URL || "http://localhost:8100/api/v1";
 }
 
 export function buildQueryString(params?: Record<string, string | number | boolean>): string {

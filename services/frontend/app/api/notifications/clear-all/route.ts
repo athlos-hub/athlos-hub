@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import axios from 'axios';
 
-const NOTIFICATIONS_API_URL = process.env.NEXT_PUBLIC_NOTIFICATIONS_API_URL || 'http://localhost:8003/api/v1';
+const API_GATEWAY_URL = process.env.API_BASE_URL || 'http://localhost:8100/api/v1';
 
 export async function DELETE(request: NextRequest) {
   try {
@@ -16,7 +16,7 @@ export async function DELETE(request: NextRequest) {
       });
     }
 
-    const url = `${NOTIFICATIONS_API_URL}/notifications/clear-all`;
+    const url = `${API_GATEWAY_URL}/notifications/clear-all`;
 
     const response = await axios.delete(
       url,
