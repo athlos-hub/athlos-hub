@@ -6,7 +6,14 @@ import uuid
 
 from src.routes.routes import get_session
 from src.services.matches_service import MatchesService
-from src.schemas.matches_schema import MatchOrgResponse, MatchPeriodFilter, MatchResponse, MatchUpdateRequest
+from src.schemas.matches_schema import (
+    MatchOrgResponse,
+    MatchPeriodFilter,
+    MatchResponse,
+    MatchUpdateRequest,
+    ScoreUpdateRequest,
+)
+from src.services.manege_matches_service import ManageMatchesService
 from src.services.rounds_service import RoundsService
 from src.schemas.rounds_schema import RoundMatchesResponse
 
@@ -142,3 +149,32 @@ async def update_match(
 
     service = MatchesService(session)
     return await service.update_match_details(match_uuid, update_data)
+
+
+@router.post(
+    "/{match_id}/score",
+    response_model=MatchResponse,
+    summary="Registrar pontuação (segmentada ou geral)"
+)
+async def register_match_score(
+    match_id: uuid.UUID,
+    score: ScoreUpdateRequest,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Registra pontuação em um jogo:
+    - Se `segment_id` for informado, incrementa no segmento e reflete no total do jogo.
+    - Caso contrário, incrementa diretamente no placar geral.
+    - Se a competição possuir StatsRuleSet, exige `player_id` e `stats_metric_abbreviation`.
+    - Só permite incrementar com o jogo no status `live`.
+    """
+    service = ManageMatchesService(session)
+    updated = await service.register_score(
+        match_id=match_id,
+        team_side=score.team_side.value,
+        increment=score.increment,
+        segment_id=score.segment_id,
+        stats_metric_abbreviation=score.stats_metric_abbreviation,
+        player_id=score.player_id,
+    )
+    return updated

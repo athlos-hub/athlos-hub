@@ -68,3 +68,20 @@ class MatchUpdateRequest(BaseModel):
     local: Optional[str] = Field(None, description="Novo local da partida")
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# Novo: Enum e Schema para registrar pontuação
+class TeamSide(str, Enum):
+    home = "home"
+    away = "away"
+
+class ScoreUpdateRequest(BaseModel):
+    team_side: TeamSide = Field(..., description="Lado do time que pontuou: 'home' ou 'away'")
+    increment: int = Field(1, ge=0, description="Valor a incrementar no placar (>= 0)")
+    segment_id: Optional[int] = Field(None, description="ID do segmento (se o jogo for segmentado)")
+
+    # Métrica de stats (obrigatória se a competição possuir StatsRuleSet)
+    stats_metric_abbreviation: Optional[str] = Field(None, description="Abreviação da métrica (ex: 'GOL', 'PTS')")
+    player_id: Optional[uuid.UUID] = Field(None, description="ID do jogador que realizou a pontuação")
+
+    model_config = ConfigDict(from_attributes=True)
