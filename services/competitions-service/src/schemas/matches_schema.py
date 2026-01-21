@@ -85,3 +85,23 @@ class ScoreUpdateRequest(BaseModel):
     player_id: Optional[uuid.UUID] = Field(None, description="ID do jogador que realizou a pontuação")
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# Novo: Schema para setar placar específico
+class SegmentScoreInput(BaseModel):
+    segment_id: int
+    home_score: int = Field(ge=0)
+    away_score: int = Field(ge=0)
+
+class StatsEventInput(BaseModel):
+    player_id: uuid.UUID
+    abbreviation: str
+    value: int = Field(ge=0)
+
+class SetScoreRequest(BaseModel):
+    home_score: int = Field(..., ge=0)
+    away_score: int = Field(..., ge=0)
+    segments: Optional[List[SegmentScoreInput]] = None
+    stats_events: Optional[List[StatsEventInput]] = None
+
+    model_config = ConfigDict(from_attributes=True)

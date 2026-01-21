@@ -12,6 +12,7 @@ from src.schemas.matches_schema import (
     MatchResponse,
     MatchUpdateRequest,
     ScoreUpdateRequest,
+    SetScoreRequest,
 )
 from src.services.manege_matches_service import ManageMatchesService
 from src.services.rounds_service import RoundsService
@@ -176,5 +177,33 @@ async def register_match_score(
         segment_id=score.segment_id,
         stats_metric_abbreviation=score.stats_metric_abbreviation,
         player_id=score.player_id,
+    )
+    return updated
+
+
+@router.post(
+    "/{match_id}/set-score",
+    response_model=MatchResponse,
+    summary="Setar placar específico (com segments e stats)"
+)
+async def set_match_score(
+    match_id: uuid.UUID,
+    payload: SetScoreRequest,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Seta placar específico de um jogo:
+    - Se `segments` for fornecido, atualiza os segmentos e recalcula o total do jogo.
+    - Caso contrário, seta diretamente `home_score` e `away_score`.
+    - Se houver `stats_events`, valida ruleset e incrementa PlayerStats.
+    - Só permite alteração com o jogo no status `live`.
+    """
+    service = ManageMatchesService(session)
+    updated = await service.set_score(
+        match_id=match_id,
+        home_score=payload.home_score,
+        away_score=payload.away_score,
+        segments=[{"segment_id": s.segment_id, "home_score": s.home_score, "away_score": s.away_score} for s in (payload.segments or [])],
+        stats_events=[{"player_id": e.player_id, "abbreviation": e.abbreviation, "value": e.value} for e in (payload.stats_events or [])],
     )
     return updated

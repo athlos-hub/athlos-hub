@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional
+from typing import Optional, List, Dict
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -138,3 +138,128 @@ class ManageMatchesService:
 		await self.session.commit()
 		await self.session.refresh(match)
 		return match
+
+	async def set_score(
+		self,
+		match_id: uuid.UUID,
+		home_score: int,
+		away_score: int,
+		segments: Optional[List[Dict]] = None,
+		stats_events: Optional[List[Dict]] = None,
+	) -> MatchModel:
+		"""
+		Seta placar específico para um jogo, com suporte a segmentos e eventos de stats.
+
+		- Requer o jogo em status LIVE.
+		- Se `segments` for fornecido, atualiza os segmentos e recalcula o total do jogo pela soma dos segmentos.
+		- Caso contrário, seta diretamente `home_score` e `away_score` no jogo.
+		- `stats_events` (opcional): lista de dicts contendo `{player_id, abbreviation, value}`.
+		  Se a competição possuir StatsRuleSet, valida e incrementa PlayerStats de cada evento.
+		"""
+
+		# Normaliza valores
+		home_score = max(0, int(home_score))
+		away_score = max(0, int(away_score))
+
+		# 1) Carrega jogo com segmentos
+		q_match = (
+			select(MatchModel)
+			.where(MatchModel.id == match_id)
+			.options(selectinload(MatchModel.segments))
+		)
+		result = await self.session.execute(q_match)
+		match: Optional[MatchModel] = result.scalar_one_or_none()
+
+		if not match:
+			raise HTTPException(status_code=404, detail="Jogo não encontrado.")
+
+		# Status deve ser LIVE
+		if match.status != MatchStatus.LIVE:
+			raise HTTPException(
+				status_code=400,
+				detail=f"Não é possível setar placar. O jogo deve estar 'live' (status atual: {match.status}).",
+			)
+
+		# 2) Atualiza segmentos ou placar direto
+		if segments and len(segments) > 0:
+			for seg in segments:
+				seg_id = seg.get("segment_id")
+				seg_home = max(0, int(seg.get("home_score", 0)))
+				seg_away = max(0, int(seg.get("away_score", 0)))
+
+				if seg_id is None:
+					raise HTTPException(status_code=400, detail="Cada segmento deve conter 'segment_id'.")
+
+				q_segment = select(SegmentModel).where(
+					SegmentModel.id == seg_id, SegmentModel.match_id == match.id
+				)
+				seg_res = await self.session.execute(q_segment)
+				segment = seg_res.scalar_one_or_none()
+				if not segment:
+					raise HTTPException(status_code=404, detail=f"Segmento {seg_id} não encontrado para este jogo.")
+
+				segment.home_score = seg_home
+				segment.away_score = seg_away
+				self.session.add(segment)
+
+			# Recalcula total baseado nos segmentos
+			total_home = sum((s.home_score or 0) for s in match.segments)
+			total_away = sum((s.away_score or 0) for s in match.segments)
+			match.home_score = total_home
+			match.away_score = total_away
+		else:
+			match.home_score = home_score
+			match.away_score = away_score
+
+		self.session.add(match)
+
+		# 3) Processa eventos de stats (opcional)
+		rs_q = select(StatsRuleSetModel).where(StatsRuleSetModel.competition_id == match.competition_id)
+		rs_res = await self.session.execute(rs_q)
+		ruleset = rs_res.scalar_one_or_none()
+
+		if stats_events:
+			if not ruleset:
+				raise HTTPException(status_code=400, detail="Não é possível registrar stats: competição não possui StatsRuleSet.")
+
+			for evt in stats_events:
+				player_id = evt.get("player_id")
+				abbreviation = evt.get("abbreviation")
+				value = max(0, int(evt.get("value", 0)))
+
+				if not player_id or not abbreviation:
+					raise HTTPException(status_code=400, detail="Cada evento de stats deve conter 'player_id' e 'abbreviation'.")
+
+				st_q = select(StatsTypeModel).where(
+					StatsTypeModel.stats_ruleset_id == ruleset.id,
+					StatsTypeModel.abbreviation == abbreviation,
+				)
+				st_res = await self.session.execute(st_q)
+				stats_type = st_res.scalar_one_or_none()
+				if not stats_type:
+					raise HTTPException(status_code=400, detail=f"Métrica '{abbreviation}' não pertence ao StatsRuleSet.")
+
+				ps_q = select(PlayerStatsModel).where(
+					PlayerStatsModel.player_id == player_id,
+					PlayerStatsModel.stats_type_id == stats_type.id,
+					PlayerStatsModel.match_id == match.id,
+				)
+				ps_res = await self.session.execute(ps_q)
+				player_stats = ps_res.scalar_one_or_none()
+
+				if player_stats:
+					player_stats.value = (player_stats.value or 0) + value
+				else:
+					player_stats = PlayerStatsModel(
+						player_id=player_id,
+						stats_type_id=stats_type.id,
+						match_id=match.id,
+						value=value,
+					)
+				self.session.add(player_stats)
+
+		# 4) Persiste
+		await self.session.commit()
+		await self.session.refresh(match)
+		return match
+
