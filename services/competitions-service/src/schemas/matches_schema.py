@@ -1,0 +1,70 @@
+from pydantic import BaseModel, Field, ConfigDict
+from datetime import datetime
+from typing import Optional, List
+import uuid
+from enum import Enum
+
+from src.models.matches import MatchStatus
+
+# Enum para o filtro de período
+class MatchPeriodFilter(str, Enum):
+    TODAY = "today"
+    WEEK = "week"
+    ALL = "all"
+
+# Schema resumido do Time (para não trazer players, etc)
+class TeamSummary(BaseModel):
+    id: uuid.UUID
+    name: str
+    abbreviation: str
+    model_config = ConfigDict(from_attributes=True)
+
+class MatchOrgResponse(BaseModel):
+    id: uuid.UUID
+    status: MatchStatus
+    scheduled_datetime: Optional[datetime]
+    local: Optional[str]
+    round_match_number: int
+    
+    # Dados agregados
+    competition_name: str
+    modality_name: str
+    
+    # Times (podem ser null se for placeholder)
+    home_team: Optional[TeamSummary] = None
+    away_team: Optional[TeamSummary] = None
+    
+    # Placar
+    home_score: int
+    away_score: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+class RoundSummary(BaseModel):
+    id: int
+    name: str
+    model_config = ConfigDict(from_attributes=True)
+
+class MatchResponse(BaseModel):
+    id: uuid.UUID
+    status: MatchStatus
+    scheduled_datetime: Optional[datetime]
+    local: Optional[str]
+    round_match_number: int
+    
+    # Placar
+    home_score: int
+    away_score: int
+
+    # Relacionamentos
+    home_team: Optional[TeamSummary] = None
+    away_team: Optional[TeamSummary] = None
+    round: Optional[RoundSummary] = None  # Importante para contexto de competição
+
+    model_config = ConfigDict(from_attributes=True)
+
+class MatchUpdateRequest(BaseModel):
+    scheduled_datetime: Optional[datetime] = Field(None, description="Nova data e hora do jogo (ISO 8601)")
+    local: Optional[str] = Field(None, description="Novo local da partida")
+
+    model_config = ConfigDict(from_attributes=True)

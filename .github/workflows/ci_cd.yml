@@ -1,0 +1,93 @@
+name: Monorepo CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  # ------------------------------------------------------------------
+  # JOB 1: TESTES DO AUTH-SERVICE
+  # ------------------------------------------------------------------
+  test-auth-service:
+    runs-on: ubuntu-latest
+    # Só roda se arquivos nesta pasta ou o workflow mudarem
+    steps:
+      - uses: actions/checkout@v4
+      
+      # Verifica se houve mudanças na pasta específica (Otimização)
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            src:
+              - 'services/auth_service/**'
+
+      - name: Set up Python
+        if: steps.filter.outputs.src == 'true'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12.12'
+
+      - name: Install Poetry
+        if: steps.filter.outputs.src == 'true'
+        run: pip install poetry
+        
+      - name: Install Deps
+        if: steps.filter.outputs.src == 'true'
+        working-directory: ./services/auth_service
+        run: poetry install
+
+      - name: Run Tests
+        if: steps.filter.outputs.src == 'true'
+        working-directory: ./services/auth_service
+        run: poetry run pytest
+
+  # ------------------------------------------------------------------
+  # JOB 2: TESTES DO COMPETITIONS-SERVICE
+  # ------------------------------------------------------------------
+  test-competitions-service:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            src:
+              - 'services/competitions_service/**'
+
+      - name: Set up Python
+        if: steps.filter.outputs.src == 'true'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12.12'
+
+      - name: Install Poetry
+        if: steps.filter.outputs.src == 'true'
+        run: pip install poetry
+
+      - name: Install Deps
+        if: steps.filter.outputs.src == 'true'
+        working-directory: ./services/competitions_service
+        run: poetry install
+
+      - name: Run Tests
+        if: steps.filter.outputs.src == 'true'
+        working-directory: ./services/competitions_service
+        run: poetry run pytest
+
+  # ------------------------------------------------------------------
+  # JOB 3: TESTES DO SOCIAL-SERVICE
+  # ------------------------------------------------------------------
+
+  #IMPLEMENTAÇÃO PENDENTE
+
+  # ------------------------------------------------------------------
+  # JOB 4: GATEKEEPER (DEPLOY)
+  # Este job só roda se os anteriores forem bem sucedidos
+  # ------------------------------------------------------------------
+
+  #IMPLEMENTAÇÃO PENDENTE (A DEFINIR ESTRATÉGIA DE DEPLOY)

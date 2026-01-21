@@ -1,0 +1,38 @@
+[project]
+name = "auth-service"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Gustavo Emanuel Silva Queiroz", email = "gustavoe.dev@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12,<4.0"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.dependencies]
+fastapi = ">=0.121.2,<0.122.0"
+uvicorn = ">=0.38.0,<0.39.0"
+pydantic-settings = ">=2.12.0,<3.0.0"
+alembic = ">=1.13.0"
+psycopg2-binary = ">=2.9.0"
+asyncpg = ">=0.29.0"
+python-jose = "==3.5.0"
+python-keycloak = "==5.8.1"
+email-validator = "^2.1.0"
+python-slugify = "==8.0.4"
+database-lib = {path = "../../libs/database", develop = true}
+common-lib = {path = "../../libs/common", develop = true}
+resend = "^2.19.0"
+jinja2 = "^3.1.6"
+upload-s3 = {path = "../../libs/upload_s3", develop = true}
+
+[dependency-groups]
+dev = [
+    "black (>=25.12.0,<26.0.0)"
+]
