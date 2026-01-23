@@ -207,3 +207,22 @@ async def set_match_score(
         stats_events=[{"player_id": e.player_id, "abbreviation": e.abbreviation, "value": e.value} for e in (payload.stats_events or [])],
     )
     return updated
+
+@router.post(
+    "/{match_id}/finish",
+    response_model=MatchResponse,
+    summary="Finalizar jogo"
+)
+async def finish_match(
+    match_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Finaliza um jogo que está em andamento:
+    - Atualiza status para 'finished'.
+    - Garante que o placar final esteja definido.
+    - Dispara atualizações relacionadas (classificações, estatísticas, etc).
+    """
+    service = ManageMatchesService(session)
+    finished_match = await service.finalize_match(match_id)
+    return finished_match

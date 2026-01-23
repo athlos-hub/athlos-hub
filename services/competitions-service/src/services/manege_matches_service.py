@@ -7,6 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from src.models.matches import MatchModel, SegmentModel, MatchStatus
+from src.models.competition import CompetitionModel, CompetitionSystem, CompetitionPhase
+from src.models.standings import ClassificationModel
 from src.models.stats import StatsRuleSetModel, StatsTypeModel, PlayerStatsModel
 
 
@@ -263,3 +265,176 @@ class ManageMatchesService:
 		await self.session.refresh(match)
 		return match
 
+	async def finalize_match(self, match_id: uuid.UUID) -> MatchModel:
+		q_match = (
+			select(MatchModel)
+			.where(MatchModel.id == match_id)
+			.options(selectinload(MatchModel.segments))
+		)
+		res = await self.session.execute(q_match)
+		match: Optional[MatchModel] = res.scalar_one_or_none()
+
+		if not match:
+			raise HTTPException(status_code=404, detail="Jogo não encontrado.")
+
+		if match.status != MatchStatus.LIVE:
+			raise HTTPException(status_code=400, detail=f"Só é possível finalizar jogos em status 'live' (status atual: {match.status}).")
+
+		if not match.home_team_id or not match.away_team_id:
+			raise HTTPException(status_code=400, detail="Jogo sem times definidos não pode ser finalizado.")
+
+		seg_has_values = any(((s.home_score or 0) > 0 or (s.away_score or 0) > 0) for s in (match.segments or []))
+
+		if seg_has_values and match.segments:
+			reg_home = sum((s.home_score or 0) for s in match.segments if getattr(s, "segment_type", "").upper() not in ("OVERTIME", "PENALTY"))
+			reg_away = sum((s.away_score or 0) for s in match.segments if getattr(s, "segment_type", "").upper() not in ("OVERTIME", "PENALTY"))
+			ot_home = sum((s.home_score or 0) for s in match.segments if getattr(s, "segment_type", "").upper() == "OVERTIME")
+			ot_away = sum((s.away_score or 0) for s in match.segments if getattr(s, "segment_type", "").upper() == "OVERTIME")
+			pen_home = sum((s.home_score or 0) for s in match.segments if getattr(s, "segment_type", "").upper() == "PENALTY")
+			pen_away = sum((s.away_score or 0) for s in match.segments if getattr(s, "segment_type", "").upper() == "PENALTY")
+
+			total_home = reg_home + ot_home
+			total_away = reg_away + ot_away
+
+			winner_team_id: Optional[uuid.UUID] = None
+
+			if total_home > total_away:
+				winner_team_id = match.home_team_id
+			elif total_away > total_home:
+				winner_team_id = match.away_team_id
+			else:
+				if match.has_penalties and (pen_home != pen_away):
+					winner_team_id = match.home_team_id if pen_home > pen_away else match.away_team_id
+		else:
+			total_home = match.home_score or 0
+			total_away = match.away_score or 0
+
+			winner_team_id: Optional[uuid.UUID] = None
+
+			if total_home > total_away:
+				winner_team_id = match.home_team_id
+			elif total_away > total_home:
+				winner_team_id = match.away_team_id
+
+		# Carrega competição para decidir regra de pontos
+		q_comp = select(CompetitionModel).where(CompetitionModel.id == match.competition_id)
+		comp_res = await self.session.execute(q_comp)
+		competition = comp_res.scalar_one_or_none()
+		if not competition:
+			raise HTTPException(status_code=404, detail="Competição do jogo não encontrada.")
+
+		assign_points = False
+		if competition.system == CompetitionSystem.POINTS:
+			assign_points = True
+		elif competition.system == CompetitionSystem.MIXED:
+			if match.group_id is not None:
+				assign_points = True
+			else:
+				assign_points = False
+		else:
+			assign_points = False
+
+		match.home_score = total_home
+		match.away_score = total_away
+		match.winner_team_id = winner_team_id
+		match.status = MatchStatus.FINISHED
+		self.session.add(match)
+
+		# Atualiza standings
+		await self._update_standings_after_match(competition, match, total_home, total_away, winner_team_id, assign_points)
+
+		await self.session.commit()
+		await self.session.refresh(match)
+		return match
+
+	async def _update_standings_after_match(
+		self,
+		competition: CompetitionModel,
+		match: MatchModel,
+		home_score: int,
+		away_score: int,
+		winner_team_id: Optional[uuid.UUID],
+	) -> None:
+		
+		assign_points = True
+		if (competition.system == competition.system == CompetitionSystem.ELIMINATION) or \
+		   (competition.system == CompetitionSystem.MIXED and competition.current_phase == CompetitionPhase.ELIMINATION):
+			assign_points = False
+
+		def _fetch_class(team_id: uuid.UUID):
+			if match.group_id is not None:
+				q = select(ClassificationModel).where(
+					ClassificationModel.competition_id == competition.id,
+					ClassificationModel.team_id == team_id,
+					ClassificationModel.group_id == match.group_id,
+				)
+				return q
+			else:
+				q = select(ClassificationModel).where(
+					ClassificationModel.competition_id == competition.id,
+					ClassificationModel.team_id == team_id,
+					ClassificationModel.group_id.is_(None),
+				)
+				return q
+
+		# Home standing
+		res_h = await self.session.execute(_fetch_class(match.home_team_id))
+		h_st: Optional[ClassificationModel] = res_h.scalar_one_or_none()
+		# Fallback sem group
+		if not h_st and match.group_id is not None:
+			res_h = await self.session.execute(
+				select(ClassificationModel).where(
+					ClassificationModel.competition_id == competition.id,
+					ClassificationModel.team_id == match.home_team_id,
+					ClassificationModel.group_id.is_(None),
+				)
+			)
+			h_st = res_h.scalar_one_or_none()
+
+		# Away standing
+		res_a = await self.session.execute(_fetch_class(match.away_team_id))
+		a_st: Optional[ClassificationModel] = res_a.scalar_one_or_none()
+		if not a_st and match.group_id is not None:
+			res_a = await self.session.execute(
+				select(ClassificationModel).where(
+					ClassificationModel.competition_id == competition.id,
+					ClassificationModel.team_id == match.away_team_id,
+					ClassificationModel.group_id.is_(None),
+				)
+			)
+			a_st = res_a.scalar_one_or_none()
+
+		if not h_st or not a_st:
+			return
+
+		h_st.games_played += 1
+		a_st.games_played += 1
+
+		h_st.score_pro += home_score
+		h_st.score_against += away_score
+		h_st.score_balance = h_st.score_pro - h_st.score_against
+
+		a_st.score_pro += away_score
+		a_st.score_against += home_score
+		a_st.score_balance = a_st.score_pro - a_st.score_against
+
+		if winner_team_id is None:
+			if assign_points:
+				h_st.draws += 1
+				a_st.draws += 1
+				h_st.points += 1
+				a_st.points += 1
+		else:
+			if winner_team_id == match.home_team_id:
+				h_st.wins += 1
+				a_st.losses += 1
+				if assign_points:
+					h_st.points += 3
+			else:
+				a_st.wins += 1
+				h_st.losses += 1
+				if assign_points:
+					a_st.points += 3
+
+		self.session.add_all([h_st, a_st])
+	
