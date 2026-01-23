@@ -58,7 +58,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backups:/backups
-      - ./scripts/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
+      - ./scripts/init-databases/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
     networks:
       - athlos-network
     restart: unless-stopped
@@ -73,6 +73,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # Note: single postgres container is used; multiple DBs created on init
 
   keycloak:
     container_name: athlos_keycloak
@@ -156,34 +158,34 @@ services:
       context: .
       dockerfile: services/auth-service/Dockerfile
     environment:
-      - ENV=production
-      - DATABASE_HOST=postgres
-      - DATABASE_PORT=5432
-      - DATABASE_NAME=auth_db
-      - KEYCLOAK_URL=http://keycloak:8080
-      - KEYCLOAK_REALM=${KEYCLOAK_REALM}
-      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID}
-      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
-      - KEYCLOAK_DATABASE_USER=${KEYCLOAK_DB_USER}
-      - KEYCLOAK_DATABASE_PASSWORD=${KEYCLOAK_DB_PASSWORD}
-      - KEYCLOAK_DATABASE_URL=postgresql://postgres:5432/keycloak_db
-      - AUTH_DATABASE_USER=${AUTH_DB_USER}
-      - AUTH_DATABASE_PASSWORD=${AUTH_DB_PASSWORD}
-      - AUTH_DATABASE_URL=postgresql://${AUTH_DB_USER}:${AUTH_DB_PASSWORD}@postgres:5432/auth_db
-      - SECRET_KEY=${SECRET_KEY}
-      - ALGORITHM=RS256
-      - ACCESS_TOKEN_EXPIRE_MINUTES=1440
-      - CORS_ORIGINS=${CORS_ORIGINS}
-      - FRONTEND_URL=${FRONTEND_URL}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
-      - RESEND_API_KEY=${RESEND_API_KEY}
-      - EMAIL_TOKEN_SECRET=${EMAIL_TOKEN_SECRET}
-      - AWS_BUCKET_REGION=${AWS_BUCKET_REGION}
-      - AWS_BUCKET_NAME=${AWS_BUCKET_NAME}
-      - AWS_BUCKET_ACCESS_KEY_ID=${AWS_BUCKET_ACCESS_KEY_ID}
-      - AWS_BUCKET_SECRET_ACCESS_KEY=${AWS_BUCKET_SECRET_ACCESS_KEY}
+      ENV: production
+      DATABASE_HOST: postgres
+      DATABASE_PORT: "5432"
+      DATABASE_NAME: auth_db
+      KEYCLOAK_URL: "http://keycloak:8080"
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      KEYCLOAK_DATABASE_USER: ${KEYCLOAK_DB_USER}
+      KEYCLOAK_DATABASE_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KEYCLOAK_DATABASE_URL: "postgresql://${KEYCLOAK_DB_USER}:${KEYCLOAK_DB_PASSWORD}@postgres:5432/keycloak_db"
+      AUTH_DATABASE_USER: ${AUTH_DB_USER}
+      AUTH_DATABASE_PASSWORD: ${AUTH_DB_PASSWORD}
+      AUTH_DATABASE_URL: "postgresql://${AUTH_DB_USER}:${AUTH_DB_PASSWORD}@postgres:5432/auth_db"
+      SECRET_KEY: ${SECRET_KEY}
+      ALGORITHM: RS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: "1440"
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      FRONTEND_URL: ${FRONTEND_URL}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      EMAIL_TOKEN_SECRET: ${EMAIL_TOKEN_SECRET}
+      AWS_BUCKET_REGION: ${AWS_BUCKET_REGION}
+      AWS_BUCKET_NAME: ${AWS_BUCKET_NAME}
+      AWS_BUCKET_ACCESS_KEY_ID: ${AWS_BUCKET_ACCESS_KEY_ID}
+      AWS_BUCKET_SECRET_ACCESS_KEY: ${AWS_BUCKET_SECRET_ACCESS_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -304,7 +306,7 @@ services:
         reservations:
           memory: 192M
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3333/api/v1/health"]
+      test: ["CMD-SHELL", "curl -f http://localhost:3333/api/v1/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -341,7 +343,7 @@ services:
         reservations:
           memory: 256M
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      test: ["CMD-SHELL", "curl -f http://localhost:3000 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -350,6 +352,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  # per-service dedicated DB volumes were removed - single postgres uses postgres_data
 
 networks:
   athlos-network:
