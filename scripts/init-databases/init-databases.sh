@@ -11,7 +11,7 @@ psql=( psql -v ON_ERROR_STOP=1 -h localhost -U "${POSTGRES_USER:-postgres}" )
 # helper: create db if not exists
 create_db() {
   local dbname="$1" user="$2" pass_var="$3" pass
-n  pass="${!pass_var:-}"
+  pass="${!pass_var:-}"
   echo "Checking database $dbname..."
   if ! "${psql[@]}" -tAc "SELECT 1 FROM pg_database WHERE datname='${dbname}';" | grep -q 1; then
     echo "Creating database ${dbname} and owner ${user}"
