@@ -1,6 +1,6 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import List, Union, Callable, Awaitable
+from typing import List, Union, Callable, Awaitable, Optional
 from .jwt_handler import JwtHandler
 import inspect
 
@@ -11,8 +11,8 @@ class RoleChecker:
         self,
         allowed_roles: List[str],
         public_key: Union[str, Callable[[], Awaitable[str]]],
-        audience: str,
-        issuer: str
+        issuer: str,
+        audience: Optional[str] = None
     ):
         self.allowed_roles = allowed_roles
         self.public_key = public_key
@@ -33,8 +33,9 @@ class RoleChecker:
         payload = JwtHandler.decode_token(
             token=token.credentials,
             public_key=resolved_key,
-            audience=self.audience,
-            issuer=self.issuer
+            audience=None,
+            issuer=self.issuer,
+            verify_aud=False,
         )
 
         realm_access = payload.get("realm_access", {})

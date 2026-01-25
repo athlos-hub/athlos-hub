@@ -1,4 +1,4 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from jose import jwt, JWTError
 import logging
 
@@ -11,8 +11,8 @@ class JwtHandler:
     def decode_token(
         token: str,
         public_key: str,
-        audience: str,
         issuer: str,
+        audience: Optional[str] = None,
         algorithms: List[str] = ["RS256"],
         verify_aud: bool = True
     ) -> Dict[str, Any]:

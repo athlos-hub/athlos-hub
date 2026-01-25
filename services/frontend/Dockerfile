@@ -29,6 +29,8 @@ ENV NEXT_PUBLIC_LIVESTREAM_WS_URL=$NEXT_PUBLIC_LIVESTREAM_WS_URL
 ENV NEXT_PUBLIC_HLS_URL=$NEXT_PUBLIC_HLS_URL
 ENV NEXT_PUBLIC_NOTIFICATIONS_API_URL=$NEXT_PUBLIC_NOTIFICATIONS_API_URL
 
+ENV NEXT_ENABLE_TURBOPACK=0
+
 RUN pnpm run build
 
 FROM node:20-alpine AS runner
@@ -47,6 +49,8 @@ RUN mkdir .next \
 
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+RUN apk add --no-cache curl
 
 USER nextjs
 
