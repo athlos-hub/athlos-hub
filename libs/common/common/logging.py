@@ -11,8 +11,10 @@ def setup_logging(log_level_str: str, env: str, log_dir: str = "logs"):
         log_level_str: Ex: "INFO", "DEBUG"
         env: Ex: "dev", "prod"
     """
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
+    try:
+        os.makedirs(log_dir, exist_ok=True)
+    except Exception:
+        pass
 
     log_level = getattr(logging, log_level_str.upper(), logging.INFO)
 

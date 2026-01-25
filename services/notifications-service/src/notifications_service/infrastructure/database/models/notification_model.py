@@ -43,7 +43,10 @@ class Notification(Base):
     """Modelo de notificação."""
 
     __tablename__ = "notifications"
-    __table_args__ = {"schema": settings.notifications_database_schema}
+    if settings.notifications_database_schema:
+        __table_args__ = {"schema": settings.notifications_database_schema}
+    else:
+        __table_args__ = {}
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(nullable=False, index=True)

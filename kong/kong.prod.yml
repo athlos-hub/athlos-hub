@@ -27,7 +27,7 @@ services:
     url: http://notifications-service:8003
     routes:
       - name: notifications-routes
-        paths: ["/api/v1/notifications"]
+        paths: ["/api/v1/notifications", "/api/v1/notifications/stream", "/api/v1/ws/notifications", "/api/v1/notifications/"]
         strip_path: false
 
   - name: keycloak-service
@@ -39,8 +39,6 @@ services:
         strip_path: false
         preserve_host: true
 
-  # O frontend fica no final. Como "/" é menos específico que "/keycloak", 
-  # o Kong priorizará o Keycloak automaticamente para requisições que comecem com /keycloak.
   - name: frontend-service
     url: http://frontend:3000
     routes:
