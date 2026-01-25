@@ -42,6 +42,10 @@ COPY --from=builder --chown=appuser:appuser /usr/local/lib/python3.12/site-packa
 COPY --from=builder --chown=appuser:appuser /usr/local/bin /usr/local/bin
 COPY --from=builder --chown=appuser:appuser /app/services/notifications-service/src ./src
 COPY --from=builder --chown=appuser:appuser /app/libs /app/libs
+COPY --chown=appuser:appuser services/notifications-service/entrypoint.sh ./entrypoint.sh
+COPY --chown=appuser:appuser services/notifications-service/alembic.ini ./services/notifications-service/alembic.ini
+COPY --chown=appuser:appuser services/notifications-service/alembic ./services/notifications-service/alembic
+COPY --chown=appuser:appuser services/notifications-service/scripts ./services/notifications-service/scripts
 
 # ensure runtime files are owned by non-root user
 RUN chown -R appuser:appuser /app
@@ -54,4 +58,6 @@ ENV PYTHONPATH=/app/src:/app/src/notifications_service:/app/libs/common:/app/lib
 
 EXPOSE 8003
 
-CMD ["uvicorn", "notifications_service.main:app", "--host", "0.0.0.0", "--port", "8003", "--workers", "4"]
+RUN chmod +x /app/entrypoint.sh /app/services/notifications-service/scripts/*.sh || true
+
+ENTRYPOINT ["/app/entrypoint.sh"]

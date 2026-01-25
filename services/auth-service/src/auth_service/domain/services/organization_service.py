@@ -1,6 +1,7 @@
 """Serviço de organização com lógica de negócio."""
 
 import logging
+import os
 from typing import Optional, Sequence
 from uuid import UUID
 
@@ -96,10 +97,14 @@ class OrganizationService:
             
             if extra_data:
                 base_extra_data.update(extra_data)
+
+            base_url = os.getenv("NOTIFICATIONS_SERVICE_URL", "http://athloshub.com.br")
+
+            endpoint = f"{base_url.rstrip('/')}/api/v1/notifications/send"
             
             async with httpx.AsyncClient() as client:
                 await client.post(
-                    "http://localhost:8003/api/v1/notifications/send",
+                    endpoint,
                     json={
                         "user_id": str(user_id),
                         "type": notification_type,
@@ -110,9 +115,14 @@ class OrganizationService:
                     },
                     timeout=5.0
                 )
+
+                response.raise_for_status()
+
                 logger.info(f"Notificação {notification_type} enviada para {user_id}")
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Erro HTTP ao enviar notificação {notification_type}: {e.response.text}")
         except Exception as e:
-            logger.error(f"Erro ao enviar notificação {notification_type}: {e}")
+            logger.error(f"Erro ao conectar no serviço de notificação ({endpoint}): {e}")
 
     async def create_organization(
         self,
@@ -468,26 +478,19 @@ class OrganizationService:
                     else:
                         member_name = user.first_name
                 
-                async with httpx.AsyncClient() as client:
-                    await client.post(
-                        "http://localhost:8003/api/v1/notifications/send",
-                        json={
-                            "user_id": str(org.owner_id),
-                            "type": "organization_accepted",
-                            "title": "Convite Aceito",
-                            "message": f"{member_name} aceitou o convite para sua organização",
-                            "extra_data": {
-                                "organization_id": str(org.id),
-                                "organization_name": org.name,
-                                "organization_slug": org.slug,
-                                "member_name": member_name,
-                                "member_id": str(user.id)
-                            },
-                            "action_url": f"/organizations/{org.slug}/members"
-                        },
-                        timeout=5.0
-                    )
-                    logger.info(f"Notificação de aceite enviada para owner {org.owner_id}")
+                await self._send_notification(
+                    user_id=org.owner_id,
+                    notification_type="organization_accepted",
+                    title="Convite Aceito",
+                    message=f"{member_name} aceitou o convite para {org.name}",
+                    organization=org,
+                    extra_data={
+                        "member_name": member_name,
+                        "member_id": str(user.id)
+                    },
+                    action_url=f"/organizations/{org.slug}/members"
+                )
+                logger.info(f"Notificação de aceite enviada para owner {org.owner_id}")
             except Exception as e:
                 logger.error(f"Erro ao enviar notificação de aceite: {e}")
 
@@ -662,28 +665,21 @@ class OrganizationService:
                     inviter_name = f"{inviter.first_name} {inviter.last_name}"
                 else:
                     inviter_name = inviter.first_name
-            
-            async with httpx.AsyncClient() as client:
-                await client.post(
-                    "http://localhost:8003/api/v1/notifications/send",
-                    json={
-                        "user_id": str(user_id),
-                        "type": "organization_invite",
-                        "title": "Convite para Organização",
-                        "message": f"Você foi convidado para participar de {org.name}",
-                        "extra_data": {
-                            "organization_id": str(org.id),
-                            "organization_name": org.name,
-                            "organization_slug": org.slug,
-                            "inviter_name": inviter_name,
-                            "inviter_id": str(inviter.id),
-                            "role": "member"
-                        },
-                        "action_url": f"/organizations/{org.slug}/invites"
-                    },
-                    timeout=5.0
-                )
-                logger.info(f"Notificação de convite enviada para {user_id}")
+
+            await self._send_notification(
+                user_id=user_id,
+                notification_type="organization_invite",
+                title="Convite para Organização",
+                message=f"Você foi convidado para participar de {org.name}",
+                organization=org,
+                extra_data={
+                    "inviter_name": inviter_name,
+                    "inviter_id": str(inviter.id),
+                    "role": "member"
+                },
+                action_url=f"/organizations/{org.slug}/invites"
+            )
+            logger.info(f"Notificação de convite enviada para {user_id}")
         except Exception as e:
             logger.error(f"Erro ao enviar notificação de convite: {e}")
 

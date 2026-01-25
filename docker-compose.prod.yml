@@ -6,6 +6,7 @@ services:
       KONG_DATABASE: "off"
       KONG_DNS_RESOLVER: "127.0.0.11"
       KONG_DECLARATIVE_CONFIG: /kong/kong.prod.yml
+      KONG_NGINX_PROXY_BUFFERING: "off"
       KONG_DNS_ORDER: "LAST,A,CNAME"
       KONG_DNS_STALE_TTL: "60"
       KONG_PROXY_ACCESS_LOG: /dev/stdout
@@ -49,7 +50,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_HOST_AUTH_METHOD: md5
-      # Senhas para o script de inicialização
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
       AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD}
       COMPETITIONS_DB_PASSWORD: ${COMPETITIONS_DB_PASSWORD}
@@ -73,8 +73,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  # Note: single postgres container is used; multiple DBs created on init
 
   keycloak:
     container_name: athlos_keycloak
@@ -184,6 +182,7 @@ services:
       RUN_MIGRATIONS: ${RUN_MIGRATIONS}
       CORS_ORIGINS: '${CORS_ORIGINS}'
       FRONTEND_URL: ${FRONTEND_URL}
+      NOTIFICATIONS_SERVICE_URL: http://notifications-service:8003
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
@@ -250,16 +249,20 @@ services:
       context: .
       dockerfile: services/notifications-service/Dockerfile
     environment:
-      - SERVICE_HOST=0.0.0.0
-      - SERVICE_PORT=8003
-      - DEBUG=False
-      - DATABASE_URL=postgresql+asyncpg://${NOTIFICATIONS_DB_USER}:${NOTIFICATIONS_DB_PASSWORD}@postgres:5432/notifications_db
-      - NOTIFICATIONS_DATABASE_USER=${NOTIFICATIONS_DB_USER}
-      - NOTIFICATIONS_DATABASE_PASSWORD=${NOTIFICATIONS_DB_PASSWORD}
-      - NOVU_API_KEY=${NOVU_API_KEY}
-      - NOVU_APP_ID=${NOVU_APP_ID}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
-      - AUTH_SERVICE_URL=http://auth-service:8000
+      ENV: ${ENV}
+      SERVICE_HOST: 0.0.0.0
+      SERVICE_PORT: "8003"
+      DEBUG: "False"
+      DATABASE_URL: "postgresql+asyncpg://${NOTIFICATIONS_DB_USER}:${NOTIFICATIONS_DB_PASSWORD}@postgres:5432/notifications_db"
+      NOTIFICATIONS_DATABASE_URL: "postgresql+asyncpg://${NOTIFICATIONS_DB_USER}:${NOTIFICATIONS_DB_PASSWORD}@postgres:5432/notifications_db"
+      NOTIFICATIONS_DATABASE_USER: ${NOTIFICATIONS_DB_USER}
+      NOTIFICATIONS_DATABASE_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD}
+      DATABASE_NAME: notifications_db
+      NOVU_API_KEY: ${NOVU_API_KEY}
+      NOVU_APP_ID: ${NOVU_APP_ID}
+      ALLOWED_ORIGINS: '${ALLOWED_ORIGINS}'
+      AUTH_SERVICE_URL: http://auth-service:8000
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS}
     depends_on:
       postgres:
         condition: service_healthy
@@ -273,7 +276,7 @@ services:
         reservations:
           memory: 192M
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8003/api/v1/health"]
+      test: ["CMD-SHELL", "python -c 'import sys, http.client; h=http.client.HTTPConnection(\"localhost\",8003,timeout=2); h.request(\"GET\",\"/api/v1/health\"); r=h.getresponse(); sys.exit(0 if r.status==200 else 1)'"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -330,6 +333,8 @@ services:
         - NEXT_PUBLIC_LIVESTREAM_WS_URL=${NEXT_PUBLIC_LIVESTREAM_WS_URL}
         - NEXT_PUBLIC_HLS_URL=${NEXT_PUBLIC_HLS_URL}
         - NEXT_PUBLIC_NOTIFICATIONS_API_URL=${NEXT_PUBLIC_NOTIFICATIONS_API_URL}
+        - NEXT_PUBLIC_NOTIFICATIONS_WS_URL=${NEXT_PUBLIC_NOTIFICATIONS_WS_URL}
+        - NEXT_PUBLIC_NOTIFICATIONS_SSE_URL=${NEXT_PUBLIC_NOTIFICATIONS_SSE_URL}
     environment:
       - NODE_ENV=production
       - API_BASE_URL=http://kong:8000/api/v1
@@ -356,8 +361,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  # per-service dedicated DB volumes were removed - single postgres uses postgres_data
-
+  
 networks:
   athlos-network:
     driver: bridge
