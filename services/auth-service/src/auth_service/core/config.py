@@ -1,7 +1,8 @@
 from pathlib import Path
-from typing import List, Literal
+from typing import List, Literal, Optional
+from urllib.parse import quote_plus
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -21,15 +22,17 @@ class Settings(BaseSettings):
     )
 
     # Environment
-    ENV: Literal["dev", "prod"] = Field(default="dev", alias="env")
+    # Accept common variants like 'production'/'prod' and 'development'/'dev'.
+    ENV: str = Field(default="dev", alias="env")
 
     # Keycloak
     KEYCLOAK_URL: str
     KEYCLOAK_REALM: str
     KEYCLOAK_CLIENT_ID: str
     KEYCLOAK_CLIENT_SECRET: str
-    KEYCLOAK_ADMIN_USERNAME: str
-    KEYCLOAK_ADMIN_PASSWORD: str
+    # Admin creds for Keycloak (optional for runtime; Keycloak itself may manage admin user)
+    KEYCLOAK_ADMIN_USERNAME: Optional[str] = None
+    KEYCLOAK_ADMIN_PASSWORD: Optional[str] = None
     ALGORITHM: str
 
     # Google OAuth
@@ -38,8 +41,8 @@ class Settings(BaseSettings):
     GOOGLE_REDIRECT_URI: str
 
     # API
-    API_HOST: str
-    API_PORT: int
+    API_HOST: str = "0.0.0.0"
+    API_PORT: int = 8000
 
     # Segurança
     SECRET_KEY: str
@@ -58,40 +61,58 @@ class Settings(BaseSettings):
     # Conexão com o schema de auth
     AUTH_DATABASE_USER: str
     AUTH_DATABASE_PASSWORD: str
-    AUTH_DATABASE_URL: str
-    AUTH_DATABASE_SCHEMA: str
+    AUTH_DATABASE_URL: Optional[str] = None
+    AUTH_DATABASE_SCHEMA: Optional[str] = None
 
-    # Database Pool
-    DB_POOL_MIN_SIZE: int
-    DB_POOL_MAX_SIZE: int
-    DB_POOL_TIMEOUT: int
+    # Database Pool (optional with sensible defaults)
+    DB_POOL_MIN_SIZE: int = 5
+    DB_POOL_MAX_SIZE: int = 20
+    DB_POOL_TIMEOUT: int = 30
 
     # CORS
-    CORS_ORIGINS: List[str]
+    # Accept a JSON array from env; default to empty list to be safe
+    CORS_ORIGINS: List[str] = []
 
-    FRONTEND_URL: str
+    FRONTEND_URL: Optional[str] = None
 
     # Email Resend
     EMAIL_TOKEN_SECRET: str
     RESEND_API_KEY: str
 
-    # Rate Limiting
-    RATE_LIMIT_ENABLED: bool
-    RATE_LIMIT_PER_MINUTE: int
+    # Rate Limiting (optional)
+    RATE_LIMIT_ENABLED: bool = False
+    RATE_LIMIT_PER_MINUTE: int = 60
 
     # Logging
-    LOG_LEVEL: str
-    LOG_FORMAT: str
+    LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: str = "%(levelname)s:%(name)s:%(message)s"
 
     # Bucket S3
     AWS_BUCKET_REGION: str
     AWS_BUCKET_NAME: str
     AWS_BUCKET_ACCESS_KEY_ID: str
     AWS_BUCKET_SECRET_ACCESS_KEY: str
+    # Normalize ENV values (support 'production'/'prod' and 'development'/'dev')
+    @field_validator("ENV", mode="before")
+    def _normalize_env(cls, v):
+        if v is None:
+            return v
+        val = str(v).lower()
+        if val in ("production", "prod"):
+            return "prod"
+        if val in ("development", "dev"):
+            return "dev"
+        return val
+
+    @property
+    def database_url(self) -> str:
+        """Constrói a URL do banco com URL encoding correto"""
+        if self.AUTH_DATABASE_URL:
+            return self.AUTH_DATABASE_URL
+        
+        user = quote_plus(self.AUTH_DATABASE_USER)
+        password = quote_plus(self.AUTH_DATABASE_PASSWORD)
+        return f"postgresql+asyncpg://{user}:{password}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
 
 
 settings = Settings()  # type: ignore
-
-
-print("SETTINGS ID:", id(settings))
-print("KEYCLOAK_URL:", settings.KEYCLOAK_URL)

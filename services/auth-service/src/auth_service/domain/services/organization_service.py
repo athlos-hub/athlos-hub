@@ -1274,6 +1274,7 @@ class OrganizationService:
 
         org.status = OrganizationStatus.ACTIVE
         await self._org_repo.commit()
+        await self._org_repo._session.refresh(org)
 
         logger.info(f"Organização {slug} aceita por admin")
         

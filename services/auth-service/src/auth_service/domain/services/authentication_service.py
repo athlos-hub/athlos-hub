@@ -14,9 +14,11 @@ from common.security.jwt_handler import JwtHandler
 from fastapi import UploadFile
 from fastapi.concurrency import run_in_threadpool
 from jose import jwt
-from keycloak import KeycloakAdmin, KeycloakOpenID
+from keycloak import KeycloakAdmin, KeycloakOpenID, KeycloakOpenIDConnection
 from keycloak.exceptions import KeycloakAuthenticationError, KeycloakPostError
 from sqlalchemy.exc import IntegrityError
+
+from auth_service.core.keycloak_provider import get_keycloak_admin_client
 
 from auth_service.core.config import settings
 from auth_service.core.exceptions import (
@@ -51,19 +53,6 @@ keycloak_openid = KeycloakOpenID(
     realm_name=settings.KEYCLOAK_REALM,
     client_secret_key=settings.KEYCLOAK_CLIENT_SECRET,
 )
-
-
-def _get_keycloak_admin() -> KeycloakAdmin:
-    """Cria uma nova instância de KeycloakAdmin."""
-
-    return KeycloakAdmin(
-        server_url=settings.KEYCLOAK_URL,
-        client_id=settings.KEYCLOAK_CLIENT_ID,
-        client_secret_key=settings.KEYCLOAK_CLIENT_SECRET,
-        realm_name=settings.KEYCLOAK_REALM,
-        user_realm_name=settings.KEYCLOAK_REALM,
-        verify=True,
-    )
 
 
 class AuthenticationService:
@@ -110,7 +99,7 @@ class AuthenticationService:
     async def reset_user_password(self, user_id: str, new_password: str) -> None:
         """Atualiza a senha do usuário no Keycloak."""
         try:
-            keycloak_admin = _get_keycloak_admin()
+            keycloak_admin = get_keycloak_admin_client()
             await run_in_threadpool(
                 keycloak_admin.set_user_password, user_id, new_password, False
             )
@@ -203,8 +192,9 @@ class AuthenticationService:
             token_payload = JwtHandler.decode_token(
                 token=access_token,
                 public_key=public_key,
+                verify_aud=False,
                 audience=settings.KEYCLOAK_CLIENT_ID,
-                issuer=f"{settings.KEYCLOAK_URL}/realms/{settings.KEYCLOAK_REALM}",
+                issuer=f"http://athloshub.com.br/keycloak/realms/{settings.KEYCLOAK_REALM}",
             )
 
             db_user = await self.get_or_create_user_from_keycloak_token(token_payload)
@@ -275,7 +265,8 @@ class AuthenticationService:
                 token=token_response.access_token,
                 public_key=public_key,
                 audience=settings.KEYCLOAK_CLIENT_ID,
-                issuer=f"{settings.KEYCLOAK_URL}/realms/{settings.KEYCLOAK_REALM}",
+                issuer=f"http://athloshub.com.br/keycloak/realms/{settings.KEYCLOAK_REALM}",
+                verify_aud=False
             )
 
             await self.get_or_create_user_from_keycloak_token(token_payload)
@@ -398,29 +389,28 @@ class AuthenticationService:
         password: str,
         avatar: Optional[UploadFile] = None,
     ) -> dict[str, Any]:
-        """Registra um novo usuário no Keycloak e banco de dados local."""
+        """Registra usuário usando o Provider Centralizado (KeycloakAdmin)."""
 
         try:
-            keycloak_admin = _get_keycloak_admin()
+            # 1. Instancia o cliente usando nosso Provider Centralizado
+            # Ele já sabe a URL certa, o Realm e as credenciais.
+            keycloak_admin = get_keycloak_admin_client()
 
+            # 2. Verifica se Email já existe
             users_email = await run_in_threadpool(
                 keycloak_admin.get_users, query={"email": email, "exact": True}
             )
             if users_email:
-                logger.warning(
-                    f"Tentativa de registro com email já cadastrado: {email}"
-                )
                 raise EmailAlreadyInUseError(email)
 
+            # 3. Verifica se Username já existe
             users_username = await run_in_threadpool(
                 keycloak_admin.get_users, query={"username": username, "exact": True}
             )
             if users_username:
-                logger.warning(
-                    f"Tentativa de registro com username já em uso: {username}"
-                )
                 raise UsernameAlreadyInUseError(username)
 
+            # 4. Cria o Usuário no Keycloak
             new_user_id = await run_in_threadpool(
                 keycloak_admin.create_user,
                 {
@@ -429,13 +419,11 @@ class AuthenticationService:
                     "firstName": first_name,
                     "lastName": last_name,
                     "enabled": False,
-                    "credentials": [
-                        {"value": password, "type": "password", "temporary": False}
-                    ],
-                    "attributes": {},
+                    "credentials": [{"value": password, "type": "password", "temporary": False}],
                 },
             )
 
+            # 5. Upload de Avatar (Opcional)
             avatar_url = None
             if avatar:
                 try:
@@ -449,24 +437,24 @@ class AuthenticationService:
                         prefix="avatars",
                     )
                     avatar_url = result["url"]
-
+                    
+                    # Atualiza o avatar no Keycloak
                     await run_in_threadpool(
                         keycloak_admin.update_user,
                         new_user_id,
                         {"attributes": {"avatar_url": avatar_url}},
                     )
-                except AvatarUploadError as e:
-                    logger.warning(
-                        f"Erro no upload do avatar para usuário {new_user_id}: {e}"
-                    )
+                except Exception as e:
+                    logger.warning(f"Erro no upload do avatar: {e}")
 
+            # 6. Atribuir Role (Ex: player)
             try:
+                # Usamos um método auxiliar da própria classe que agora também usa o provider
                 await run_in_threadpool(self.add_role_to_user, new_user_id, "player")
-            except Exception as role_error:
-                logger.warning(
-                    f"Usuário {username} criado, mas falha ao atribuir role 'player': {role_error}"
-                )
+            except Exception as e:
+                logger.warning(f"Erro ao atribuir role 'player': {e}")
 
+            # 7. Salvar no Banco Local
             try:
                 await self.get_or_create_user_from_keycloak_token(
                     {
@@ -481,25 +469,20 @@ class AuthenticationService:
                     }
                 )
             except Exception as e:
-                logger.error(
-                    f"Erro ao sincronizar usuário {username} no banco: {e}",
-                    exc_info=True,
-                )
-                raise RegistrationError("Falha ao sincronizar usuário")
+                logger.error(f"Erro ao salvar no banco local: {e}", exc_info=True)
+                raise RegistrationError("Falha ao sincronizar dados locais")
 
-            logger.info(
-                f"Usuário registrado com sucesso: {username} (ID: {new_user_id})"
-            )
+            logger.info(f"Usuário registrado com sucesso: {username} (ID: {new_user_id})")
             return {
                 "message": "Usuário criado com sucesso",
                 "id": new_user_id,
-                "avatar_url": avatar_url,
+                "avatar_url": avatar_url
             }
 
         except (EmailAlreadyInUseError, UsernameAlreadyInUseError, RegistrationError):
             raise
         except Exception as e:
-            logger.error(f"Erro no registro: {e}", exc_info=True)
+            logger.error(f"Erro crítico no registro: {e}", exc_info=True)
             raise RegistrationError()
 
     async def activate_user(self, user_id: str) -> dict[str, Any]:
@@ -516,7 +499,7 @@ class AuthenticationService:
                 logger.info(f"Usuário {user_id} já estava ativado")
                 return {"success": True, "already_active": True, "email": user.email}
 
-            keycloak_admin = _get_keycloak_admin()
+            keycloak_admin = get_keycloak_admin_client()
             keycloak_admin.update_user(
                 user_id=user_id,
                 payload={"enabled": True, "emailVerified": True},
@@ -742,7 +725,7 @@ class AuthenticationService:
         """Adiciona função de realm ao usuário no Keycloak."""
 
         try:
-            keycloak_admin = _get_keycloak_admin()
+            keycloak_admin = get_keycloak_admin_client()
             role_object = keycloak_admin.get_realm_role(role_name)
             keycloak_admin.assign_realm_roles(
                 user_id=user_id_keycloak, roles=[role_object]
@@ -760,7 +743,7 @@ class AuthenticationService:
         """Obtém funções de realm do usuário no Keycloak."""
 
         try:
-            keycloak_admin = _get_keycloak_admin()
+            keycloak_admin = get_keycloak_admin_client()
             roles = keycloak_admin.get_realm_roles_of_user(user_id_keycloak)
             role_names = [role["name"] for role in roles]
 
@@ -777,9 +760,9 @@ class AuthenticationService:
     def get_google_auth_url() -> str:
         """Gera URL de OAuth do Google via Keycloak."""
 
-        keycloak_url = settings.KEYCLOAK_URL.rstrip("/")
+        public_domain = settings.FRONTEND_URL.rstrip("/")
         realm = settings.KEYCLOAK_REALM
-        base_url = f"{keycloak_url}/realms/{realm}/protocol/openid-connect/auth"
+        base_url = f"{public_domain}/keycloak/realms/{realm}/protocol/openid-connect/auth"
 
         params = {
             "client_id": settings.KEYCLOAK_CLIENT_ID,

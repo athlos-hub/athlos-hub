@@ -38,7 +38,7 @@ export function useTokenRefresh(minutesBeforeExpiry: number = 5, checkIntervalSe
                 refreshingRef.current = true;
 
                 try {
-                    const response = await fetch("/api/auth/refresh-token", {
+                    const response = await fetch("/api/v1/auth/refresh-token", {
                         method: "POST",
                     });
 
