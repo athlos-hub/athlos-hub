@@ -15,6 +15,11 @@ const nextConfig: NextConfig = {
         ],
         dangerouslyAllowSVG: true,
     },
+    experimental: {
+        serverActions: {
+            allowedOrigins: ['localhost:8100', 'localhost:3000'],
+        },
+    },
 };
 
 export default nextConfig;

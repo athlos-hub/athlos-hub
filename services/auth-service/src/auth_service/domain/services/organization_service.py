@@ -98,12 +98,10 @@ class OrganizationService:
             if extra_data:
                 base_extra_data.update(extra_data)
 
-            base_url = os.getenv("NOTIFICATIONS_SERVICE_URL", "http://athloshub.com.br")
-
-            endpoint = f"{base_url.rstrip('/')}/api/v1/notifications/send"
+            endpoint = f"{settings.NOTIFICATIONS_SERVICE_URL.rstrip('/')}/api/v1/notifications/send"
             
             async with httpx.AsyncClient() as client:
-                await client.post(
+                response = await client.post(
                     endpoint,
                     json={
                         "user_id": str(user_id),
@@ -116,6 +114,7 @@ class OrganizationService:
                     timeout=5.0
                 )
 
+                # Agora a variável existe e o raise_for_status vai funcionar
                 response.raise_for_status()
 
                 logger.info(f"Notificação {notification_type} enviada para {user_id}")
@@ -1406,6 +1405,69 @@ class OrganizationService:
     async def get_user_role_in_org(self, org: Organization, user: User) -> str:
         """Método público para obter função do usuário em uma organização."""
         return await self._get_user_role_in_org(org, user)
+
+    async def check_user_permission_by_org_id(
+        self, org_id: UUID, keycloak_sub: str
+    ) -> dict:
+        """
+        Verifica se um usuário (identificado pelo keycloak_sub) tem permissões 
+        de admin (owner ou organizer) em uma organização (identificada pelo org_id).
+        
+        Este método é usado para comunicação entre microserviços.
+        
+        Returns:
+            dict: {
+                "has_permission": bool,
+                "role": str | None,  # OrgRole.OWNER, OrgRole.ORGANIZER, ou None
+            }
+        """
+        user = await self._user_repo.get_by_keycloak_id(keycloak_sub)
+        
+        if not user or not user.enabled:
+            logger.warning(
+                f"Usuário não encontrado ou desabilitado: keycloak_sub={keycloak_sub}"
+            )
+            return {
+                "has_permission": False,
+                "role": None,
+            }
+        
+        org = await self._org_repo.get_by_id(org_id)
+        
+        if not org:
+            logger.warning(f"Organização não encontrada: org_id={org_id}")
+            return {
+                "has_permission": False,
+                "role": None,
+            }
+        
+        if org.owner_id == user.id:
+            logger.info(
+                f"Usuário {keycloak_sub} é owner da organização {org_id}"
+            )
+            return {
+                "has_permission": True,
+                "role": OrgRole.OWNER,
+            }
+        
+        is_organizer = await self._organizer_repo.is_organizer(org.id, user.id)
+        
+        if is_organizer:
+            logger.info(
+                f"Usuário {keycloak_sub} é organizer da organização {org_id}"
+            )
+            return {
+                "has_permission": True,
+                "role": OrgRole.ORGANIZER,
+            }
+        
+        logger.info(
+            f"Usuário {keycloak_sub} não tem permissões de admin na organização {org_id}"
+        )
+        return {
+            "has_permission": False,
+            "role": None,
+        }
 
     async def _validate_can_join(
         self, org: Organization, user: User, via_link: bool

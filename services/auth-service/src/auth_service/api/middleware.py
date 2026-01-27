@@ -58,7 +58,7 @@ class KeycloakAuthMiddleware(BaseHTTPMiddleware):
                     token=token,
                     public_key=public_key,
                     audience=settings.KEYCLOAK_CLIENT_ID,
-                    issuer=f"http://athloshub.com.br/keycloak/realms/{settings.KEYCLOAK_REALM}",
+                    issuer=f"{settings.KEYCLOAK_ISSUER.rstrip('/')}/realms/{settings.KEYCLOAK_REALM}",
                     verify_aud=False
                 )
 

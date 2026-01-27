@@ -124,3 +124,14 @@ class OrganizationRequestResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
+class OrganizationPermissionCheckResponse(BaseModel):
+    """Response para verificação de permissões de organização."""
+    
+    has_permission: bool
+    role: Optional[str] = None
+    organization_id: UUID
+    keycloak_sub: str
+
+    model_config = ConfigDict(from_attributes=True)
+

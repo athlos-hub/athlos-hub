@@ -11,5 +11,5 @@ def require_role(roles: list[str]) -> RoleChecker:
         allowed_roles=roles,
         public_key=AuthenticationService.get_public_key,
         audience=settings.KEYCLOAK_CLIENT_ID,
-        issuer=f"http://athloshub.com.br/keycloak/realms/{settings.KEYCLOAK_REALM}"
+        issuer=f"{settings.KEYCLOAK_ISSUER.rstrip('/')}/realms/{settings.KEYCLOAK_REALM}",
     )
