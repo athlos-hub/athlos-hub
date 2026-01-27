@@ -1,4 +1,5 @@
 export const keycloakConfig = {
+  // Ajuste o fallback para a porta do KONG (8100) e o prefixo /keycloak
   url: process.env.KEYCLOAK_URL || 'http://localhost:8100/keycloak/',
   realm: process.env.KEYCLOAK_REALM || 'athlos',
   clientId: process.env.KEYCLOAK_CLIENT_ID || 'auth-client',
