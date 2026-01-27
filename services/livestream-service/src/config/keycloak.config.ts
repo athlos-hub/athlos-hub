@@ -2,6 +2,7 @@ export const keycloakConfig = {
   url: process.env.KEYCLOAK_URL || 'http://localhost:8080',
   realm: process.env.KEYCLOAK_REALM || 'sports',
   clientId: process.env.KEYCLOAK_CLIENT_ID || 'athloshub-client',
+  issuer: `${process.env.KEYCLOAK_ISSUER || 'http://localhost:8080'}/realms/${process.env.KEYCLOAK_REALM || 'sports'}`,
 };
 
 export async function getKeycloakPublicKey(): Promise<string> {

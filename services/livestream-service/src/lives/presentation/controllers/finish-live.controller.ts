@@ -67,8 +67,8 @@ export class FinishLiveController {
   ): Promise<boolean> {
     const ownerResult = await this.prisma.$queryRawUnsafe<{ keycloak_id: string }[]>(
       `SELECT u.keycloak_id 
-       FROM auth_schema.organizations o 
-       JOIN auth_schema.users u ON o.owner_id = u.id 
+       FROM organizations o 
+       JOIN users u ON o.owner_id = u.id 
        WHERE o.id = $1`,
       organizationId,
     );
@@ -79,8 +79,8 @@ export class FinishLiveController {
 
     const organizerResult = await this.prisma.$queryRawUnsafe<{ keycloak_id: string }[]>(
       `SELECT u.keycloak_id 
-       FROM auth_schema.organization_organizers oo 
-       JOIN auth_schema.users u ON oo.user_id = u.id 
+       FROM organization_organizers oo 
+       JOIN users u ON oo.user_id = u.id 
        WHERE oo.organization_id = $1 AND u.keycloak_id = $2`,
       organizationId,
       keycloakSub,
