@@ -1,4 +1,3 @@
-// API de notificações - Client-side
 import axios from 'axios';
 import type {
   Notification,

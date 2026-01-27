@@ -1,7 +1,24 @@
 import { z } from 'zod';
 
+const isPostgresConnectionString = (v: string) => {
+  return /^postgres(?:ql)?(?:\+asyncpg)?:\/\/.+/.test(v);
+};
+
+const dbUrlSchema = z
+  .string()
+  .refine((val) => {
+    try {
+      new URL(val);
+      return true;
+    } catch (err) {
+      return isPostgresConnectionString(val);
+    }
+  }, {
+    message: 'Invalid DATABASE_URL',
+  });
+
 export const envSchema = z.object({
-  DATABASE_URL: z.url(),
+  DATABASE_URL: dbUrlSchema,
   PORT: z.coerce.number().optional().default(3333),
   REDIS_HOST: z.string().optional().default('localhost'),
   REDIS_PORT: z.coerce.number().optional().default(6379),

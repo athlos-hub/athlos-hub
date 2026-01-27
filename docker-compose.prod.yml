@@ -6,7 +6,6 @@ services:
       KONG_DATABASE: "off"
       KONG_DNS_RESOLVER: "127.0.0.11"
       KONG_DECLARATIVE_CONFIG: /kong/kong.prod.yml
-      KONG_NGINX_PROXY_BUFFERING: "off"
       KONG_DNS_ORDER: "LAST,A,CNAME"
       KONG_DNS_STALE_TTL: "60"
       KONG_PROXY_ACCESS_LOG: /dev/stdout
@@ -16,10 +15,9 @@ services:
       KONG_ADMIN_LISTEN: 127.0.0.1:8001
       KONG_PROXY_LISTEN: 0.0.0.0:8000
       KONG_LOG_LEVEL: warn
-      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: "160k"
-      KONG_NGINX_PROXY_PROXY_BUFFERS: "4 160k"
-      KONG_NGINX_PROXY_PROXY_BUSY_BUFFERS_SIZE: "320k" 
-      KONG_NGINX_HTTP_LARGE_CLIENT_HEADER_BUFFERS: "4 64k"
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: "128k"
+      KONG_NGINX_PROXY_PROXY_BUFFERS: "4 256k"
+      KONG_NGINX_PROXY_PROXY_BUSY_BUFFERS_SIZE: "256k"
     volumes:
       - ./kong:/kong:ro
     ports:
@@ -290,16 +288,17 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3333
-      - DATABASE_URL=postgresql://${LIVESTREAM_DB_USER}:${LIVESTREAM_DB_PASSWORD}@postgres:5432/livestream_db
+      - DATABASE_URL=postgresql://livestream_user:FBhVAPOIAVZkZwcsvI3ezRcpoE%2FuFX9q@postgres:5432/livestream_db?schema=public
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - MEDIAMTX_API_URL=http://mediamtx:9997
-      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_URL=http://keycloak:8080/keycloak
       - KEYCLOAK_REALM=${KEYCLOAK_REALM}
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID}
+      - KEYCLOAK_ISSUER=${KEYCLOAK_ISSUER}
       - FRONTEND_BASE_URL=${FRONTEND_URL}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_CLIENT_ID=${LIVESTREAM_GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${LIVESTREAM_GOOGLE_CLIENT_SECRET}
       - GOOGLE_REDIRECT_URI=${LIVESTREAM_GOOGLE_REDIRECT_URI}
     depends_on:
       postgres:

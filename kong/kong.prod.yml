@@ -16,12 +16,33 @@ services:
         paths: ["/api/v1/competitions", "/api/v1/matches", "/api/v1/teams", "/api/v1/modalities"]
         strip_path: false
 
+  - name: mediamtx-hls
+    url: http://mediamtx:8888
+    routes:
+      - name: hls-stream
+        paths:
+          - /live
+        protocols:
+          - http
+          - https
+        strip_path: false
+        preserve_host: true
+
   - name: livestream-service
     url: http://livestream-service:3333
     routes:
       - name: livestream-routes
         paths: ["/api/v1/lives", "/api/v1/google-calendar", "/api/v1/webhooks"]
         strip_path: false
+      
+      - name: livestream-socket
+        paths:
+          - /socket.io
+        protocols:
+          - http
+          - https
+        strip_path: false
+        preserve_host: true
 
   - name: notifications-service
     url: http://notifications-service:8003
@@ -54,7 +75,3 @@ plugins:
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"]
       headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "X-Auth-Token", "Authorization", "X-Requested-With", "X-Request-Id", "X-User-Id"]
       credentials: true
-  - name: rate-limiting
-    config:
-      minute: 300
-      policy: local
