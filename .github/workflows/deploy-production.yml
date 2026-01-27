@@ -139,12 +139,12 @@ jobs:
               echo "❌ Frontend não está rodando!"
               exit 1
             fi
-            
+           
             if ! docker ps --format "{{.Names}} {{.Status}}" | grep -q "athlos_auth_service.*Up"; then
               echo "❌ Auth Service não está rodando!"
               exit 1
             fi
-            
+           
             if ! docker ps --format "{{.Names}} {{.Status}}" | grep -q "athlos_kong_gateway.*Up"; then
               echo "❌ Kong não está rodando!"
               exit 1
