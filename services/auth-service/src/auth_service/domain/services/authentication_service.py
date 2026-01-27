@@ -194,7 +194,7 @@ class AuthenticationService:
                 public_key=public_key,
                 verify_aud=False,
                 audience=settings.KEYCLOAK_CLIENT_ID,
-                issuer=f"http://athloshub.com.br/keycloak/realms/{settings.KEYCLOAK_REALM}",
+                issuer=f"{settings.KEYCLOAK_ISSUER.rstrip('/')}/realms/{settings.KEYCLOAK_REALM}",
             )
 
             db_user = await self.get_or_create_user_from_keycloak_token(token_payload)
@@ -265,7 +265,7 @@ class AuthenticationService:
                 token=token_response.access_token,
                 public_key=public_key,
                 audience=settings.KEYCLOAK_CLIENT_ID,
-                issuer=f"http://athloshub.com.br/keycloak/realms/{settings.KEYCLOAK_REALM}",
+                issuer=f"{settings.KEYCLOAK_ISSUER.rstrip('/')}/realms/{settings.KEYCLOAK_REALM}",
                 verify_aud=False
             )
 
@@ -760,9 +760,9 @@ class AuthenticationService:
     def get_google_auth_url() -> str:
         """Gera URL de OAuth do Google via Keycloak."""
 
-        public_domain = settings.FRONTEND_URL.rstrip("/")
+        keycloak_base = settings.KEYCLOAK_ISSUER.rstrip("/")
         realm = settings.KEYCLOAK_REALM
-        base_url = f"{public_domain}/keycloak/realms/{realm}/protocol/openid-connect/auth"
+        base_url = f"{keycloak_base}/realms/{realm}/protocol/openid-connect/auth"
 
         params = {
             "client_id": settings.KEYCLOAK_CLIENT_ID,

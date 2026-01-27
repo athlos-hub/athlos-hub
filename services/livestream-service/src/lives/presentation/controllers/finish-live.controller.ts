@@ -15,7 +15,7 @@ import { InvalidLiveTransitionException } from '../../domain/exceptions/invalid-
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator.js';
 import type { ILiveRepository } from '../../domain/repositories/livestream.interface.js';
-import { PrismaService } from '../../../prisma/prisma.service.js';
+import { AuthServiceClient } from '../../../auth/services/auth-service-client.js';
 
 @Controller('lives')
 @UseGuards(JwtAuthGuard)
@@ -24,7 +24,7 @@ export class FinishLiveController {
     private readonly finishLiveService: FinishLiveService,
     @Inject('ILiveRepository')
     private readonly liveRepo: ILiveRepository,
-    private readonly prisma: PrismaService,
+    private readonly authServiceClient: AuthServiceClient,
   ) {}
 
   @Patch(':id/finish')
@@ -65,27 +65,9 @@ export class FinishLiveController {
     keycloakSub: string,
     organizationId: string,
   ): Promise<boolean> {
-    const ownerResult = await this.prisma.$queryRawUnsafe<{ keycloak_id: string }[]>(
-      `SELECT u.keycloak_id 
-       FROM organizations o 
-       JOIN users u ON o.owner_id = u.id 
-       WHERE o.id = $1`,
-      organizationId,
-    );
-
-    if (ownerResult.length > 0 && ownerResult[0].keycloak_id === keycloakSub) {
-      return true;
-    }
-
-    const organizerResult = await this.prisma.$queryRawUnsafe<{ keycloak_id: string }[]>(
-      `SELECT u.keycloak_id 
-       FROM organization_organizers oo 
-       JOIN users u ON oo.user_id = u.id 
-       WHERE oo.organization_id = $1 AND u.keycloak_id = $2`,
-      organizationId,
+    return await this.authServiceClient.checkOrganizationPermission(
       keycloakSub,
+      organizationId,
     );
-
-    return organizerResult.length > 0;
   }
 }

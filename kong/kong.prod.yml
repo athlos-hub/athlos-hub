@@ -48,8 +48,22 @@ services:
     url: http://notifications-service:8003
     routes:
       - name: notifications-routes
-        paths: ["/api/v1/notifications", "/api/v1/notifications/stream", "/api/v1/ws/notifications", "/api/v1/notifications/"]
+        paths: ["/api/v1/notifications"]
         strip_path: false
+      
+      - name: notifications-sse-stream
+        paths: ["/api/v1/notifications/stream"]
+        strip_path: false
+        protocols:
+          - http
+          - https
+        preserve_host: true
+        plugins:
+          - name: request-termination
+            enabled: false
+        # SSE precisa de configurações especiais para evitar buffering
+        request_buffering: false
+        response_buffering: false
 
   - name: keycloak-service
     url: http://keycloak:8080
@@ -73,5 +87,28 @@ plugins:
     config:
       origins: ["http://athloshub.com.br"]
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"]
-      headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "X-Auth-Token", "Authorization", "X-Requested-With", "X-Request-Id", "X-User-Id"]
+      headers: 
+        - "Accept"
+        - "Accept-Version"
+        - "Content-Length"
+        - "Content-MD5"
+        - "Content-Type"
+        - "Date"
+        - "X-Auth-Token"
+        - "Authorization"
+        - "X-Requested-With"
+        - "X-Request-Id"
+        - "X-User-Id"
+        - "Cache-Control"
+        - "Connection"
+        - "Keep-Alive"
+      exposed_headers:
+        - "Cache-Control"
+        - "Connection"
+        - "Content-Type"
+        - "Date"
+        - "Keep-Alive"
+        - "Transfer-Encoding"
+        - "X-Accel-Buffering"
       credentials: true
+      max_age: 3600
