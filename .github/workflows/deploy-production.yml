@@ -1,0 +1,179 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/athlos
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        service:
+          - name: frontend
+            context: services/frontend
+            dockerfile: services/frontend/Dockerfile
+          - name: auth-service
+            context: .
+            dockerfile: services/auth-service/Dockerfile
+          - name: competitions-service
+            context: .
+            dockerfile: services/competitions-service/Dockerfile
+          - name: livestream-service
+            context: services/livestream-service
+            dockerfile: services/livestream-service/Dockerfile
+          - name: notifications-service
+            context: .
+            dockerfile: services/notifications-service/Dockerfile
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service.name }}
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix={{branch}}-
+            type=ref,event=branch
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.service.context }}
+          file: ${{ matrix.service.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_API_BASE_URL=http://athloshub.com.br/api/v1
+            NEXT_PUBLIC_API_GATEWAY_URL=http://athloshub.com.br/api/v1
+            NEXT_PUBLIC_LIVESTREAM_WS_URL=ws://athloshub.com.br
+            NEXT_PUBLIC_HLS_URL=http://athloshub.com.br/live
+            NEXT_PUBLIC_NOTIFICATIONS_SSE_URL=http://athloshub.com.br/api/v1/notifications/stream
+
+  deploy:
+    name: Deploy to VPS
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /home/${{ secrets.VPS_USERNAME }}/athloshub
+            
+            echo "🔄 Fazendo backup do banco de dados..."
+            docker exec athlos_postgres pg_dumpall -U postgres > backup_$(date +%Y%m%d_%H%M%S).sql || true
+            
+            echo "📥 Pulling novas imagens..."
+            docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+            
+            # Definir variável de ambiente para o owner do repositório
+            export GITHUB_REPOSITORY_OWNER=${{ github.repository_owner }}
+            
+            docker-compose -f docker-compose.registry.yml pull
+            
+            echo "🔄 Reiniciando serviços..."
+            docker-compose -f docker-compose.registry.yml up -d
+            
+            echo "🧹 Limpando imagens antigas..."
+            docker image prune -f
+            
+            echo "✅ Deploy concluído!"
+
+      - name: Wait for services to be healthy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            echo "⏳ Aguardando serviços ficarem saudáveis..."
+            sleep 30
+            
+            # Verificar status dos containers
+            docker ps --format "table {{.Names}}\t{{.Status}}" | grep athlos
+            
+            echo "🔍 Verificando health checks..."
+            
+            # Verificar se os principais serviços estão respondendo
+            if ! docker ps | grep -q "athlos_frontend.*Up"; then
+              echo "❌ Frontend não está rodando!"
+              exit 1
+            fi
+            
+            if ! docker ps | grep -q "athlos_auth_service.*Up"; then
+              echo "❌ Auth Service não está rodando!"
+              exit 1
+            fi
+            
+            if ! docker ps | grep -q "athlos_kong_gateway.*Up"; then
+              echo "❌ Kong não está rodando!"
+              exit 1
+            fi
+            
+            echo "✅ Todos os serviços principais estão rodando!"
+
+      - name: Test application endpoints
+        run: |
+          echo "🧪 Testando endpoints..."
+          
+          # Aguardar um pouco mais para os serviços estarem prontos
+          sleep 10
+          
+          # Testar endpoint principal
+          if curl -f -s -o /dev/null -w "%{http_code}" http://athloshub.com.br | grep -q "200\|301\|302"; then
+            echo "✅ Frontend está respondendo!"
+          else
+            echo "⚠️ Frontend pode não estar respondendo corretamente"
+          fi
+          
+          # Testar health do auth-service
+          if curl -f -s http://athloshub.com.br/api/v1/health; then
+            echo "✅ Auth Service health check OK!"
+          else
+            echo "⚠️ Auth Service health check falhou"
+          fi
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "🎉 Deploy realizado com sucesso em http://athloshub.com.br"
+          else
+            echo "❌ Deploy falhou! Verifique os logs."
+          fi

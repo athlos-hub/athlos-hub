@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE IF NOT EXISTS "livestream_schema"."GoogleCalendarEvent" (
+CREATE TABLE IF NOT EXISTS "GoogleCalendarEvent" (
     "id" TEXT NOT NULL,
     "user_id" TEXT NOT NULL,
     "live_id" TEXT NOT NULL,
@@ -13,20 +13,20 @@ CREATE TABLE IF NOT EXISTS "livestream_schema"."GoogleCalendarEvent" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX IF NOT EXISTS "GoogleCalendarEvent_userId_liveId_key" 
-ON "livestream_schema"."GoogleCalendarEvent"("user_id", "live_id");
+ON "GoogleCalendarEvent"("user_id", "live_id");
 
 -- CreateIndex
 CREATE INDEX IF NOT EXISTS "GoogleCalendarEvent_userId_idx" 
-ON "livestream_schema"."GoogleCalendarEvent"("user_id");
+ON "GoogleCalendarEvent"("user_id");
 
 -- CreateIndex
 CREATE INDEX IF NOT EXISTS "GoogleCalendarEvent_liveId_idx" 
-ON "livestream_schema"."GoogleCalendarEvent"("live_id");
+ON "GoogleCalendarEvent"("live_id");
 
 -- AddForeignKey
-ALTER TABLE "livestream_schema"."GoogleCalendarEvent" 
+ALTER TABLE "GoogleCalendarEvent" 
 ADD CONSTRAINT "GoogleCalendarEvent_user_id_fkey" 
 FOREIGN KEY ("user_id") 
-REFERENCES "livestream_schema"."GoogleCalendarToken"("user_id") 
+REFERENCES "GoogleCalendarToken"("user_id") 
 ON DELETE CASCADE 
 ON UPDATE CASCADE;
