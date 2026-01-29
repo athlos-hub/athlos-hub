@@ -33,7 +33,9 @@ class DatabaseClient:
                 max_overflow=pool_max - pool_min,
                 pool_timeout=timeout,
                 connect_args=connect_args or {},
-                echo=False
+                echo=False,
+                pool_pre_ping=True,
+                pool_recycle=1800
             )
 
             self._session_maker = sessionmaker(

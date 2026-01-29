@@ -22,9 +22,10 @@ import { ChatRepository } from './infrastructure/repositories/chat.repository.js
 import { EventRepository } from './infrastructure/repositories/event.repository.js';
 import { EventPostgresRepository } from './infrastructure/repositories/event-postgres.repository.js';
 import { ConfigModule } from '@nestjs/config';
+import { AuthModule } from '../auth/auth.module.js';
 
 @Module({
-  imports: [ConfigModule],
+  imports: [ConfigModule, AuthModule],
   controllers: [
     CreateLiveController,
     FinishLiveController,

@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useNotifications } from '@/hooks/use-notifications';
+import { useNotificationsStore } from '@/store/notifications';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Notification } from '@/types/notification';
@@ -18,17 +19,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useState } from 'react';
 
 export default function NotificationsPage() {
   const router = useRouter();
-  const [showUnreadOnly, setShowUnreadOnly] = useState(true);
   const [clearing, setClearing] = useState(false);
   const [showClearDialog, setShowClearDialog] = useState(false);
+  
   const { notifications, unreadCount, loading, markAsRead, markAllAsRead, clearAllNotifications, fetchNotifications } = useNotifications(true);
+  
+  const showUnreadOnly = useNotificationsStore((state) => state.showUnreadOnly);
 
   const handleFilterChange = async (unreadOnly: boolean) => {
-    setShowUnreadOnly(unreadOnly);
-    await fetchNotifications(unreadOnly);
+    await fetchNotifications(unreadOnly, true);
   };
 
   const handleNotificationClick = async (notification: Notification) => {

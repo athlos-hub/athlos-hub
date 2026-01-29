@@ -13,53 +13,55 @@ export function useWebSocket({ url, namespace = "", autoConnect = false }: UseWe
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef<Socket | null>(null);
 
-  useEffect(() => {
-    if (!autoConnect) return;
+  const createSocket = () => {
+    const baseUrl = url.replace(/\/$/, "");
+    const fullUrl = `${baseUrl}${namespace}`;
+    
+    console.log("Tentando conectar em:", fullUrl);
 
-    const fullUrl = `${url}${namespace}`;
     const socket = io(fullUrl, {
-      transports: ["websocket", "polling"],
+      transports: ["polling", "websocket"], 
+      path: "/socket.io",
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
     });
 
     socket.on("connect", () => {
+      console.log("Conectado ao Socket.io!", socket.id);
       setIsConnected(true);
     });
 
+    socket.on("connect_error", (err) => {
+      console.error("Erro de conexão Socket.io:", err);
+    });
+
     socket.on("disconnect", () => {
+      console.log("Desconectado do Socket.io");
       setIsConnected(false);
     });
 
-    socketRef.current = socket;
+    return socket;
+  };
+
+  useEffect(() => {
+    if (!autoConnect) return;
+    
+    if (socketRef.current) return;
+
+    socketRef.current = createSocket();
 
     return () => {
-      socket.disconnect();
-      socketRef.current = null;
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
     };
   }, [url, namespace, autoConnect]);
 
   const connect = () => {
-    if (socketRef.current?.connected) return;
-
-    const fullUrl = `${url}${namespace}`;
-    const socket = io(fullUrl, {
-      transports: ["websocket", "polling"],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-    });
-
-    socket.on("connect", () => {
-      setIsConnected(true);
-    });
-
-    socket.on("disconnect", () => {
-      setIsConnected(false);
-    });
-
-    socketRef.current = socket;
+    if (socketRef.current) return;
+    socketRef.current = createSocket();
   };
 
   const disconnect = () => {

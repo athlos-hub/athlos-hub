@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE IF NOT EXISTS "livestream_schema"."GoogleCalendarToken" (
+CREATE TABLE IF NOT EXISTS "GoogleCalendarToken" (
     "id" TEXT NOT NULL,
     "user_id" TEXT NOT NULL,
     "access_token" TEXT NOT NULL,
@@ -13,4 +13,4 @@ CREATE TABLE IF NOT EXISTS "livestream_schema"."GoogleCalendarToken" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX IF NOT EXISTS "GoogleCalendarToken_userId_key" ON "livestream_schema"."GoogleCalendarToken"("user_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "GoogleCalendarToken_user_id_key" ON "GoogleCalendarToken"("user_id");

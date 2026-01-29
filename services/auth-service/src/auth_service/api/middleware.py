@@ -53,11 +53,13 @@ class KeycloakAuthMiddleware(BaseHTTPMiddleware):
             try:
                 public_key = await AuthenticationService.get_public_key()
 
+
                 payload = JwtHandler.decode_token(
                     token=token,
                     public_key=public_key,
                     audience=settings.KEYCLOAK_CLIENT_ID,
-                    issuer=f"{settings.KEYCLOAK_URL}/realms/{settings.KEYCLOAK_REALM}",
+                    issuer=f"{settings.KEYCLOAK_ISSUER.rstrip('/')}/realms/{settings.KEYCLOAK_REALM}",
+                    verify_aud=False
                 )
 
                 request.state.user_payload = payload
