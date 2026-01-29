@@ -15,4 +15,4 @@ npx prisma migrate deploy || echo "⚠️ Migration failed, continuing..."
 echo "✅ Migrations step completed!"
 echo "🎯 Starting application..."
 
-exec node dist/main.js
+exec node dist/src/main.js
