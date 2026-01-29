@@ -741,7 +741,9 @@ export default function AdminPage() {
                                                             <p className="text-sm text-gray-600">{org.description}</p>
                                                             <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                                                                 <span>Criada em {new Date(org.created_at).toLocaleDateString("pt-BR")}</span>
-                                                                <Badge variant="outline">{org.privacy}</Badge>
+                                                                <Badge variant="outline">
+                                                                    {org.privacy === "PUBLIC" ? "Pública" : "Privada"}
+                                                                </Badge>
                                                             </div>
                                                         </div>
                                                     </div>

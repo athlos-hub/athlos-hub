@@ -21,7 +21,11 @@ RUN poetry config virtualenvs.create false && poetry install --no-interaction --
 
 WORKDIR /app/services/notifications-service
 COPY services/notifications-service/pyproject.toml services/notifications-service/poetry.lock* ./
-RUN poetry config virtualenvs.create false && poetry install --no-interaction --no-ansi --only main
+# If pyproject changed since poetry.lock, regenerate lockfile from pyproject without updating versions
+# This keeps the build non-interactive and avoids the "pyproject.toml changed significantly" error.
+RUN poetry config virtualenvs.create false && \
+    poetry lock || true && \
+    poetry install --no-interaction --no-ansi --only main
 
 COPY services/notifications-service/src ./src
 
@@ -34,10 +38,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --shell /bin/bash appuser
 
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-COPY --from=builder /app/services/notifications-service/src ./src
-COPY --from=builder /app/libs /app/libs
+COPY --from=builder --chown=appuser:appuser /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder --chown=appuser:appuser /usr/local/bin /usr/local/bin
+COPY --from=builder --chown=appuser:appuser /app/services/notifications-service/src ./src
+COPY --from=builder --chown=appuser:appuser /app/libs /app/libs
+COPY --chown=appuser:appuser services/notifications-service/entrypoint.sh ./entrypoint.sh
+COPY --chown=appuser:appuser services/notifications-service/alembic.ini ./services/notifications-service/alembic.ini
+COPY --chown=appuser:appuser services/notifications-service/alembic ./services/notifications-service/alembic
+COPY --chown=appuser:appuser services/notifications-service/scripts ./services/notifications-service/scripts
+
+# ensure runtime files are owned by non-root user
+RUN chown -R appuser:appuser /app
 
 USER appuser
 
@@ -47,4 +58,6 @@ ENV PYTHONPATH=/app/src:/app/src/notifications_service:/app/libs/common:/app/lib
 
 EXPOSE 8003
 
-CMD ["uvicorn", "notifications_service.main:app", "--host", "0.0.0.0", "--port", "8003"]
+RUN chmod +x /app/entrypoint.sh /app/services/notifications-service/scripts/*.sh || true
+
+ENTRYPOINT ["/app/entrypoint.sh"]

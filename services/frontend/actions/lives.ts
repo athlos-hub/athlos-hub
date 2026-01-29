@@ -81,12 +81,14 @@ export async function startLive(id: string): Promise<Live> {
 export async function finishLive(id: string): Promise<Live> {
   return livestreamAPI<Live>(`/lives/${id}/finish`, {
     method: "PATCH",
+    requireAuth: true,
   });
 }
 
 export async function cancelLive(id: string): Promise<Live> {
   return livestreamAPI<Live>(`/lives/${id}/cancel`, {
     method: "PATCH",
+    requireAuth: true,
   });
 }
 
