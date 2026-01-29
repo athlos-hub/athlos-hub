@@ -1,0 +1,353 @@
+services:
+  kong:
+    container_name: athlos_kong_gateway
+    image: kong:3.9
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DNS_RESOLVER: "127.0.0.11"
+      KONG_DECLARATIVE_CONFIG: /kong/kong.prod.yml
+      KONG_DNS_ORDER: "LAST,A,CNAME"
+      KONG_DNS_STALE_TTL: "60"
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 127.0.0.1:8001
+      KONG_PROXY_LISTEN: 0.0.0.0:8000
+      KONG_LOG_LEVEL: warn
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: "128k"
+      KONG_NGINX_PROXY_PROXY_BUFFERS: "4 256k"
+      KONG_NGINX_PROXY_PROXY_BUSY_BUFFERS_SIZE: "256k"
+    volumes:
+      - ./kong:/kong:ro
+    ports:
+      - "80:8000"
+    networks:
+      - athlos-network
+    depends_on:
+      - frontend
+      - auth-service
+      - livestream-service
+      - competitions-service
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  postgres:
+    container_name: athlos_postgres
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST_AUTH_METHOD: md5
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD}
+      COMPETITIONS_DB_PASSWORD: ${COMPETITIONS_DB_PASSWORD}
+      LIVESTREAM_DB_PASSWORD: ${LIVESTREAM_DB_PASSWORD}
+      NOTIFICATIONS_DB_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+      - ./scripts/init-databases/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
+    networks:
+      - athlos-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  keycloak:
+    container_name: athlos_keycloak
+    image: quay.io/keycloak/keycloak:23.0.0
+    ports:
+      - "8080:8080"
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak_db
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USERNAME}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HTTP_RELATIVE_PATH: /keycloak
+      KC_HOSTNAME_PATH: /keycloak
+      KC_HOSTNAME_URL: http://athloshub.com.br/keycloak
+      KC_HOSTNAME_ADMIN_URL: http://athloshub.com.br/keycloak
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY: edge
+      KC_HOSTNAME_PORT: 80
+    command: start
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - athlos-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /keycloak/health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  redis:
+    container_name: athlos_redis
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - athlos-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mediamtx:
+    container_name: athlos_mediamtx
+    image: bluenviron/mediamtx:1-ffmpeg
+    ports:
+      - "1935:1935"
+      - "8888:8888"
+      - "8889:8889"
+      - "8890:8890/udp"
+      - "8189:8189/udp"
+    networks:
+      - athlos-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # USANDO IMAGENS DO GITHUB CONTAINER REGISTRY
+  auth-service:
+    container_name: athlos_auth_service
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-seu-usuario}/athlos-auth-service:latest
+    environment:
+      ENV: ${ENV}
+      DATABASE_HOST: postgres
+      DATABASE_PORT: "5432"
+      DATABASE_NAME: auth_db
+      KEYCLOAK_URL: "http://keycloak:8080/keycloak/"
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      KEYCLOAK_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KEYCLOAK_DATABASE_USER: ${KEYCLOAK_DB_USER}
+      KEYCLOAK_DATABASE_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KEYCLOAK_ISSUER: ${KEYCLOAK_ISSUER}
+      KEYCLOAK_DATABASE_URL: "postgresql+asyncpg://${KEYCLOAK_DB_USER}:${KEYCLOAK_DB_PASSWORD}@postgres:5432/keycloak_db"
+      AUTH_DATABASE_USER: ${AUTH_DB_USER}
+      AUTH_DATABASE_PASSWORD: ${AUTH_DB_PASSWORD}
+      SECRET_KEY: ${SECRET_KEY}
+      ALGORITHM: RS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: "1440"
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS}
+      CORS_ORIGINS: '${CORS_ORIGINS}'
+      FRONTEND_URL: ${FRONTEND_URL}
+      NOTIFICATIONS_SERVICE_URL: http://notifications-service:8003
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      EMAIL_TOKEN_SECRET: ${EMAIL_TOKEN_SECRET}
+      AWS_BUCKET_REGION: ${AWS_BUCKET_REGION}
+      AWS_BUCKET_NAME: ${AWS_BUCKET_NAME}
+      AWS_BUCKET_ACCESS_KEY_ID: ${AWS_BUCKET_ACCESS_KEY_ID}
+      AWS_BUCKET_SECRET_ACCESS_KEY: ${AWS_BUCKET_SECRET_ACCESS_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    networks:
+      - athlos-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+        reservations:
+          memory: 192M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  competitions-service:
+    container_name: athlos_competitions_service
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-seu-usuario}/athlos-competitions-service:latest
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=8001
+      - COMPETITIONS_DATABASE_USER=${COMPETITIONS_DB_USER}
+      - COMPETITIONS_DATABASE_PASSWORD=${COMPETITIONS_DB_PASSWORD}
+      - COMPETITIONS_DATABASE_URL=postgresql+asyncpg://${COMPETITIONS_DB_USER}:${COMPETITIONS_DB_PASSWORD}@postgres:5432/competitions_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - athlos-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+        reservations:
+          memory: 192M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  notifications-service:
+    container_name: athlos_notifications_service
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-seu-usuario}/athlos-notifications-service:latest
+    environment:
+      ENV: ${ENV}
+      SERVICE_HOST: 0.0.0.0
+      SERVICE_PORT: "8003"
+      DEBUG: "False"
+      DATABASE_URL: "postgresql+asyncpg://${NOTIFICATIONS_DB_USER}:${NOTIFICATIONS_DB_PASSWORD}@postgres:5432/notifications_db"
+      NOTIFICATIONS_DATABASE_URL: "postgresql+asyncpg://${NOTIFICATIONS_DB_USER}:${NOTIFICATIONS_DB_PASSWORD}@postgres:5432/notifications_db"
+      NOTIFICATIONS_DATABASE_USER: ${NOTIFICATIONS_DB_USER}
+      NOTIFICATIONS_DATABASE_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD}
+      DATABASE_NAME: notifications_db
+      NOVU_API_KEY: ${NOVU_API_KEY}
+      NOVU_APP_ID: ${NOVU_APP_ID}
+      ALLOWED_ORIGINS: '${ALLOWED_ORIGINS}'
+      AUTH_SERVICE_URL: http://auth-service:8000
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - athlos-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+        reservations:
+          memory: 192M
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import sys, http.client; h=http.client.HTTPConnection(\"localhost\",8003,timeout=2); h.request(\"GET\",\"/api/v1/health\"); r=h.getresponse(); sys.exit(0 if r.status==200 else 1)'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  livestream-service:
+    container_name: athlos_livestream_service
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-seu-usuario}/athlos-livestream-service:latest
+    environment:
+      - NODE_ENV=production
+      - PORT=3333
+      - DATABASE_URL=postgresql://${LIVESTREAM_DB_USER}:${LIVESTREAM_DB_PASSWORD}@postgres:5432/livestream_db?schema=public
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MEDIAMTX_API_URL=http://mediamtx:9997
+      - KEYCLOAK_URL=http://keycloak:8080/keycloak
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM}
+      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID}
+      - KEYCLOAK_ISSUER=${KEYCLOAK_ISSUER}
+      - FRONTEND_BASE_URL=${FRONTEND_URL}
+      - GOOGLE_CLIENT_ID=${LIVESTREAM_GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${LIVESTREAM_GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URI=${LIVESTREAM_GOOGLE_REDIRECT_URI}
+      - AUTH_SERVICE_URL=http://auth-service:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - athlos-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3333/api/v1/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  frontend:
+    container_name: athlos_frontend
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-seu-usuario}/athlos-frontend:latest
+    environment:
+      - NODE_ENV=production
+      - API_BASE_URL=http://kong:8000/api/v1
+      - NEXTAUTH_URL=${NEXTAUTH_URL}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+    depends_on:
+      - auth-service
+    networks:
+      - athlos-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  postgres_data:
+  redis_data:
+  
+networks:
+  athlos-network:
+    driver: bridge

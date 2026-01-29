@@ -25,12 +25,16 @@ async def lifespan(app: FastAPI):
     startup_logger.info("Iniciando serviço de notificações...")
     
     try:
+        connect_args = {}
+        if settings.notifications_database_schema:
+            connect_args = {"server_settings": {"search_path": f"{settings.notifications_database_schema},public"}}
+
         db.init(
             url=settings.database_url,
             pool_min=5,
             pool_max=10,
             timeout=30,
-            connect_args={"server_settings": {"search_path": f"{settings.notifications_database_schema},public"}}
+            connect_args=connect_args
         )
         
         await db.check_health()

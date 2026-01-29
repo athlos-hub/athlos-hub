@@ -45,7 +45,7 @@ export default function ResetPasswordPage({ token, email }: ResetPasswordPagePro
     setIsSubmitting(true);
     setError(null);
     try {
-      const resp = await fetch(`/api/auth/reset-password?token=${token}`, {
+  const resp = await fetch(`/api/auth/reset-password?token=${token}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ new_password: values.new_password }),

@@ -4,180 +4,111 @@ _transform: true
 services:
   - name: auth-service
     url: http://auth-service:8000
-    tags:
-      - auth
     routes:
-      - name: auth-health
-        paths:
-          - /api/v1/health
-        strip_path: false
-        tags:
-          - public
-          - health
-
       - name: auth-routes
-        paths:
-          - /api/v1/auth
+        paths: ["/api/v1/auth", "/api/v1/users", "/api/v1/organizations", "/api/v1/admin", "/api/v1/health"]
         strip_path: false
-        tags:
-          - auth
-
-      - name: users-routes
-        paths:
-          - /api/v1/users
-        strip_path: false
-        tags:
-          - users
-
-      - name: organizations-routes
-        paths:
-          - /api/v1/organizations
-        strip_path: false
-        tags:
-          - organizations
-
-      - name: admin-routes
-        paths:
-          - /api/v1/admin
-        strip_path: false
-        tags:
-          - admin
 
   - name: competitions-service
     url: http://competitions-service:8001
-    tags:
-      - competitions
     routes:
       - name: competitions-routes
-        paths:
-          - /api/v1/competitions
+        paths: ["/api/v1/competitions", "/api/v1/matches", "/api/v1/teams", "/api/v1/modalities"]
         strip_path: false
-        tags:
-          - competitions
 
-      - name: matches-routes
+  - name: mediamtx-hls
+    url: http://mediamtx:8888
+    routes:
+      - name: hls-stream
         paths:
-          - /api/v1/matches
+          - /live
+        protocols:
+          - http
+          - https
         strip_path: false
-        tags:
-          - matches
-
-      - name: teams-routes
-        paths:
-          - /api/v1/teams
-        strip_path: false
-        tags:
-          - teams
-
-      - name: modalities-routes
-        paths:
-          - /api/v1/modalities
-        strip_path: false
-        tags:
-          - modalities
+        preserve_host: true
 
   - name: livestream-service
     url: http://livestream-service:3333
-    tags:
-      - livestream
     routes:
-      - name: lives-routes
-        paths:
-          - /api/v1/lives
+      - name: livestream-routes
+        paths: ["/api/v1/lives", "/api/v1/google-calendar", "/api/v1/webhooks"]
         strip_path: false
-        tags:
-          - lives
-
-      - name: google-calendar-routes
+      
+      - name: livestream-socket
         paths:
-          - /api/v1/google-calendar
+          - /socket.io
+        protocols:
+          - http
+          - https
         strip_path: false
-        tags:
-          - google-calendar
-
-      - name: livestream-webhooks
-        paths:
-          - /api/v1/webhooks
-        strip_path: false
-        tags:
-          - webhooks
+        preserve_host: true
 
   - name: notifications-service
     url: http://notifications-service:8003
-    tags:
-      - notifications
     routes:
       - name: notifications-routes
-        paths:
-          - /api/v1/notifications
+        paths: ["/api/v1/notifications"]
         strip_path: false
-        tags:
-          - notifications
+      
+      - name: notifications-sse-stream
+        paths: ["/api/v1/notifications/stream"]
+        strip_path: false
+        protocols:
+          - http
+          - https
+        preserve_host: true
+        plugins:
+          - name: request-termination
+            enabled: false
+        # SSE precisa de configurações especiais para evitar buffering
+        request_buffering: false
+        response_buffering: false
 
   - name: keycloak-service
     url: http://keycloak:8080
-    tags:
-      - keycloak
     routes:
       - name: keycloak-routes
-        paths:
-          - /auth
+        paths: 
+          - /keycloak
         strip_path: false
-        tags:
-          - keycloak
+        preserve_host: true
 
   - name: frontend-service
     url: http://frontend:3000
-    tags:
-      - frontend
     routes:
       - name: frontend-routes
         paths:
           - /
         strip_path: false
-        tags:
-          - frontend
 
 plugins:
   - name: cors
     config:
-      origins:
-        - "https://athloshub.com.br"
-      methods:
-        - GET
-        - POST
-        - PUT
-        - PATCH
-        - DELETE
-        - OPTIONS
-        - HEAD
-      headers:
-        - Accept
-        - Accept-Version
-        - Content-Length
-        - Content-MD5
-        - Content-Type
-        - Date
-        - X-Auth-Token
-        - Authorization
-        - X-Requested-With
-        - X-Request-Id
-        - X-User-Id
+      origins: ["http://athloshub.com.br"]
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"]
+      headers: 
+        - "Accept"
+        - "Accept-Version"
+        - "Content-Length"
+        - "Content-MD5"
+        - "Content-Type"
+        - "Date"
+        - "X-Auth-Token"
+        - "Authorization"
+        - "X-Requested-With"
+        - "X-Request-Id"
+        - "X-User-Id"
+        - "Cache-Control"
+        - "Connection"
+        - "Keep-Alive"
       exposed_headers:
-        - X-Auth-Token
-        - X-Request-Id
+        - "Cache-Control"
+        - "Connection"
+        - "Content-Type"
+        - "Date"
+        - "Keep-Alive"
+        - "Transfer-Encoding"
+        - "X-Accel-Buffering"
       credentials: true
       max_age: 3600
-      preflight_continue: false
-
-  - name: rate-limiting
-    config:
-      minute: 300
-      policy: local
-      fault_tolerant: true
-      hide_client_headers: false
-
-  - name: request-size-limiting
-    config:
-      allowed_payload_size: 50
-      size_unit: megabytes
