@@ -106,10 +106,10 @@ jobs:
             # Definir variável de ambiente para o owner do repositório
             export GITHUB_REPOSITORY_OWNER=${{ github.repository_owner }}
             
-            docker-compose -f docker-compose.registry.yml pull
+            docker compose -f docker-compose.registry.yml pull
             
             echo "🔄 Reiniciando serviços..."
-            docker-compose -f docker-compose.registry.yml up -d
+            docker compose --env-file .env -f docker-compose.registry.yml up -d
             
             echo "🧹 Limpando imagens antigas..."
             docker image prune -f
