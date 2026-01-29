@@ -38,10 +38,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --shell /bin/bash appuser
 
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-COPY --from=builder /app/services/auth-service/src ./src
-COPY --from=builder /app/libs /app/libs
+COPY --from=builder --chown=appuser:appuser /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder --chown=appuser:appuser /usr/local/bin /usr/local/bin
+COPY --from=builder --chown=appuser:appuser /app/services/auth-service/src ./src
+COPY --from=builder --chown=appuser:appuser /app/libs /app/libs
+COPY --chown=appuser:appuser services/auth-service/entrypoint.sh ./entrypoint.sh
+COPY --chown=appuser:appuser services/auth-service/alembic.ini ./services/auth-service/alembic.ini
+COPY --chown=appuser:appuser services/auth-service/alembic ./services/auth-service/alembic
+COPY --chown=appuser:appuser services/auth-service/scripts ./services/auth-service/scripts
+
+# ensure runtime files are owned by non-root user
+RUN chown -R appuser:appuser /app
 
 USER appuser
 
@@ -51,4 +58,6 @@ ENV PYTHONPATH=/app/src:/app/src/auth_service:/app/libs/common:/app/libs/databas
 
 EXPOSE 8000
 
-CMD ["uvicorn", "auth_service.main:app", "--host", "0.0.0.0", "--port", "8000"]
+RUN chmod +x /app/entrypoint.sh /app/services/auth-service/scripts/*.sh || true
+
+ENTRYPOINT ["/app/entrypoint.sh"]

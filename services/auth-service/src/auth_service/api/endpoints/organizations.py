@@ -19,6 +19,7 @@ from auth_service.schemas.organization import (
     OrganizationAdminWithRole,
     OrganizationGetPublic,
     OrganizationMemberResponse,
+    OrganizationPermissionCheckResponse,
     OrganizationResponse,
     OrganizationWithRole,
     OrganizerResponse,
@@ -490,3 +491,37 @@ async def transfer_organization_ownership(
         "message": "Propriedade transferida com sucesso.",
         "new_owner_id": request.new_owner_id,
     }
+
+
+@router.get(
+    "/by-id/{org_id}/permissions",
+    response_model=OrganizationPermissionCheckResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def check_user_permissions_by_org_id(
+    org_id: UUID,
+    org_service: OrganizationServiceDep,
+    keycloak_sub: str = Query(..., description="Keycloak subject ID do usuário"),
+):
+    """
+    Verifica se um usuário tem permissões de admin (owner/organizer) em uma organização.
+    
+    Esta rota é destinada para comunicação entre microserviços.
+    Não requer autenticação pois é chamada internamente na rede Docker.
+    """
+    
+    permission_info = await org_service.check_user_permission_by_org_id(
+        org_id, keycloak_sub
+    )
+    
+    logger.info(
+        f"Verificação de permissão: org_id={org_id}, keycloak_sub={keycloak_sub}, "
+        f"has_permission={permission_info['has_permission']}"
+    )
+    
+    return OrganizationPermissionCheckResponse(
+        has_permission=permission_info["has_permission"],
+        role=permission_info["role"],
+        organization_id=org_id,
+        keycloak_sub=keycloak_sub,
+    )

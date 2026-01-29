@@ -1,0 +1,20 @@
+# Ignore common unwanted files from build context
+.git
+.gitignore
+node_modules
+**/node_modules
+npm-debug.log
+yarn-error.log
+.pnpm-store
+.env
+*.pyc
+__pycache__
+dist
+.build
+venv
+.env.local
+.DS_Store
+backups
+logs
+ssl
+*** End Patch

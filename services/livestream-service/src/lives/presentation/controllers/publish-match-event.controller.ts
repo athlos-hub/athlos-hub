@@ -17,7 +17,7 @@ import { MatchEventResponseDto } from '../dto/match-event-response.dto.js';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator.js';
 import type { ILiveRepository } from '../../domain/repositories/livestream.interface.js';
-import { PrismaService } from '../../../prisma/prisma.service.js';
+import { AuthServiceClient } from '../../../auth/services/auth-service-client.js';
 
 @Controller('lives')
 @UseGuards(JwtAuthGuard)
@@ -28,7 +28,7 @@ export class PublishMatchEventController {
     private readonly publishMatchEventService: PublishMatchEventService,
     @Inject('ILiveRepository')
     private readonly liveRepo: ILiveRepository,
-    private readonly prisma: PrismaService,
+    private readonly authServiceClient: AuthServiceClient,
   ) {}
 
   @Post(':id/events')
@@ -72,43 +72,17 @@ export class PublishMatchEventController {
   ): Promise<boolean> {
     this.logger.log(`Validando permissão: keycloakSub=${keycloakSub}, orgId=${organizationId}`);
     
-    try {
-      const ownerResult = await this.prisma.$queryRawUnsafe<{ keycloak_id: string }[]>(
-        `SELECT u.keycloak_id 
-         FROM "auth_schema"."organizations" o 
-         JOIN "auth_schema"."users" u ON o.owner_id = u.id 
-         WHERE o.id = $1`,
-        organizationId,
-      );
+    const hasPermission = await this.authServiceClient.checkOrganizationPermission(
+      keycloakSub,
+      organizationId,
+    );
 
-      this.logger.log(`Owner result: ${JSON.stringify(ownerResult)}`);
-
-      if (ownerResult.length > 0 && ownerResult[0].keycloak_id === keycloakSub) {
-        this.logger.log('Usuário é dono da organização');
-        return true;
-      }
-
-      const organizerResult = await this.prisma.$queryRawUnsafe<{ keycloak_id: string }[]>(
-        `SELECT u.keycloak_id 
-         FROM "auth_schema"."organization_organizers" oo 
-         JOIN "auth_schema"."users" u ON oo.user_id = u.id 
-         WHERE oo.organization_id = $1 AND u.keycloak_id = $2`,
-        organizationId,
-        keycloakSub,
-      );
-
-      this.logger.log(`Organizer result: ${JSON.stringify(organizerResult)}`);
-
-      if (organizerResult.length > 0) {
-        this.logger.log('Usuário é organizador');
-        return true;
-      }
-
+    if (hasPermission) {
+      this.logger.log(`Usuário ${keycloakSub} tem permissão na organização ${organizationId}`);
+    } else {
       this.logger.warn(`Usuário ${keycloakSub} não tem permissão na organização ${organizationId}`);
-      return false;
-    } catch (error) {
-      this.logger.error(`Erro ao validar permissão: ${error}`);
-      return false;
     }
+
+    return hasPermission;
   }
 }

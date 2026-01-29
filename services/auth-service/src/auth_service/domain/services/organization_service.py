@@ -1,6 +1,7 @@
 """Serviço de organização com lógica de negócio."""
 
 import logging
+import os
 from typing import Optional, Sequence
 from uuid import UUID
 
@@ -96,10 +97,12 @@ class OrganizationService:
             
             if extra_data:
                 base_extra_data.update(extra_data)
+
+            endpoint = f"{settings.NOTIFICATIONS_SERVICE_URL.rstrip('/')}/api/v1/notifications/send"
             
             async with httpx.AsyncClient() as client:
-                await client.post(
-                    "http://localhost:8003/api/v1/notifications/send",
+                response = await client.post(
+                    endpoint,
                     json={
                         "user_id": str(user_id),
                         "type": notification_type,
@@ -110,9 +113,15 @@ class OrganizationService:
                     },
                     timeout=5.0
                 )
+
+                # Agora a variável existe e o raise_for_status vai funcionar
+                response.raise_for_status()
+
                 logger.info(f"Notificação {notification_type} enviada para {user_id}")
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Erro HTTP ao enviar notificação {notification_type}: {e.response.text}")
         except Exception as e:
-            logger.error(f"Erro ao enviar notificação {notification_type}: {e}")
+            logger.error(f"Erro ao conectar no serviço de notificação ({endpoint}): {e}")
 
     async def create_organization(
         self,
@@ -468,26 +477,19 @@ class OrganizationService:
                     else:
                         member_name = user.first_name
                 
-                async with httpx.AsyncClient() as client:
-                    await client.post(
-                        "http://localhost:8003/api/v1/notifications/send",
-                        json={
-                            "user_id": str(org.owner_id),
-                            "type": "organization_accepted",
-                            "title": "Convite Aceito",
-                            "message": f"{member_name} aceitou o convite para sua organização",
-                            "extra_data": {
-                                "organization_id": str(org.id),
-                                "organization_name": org.name,
-                                "organization_slug": org.slug,
-                                "member_name": member_name,
-                                "member_id": str(user.id)
-                            },
-                            "action_url": f"/organizations/{org.slug}/members"
-                        },
-                        timeout=5.0
-                    )
-                    logger.info(f"Notificação de aceite enviada para owner {org.owner_id}")
+                await self._send_notification(
+                    user_id=org.owner_id,
+                    notification_type="organization_accepted",
+                    title="Convite Aceito",
+                    message=f"{member_name} aceitou o convite para {org.name}",
+                    organization=org,
+                    extra_data={
+                        "member_name": member_name,
+                        "member_id": str(user.id)
+                    },
+                    action_url=f"/organizations/{org.slug}/members"
+                )
+                logger.info(f"Notificação de aceite enviada para owner {org.owner_id}")
             except Exception as e:
                 logger.error(f"Erro ao enviar notificação de aceite: {e}")
 
@@ -662,28 +664,21 @@ class OrganizationService:
                     inviter_name = f"{inviter.first_name} {inviter.last_name}"
                 else:
                     inviter_name = inviter.first_name
-            
-            async with httpx.AsyncClient() as client:
-                await client.post(
-                    "http://localhost:8003/api/v1/notifications/send",
-                    json={
-                        "user_id": str(user_id),
-                        "type": "organization_invite",
-                        "title": "Convite para Organização",
-                        "message": f"Você foi convidado para participar de {org.name}",
-                        "extra_data": {
-                            "organization_id": str(org.id),
-                            "organization_name": org.name,
-                            "organization_slug": org.slug,
-                            "inviter_name": inviter_name,
-                            "inviter_id": str(inviter.id),
-                            "role": "member"
-                        },
-                        "action_url": f"/organizations/{org.slug}/invites"
-                    },
-                    timeout=5.0
-                )
-                logger.info(f"Notificação de convite enviada para {user_id}")
+
+            await self._send_notification(
+                user_id=user_id,
+                notification_type="organization_invite",
+                title="Convite para Organização",
+                message=f"Você foi convidado para participar de {org.name}",
+                organization=org,
+                extra_data={
+                    "inviter_name": inviter_name,
+                    "inviter_id": str(inviter.id),
+                    "role": "member"
+                },
+                action_url=f"/organizations/{org.slug}/invites"
+            )
+            logger.info(f"Notificação de convite enviada para {user_id}")
         except Exception as e:
             logger.error(f"Erro ao enviar notificação de convite: {e}")
 
@@ -1274,6 +1269,7 @@ class OrganizationService:
 
         org.status = OrganizationStatus.ACTIVE
         await self._org_repo.commit()
+        await self._org_repo._session.refresh(org)
 
         logger.info(f"Organização {slug} aceita por admin")
         
@@ -1409,6 +1405,69 @@ class OrganizationService:
     async def get_user_role_in_org(self, org: Organization, user: User) -> str:
         """Método público para obter função do usuário em uma organização."""
         return await self._get_user_role_in_org(org, user)
+
+    async def check_user_permission_by_org_id(
+        self, org_id: UUID, keycloak_sub: str
+    ) -> dict:
+        """
+        Verifica se um usuário (identificado pelo keycloak_sub) tem permissões 
+        de admin (owner ou organizer) em uma organização (identificada pelo org_id).
+        
+        Este método é usado para comunicação entre microserviços.
+        
+        Returns:
+            dict: {
+                "has_permission": bool,
+                "role": str | None,  # OrgRole.OWNER, OrgRole.ORGANIZER, ou None
+            }
+        """
+        user = await self._user_repo.get_by_keycloak_id(keycloak_sub)
+        
+        if not user or not user.enabled:
+            logger.warning(
+                f"Usuário não encontrado ou desabilitado: keycloak_sub={keycloak_sub}"
+            )
+            return {
+                "has_permission": False,
+                "role": None,
+            }
+        
+        org = await self._org_repo.get_by_id(org_id)
+        
+        if not org:
+            logger.warning(f"Organização não encontrada: org_id={org_id}")
+            return {
+                "has_permission": False,
+                "role": None,
+            }
+        
+        if org.owner_id == user.id:
+            logger.info(
+                f"Usuário {keycloak_sub} é owner da organização {org_id}"
+            )
+            return {
+                "has_permission": True,
+                "role": OrgRole.OWNER,
+            }
+        
+        is_organizer = await self._organizer_repo.is_organizer(org.id, user.id)
+        
+        if is_organizer:
+            logger.info(
+                f"Usuário {keycloak_sub} é organizer da organização {org_id}"
+            )
+            return {
+                "has_permission": True,
+                "role": OrgRole.ORGANIZER,
+            }
+        
+        logger.info(
+            f"Usuário {keycloak_sub} não tem permissões de admin na organização {org_id}"
+        )
+        return {
+            "has_permission": False,
+            "role": None,
+        }
 
     async def _validate_can_join(
         self, org: Organization, user: User, via_link: bool

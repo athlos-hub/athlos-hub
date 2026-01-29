@@ -6,6 +6,13 @@ interface OrganizationPermissionResponse {
   organizationId?: string;
 }
 
+interface OrganizationPermissionCheckResponse {
+  has_permission: boolean;
+  role: string | null;
+  organization_id: string;
+  keycloak_sub: string;
+}
+
 @Injectable()
 export class AuthServiceClient {
   private readonly logger = new Logger(AuthServiceClient.name);
@@ -76,6 +83,47 @@ export class AuthServiceClient {
       const message = error instanceof Error ? error.message : 'Unknown error';
       this.logger.warn(`Failed to get user role: ${message}`);
       return 'NONE';
+    }
+  }
+
+  async checkOrganizationPermission(
+    keycloakSub: string,
+    organizationId: string,
+  ): Promise<boolean> {
+    try {
+      const url = `${this.authServiceUrl}/api/v1/organizations/by-id/${organizationId}/permissions?keycloak_sub=${encodeURIComponent(keycloakSub)}`;
+      
+      this.logger.log(`Validando permissão: ${url}`);
+      
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          this.logger.warn(
+            `Organização ou usuário não encontrado: orgId=${organizationId}, keycloakSub=${keycloakSub}`,
+          );
+          return false;
+        }
+        throw new Error(`Auth service returned ${response.status}`);
+      }
+
+      const data: OrganizationPermissionCheckResponse = await response.json();
+      
+      this.logger.log(
+        `Resultado da validação: has_permission=${data.has_permission}, role=${data.role}`,
+      );
+
+      return data.has_permission;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `Falha ao validar permissão da organização: ${message}`,
+      );
+      return false;
     }
   }
 }

@@ -124,8 +124,8 @@ export const authOptions: NextAuthOptions = {
                     return {
                         id: String(userProfile.id),
                         email: userProfile.email,
-                        name: userProfile.firstName || userProfile.username,
-                        image: userProfile.avatarUrl,
+                        name: userProfile.firstName || userProfile.first_name || userProfile.username,
+                        image: userProfile.avatar_url || userProfile.avatarUrl,
                         accessToken: tokens.access_token,
                         refreshToken: tokens.refresh_token,
                     } as User;

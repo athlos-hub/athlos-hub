@@ -126,7 +126,8 @@ async def get_current_db_user(
         token=credentials.credentials,
         public_key=public_key,
         audience=settings.KEYCLOAK_CLIENT_ID,
-        issuer=f"{settings.KEYCLOAK_URL}/realms/{settings.KEYCLOAK_REALM}",
+        issuer=f"{settings.KEYCLOAK_ISSUER.rstrip('/')}/realms/{settings.KEYCLOAK_REALM}",
+        verify_aud=False
     )
 
     db_user = await auth_service.get_or_create_user_from_keycloak_token(payload)
@@ -152,7 +153,8 @@ async def get_current_user_optional(
             token=token,
             public_key=public_key,
             audience=settings.KEYCLOAK_CLIENT_ID,
-            issuer=f"{settings.KEYCLOAK_URL}/realms/{settings.KEYCLOAK_REALM}",
+            issuer=f"{settings.KEYCLOAK_ISSUER.rstrip('/')}/realms/{settings.KEYCLOAK_REALM}",
+            verify_aud=False
         )
 
         user = await auth_service.get_or_create_user_from_keycloak_token(payload)

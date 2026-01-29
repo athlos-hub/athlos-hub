@@ -26,7 +26,21 @@ export async function refreshAccessToken(refreshToken: string): Promise<{
     refresh_token: string;
 } | null> {
     try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'}/auth/refresh`, {
+        let baseUrl: string;
+        
+        if (typeof window !== 'undefined') {
+            if (window.location.origin.includes('athloshub.com.br')) {
+                baseUrl = 'http://athloshub.com.br/api/v1';
+            } else {
+                baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1';
+            }
+        } else {
+            baseUrl = process.env.AUTH_SERVICE_URL || process.env.API_BASE_URL || 'http://kong:8000/api/v1';
+        }
+
+        console.debug('[TOKEN-UTILS] refreshAccessToken using baseUrl:', baseUrl);
+
+        const response = await fetch(`${baseUrl.replace(/\/$/, '')}/auth/refresh`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

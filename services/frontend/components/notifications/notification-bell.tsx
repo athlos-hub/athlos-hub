@@ -11,19 +11,19 @@ import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import type { Notification } from '@/types/notification';
 
+const seenNotificationIds = new Set<string>();
+
 export default function NotificationBell() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const previousNotificationsRef = useRef<Set<string>>(new Set());
   const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications(true, true, 30000);
 
   useEffect(() => {
-    const currentIds = new Set(notifications.map(n => n.id));
-    const previousIds = previousNotificationsRef.current;
-    
     notifications.forEach(notification => {
-      if (!previousIds.has(notification.id) && !notification.is_read) {
+      if (!notification.is_read && !seenNotificationIds.has(notification.id)) {
+        seenNotificationIds.add(notification.id);
+        
         toast.info(notification.title, {
           description: notification.message,
           duration: 5000,
@@ -37,7 +37,14 @@ export default function NotificationBell() {
       }
     });
     
-    previousNotificationsRef.current = currentIds;
+    const currentIds = new Set(notifications.map(n => n.id));
+    const idsToRemove: string[] = [];
+    seenNotificationIds.forEach(id => {
+      if (!currentIds.has(id)) {
+        idsToRemove.push(id);
+      }
+    });
+    idsToRemove.forEach(id => seenNotificationIds.delete(id));
   }, [notifications, router]);
 
   useEffect(() => {
