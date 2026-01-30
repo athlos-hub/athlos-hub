@@ -22,14 +22,14 @@ class Settings(BaseSettings):
     API_HOST: str = Field(default="0.0.0.0")
     API_PORT: int = Field(default=8001)
 
-    SECRET_KEY: str = Field(default=...) 
+    SECRET_KEY: str = Field(default="test-secret-key-for-development") 
     ALGORITHM: str = Field(default="RS256")
-    KEYCLOAK_URL: str = Field(default=...)
+    KEYCLOAK_URL: str = Field(default="http://localhost:8080")
     KEYCLOAK_REALM: str = Field(default="athlos")
 
-    COMPETITIONS_DATABASE_USER: str
-    COMPETITIONS_DATABASE_PASSWORD: str
-    COMPETITIONS_DATABASE_URL: str
+    COMPETITIONS_DATABASE_USER: str = Field(default="test_user")
+    COMPETITIONS_DATABASE_PASSWORD: str = Field(default="test_password")
+    COMPETITIONS_DATABASE_URL: str = Field(default="sqlite+aiosqlite:///:memory:")
     COMPETITIONS_DATABASE_SCHEMA: str = Field(default="public")
 
     DB_POOL_MIN_SIZE: int = Field(default=2)
