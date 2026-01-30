@@ -7,7 +7,7 @@ const config: Config = {
   testRegex: '.*\\.spec\\.ts$',
   transform: {
     '^.+\\.(t|j)s$': ['ts-jest', {
-      useESM: true,
+      useESM: false,
       tsconfig: 'tsconfig.spec.json',
     }],
   },
@@ -22,6 +22,7 @@ const config: Config = {
     '(\\.{1,2}/.*)\\.js$': '$1',
     '@prisma/client': '<rootDir>/../__mocks__/prisma-client.ts',
   },
+  setupFilesAfterEnv: ['<rootDir>/../jest.setup.ts'],
 };
 
 export default config;
