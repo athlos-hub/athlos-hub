@@ -208,7 +208,7 @@ services:
         reservations:
           memory: 192M
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/api/v1/health\")' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -220,8 +220,13 @@ services:
       context: .
       dockerfile: services/competitions-service/Dockerfile
     environment:
+      - RUN_MIGRATIONS=true
       - API_HOST=0.0.0.0
       - API_PORT=8001
+      - SECRET_KEY=${SECRET_KEY}
+      - KEYCLOAK_URL=${KEYCLOAK_URL}
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM}
+      - ALGORITHM=${ALGORITHM}
       - COMPETITIONS_DATABASE_USER=${COMPETITIONS_DB_USER}
       - COMPETITIONS_DATABASE_PASSWORD=${COMPETITIONS_DB_PASSWORD}
       - COMPETITIONS_DATABASE_URL=postgresql+asyncpg://${COMPETITIONS_DB_USER}:${COMPETITIONS_DB_PASSWORD}@postgres:5432/competitions_db
@@ -238,7 +243,7 @@ services:
         reservations:
           memory: 192M
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/api/v1/health"]
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8001/api/v1/health\")' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -319,7 +324,7 @@ services:
         reservations:
           memory: 192M
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3333/api/v1/health || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:3333/api/v1/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -355,7 +360,7 @@ services:
         reservations:
           memory: 256M
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3000 || exit 1"]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000', (res) => process.exit(res.statusCode < 400 ? 0 : 1)).on('error', () => process.exit(1))\""]
       interval: 30s
       timeout: 10s
       retries: 3
