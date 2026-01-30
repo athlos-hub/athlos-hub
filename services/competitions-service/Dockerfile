@@ -39,7 +39,10 @@ COPY --from=builder --chown=appuser:appuser /usr/local/bin /usr/local/bin
 COPY --from=builder --chown=appuser:appuser /app/services/competitions-service/src ./src
 COPY --from=builder --chown=appuser:appuser /app/libs /app/libs
 
-# ensure runtime files are owned by non-root user
+COPY --chown=appuser:appuser services/competitions-service/entrypoint.sh ./entrypoint.sh
+COPY --chown=appuser:appuser services/competitions-service/alembic.ini ./alembic.ini
+COPY --chown=appuser:appuser services/competitions-service/alembic ./alembic
+
 RUN chown -R appuser:appuser /app
 
 USER appuser
@@ -50,4 +53,6 @@ ENV PYTHONPATH=/app:/app/libs/common:/app/libs/database
 
 EXPOSE 8001
 
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "4"]
+RUN chmod +x /app/entrypoint.sh
+
+ENTRYPOINT ["/app/entrypoint.sh"]

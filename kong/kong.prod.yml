@@ -6,7 +6,7 @@ services:
     url: http://auth-service:8000
     routes:
       - name: auth-routes
-        paths: ["/api/v1/auth", "/api/v1/users", "/api/v1/organizations", "/api/v1/admin", "/api/v1/health"]
+        paths: ["/api/v1/auth", "/api/v1/users", "/api/v1/organizations", "/api/v1/admin"]
         strip_path: false
 
   - name: competitions-service
@@ -34,7 +34,6 @@ services:
       - name: livestream-routes
         paths: ["/api/v1/lives", "/api/v1/google-calendar", "/api/v1/webhooks"]
         strip_path: false
-      
       - name: livestream-socket
         paths:
           - /socket.io
@@ -61,7 +60,6 @@ services:
         plugins:
           - name: request-termination
             enabled: false
-        # SSE precisa de configurações especiais para evitar buffering
         request_buffering: false
         response_buffering: false
 
