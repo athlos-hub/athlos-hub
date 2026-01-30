@@ -88,7 +88,7 @@ class MatchesService:
                 "status": m.status,
                 "scheduled_datetime": m.scheduled_datetime,
                 "local": m.local,
-                "round_match_number": m.round_match_number,
+                "round_match_number": m.round_number_match,
                 "competition_name": m.competition.name,
                 "modality_name": m.competition.modality.name,
                 "home_team": m.home_team,
@@ -217,7 +217,7 @@ class MatchesService:
                 "status": m.status,
                 "scheduled_datetime": m.scheduled_datetime,
                 "local": m.local,
-                "round_match_number": m.round_match_number,
+                "round_match_number": m.round_number_match,
                 
                 # Contexto extra é útil aqui (qual campeonato é esse jogo?)
                 "competition_name": m.competition.name,
@@ -270,6 +270,15 @@ class MatchesService:
         # 4. Persiste
         self.session.add(match)
         await self.session.commit()
-        await self.session.refresh(match)
-        
-        return match
+
+        query_refresh = (
+            select(MatchModel)
+            .options(
+                selectinload(MatchModel.home_team),
+                selectinload(MatchModel.away_team),
+                selectinload(MatchModel.round)
+            )
+            .where(MatchModel.id == match_id)
+        )
+        result_refresh = await self.session.execute(query_refresh)
+        return result_refresh.scalar_one()
