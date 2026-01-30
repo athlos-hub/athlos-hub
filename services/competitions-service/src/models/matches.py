@@ -101,6 +101,14 @@ class MatchModel(Base):
     
     segments: Mapped[List["SegmentModel"]] = relationship("SegmentModel", back_populates="match", cascade="all, delete-orphan")
 
+    @property
+    def round_match_number(self) -> int:
+        return self.round_number_match
+
+    @round_match_number.setter
+    def round_match_number(self, value: int) -> None:
+        self.round_number_match = value
+
 class SegmentModel(Base):
     __tablename__ = "segments"
 
