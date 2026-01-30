@@ -8,22 +8,129 @@ from src.models import ModalityModel
 
 pytestmark = pytest.mark.asyncio
 
-async def test_service_create_modality():
+
+async def test_create_modality_success():
+    """Testa criação de modalidade com sucesso"""
     mock_session = AsyncMock(spec=AsyncSession)
     service = ModalityService(mock_session)
 
-    # 2. Dados de entrada
     modality_in = ModalityCreateSchema(name="Tênis", org_code="ATP")
 
-    # 3. Execução
+    # Execução
     result = await service.create_modality(modality_in)
 
-    # 4. Verificações
-    # Verifica se chamou session.add
+    # Verificações
     mock_session.add.assert_called_once()
-    # Verifica se chamou session.flush (para gerar ID)
     mock_session.flush.assert_called_once()
     
     assert isinstance(result, ModalityModel)
     assert result.name == "Tênis"
     assert result.org_code == "ATP"
+
+
+async def test_create_modality_football():
+    """Testa criação de modalidade Futebol"""
+    mock_session = AsyncMock(spec=AsyncSession)
+    service = ModalityService(mock_session)
+
+    modality_in = ModalityCreateSchema(name="Futebol", org_code="CBF")
+
+    # Execução
+    result = await service.create_modality(modality_in)
+
+    # Verificações
+    mock_session.add.assert_called_once()
+    mock_session.flush.assert_called_once()
+    
+    assert result.name == "Futebol"
+    assert result.org_code == "CBF"
+
+
+async def test_get_all_modalities():
+    """Testa listagem de todas as modalidades"""
+    mock_session = AsyncMock(spec=AsyncSession)
+    service = ModalityService(mock_session)
+
+    # Mock de modalidades
+    mock_modalities = [
+        ModalityModel(id=1, name="Futebol", org_code="ORG1"),
+        ModalityModel(id=2, name="Basquete", org_code="ORG1"),
+        ModalityModel(id=3, name="Vôlei", org_code="ORG2"),
+    ]
+
+    # Configurar mock corretamente para chamadas encadeadas assíncronas
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = mock_modalities
+    mock_session.execute.return_value = mock_result
+
+    # Execução
+    result = await service.get_all_modalities(offset=0, limit=10)
+
+    # Verificações
+    assert len(result) == 3
+    assert result[0].name == "Futebol"
+    assert result[1].name == "Basquete"
+    assert result[2].org_code == "ORG2"
+    mock_session.execute.assert_called_once()
+
+
+async def test_get_all_modalities_with_pagination():
+    """Testa listagem com paginação"""
+    mock_session = AsyncMock(spec=AsyncSession)
+    service = ModalityService(mock_session)
+
+    mock_modalities = [
+        ModalityModel(id=11, name="Natação", org_code="ORG1"),
+        ModalityModel(id=12, name="Atletismo", org_code="ORG1"),
+    ]
+
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = mock_modalities
+    mock_session.execute.return_value = mock_result
+
+    # Execução
+    result = await service.get_all_modalities(offset=10, limit=2)
+
+    # Verificações
+    assert len(result) == 2
+    assert result[0].name == "Natação"
+    assert result[1].name == "Atletismo"
+    mock_session.execute.assert_called_once()
+
+
+async def test_get_all_modalities_empty():
+    """Testa listagem quando não há modalidades"""
+    mock_session = AsyncMock(spec=AsyncSession)
+    service = ModalityService(mock_session)
+
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = []
+    mock_session.execute.return_value = mock_result
+
+    # Execução
+    result = await service.get_all_modalities()
+
+    # Verificações
+    assert len(result) == 0
+    mock_session.execute.assert_called_once()
+
+
+async def test_get_all_modalities_default_params():
+    """Testa listagem com parâmetros padrão"""
+    mock_session = AsyncMock(spec=AsyncSession)
+    service = ModalityService(mock_session)
+
+    mock_modalities = [
+        ModalityModel(id=1, name="Futebol", org_code="ORG1"),
+    ]
+
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = mock_modalities
+    mock_session.execute.return_value = mock_result
+
+    # Execução sem passar offset e limit (usa os padrões)
+    result = await service.get_all_modalities()
+
+    # Verificações
+    assert len(result) == 1
+    mock_session.execute.assert_called_once()
