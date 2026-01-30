@@ -78,12 +78,8 @@ class TestAuthenticationServiceTokenDecoding:
     def test_decode_email_token_expired(self):
         """Test TokenExpiredError for expired token."""
         user_id = "test-user-123"
-        # Create token that expires immediately
-        token = AuthenticationService.generate_email_token(user_id, expiry_hours=0)
-        
-        # Wait a tiny bit to ensure expiration
-        import time
-        time.sleep(0.1)
+        # Create token that expires in the past (negative expiry)
+        token = AuthenticationService.generate_email_token(user_id, expiry_hours=-1)
         
         with pytest.raises(TokenExpiredError):
             AuthenticationService.decode_email_token(token)
