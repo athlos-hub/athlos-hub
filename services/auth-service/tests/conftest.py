@@ -7,10 +7,13 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from database.dependencies import get_session
+from auth_service.core.app import create_app
 from auth_service.infrastructure.database.base import Base
 from auth_service.infrastructure.database.models.user_model import User
 from auth_service.infrastructure.database.models.organization_model import (
@@ -162,3 +165,91 @@ def mock_keycloak_service():
     mock_service.remove_role = AsyncMock()
     mock_service.get_user = AsyncMock()
     return mock_service
+
+
+# Integration test fixtures
+
+@pytest_asyncio.fixture
+async def test_app(async_session):
+    """Create a test FastAPI application."""
+    app = create_app()
+    
+    async def override_get_session():
+        yield async_session
+    
+    app.dependency_overrides[get_session] = override_get_session
+    return app
+
+
+@pytest_asyncio.fixture
+async def client(test_app):
+    """Create an async HTTP client for testing."""
+    transport = ASGITransport(app=test_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+
+@pytest_asyncio.fixture
+async def test_user(async_session):
+    """Create a test user in the database."""
+    user = User(
+        id=uuid4(),
+        keycloak_id=str(uuid4()),
+        email="testuser@example.com",
+        username="testuser",
+        first_name="Test",
+        last_name="User",
+        enabled=True,
+        email_verified=True,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    async_session.add(user)
+    await async_session.commit()
+    await async_session.refresh(user)
+    return user
+
+
+@pytest_asyncio.fixture
+async def test_organization(async_session, test_user):
+    """Create a test organization in the database."""
+    org = Organization(
+        id=uuid4(),
+        name="Test Organization",
+        slug="test-organization",
+        description="A test organization",
+        owner_id=test_user.id,
+        privacy="PUBLIC",
+        join_policy="REQUEST_ONLY",
+        status="ACTIVE",
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    async_session.add(org)
+    
+    # Add owner as member
+    member = OrganizationMember(
+        id=uuid4(),
+        organization_id=org.id,
+        user_id=test_user.id,
+        status="ACTIVE",
+    )
+    async_session.add(member)
+    
+    await async_session.commit()
+    await async_session.refresh(org)
+    return org
+
+
+@pytest_asyncio.fixture
+async def authenticated_client(client, test_user):
+    """Create an authenticated HTTP client with Bearer token."""
+    from auth_service.domain.services.authentication_service import AuthenticationService
+    
+    # Generate a valid test token
+    token = AuthenticationService.generate_email_token(str(test_user.keycloak_id))
+    
+    # Add authorization header
+    client.headers.update({"Authorization": f"Bearer {token}"})
+    return client
+
