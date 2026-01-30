@@ -194,7 +194,9 @@ async def test_update_match_details_success():
 
     mock_result = MagicMock()
     mock_result.scalar_one_or_none.return_value = existing_match
-    mock_session.execute.return_value = mock_result
+    mock_result_refresh = MagicMock()
+    mock_result_refresh.scalar_one.return_value = existing_match
+    mock_session.execute.side_effect = [mock_result, mock_result_refresh]
 
     # Execução
     result = await service.update_match_details(match_id, update_data)
