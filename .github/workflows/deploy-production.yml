@@ -98,7 +98,6 @@ jobs:
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           script: |
             cd /home/${{ secrets.VPS_USERNAME }}/athlos-hub
-            cd /home/${{ secrets.VPS_USERNAME }}/athlos-hub
             
             echo "🔄 Fazendo backup do banco de dados..."
             docker exec athlos_postgres pg_dumpall -U postgres > backup_$(date +%Y%m%d_%H%M%S).sql || true
@@ -112,7 +111,6 @@ jobs:
             docker compose -f docker-compose.registry.yml pull
             
             echo "🔄 Reiniciando serviços..."
-            docker compose --env-file .env -f docker-compose.registry.yml up -d --force-recreate --remove-orphans
             docker compose --env-file .env -f docker-compose.registry.yml up -d --force-recreate --remove-orphans
             
             echo "🧹 Limpando imagens antigas..."
@@ -138,18 +136,15 @@ jobs:
             
             # Verificar se os principais serviços estão respondendo
             if ! docker ps --format "{{.Names}} {{.Status}}" | grep -q "athlos_frontend.*Up"; then
-            if ! docker ps --format "{{.Names}} {{.Status}}" | grep -q "athlos_frontend.*Up"; then
               echo "❌ Frontend não está rodando!"
               exit 1
             fi
             
             if ! docker ps --format "{{.Names}} {{.Status}}" | grep -q "athlos_auth_service.*Up"; then
-            if ! docker ps --format "{{.Names}} {{.Status}}" | grep -q "athlos_auth_service.*Up"; then
               echo "❌ Auth Service não está rodando!"
               exit 1
             fi
             
-            if ! docker ps --format "{{.Names}} {{.Status}}" | grep -q "athlos_kong_gateway.*Up"; then
             if ! docker ps --format "{{.Names}} {{.Status}}" | grep -q "athlos_kong_gateway.*Up"; then
               echo "❌ Kong não está rodando!"
               exit 1
@@ -171,14 +166,14 @@ jobs:
             sleep 10
             
             # Testar endpoint principal
-            if curl -f -s -o /dev/null -w "%{http_code}" https://athloshub.com.br | grep -q "200\|301\|302"; then
+            if curl -f -s -o /dev/null -w "%{http_code}" http://athloshub.com.br | grep -q "200\|301\|302"; then
               echo "✅ Frontend está respondendo!"
             else
               echo "⚠️ Frontend pode não estar respondendo corretamente"
             fi
             
             # Testar health do auth-service
-            if curl -f -s https://athloshub.com.br/api/v1/health; then
+            if curl -f -s http://athloshub.com.br/api/v1/health; then
               echo "✅ Auth Service health check OK!"
             else
               echo "⚠️ Auth Service health check falhou"
