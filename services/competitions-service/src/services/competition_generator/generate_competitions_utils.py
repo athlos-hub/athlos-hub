@@ -58,3 +58,11 @@ class CompetitionGeneratorUtils:
                 ))
         
         return segments
+
+_utils = CompetitionGeneratorUtils()
+
+def get_elimination_round_names(num_feeders: int) -> list:
+    return _utils.get_elimination_round_names(num_feeders)
+
+def create_segments_for_match(match_id: uuid.UUID, ruleset: SportRulesetModel) -> List[SegmentModel]:
+    return _utils.create_segments_for_match(match_id, ruleset)

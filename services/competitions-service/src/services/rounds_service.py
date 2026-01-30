@@ -78,7 +78,7 @@ class RoundsService:
                     "status": m.status,
                     "scheduled_datetime": m.scheduled_datetime,
                     "local": m.local,
-                    "round_match_number": m.round_match_number,
+                    "round_match_number": m.round_number_match,
                     "competition_name": m.competition.name,
                     "modality_name": m.competition.modality.name,
                     "home_team": m.home_team,
