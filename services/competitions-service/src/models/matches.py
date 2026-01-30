@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 # Enums para status
 class MatchStatus(str, enum.Enum):
+    PENDING = "pending"
     SCHEDULED = "scheduled" 
     LIVE = "live"           
     FINISHED = "finished"   
@@ -37,6 +38,7 @@ class RoundModel(Base):
     competition_id: Mapped[int] = mapped_column(ForeignKey("competitions.id"))    
     name: Mapped[str] = mapped_column(String(50)) 
 
+    competition: Mapped["CompetitionModel"] = relationship("CompetitionModel")
     matches: Mapped[List["MatchModel"]] = relationship("MatchModel", back_populates="round")
 
 class MatchModel(Base):
@@ -72,6 +74,7 @@ class MatchModel(Base):
     winner_team_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("teams.id"), nullable=True)
 
     # --- RELACIONAMENTOS (Objetos) ---
+    competition: Mapped["CompetitionModel"] = relationship("CompetitionModel")
     
     group: Mapped["GroupModel"] = relationship("GroupModel", back_populates="matches")
     round: Mapped["RoundModel"] = relationship("RoundModel", back_populates="matches")
