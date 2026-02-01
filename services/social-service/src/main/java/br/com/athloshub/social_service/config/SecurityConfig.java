@@ -48,48 +48,22 @@ public class SecurityConfig {
                 .requestMatchers("/api/social/health", "/api/social/info").permitAll()
                 .requestMatchers("/api/social/auth/public").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/api-docs/**").permitAll()
+                .requestMatchers("/api/social/feed/public").permitAll() // Feed público sem auth
                 
-                // TODO: Temporariamente permitindo tudo para desenvolvimento
-                // Depois vamos proteger: .requestMatchers("/api/social/**").authenticated()
-                .anyRequest().permitAll()
+                // Todos os outros endpoints requerem autenticação
+                .anyRequest().authenticated()
             )
             // OAuth2 Resource Server - valida JWT quando presente
             .oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(jwt -> jwt
                     .jwtAuthenticationConverter(jwtAuthenticationConverter())
                 )
-                // Importante: não retornar 401 se não houver token em endpoints públicos
-                .authenticationEntryPoint((request, response, authException) -> {
-                    // Se o endpoint é público, não enviar erro 401
-                    String requestUri = request.getRequestURI();
-                    if (isPublicEndpoint(requestUri)) {
-                        response.setStatus(200);
-                        return;
-                    }
-                    // Para endpoints protegidos, retornar 401
-                    response.setStatus(401);
-                    response.setHeader("WWW-Authenticate", "Bearer");
-                    response.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"Token JWT ausente ou inválido\"}");
-                })
             )
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             );
         
         return http.build();
-    }
-    
-    /**
-     * Verifica se o endpoint é público.
-     */
-    private boolean isPublicEndpoint(String uri) {
-        return uri.startsWith("/actuator/") ||
-               uri.startsWith("/swagger-ui/") ||
-               uri.startsWith("/v3/api-docs/") ||
-               uri.startsWith("/api-docs/") ||
-               uri.equals("/api/social/health") ||
-               uri.equals("/api/social/info") ||
-               uri.equals("/api/social/auth/public");
     }
     
     /**

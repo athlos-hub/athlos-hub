@@ -68,7 +68,7 @@ export const dropdownData: Record<string, DropdownData> = {
                 label: "Comunidade",
                 description: "Conecte-se com atletas",
                 subItems: [
-                    { label: "Feed", description: "Publicações recentes", href: "/comunidade/feed" },
+                    { label: "Feed", description: "Publicações recentes", href: "/social" },
                     { label: "Atletas", description: "Encontre atletas", href: "/comunidade/atletas" },
                     { label: "Clubes", description: "Descubra clubes", href: "/comunidade/clubes" },
                     { label: "Eventos", description: "Próximos eventos", href: "/comunidade/eventos" },
