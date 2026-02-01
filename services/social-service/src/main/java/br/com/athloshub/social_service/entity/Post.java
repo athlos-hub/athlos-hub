@@ -32,10 +32,12 @@ public class Post extends BaseEntity {
     @Column(columnDefinition = "jsonb")
     private Map<String, Object> metadata;
     
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private PostType type = PostType.TEXT;
     
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private PostVisibility visibility = PostVisibility.PUBLIC;
