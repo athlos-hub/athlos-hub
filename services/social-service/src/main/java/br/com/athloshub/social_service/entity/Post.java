@@ -18,8 +18,15 @@ import java.util.Map;
 @Builder
 public class Post extends BaseEntity {
     
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private ProfileType profileType;
+    
     @Column(nullable = false)
-    private String keycloakId;
+    private String profileId;
+    
+    @Column
+    private String createdByKeycloakId;
     
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
@@ -66,19 +73,26 @@ public class Post extends BaseEntity {
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Like> likes = new ArrayList<>();
     
+    public enum ProfileType {
+        ATHLETE,
+        ORGANIZATION,
+        TEAM
+    }
+    
     public enum PostType {
         TEXT,
         IMAGE,
         VIDEO,
         ACHIEVEMENT,
         EVENT,
-        TRAINING
+        TRAINING,
+        ANNOUNCEMENT
     }
     
     public enum PostVisibility {
         PUBLIC,
         FOLLOWERS,
         PRIVATE,
-        ORGANIZATION
+        MEMBERS_ONLY
     }
 }
