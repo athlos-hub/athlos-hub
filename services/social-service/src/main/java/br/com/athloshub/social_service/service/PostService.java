@@ -37,6 +37,10 @@ public class PostService {
         Map<String, Object> metadata
     ) {
         String keycloakId = jwtTokenProvider.getCurrentKeycloakId();
+        System.out.println("DEBUG - keycloakId from JWT: " + keycloakId);
+        System.out.println("DEBUG - isAuthenticated: " + jwtTokenProvider.isAuthenticated());
+        System.out.println("DEBUG - SecurityContext: " + org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication());
+        
         if (keycloakId == null) {
             throw new ResponseStatusException(UNAUTHORIZED, "Usuário não autenticado");
         }
