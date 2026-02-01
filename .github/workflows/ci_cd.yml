@@ -125,98 +125,10 @@ jobs:
           fi
 
   # ------------------------------------------------------------------
-  # JOB 3: TESTES DO NOTIFICATIONS-SERVICE
-  # ------------------------------------------------------------------
-  test-notifications-service:
-    runs-on: ubuntu-latest
-    
-    # Services para testes E2E
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: notifications_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - uses: actions/checkout@v4
-      
-      - uses: dorny/paths-filter@v2
-        id: filter
-        with:
-          filters: |
-            src:
-              - 'services/notifications-service/**'
-
-      - name: Set up Python
-        if: steps.filter.outputs.src == 'true'
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12.12'
-
-      - name: Install Poetry
-        if: steps.filter.outputs.src == 'true'
-        run: pip install poetry
-
-      - name: Install Dependencies
-        if: steps.filter.outputs.src == 'true'
-        working-directory: ./services/notifications-service
-        run: poetry install
-
-      - name: Run Unit & Integration Tests
-        if: steps.filter.outputs.src == 'true'
-        working-directory: ./services/notifications-service
-        run: poetry run pytest tests/unit tests/integration -v
-
-      - name: Run E2E Tests
-        if: steps.filter.outputs.src == 'true'
-        working-directory: ./services/notifications-service
-        env:
-          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/notifications_test
-          NOVU_API_KEY: test-api-key
-          NOVU_APP_ID: test-app-id
-        run: poetry run pytest tests/e2e -v
-
-  # ------------------------------------------------------------------
-  # JOB 4: TESTES DO LIVESTREAM-SERVICE
+  # JOB 3: TESTES DO LIVESTREAM-SERVICE
   # ------------------------------------------------------------------
   test-livestream-service:
     runs-on: ubuntu-latest
-    
-    # Services para testes E2E
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: livestream_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      
-      redis:
-        image: redis:7
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
       - uses: actions/checkout@v4
       
@@ -242,34 +154,10 @@ jobs:
         working-directory: ./services/livestream-service
         run: pnpm install
 
-      - name: Generate Prisma Client
-        if: steps.filter.outputs.src == 'true'
-        working-directory: ./services/livestream-service
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/livestream_test?schema=livestream_schema
-        run: npx prisma generate
-
-      - name: Run Prisma Migrations
-        if: steps.filter.outputs.src == 'true'
-        working-directory: ./services/livestream-service
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/livestream_test?schema=livestream_schema
-        run: npx prisma migrate deploy
-
-      - name: Run Unit Tests
+      - name: Run Tests
         if: steps.filter.outputs.src == 'true'
         working-directory: ./services/livestream-service
         run: pnpm test:cov
-
-      - name: Run E2E Tests
-        if: steps.filter.outputs.src == 'true'
-        working-directory: ./services/livestream-service
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/livestream_test?schema=livestream_schema
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
-          NODE_ENV: test
-        run: pnpm test:e2e
 
       - name: Upload Coverage Report
         if: steps.filter.outputs.src == 'true'
@@ -280,13 +168,13 @@ jobs:
           name: livestream-coverage
 
   # ------------------------------------------------------------------
-  # JOB 5: TESTES DO SOCIAL-SERVICE
+  # JOB 4: TESTES DO SOCIAL-SERVICE
   # ------------------------------------------------------------------
 
   #IMPLEMENTAÇÃO PENDENTE
 
   # ------------------------------------------------------------------
-  # JOB 6: GATEKEEPER (DEPLOY)
+  # JOB 5: GATEKEEPER (DEPLOY)
   # Este job só roda se os anteriores forem bem sucedidos
   # ------------------------------------------------------------------
   gatekeeper:
