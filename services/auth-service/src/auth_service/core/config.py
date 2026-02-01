@@ -27,7 +27,7 @@ class Settings(BaseSettings):
 
     # Keycloak
     KEYCLOAK_URL: str
-    KEYCLOAK_ISSUER: str = "http://athloshub.com.br/keycloak"
+    KEYCLOAK_ISSUER: str = "https://athloshub.com.br/keycloak"
     KEYCLOAK_REALM: str
     KEYCLOAK_CLIENT_ID: str
     KEYCLOAK_CLIENT_SECRET: str
@@ -88,7 +88,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "%(levelname)s:%(name)s:%(message)s"
 
-    NOTIFICATIONS_SERVICE_URL: str = "http://athloshub.com.br"
+    NOTIFICATIONS_SERVICE_URL: str = "https://athloshub.com.br"
 
     # Bucket S3
     AWS_BUCKET_REGION: str
