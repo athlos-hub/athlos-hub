@@ -34,35 +34,35 @@ class Settings(BaseSettings):
     # Admin creds for Keycloak (optional for runtime; Keycloak itself may manage admin user)
     KEYCLOAK_ADMIN_USERNAME: Optional[str] = None
     KEYCLOAK_ADMIN_PASSWORD: Optional[str] = None
-    ALGORITHM: str
+    ALGORITHM: str = Field(default="RS256")
 
     # Google OAuth
-    GOOGLE_CLIENT_ID: str
-    GOOGLE_CLIENT_SECRET: str
-    GOOGLE_REDIRECT_URI: str
+    GOOGLE_CLIENT_ID: str = Field(default="test-google-id")
+    GOOGLE_CLIENT_SECRET: str = Field(default="test-google-secret")
+    GOOGLE_REDIRECT_URI: str = Field(default="http://localhost:3000/auth/callback")
 
     # API
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000
 
     # Segurança
-    SECRET_KEY: str
-    ACCESS_TOKEN_EXPIRE_MINUTES: int
+    SECRET_KEY: str = Field(default="test-secret-key-for-development")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=60)
 
     # Banco de dados
-    DATABASE_HOST: str
-    DATABASE_PORT: int
-    DATABASE_NAME: str
+    DATABASE_HOST: str = Field(default="localhost")
+    DATABASE_PORT: int = Field(default=5432)
+    DATABASE_NAME: str = Field(default="auth_db")
 
     # Conexão com o keycloak
-    KEYCLOAK_DATABASE_URL: str
-    KEYCLOAK_DATABASE_USER: str
-    KEYCLOAK_DATABASE_PASSWORD: str
+    KEYCLOAK_DATABASE_URL: str = Field(default="sqlite+aiosqlite:///:memory:")
+    KEYCLOAK_DATABASE_USER: str = Field(default="test_user")
+    KEYCLOAK_DATABASE_PASSWORD: str = Field(default="test_password")
 
     # Conexão com o schema de auth
-    AUTH_DATABASE_USER: str
-    AUTH_DATABASE_PASSWORD: str
-    AUTH_DATABASE_URL: Optional[str] = None
+    AUTH_DATABASE_USER: str = Field(default="test_user")
+    AUTH_DATABASE_PASSWORD: str = Field(default="test_password")
+    AUTH_DATABASE_URL: Optional[str] = Field(default="sqlite+aiosqlite:///:memory:")
     AUTH_DATABASE_SCHEMA: Optional[str] = None
 
     # Database Pool (optional with sensible defaults)
@@ -77,8 +77,8 @@ class Settings(BaseSettings):
     FRONTEND_URL: Optional[str] = None
 
     # Email Resend
-    EMAIL_TOKEN_SECRET: str
-    RESEND_API_KEY: str
+    EMAIL_TOKEN_SECRET: str = Field(default="test-email-secret")
+    RESEND_API_KEY: str = Field(default="test-resend-key")
 
     # Rate Limiting (optional)
     RATE_LIMIT_ENABLED: bool = False
@@ -91,10 +91,10 @@ class Settings(BaseSettings):
     NOTIFICATIONS_SERVICE_URL: str = "https://athloshub.com.br"
 
     # Bucket S3
-    AWS_BUCKET_REGION: str
-    AWS_BUCKET_NAME: str
-    AWS_BUCKET_ACCESS_KEY_ID: str
-    AWS_BUCKET_SECRET_ACCESS_KEY: str
+    AWS_BUCKET_REGION: str = Field(default="us-east-1")
+    AWS_BUCKET_NAME: str = Field(default="test-bucket")
+    AWS_BUCKET_ACCESS_KEY_ID: str = Field(default="test-key-id")
+    AWS_BUCKET_SECRET_ACCESS_KEY: str = Field(default="test-secret-key")
     # Normalize ENV values (support 'production'/'prod' and 'development'/'dev')
     @field_validator("ENV", mode="before")
     def _normalize_env(cls, v):
