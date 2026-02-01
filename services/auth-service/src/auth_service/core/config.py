@@ -26,11 +26,11 @@ class Settings(BaseSettings):
     ENV: str = Field(default="dev", alias="env")
 
     # Keycloak
-    KEYCLOAK_URL: str = Field(default="http://localhost:8080")
-    KEYCLOAK_ISSUER: str = "http://athloshub.com.br/keycloak"
-    KEYCLOAK_REALM: str = Field(default="sports")
-    KEYCLOAK_CLIENT_ID: str = Field(default="test-client")
-    KEYCLOAK_CLIENT_SECRET: str = Field(default="test-secret")
+    KEYCLOAK_URL: str
+    KEYCLOAK_ISSUER: str = "https://athloshub.com.br/keycloak"
+    KEYCLOAK_REALM: str
+    KEYCLOAK_CLIENT_ID: str
+    KEYCLOAK_CLIENT_SECRET: str
     # Admin creds for Keycloak (optional for runtime; Keycloak itself may manage admin user)
     KEYCLOAK_ADMIN_USERNAME: Optional[str] = None
     KEYCLOAK_ADMIN_PASSWORD: Optional[str] = None
@@ -88,7 +88,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "%(levelname)s:%(name)s:%(message)s"
 
-    NOTIFICATIONS_SERVICE_URL: str = "http://athloshub.com.br"
+    NOTIFICATIONS_SERVICE_URL: str = "https://athloshub.com.br"
 
     # Bucket S3
     AWS_BUCKET_REGION: str = Field(default="us-east-1")

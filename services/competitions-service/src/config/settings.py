@@ -3,16 +3,16 @@ from typing import List, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
-# Lógica de caminhos para encontrar o .env.production na raiz do monorepo
 CURRENT_DIR = Path(__file__).resolve().parent 
-# Sobe: config -> src -> competitions-service -> services -> athlos-hub
-MONOREPO_ROOT = CURRENT_DIR.parent.parent.parent.parent.parent
+SERVICE_ROOT = CURRENT_DIR.parent.parent
+MONOREPO_ROOT = SERVICE_ROOT.parent.parent
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=[
             MONOREPO_ROOT / ".env",
             MONOREPO_ROOT / ".env.production",
+            SERVICE_ROOT / ".env",
         ],
         env_file_encoding='utf-8',
         extra="ignore"
@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     COMPETITIONS_DATABASE_PASSWORD: str = Field(default="test_password")
     COMPETITIONS_DATABASE_URL: str = Field(default="sqlite+aiosqlite:///:memory:")
     COMPETITIONS_DATABASE_SCHEMA: str = Field(default="public")
+
+    LIVESTREAM_SERVICE_URL: str = Field(default="http://localhost:3333")
+    LIVESTREAM_SERVICE_TIMEOUT: int = Field(default=10)
 
     DB_POOL_MIN_SIZE: int = Field(default=2)
     DB_POOL_MAX_SIZE: int = Field(default=10)
