@@ -1,5 +1,6 @@
 package br.com.athloshub.social_service.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -15,6 +16,7 @@ public class Comment extends BaseEntity {
     @Column(nullable = false)
     private String keycloakId;
     
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id", nullable = false)
     private Post post;

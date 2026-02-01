@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getPublicFeed } from "@/lib/api/social";
+import { getPublicFeed } from "@/actions/social-feed";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SocialFeedClient } from "@/components/social";
 

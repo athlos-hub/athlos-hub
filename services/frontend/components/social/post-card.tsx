@@ -10,6 +10,8 @@ import { Post, PostType, ProfileType } from "@/types/social";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { getOrganizationBySlug } from "@/actions/organizations";
+import { togglePostLike, getPostLikeStatus } from "@/actions/social-likes";
+import { useSession } from "next-auth/react";
 
 interface PostCardProps {
     post: Post;
@@ -26,8 +28,10 @@ interface ProfileInfo {
 }
 
 export function PostCard({ post, onLike, onComment, onDelete, isLiked = false }: PostCardProps) {
+    const { data: session } = useSession();
     const [liked, setLiked] = useState(isLiked);
-    const [likesCount, setLikesCount] = useState(post.likesCount);
+    const [likesCount, setLikesCount] = useState(post.likesCount ?? 0);
+    const [isLiking, setIsLiking] = useState(false);
     const [profileInfo, setProfileInfo] = useState<ProfileInfo>({
         name: post.profileId,
     });
@@ -50,10 +54,47 @@ export function PostCard({ post, onLike, onComment, onDelete, isLiked = false }:
         fetchProfileInfo();
     }, [post.profileId, post.profileType]);
 
+    useEffect(() => {
+        async function fetchLikeStatus() {
+            if (!session?.user) return;
+            
+            try {
+                const status = await getPostLikeStatus(post.id);
+                setLiked(status.isLiked ?? false);
+                setLikesCount(status.likesCount ?? 0);
+            } catch (error) {
+                console.error('Failed to fetch like status:', error);
+            }
+        }
+        fetchLikeStatus();
+    }, [post.id, session?.user]);
+
     const handleLike = async () => {
+        if (!session?.user) {
+            return;
+        }
+
+        if (isLiking) return;
+
+        setIsLiking(true);
+        const previousLiked = liked;
+        const previousCount = likesCount;
+
         setLiked(!liked);
         setLikesCount(liked ? likesCount - 1 : likesCount + 1);
-        onLike?.();
+
+        try {
+            const result = await togglePostLike(post.id);
+            setLiked(result.isLiked ?? !previousLiked);
+            setLikesCount(result.likesCount ?? (previousLiked ? previousCount - 1 : previousCount + 1));
+            onLike?.();
+        } catch (error) {
+            console.error('Failed to toggle like:', error);
+            setLiked(previousLiked);
+            setLikesCount(previousCount);
+        } finally {
+            setIsLiking(false);
+        }
     };
 
     const getProfileBadge = () => {
@@ -143,15 +184,16 @@ export function PostCard({ post, onLike, onComment, onDelete, isLiked = false }:
                     size="sm"
                     className="gap-2"
                     onClick={handleLike}
+                    disabled={isLiking}
                 >
                     <Heart
-                        className={`h-4 w-4 ${liked ? "fill-red-500 text-red-500" : ""}`}
+                        className={`h-4 w-4 transition-colors ${liked ? "fill-red-500 text-red-500" : ""}`}
                     />
                     <span className="text-xs">{likesCount}</span>
                 </Button>
                 <Button variant="ghost" size="sm" className="gap-2" onClick={onComment}>
                     <MessageCircle className="h-4 w-4" />
-                    <span className="text-xs">{post.commentsCount}</span>
+                    <span className="text-xs">{post.commentsCount ?? 0}</span>
                 </Button>
                 <Button variant="ghost" size="sm" className="gap-2">
                     <Share2 className="h-4 w-4" />

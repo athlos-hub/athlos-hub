@@ -6,10 +6,11 @@ import { ProfileContext } from "./profile-selector";
 import { CreatePostDialog } from "./create-post-dialog";
 import { SocialHeader } from "./social-header";
 import { Post, CreatePostPayload } from "@/types/social";
-import { getPublicFeed, toggleLike, createOrganizationPost, createTeamPost } from "@/lib/api/social";
+import { getPublicFeed } from "@/actions/social-feed";
 import { getMyOrganizations } from "@/actions/organizations";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
+import { createOrganizationPost, createTeamPost } from "@/actions/social-posts";
 
 interface SocialFeedClientProps {
     initialPosts: Post[];
@@ -57,16 +58,14 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
         const result = await getPublicFeed(page, 10);
         return result.content;
     };
-
-    const handleLike = async (postId: string) => {
-        await toggleLike(postId);
+    const handleLike = async (_postId: string) => {
     };
 
     const handleCreatePost = async (payload: CreatePostPayload) => {
         if (selectedProfile.type === 'organization') {
-            await createOrganizationPost(selectedProfile.id, payload);
+            await createOrganizationPost(selectedProfile.id, payload.content, payload.mediaUrls, payload.metadata);
         } else if (selectedProfile.type === 'team') {
-            await createTeamPost(selectedProfile.id, payload);
+            await createTeamPost(selectedProfile.id, payload.content, payload.mediaUrls, payload.metadata);
         } else {
             toast.error("Atletas não podem criar posts manualmente");
             return;
@@ -79,7 +78,6 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
 
     return (
         <div className="space-y-6">
-            {/* Header with ProfileSelector */}
             <SocialHeader
                 selectedProfile={selectedProfile}
                 onProfileChange={setSelectedProfile}
@@ -93,7 +91,6 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
                 canCreatePost={canCreatePost}
             />
 
-            {/* Create Post Dialog */}
             <CreatePostDialog
                 open={showCreatePost}
                 onOpenChange={setShowCreatePost}
@@ -102,7 +99,6 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
                 onSubmit={handleCreatePost}
             />
 
-            {/* Feed */}
             <Feed
                 initialPosts={initialPosts}
                 loadMore={loadMore}
