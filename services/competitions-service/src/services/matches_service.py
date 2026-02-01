@@ -5,11 +5,14 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy import and_, or_
 from datetime import datetime, timedelta, time
 from fastapi import HTTPException
+from typing import List
 
 from src.models.matches import MatchModel, MatchStatus
 from src.models.competition import CompetitionModel
 from src.models.modality import ModalityModel 
 from src.schemas.matches_schema import MatchPeriodFilter, MatchUpdateRequest
+from sqlalchemy.orm import selectinload
+from src.schemas.matches_schema import MatchDetailResponse, TeamBasicInfo, MultipleMatchesDetailResponse
 
 class MatchesService:
     def __init__(self, session: AsyncSession):
@@ -282,3 +285,95 @@ class MatchesService:
         )
         result_refresh = await self.session.execute(query_refresh)
         return result_refresh.scalar_one()
+
+    async def get_match_details_by_id(self, match_id: uuid.UUID) -> MatchDetailResponse:
+        """
+        Busca detalhes completos de uma partida por ID.
+        Carrega todos os relacionamentos necessários (times, rodada, grupo, competição).
+        """
+        from src.models.matches import MatchModel
+        
+        stmt = (
+            select(MatchModel)
+            .where(MatchModel.id == match_id)
+            .options(
+                selectinload(MatchModel.home_team),
+                selectinload(MatchModel.away_team),
+                selectinload(MatchModel.round),
+                selectinload(MatchModel.group),
+                selectinload(MatchModel.competition)
+            )
+        )
+        
+        result = await self.session.execute(stmt)
+        match = result.scalar_one_or_none()
+        
+        if not match:
+            raise HTTPException(status_code=404, detail="Partida não encontrada")
+        
+        return self._build_match_detail_response(match)
+    
+    async def get_matches_details_by_ids(self, match_ids: List[uuid.UUID]) -> List[MatchDetailResponse]:
+        """
+        Busca detalhes de múltiplas partidas de uma vez.
+        Otimizado com eager loading para evitar N+1 queries.
+        """
+        from src.models.matches import MatchModel
+        
+        stmt = (
+            select(MatchModel)
+            .where(MatchModel.id.in_(match_ids))
+            .options(
+                selectinload(MatchModel.home_team),
+                selectinload(MatchModel.away_team),
+                selectinload(MatchModel.round),
+                selectinload(MatchModel.group),
+                selectinload(MatchModel.competition)
+            )
+        )
+        
+        result = await self.session.execute(stmt)
+        matches = result.scalars().all()
+        
+        return [self._build_match_detail_response(match) for match in matches]
+    
+    def _build_match_detail_response(self, match: "MatchModel") -> MatchDetailResponse:
+        """
+        Constrói o response com todos os dados necessários para o frontend.
+        """
+        status_value = match.status.value if hasattr(match.status, 'value') else str(match.status)
+        
+        return MatchDetailResponse(
+            id=match.id,
+            competition_id=match.competition_id,
+            
+            # Times
+            home_team=TeamBasicInfo(
+                id=match.home_team.id,
+                name=match.home_team.name,
+                logo=getattr(match.home_team, 'logo', None)
+            ) if match.home_team else None,
+            
+            away_team=TeamBasicInfo(
+                id=match.away_team.id,
+                name=match.away_team.name,
+                logo=getattr(match.away_team, 'logo', None)
+            ) if match.away_team else None,
+            
+            # Informações da partida
+            scheduled_datetime=match.scheduled_datetime,
+            local=match.local,
+            status=status_value,
+            
+            # Placar
+            home_score=match.home_score,
+            away_score=match.away_score,
+            
+            # Rodada/Grupo
+            round_name=match.round.name if match.round else None,
+            group_name=match.group.name if match.group else None,
+            round_number_match=match.round_number_match,
+            
+            # Competição
+            competition_name=match.competition.name if match.competition else None
+        )

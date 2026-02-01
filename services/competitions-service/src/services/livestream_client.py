@@ -1,0 +1,141 @@
+"""
+Cliente HTTP para comunicação com o Livestream Service
+"""
+import httpx
+import logging
+from typing import Optional, Dict, Any
+from uuid import UUID
+
+logger = logging.getLogger(__name__)
+
+
+class LivestreamClientError(Exception):
+    """Exceção base para erros do cliente Livestream"""
+    pass
+
+
+class LivestreamServiceUnavailable(LivestreamClientError):
+    """Exceção quando o serviço de livestream está indisponível"""
+    pass
+
+
+class LiveCreationFailed(LivestreamClientError):
+    """Exceção quando falha ao criar uma live"""
+    pass
+
+
+class LivestreamClient:
+    """Cliente para interagir com o Livestream Service"""
+    
+    def __init__(self, base_url: str, timeout: int = 10):
+        """
+        Args:
+            base_url: URL base do livestream-service (ex: http://localhost:3333)
+            timeout: Timeout em segundos para requisições
+        """
+        self.base_url = base_url.rstrip('/')
+        self.timeout = timeout
+        self._client: Optional[httpx.AsyncClient] = None
+    
+    async def __aenter__(self):
+        """Context manager para gerenciar o ciclo de vida do cliente"""
+        self._client = httpx.AsyncClient(
+            base_url=self.base_url,
+            timeout=self.timeout,
+            headers={
+                "Content-Type": "application/json"
+            }
+        )
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Fecha o cliente ao sair do contexto"""
+        if self._client:
+            await self._client.aclose()
+    
+    async def create_live(
+        self, 
+        external_match_id: UUID, 
+        organization_id: UUID
+    ) -> Dict[str, Any]:
+        """
+        Cria uma nova live no livestream-service
+        
+        Args:
+            external_match_id: ID da partida no competitions-service
+            organization_id: ID da organização
+            
+        Returns:
+            Dict com os dados da live criada
+            
+        Raises:
+            LivestreamServiceUnavailable: Se o serviço estiver inacessível
+            LiveCreationFailed: Se houver erro na criação da live
+        """
+        if not self._client:
+            raise RuntimeError("Cliente não inicializado. Use async with LivestreamClient()")
+        
+        payload = {
+            "externalMatchId": str(external_match_id),
+            "organizationId": str(organization_id)
+        }
+        
+        try:
+            logger.info(
+                f"Criando live para match {external_match_id} "
+                f"na organização {organization_id}"
+            )
+            
+            response = await self._client.post(
+                "/api/v1/lives",
+                json=payload
+            )
+            
+            response.raise_for_status()
+            
+            data = response.json()
+            logger.info(f"Live criada com sucesso: {data.get('id')}")
+            
+            return data
+            
+        except httpx.TimeoutException as e:
+            logger.error(f"Timeout ao criar live para match {external_match_id}: {e}")
+            raise LivestreamServiceUnavailable(
+                f"Livestream service timeout: {str(e)}"
+            ) from e
+            
+        except httpx.ConnectError as e:
+            logger.error(f"Erro de conexão com livestream service: {e}")
+            raise LivestreamServiceUnavailable(
+                f"Não foi possível conectar ao livestream service: {str(e)}"
+            ) from e
+            
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                f"Erro HTTP ao criar live para match {external_match_id}: "
+                f"Status {e.response.status_code} - {e.response.text}"
+            )
+            raise LiveCreationFailed(
+                f"Falha ao criar live: {e.response.status_code} - {e.response.text}"
+            ) from e
+            
+        except Exception as e:
+            logger.error(f"Erro inesperado ao criar live: {e}")
+            raise LiveCreationFailed(f"Erro inesperado: {str(e)}") from e
+    
+    async def health_check(self) -> bool:
+        """
+        Verifica se o livestream-service está acessível
+        
+        Returns:
+            True se o serviço está disponível, False caso contrário
+        """
+        if not self._client:
+            raise RuntimeError("Cliente não inicializado. Use async with LivestreamClient()")
+        
+        try:
+            response = await self._client.get("/api/v1/health", timeout=3)
+            return response.status_code == 200
+        except Exception as e:
+            logger.warning(f"Health check falhou: {e}")
+            return False
