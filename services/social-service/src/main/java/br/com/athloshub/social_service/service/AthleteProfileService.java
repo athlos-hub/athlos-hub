@@ -90,4 +90,53 @@ public class AthleteProfileService {
             .findFirst()
             .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Usuário não encontrado"));
     }
+    
+    @Transactional
+    public AthleteProfile updateProfile(String keycloakId, Map<String, Object> updates) {
+        AthleteProfile profile = getOrCreateProfile(keycloakId);
+        
+        if (updates.containsKey("bio")) profile.setBio((String) updates.get("bio"));
+        if (updates.containsKey("specialization")) profile.setSpecialization((String) updates.get("specialization"));
+        if (updates.containsKey("city")) profile.setCity((String) updates.get("city"));
+        if (updates.containsKey("state")) profile.setState((String) updates.get("state"));
+        if (updates.containsKey("country")) profile.setCountry((String) updates.get("country"));
+        if (updates.containsKey("isPublic")) profile.setIsPublic((Boolean) updates.get("isPublic"));
+        
+        return athleteProfileRepository.save(profile);
+    }
+    
+    @Transactional
+    public AthleteProfile updateBio(String keycloakId, String bio) {
+        AthleteProfile profile = getOrCreateProfile(keycloakId);
+        profile.setBio(bio);
+        return athleteProfileRepository.save(profile);
+    }
+    
+    @Transactional
+    public AthleteProfile updateAchievements(String keycloakId, Map<String, Object> achievements) {
+        AthleteProfile profile = getOrCreateProfile(keycloakId);
+        profile.setAchievements(achievements);
+        return athleteProfileRepository.save(profile);
+    }
+    
+    @Transactional
+    public AthleteProfile updateStatistics(String keycloakId, Map<String, Object> statistics) {
+        AthleteProfile profile = getOrCreateProfile(keycloakId);
+        profile.setStatistics(statistics);
+        return athleteProfileRepository.save(profile);
+    }
+    
+    @Transactional
+    public AthleteProfile updateSocialLinks(String keycloakId, Map<String, Object> socialLinks) {
+        AthleteProfile profile = getOrCreateProfile(keycloakId);
+        profile.setSocialLinks(socialLinks);
+        return athleteProfileRepository.save(profile);
+    }
+    
+    @Transactional
+    public AthleteProfile toggleProfileVisibility(String keycloakId, Boolean isPublic) {
+        AthleteProfile profile = getOrCreateProfile(keycloakId);
+        profile.setIsPublic(isPublic);
+        return athleteProfileRepository.save(profile);
+    }
 }

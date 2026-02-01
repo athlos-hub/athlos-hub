@@ -68,6 +68,8 @@ feign:
 services:
   auth-service:
     url: ${AUTH_SERVICE_URL:http://localhost:8000}
+  competitions-service:
+    url: ${COMPETITIONS_SERVICE_URL:http://localhost:8081}
 
 logging:
   level:

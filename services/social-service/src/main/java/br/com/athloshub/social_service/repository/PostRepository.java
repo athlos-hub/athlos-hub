@@ -8,16 +8,31 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.UUID;
 
 @Repository
 public interface PostRepository extends JpaRepository<Post, UUID> {
     
-    Page<Post> findByKeycloakIdOrderByCreatedAtDesc(String keycloakId, Pageable pageable);
+    Page<Post> findByProfileTypeAndProfileIdOrderByCreatedAtDesc(
+        Post.ProfileType profileType,
+        String profileId,
+        Pageable pageable
+    );
     
-    @Query("SELECT p FROM Post p WHERE p.keycloakId IN :keycloakIds AND p.visibility = 'PUBLIC' ORDER BY p.createdAt DESC")
-    Page<Post> findByKeycloakIdInOrderByCreatedAtDesc(@Param("keycloakIds") java.util.List<String> keycloakIds, Pageable pageable);
+    @Query("SELECT p FROM Post p WHERE p.profileType = :profileType AND p.profileId IN :profileIds AND p.visibility = 'PUBLIC' ORDER BY p.createdAt DESC")
+    Page<Post> findByProfileTypeAndProfileIdInOrderByCreatedAtDesc(
+        @Param("profileType") Post.ProfileType profileType,
+        @Param("profileIds") List<String> profileIds,
+        Pageable pageable
+    );
     
-    @Query("SELECT COUNT(p) FROM Post p WHERE p.keycloakId = :keycloakId")
-    long countByKeycloakId(@Param("keycloakId") String keycloakId);
+    @Query("SELECT COUNT(p) FROM Post p WHERE p.profileType = :profileType AND p.profileId = :profileId")
+    long countByProfileTypeAndProfileId(
+        @Param("profileType") Post.ProfileType profileType,
+        @Param("profileId") String profileId
+    );
+    
+    @Query("SELECT p FROM Post p WHERE p.visibility = 'PUBLIC' ORDER BY p.createdAt DESC")
+    Page<Post> findPublicPostsOrderByCreatedAtDesc(Pageable pageable);
 }

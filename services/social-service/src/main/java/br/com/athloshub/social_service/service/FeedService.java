@@ -24,7 +24,7 @@ public class FeedService {
     private final JwtTokenProvider jwtTokenProvider;
     
     @Transactional(readOnly = true)
-    public Page<Post> getFeed(Pageable pageable) {
+    public Page<Post> getMyFeed(Pageable pageable) {
         String keycloakId = jwtTokenProvider.getCurrentKeycloakId();
         if (keycloakId == null) {
             throw new ResponseStatusException(UNAUTHORIZED, "Usuário não autenticado");
@@ -33,6 +33,20 @@ public class FeedService {
         List<String> followingIds = followRepository.findFollowingIdsByKeycloakId(keycloakId);
         followingIds.add(keycloakId);
         
-        return postRepository.findByKeycloakIdInOrderByCreatedAtDesc(followingIds, pageable);
+        return postRepository.findByProfileTypeAndProfileIdInOrderByCreatedAtDesc(
+            Post.ProfileType.ATHLETE,
+            followingIds,
+            pageable
+        );
+    }
+    
+    @Transactional(readOnly = true)
+    public Page<Post> getPublicFeed(Pageable pageable) {
+        return postRepository.findPublicPostsOrderByCreatedAtDesc(pageable);
+    }
+    
+    @Transactional(readOnly = true)
+    public Page<Post> getFollowingFeed(Pageable pageable) {
+        return getMyFeed(pageable);
     }
 }
