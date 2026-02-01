@@ -45,6 +45,10 @@ spring:
           issuer-uri: ${KEYCLOAK_ISSUER_URI:${KEYCLOAK_ISSUER:http://localhost:8080}}/realms/${KEYCLOAK_REALM:athloshub}
           jwk-set-uri: ${KEYCLOAK_ISSUER_URI:${KEYCLOAK_ISSUER:http://localhost:8080}}/realms/${KEYCLOAK_REALM:athloshub}/protocol/openid-connect/certs
 
+# CORS Configuration
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001}
+
 server:
   port: ${SERVER_PORT:${API_PORT:8083}}
   error:
