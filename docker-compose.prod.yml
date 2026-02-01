@@ -221,12 +221,17 @@ services:
       dockerfile: services/competitions-service/Dockerfile
     environment:
       - RUN_MIGRATIONS=true
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=competitions_db
       - API_HOST=0.0.0.0
       - API_PORT=8001
       - SECRET_KEY=${SECRET_KEY}
       - KEYCLOAK_URL=${KEYCLOAK_URL}
       - KEYCLOAK_REALM=${KEYCLOAK_REALM}
       - ALGORITHM=${ALGORITHM}
+      - LIVESTREAM_SERVICE_URL=http://livestream-service:3333
+      - LIVESTREAM_SERVICE_TIMEOUT=10
       - COMPETITIONS_DATABASE_USER=${COMPETITIONS_DB_USER}
       - COMPETITIONS_DATABASE_PASSWORD=${COMPETITIONS_DB_PASSWORD}
       - COMPETITIONS_DATABASE_URL=postgresql+asyncpg://${COMPETITIONS_DB_USER}:${COMPETITIONS_DB_PASSWORD}@postgres:5432/competitions_db
@@ -346,6 +351,7 @@ services:
     environment:
       - NODE_ENV=production
       - API_BASE_URL=http://kong:8000/api/v1
+      - COMPETITIONS_API_URL=http://kong:8000/api/v1
       - NEXTAUTH_URL=${NEXTAUTH_URL}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
     depends_on:
