@@ -166,14 +166,14 @@ jobs:
             sleep 10
             
             # Testar endpoint principal
-            if curl -f -s -o /dev/null -w "%{http_code}" http://athloshub.com.br | grep -q "200\|301\|302"; then
+            if curl -f -s -o /dev/null -w "%{http_code}" https://athloshub.com.br | grep -q "200\|301\|302"; then
               echo "✅ Frontend está respondendo!"
             else
               echo "⚠️ Frontend pode não estar respondendo corretamente"
             fi
             
             # Testar health do auth-service
-            if curl -f -s http://athloshub.com.br/api/v1/health; then
+            if curl -f -s https://athloshub.com.br/api/v1/health; then
               echo "✅ Auth Service health check OK!"
             else
               echo "⚠️ Auth Service health check falhou"
