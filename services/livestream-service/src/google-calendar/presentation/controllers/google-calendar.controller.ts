@@ -34,6 +34,7 @@ export class GoogleCalendarController {
     const url = await this.googleCalendarService.generateCalendarUrl(
       dto.liveId,
       frontendBaseUrl,
+      dto.match,
     );
 
     return new CalendarUrlSingleResponseDto(url);
@@ -48,8 +49,9 @@ export class GoogleCalendarController {
       dto.frontendBaseUrl || process.env.FRONTEND_BASE_URL || 'http://localhost:3000';
 
     const results = await this.googleCalendarService.generateMultipleCalendarUrls(
-      dto.liveIds,
-      frontendBaseUrl,
+  dto.liveIds,
+  frontendBaseUrl,
+  (dto as any).matchesByLiveId,
     );
 
     return results.map((result) => new CalendarUrlResponseDto(result.liveId, result.url));
@@ -82,6 +84,7 @@ export class GoogleCalendarController {
       dto.liveId,
       frontendBaseUrl,
       dto.force === true,
+      dto.match,
     );
 
     return {
@@ -102,10 +105,11 @@ export class GoogleCalendarController {
       dto.frontendBaseUrl || process.env.FRONTEND_BASE_URL || 'http://localhost:3000';
 
     const results = await this.calendarApiService.createMultipleEvents(
-      user.sub,
-      dto.liveIds,
-      frontendBaseUrl,
-      dto.force === true,
+  user.sub,
+  dto.liveIds,
+  frontendBaseUrl,
+  dto.force === true,
+  (dto as any).matchesByLiveId,
     );
 
     return {

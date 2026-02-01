@@ -44,7 +44,7 @@ export function LivePlayer({ live }: LivePlayerProps) {
   return (
     <Card className="h-full flex flex-col">
       <CardContent className="p-0 flex-1 flex flex-col">
-        <div className="relative w-full flex-1 bg-gray-900 rounded-t-xl overflow-hidden">
+        <div className="relative w-full flex-1 bg-gray-900 rounded-xl overflow-hidden">
           {isLive ? (
             <>
               <HLSPlayer 
@@ -69,45 +69,6 @@ export function LivePlayer({ live }: LivePlayerProps) {
               </div>
             </div>
           )}
-        </div>
-
-        <div className="p-6 space-y-4">
-          <div>
-            <h2 className="text-2xl font-bold">Live #{live.id.slice(0, 8)}</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Partida: {live.externalMatchId}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-muted-foreground">Organização:</span>
-              <p className="font-medium mt-1">{live.organizationId}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Criada em:</span>
-              <p className="font-medium mt-1">
-                {new Date(live.createdAt).toLocaleString("pt-BR")}
-              </p>
-            </div>
-            {live.startedAt && (
-              <div>
-                <span className="text-muted-foreground">Iniciada em:</span>
-                <p className="font-medium mt-1">
-                  {new Date(live.startedAt).toLocaleString("pt-BR")}
-                </p>
-              </div>
-            )}
-            {live.endedAt && (
-              <div>
-                <span className="text-muted-foreground">Finalizada em:</span>
-                <p className="font-medium mt-1">
-                  {new Date(live.endedAt).toLocaleString("pt-BR")}
-                </p>
-              </div>
-            )}
-          </div>
-
         </div>
       </CardContent>
     </Card>

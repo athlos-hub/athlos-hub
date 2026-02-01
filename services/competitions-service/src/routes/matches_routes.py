@@ -6,7 +6,7 @@ import uuid
 
 from src.routes.routes import get_session
 from src.services.matches_service import MatchesService
-from src.schemas.matches_schema import MatchOrgResponse, MatchPeriodFilter, MatchResponse, MatchUpdateRequest
+from src.schemas.matches_schema import MatchOrgResponse, MatchPeriodFilter, MatchResponse, MatchUpdateRequest, MatchDetailResponse, MultipleMatchesDetailResponse
 from src.services.rounds_service import RoundsService
 from src.schemas.rounds_schema import RoundMatchesResponse
 
@@ -142,3 +142,53 @@ async def update_match(
 
     service = MatchesService(session)
     return await service.update_match_details(match_uuid, update_data)
+
+@router.get(
+    "/{match_id}",
+    response_model=MatchDetailResponse,
+    summary="Obter detalhes de uma partida específica"
+)
+async def get_match_by_id(
+    match_id: str,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Retorna os detalhes completos de uma partida incluindo:
+    - Informações dos times (nome, logo)
+    - Data/hora agendada
+    - Local
+    - Status
+    - Placar
+    - Rodada/Grupo
+    - Competição
+    """
+    try:
+        match_uuid = uuid.UUID(match_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="ID de jogo inválido.")
+    
+    service = MatchesService(session)
+    return await service.get_match_details_by_id(match_uuid)
+
+
+@router.post(
+    "/batch",
+    response_model=MultipleMatchesDetailResponse,
+    summary="Obter detalhes de múltiplas partidas"
+)
+async def get_matches_by_ids(
+    match_ids: List[str],
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Retorna os detalhes de múltiplas partidas de uma só vez.
+    Otimizado para reduzir chamadas quando se tem várias lives.
+    """
+    try:
+        match_uuids = [uuid.UUID(mid) for mid in match_ids]
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Um ou mais IDs de jogo são inválidos.")
+    
+    service = MatchesService(session)
+    matches = await service.get_matches_details_by_ids(match_uuids)
+    return MultipleMatchesDetailResponse(matches=matches)

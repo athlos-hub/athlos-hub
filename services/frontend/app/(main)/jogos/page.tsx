@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { LiveCard } from "@/components/livestream/live-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   listLives,
-  generateGoogleCalendarUrl,
-  generateMultipleGoogleCalendarUrls,
   getGoogleCalendarOAuthStatus,
   createGoogleCalendarEvent,
   createGoogleCalendarEventWithForce,
@@ -16,9 +13,11 @@ import {
   checkGoogleCalendarEventsExistence,
   getGoogleCalendarOAuthUrl,
 } from "@/actions/lives";
+import { getMatchesByIds } from "@/actions/matches";
 import type { Live } from "@/types/livestream";
+import type { LiveWithMatchData } from "@/types/combined";
 import { LiveStatus } from "@/types/livestream";
-import { Plus, Calendar, CalendarCheck, CalendarX, Filter } from "lucide-react";
+import { Calendar, CalendarCheck, Filter } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -33,7 +32,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 
 export default function LivesPage() {
-  const [allLives, setAllLives] = useState<Live[]>([]);
+  const [allLives, setAllLives] = useState<LiveWithMatchData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedLives, setSelectedLives] = useState<Set<string>>(new Set());
   const [isAddingToCalendar, setIsAddingToCalendar] = useState(false);
@@ -49,12 +48,36 @@ export default function LivesPage() {
   } | null>(null);
 
   useEffect(() => {
-    async function loadLives() {
+    async function loadLivesWithMatchData() {
       try {
-        const data = await listLives();
-        setAllLives(data);
+        const livesData = await listLives();
+        
+        const matchIds = livesData
+          .map((live) => live.externalMatchId)
+          .filter((id): id is string => id !== null && id !== undefined && id !== "");
+        
+        let matchesData: Record<string, any> = {};
+        if (matchIds.length > 0) {
+          try {
+            const matches = await getMatchesByIds(matchIds);
+            matchesData = matches.reduce((acc, match) => {
+              acc[match.id] = match;
+              return acc;
+            }, {} as Record<string, any>);
+          } catch (error) {
+            console.error("Erro ao buscar dados das partidas:", error);
+          }
+        }
+        
+        const livesWithMatch: LiveWithMatchData[] = livesData.map((live) => ({
+          ...live,
+          matchData: live.externalMatchId ? matchesData[live.externalMatchId] : undefined,
+        }));
+        
+        setAllLives(livesWithMatch);
       } catch (error) {
-        toast.error("Não foi possível carregar as lives");
+        toast.error("Não foi possível carregar os jogos");
+        console.error(error);
       } finally {
         setIsLoading(false);
       }
@@ -69,7 +92,7 @@ export default function LivesPage() {
       }
     }
 
-    loadLives();
+    loadLivesWithMatchData();
     checkGoogleCalendarAuth();
   }, []);
 
@@ -80,14 +103,18 @@ export default function LivesPage() {
       if (isGoogleCalendarAuthorized === false) return;
       if (allLives.length === 0) return;
 
-      const schedulableIds = allLives.filter((l) => l.status === LiveStatus.SCHEDULED).map((l) => l.id);
+      const schedulableIds = allLives
+        .filter((l) => l.status === LiveStatus.SCHEDULED)
+        .map((l) => l.id);
+      
       if (schedulableIds.length === 0) return;
 
       try {
-        const results: Array<{ liveId: string; exists: boolean; eventId: string; htmlLink: string }> = await checkGoogleCalendarEventsExistence(schedulableIds);
+        const results = await checkGoogleCalendarEventsExistence(schedulableIds);
         const set = new Set<string>(results.filter((r) => r.exists).map((r) => r.liveId));
         setCalendarEventSet(set);
       } catch (error) {
+        console.error("Erro ao verificar eventos no calendário:", error);
       }
     }
 
@@ -102,7 +129,7 @@ export default function LivesPage() {
       [LiveStatus.CANCELLED]: 3,
     };
 
-    const sortByStatus = (a: Live, b: Live) => {
+    const sortByStatus = (a: LiveWithMatchData, b: LiveWithMatchData) => {
       const priorityA = statusPriority[a.status] ?? 99;
       const priorityB = statusPriority[b.status] ?? 99;
       return priorityA - priorityB;
@@ -126,6 +153,16 @@ export default function LivesPage() {
       return;
     }
 
+    if (checked && live?.matchData?.scheduled_datetime) {
+      const matchDate = new Date(live.matchData.scheduled_datetime);
+      const now = new Date();
+      
+      if (matchDate <= now) {
+        toast.warning("Não é possível adicionar jogos que já começaram ao calendário");
+        return;
+      }
+    }
+
     const newSelected = new Set(selectedLives);
     if (checked) {
       newSelected.add(liveId);
@@ -137,8 +174,33 @@ export default function LivesPage() {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const schedulableLives = lives.filter((live) => live.status === LiveStatus.SCHEDULED);
-      setSelectedLives(new Set(schedulableLives.map((live) => live.id)));
+      const now = new Date();
+      const schedulableLivesWithDatetime = lives.filter((live) => {
+        if (live.status !== LiveStatus.SCHEDULED) return false;
+        if (!live.matchData?.scheduled_datetime) return false;
+        const matchDate = new Date(live.matchData.scheduled_datetime);
+        return matchDate > now;
+      });
+
+      const totalSchedulable = lives.filter((live) => live.status === LiveStatus.SCHEDULED).length;
+      const selectedCount = schedulableLivesWithDatetime.length;
+      const excludedCount = totalSchedulable - selectedCount;
+
+      if (selectedCount === 0) {
+        toast.error("Nenhuma live agendada com horário definido para selecionar");
+        setSelectedLives(new Set());
+        return;
+      }
+
+      if (excludedCount > 0) {
+        if (selectedCount === 1) {
+          toast.warning(`${selectedCount} jogo com horário definido foi selecionado; ${excludedCount} jogo(s) sem horário foram ignorados`);
+        } else {
+          toast.warning(`${selectedCount} jogos com horário definido foram selecionados; ${excludedCount} jogo(s) sem horário foram ignorados`);
+        }
+      }
+
+      setSelectedLives(new Set(schedulableLivesWithDatetime.map((live) => live.id)));
     } else {
       setSelectedLives(new Set());
     }
@@ -151,6 +213,18 @@ export default function LivesPage() {
       return;
     }
 
+    if (!live.matchData?.scheduled_datetime) {
+      toast.warning("Apenas lives agendadas com horário definido podem ser adicionadas ao calendário");
+      return;
+    }
+
+    const matchDate = new Date(live.matchData.scheduled_datetime);
+    const now = new Date();
+    if (matchDate <= now) {
+      toast.error("Não é possível adicionar jogos que já começaram ao calendário");
+      return;
+    }
+
     try {
       setIsAddingToCalendar(true);
 
@@ -160,13 +234,14 @@ export default function LivesPage() {
         return;
       }
 
-      const result = await createGoogleCalendarEvent(liveId);
+  const result = await createGoogleCalendarEvent(liveId, live.matchData);
 
       if (result.alreadyExists) {
         setPendingLiveToForce(liveId);
         setShowAlreadyAddedDialog(true);
       } else {
         toast.success("Evento adicionado ao Google Calendar com sucesso!");
+        setCalendarEventSet((prev) => new Set([...prev, liveId]));
       }
       
     } catch (error) {
@@ -185,9 +260,14 @@ export default function LivesPage() {
   };
 
   const handleAddMultipleToCalendar = async () => {
+    const now = new Date();
     const schedulableIds = Array.from(selectedLives).filter((id) => {
       const live = allLives.find((l) => l.id === id);
-      return live?.status === LiveStatus.SCHEDULED;
+      return (
+        live?.status === LiveStatus.SCHEDULED &&
+        !!live.matchData?.scheduled_datetime &&
+        new Date(live.matchData.scheduled_datetime) > now
+      );
     });
 
     if (schedulableIds.length === 0) {
@@ -234,7 +314,13 @@ export default function LivesPage() {
     try {
       setIsAddingToCalendar(true);
 
-      const result = await createMultipleGoogleCalendarEvents(liveIds, forceAll);
+      const matchesByLiveId: Record<string, any> = {};
+      for (const id of liveIds) {
+        const l = allLives.find((x) => x.id === id);
+        if (l?.matchData) matchesByLiveId[id] = l.matchData;
+      }
+
+      const result = await createMultipleGoogleCalendarEvents(liveIds, forceAll, matchesByLiveId);
 
       const newEventsCount = result.results.filter((r) => r.success && !r.alreadyExists).length;
       const existingEventsCount = result.results.filter((r) => r.success && r.alreadyExists).length;
@@ -294,9 +380,11 @@ export default function LivesPage() {
 
     try {
       setIsAddingToCalendar(true);
-      const result = await createGoogleCalendarEventWithForce(pendingLiveToForce, true);
+  const liveToForce = allLives.find((l) => l.id === pendingLiveToForce);
+  const result = await createGoogleCalendarEventWithForce(pendingLiveToForce, true, liveToForce?.matchData);
       if (result.success) {
         toast.success('Evento adicionado ao Google Calendar com sucesso!');
+        setCalendarEventSet((prev) => new Set([...prev, pendingLiveToForce]));
       } else {
         toast.error('Não foi possível adicionar o evento');
       }
@@ -312,162 +400,158 @@ export default function LivesPage() {
 
   const schedulableLives = lives.filter((live) => live.status === LiveStatus.SCHEDULED);
   const hasSelection = selectedLives.size > 0;
-  const allSelected = schedulableLives.length > 0 && selectedLives.size === schedulableLives.length;
+  const now = new Date();
+  const schedulableLivesWithDatetime = schedulableLives.filter((live) => {
+    return !!live.matchData?.scheduled_datetime && new Date(live.matchData.scheduled_datetime) > now;
+  });
+  const allSelected = schedulableLivesWithDatetime.length > 0 && selectedLives.size === schedulableLivesWithDatetime.length;
 
   return (
     <>
-    <div className="min-h-screen space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Jogos</h1>
-          <p className="text-muted-foreground mt-1">
-            Assista as transmissões ao vivo da sua equipe preferida
-          </p>
-        </div>
-        <Link href="/jogos/new">
-          <Button className="gap-2 bg-main hover:bg-main/90 text-white">
-            <Plus className="w-4 h-4" />
-            Nova Live
-          </Button>
-        </Link>
-      </div>
-
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-        <div className="flex items-center gap-4">
-          <Filter className="w-5 h-5 text-gray-600" />
-          <div className="flex gap-2">
-            <button
-              onClick={() => setStatusFilter("all")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                statusFilter === "all"
-                  ? "bg-main text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              Todas
-            </button>
-            <button
-              onClick={() => setStatusFilter(LiveStatus.SCHEDULED)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                statusFilter === LiveStatus.SCHEDULED
-                  ? "bg-main text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              Agendadas
-            </button>
-            <button
-              onClick={() => setStatusFilter(LiveStatus.LIVE)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                statusFilter === LiveStatus.LIVE
-                  ? "bg-main text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              Ao Vivo
-            </button>
-            <button
-              onClick={() => setStatusFilter(LiveStatus.FINISHED)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                statusFilter === LiveStatus.FINISHED
-                  ? "bg-main text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              Finalizadas
-            </button>
+      <div className="min-h-screen space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Jogos</h1>
+            <p className="text-muted-foreground mt-1">
+              Assista as transmissões ao vivo da sua equipe preferida
+            </p>
           </div>
         </div>
-      </div>
 
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-64 rounded-xl" />
-          ))}
-        </div>
-      ) : lives.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-12 text-center">
-          <p className="text-muted-foreground text-lg mb-4">
-            Nenhuma live {statusFilter !== "all" ? `com status "${statusFilter}"` : ""} encontrada
-          </p>
-          {allLives.length === 0 && (
-            <Link href="/jogos/new">
-              <Button className="gap-2 bg-main hover:bg-main/90 text-white">
-                <Plus className="w-4 h-4" />
-                Criar Primeira Live
-              </Button>
-            </Link>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {schedulableLives.length > 0 && (
-            <div className="flex items-center justify-between bg-gray-50 rounded-lg border">
-              <div className="flex items-center gap-4 h-14 px-4 whitespace-nowrap overflow-hidden">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    checked={allSelected}
-                    onCheckedChange={handleSelectAll}
-                    id="select-all"
-                  />
-                  <label
-                    htmlFor="select-all"
-                    className="text-sm font-medium cursor-pointer"
-                  >
-                    Selecionar agendadas ({selectedLives.size}/{schedulableLives.length})
-                  </label>
-                </div>
-                {hasSelection && (
-                  <Button
-                    onClick={handleAddMultipleToCalendar}
-                    disabled={isAddingToCalendar}
-                    className="gap-2"
-                    variant="outline"
-                  >
-                    <CalendarCheck className="w-4 h-4" />
-                    Adicionar {selectedLives.size} ao Calendário
-                  </Button>
-                )}
-                {isGoogleCalendarAuthorized === false && (
-                  <Button
-                    onClick={async () => {
-                      const oauthUrl = await getGoogleCalendarOAuthUrl("/jogos");
-                      window.location.href = oauthUrl;
-                    }}
-                    className="gap-2"
-                    variant="outline"
-                  >
-                    <Calendar className="w-4 h-4" />
-                    Conectar Google Calendar
-                  </Button>
-                )}
-                {isGoogleCalendarAuthorized === true && (
-                  <div className="flex items-center gap-2 text-sm text-green-600">
-                    <CalendarCheck className="w-4 h-4" />
-                    Google Calendar conectado
-                  </div>
-                )}
-              </div>
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+          <div className="flex items-center gap-4">
+            <Filter className="w-5 h-5 text-gray-600" />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setStatusFilter("all")}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  statusFilter === "all"
+                    ? "bg-main text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Todas
+              </button>
+              <button
+                onClick={() => setStatusFilter(LiveStatus.SCHEDULED)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  statusFilter === LiveStatus.SCHEDULED
+                    ? "bg-main text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Agendadas
+              </button>
+              <button
+                onClick={() => setStatusFilter(LiveStatus.LIVE)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  statusFilter === LiveStatus.LIVE
+                    ? "bg-main text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Ao Vivo
+              </button>
+              <button
+                onClick={() => setStatusFilter(LiveStatus.FINISHED)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  statusFilter === LiveStatus.FINISHED
+                    ? "bg-main text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Finalizadas
+              </button>
             </div>
-          )}
+          </div>
+        </div>
+
+        {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {lives.map((live) => (
-              <LiveCard
-                key={live.id}
-                live={live}
-                isSelected={selectedLives.has(live.id)}
-                onSelect={(checked) => handleSelectLive(live.id, checked)}
-        onAddToCalendar={() => handleAddToCalendar(live.id)}
-                isAddingToCalendar={isAddingToCalendar}
-          canAddToCalendar={live.status === LiveStatus.SCHEDULED}
-          hasCalendarEvent={calendarEventSet.has(live.id)}
-              />
+            {[...Array(6)].map((_, i) => (
+              <Skeleton key={i} className="h-64 rounded-xl" />
             ))}
           </div>
-        </div>
-      )}
-    </div>
+        ) : lives.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-12 text-center">
+            <p className="text-muted-foreground text-lg mb-4">
+              Nenhum jogo {statusFilter !== "all" ? `com status "${statusFilter}"` : ""} encontrado
+            </p>
+            {allLives.length === 0 && (
+              <p className="text-sm text-gray-500">
+                Os jogos serão criados automaticamente quando as competições forem geradas
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {schedulableLives.length > 0 && (
+              <div className="flex items-center justify-between bg-gray-50 rounded-lg border">
+                <div className="flex items-center gap-4 h-14 px-4 whitespace-nowrap overflow-hidden">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={handleSelectAll}
+                      id="select-all"
+                    />
+                    <label
+                      htmlFor="select-all"
+                      className="text-sm font-medium cursor-pointer"
+                    >
+                      Selecionar agendadas ({selectedLives.size}/{schedulableLives.length})
+                    </label>
+                  </div>
+                  {hasSelection && (
+                    <Button
+                      onClick={handleAddMultipleToCalendar}
+                      disabled={isAddingToCalendar}
+                      className="gap-2"
+                      variant="outline"
+                    >
+                      <CalendarCheck className="w-4 h-4" />
+                      Adicionar {selectedLives.size} ao Calendário
+                    </Button>
+                  )}
+                  {isGoogleCalendarAuthorized === false && (
+                    <Button
+                      onClick={async () => {
+                        const oauthUrl = await getGoogleCalendarOAuthUrl("/jogos");
+                        window.location.href = oauthUrl;
+                      }}
+                      className="gap-2"
+                      variant="outline"
+                    >
+                      <Calendar className="w-4 h-4" />
+                      Conectar Google Calendar
+                    </Button>
+                  )}
+                  {isGoogleCalendarAuthorized === true && (
+                    <div className="flex items-center gap-2 text-sm text-green-600">
+                      <CalendarCheck className="w-4 h-4" />
+                      Google Calendar conectado
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {lives.map((live) => (
+                <LiveCard
+                  key={live.id}
+                  live={live}
+                  isSelected={selectedLives.has(live.id)}
+                  onSelect={(checked) => handleSelectLive(live.id, checked)}
+                  onAddToCalendar={() => handleAddToCalendar(live.id)}
+                  isAddingToCalendar={isAddingToCalendar}
+                  canAddToCalendar={live.status === LiveStatus.SCHEDULED}
+                  hasCalendarEvent={calendarEventSet.has(live.id)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+      
       <AlertDialog open={showAlreadyAddedDialog} onOpenChange={setShowAlreadyAddedDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -535,4 +619,3 @@ export default function LivesPage() {
     </>
   );
 }
-
