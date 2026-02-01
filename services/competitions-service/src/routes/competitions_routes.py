@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
-# Ajuste o import do db conforme sua estrutura (src.core.client ou src.dependencies)
 from src.routes.routes import get_session
 from src.services.competitions_service import CompetitionService
 from src.services.competition_generator.competition_generator import StructureGeneratorService
@@ -11,6 +10,12 @@ from src.schemas.competition_schema import (
     CompetitionResponse, 
     CompetitionUpdate
 )
+
+from pydantic import BaseModel, Field
+from uuid import UUID
+
+class GenerateStructureRequest(BaseModel):
+    organization_id: UUID = Field(..., description="ID da organização")
 
 router = APIRouter(prefix="/competitions", tags=["Competitions"])
 
@@ -64,11 +69,11 @@ async def get_competition(
 )
 async def generate_structure(
     competition_id: int,
+    request: GenerateStructureRequest,
     session: AsyncSession = Depends(get_session)
 ):
-    """
-    Gera Rounds, Matches, Segments e Standings iniciais.
-    Muda o status da competição para ACTIVE.
-    """
     service = StructureGeneratorService(session)
-    return await service.generate_structure(competition_id)
+    return await service.generate_structure(
+        competition_id=competition_id,
+        organization_id=request.organization_id
+    )

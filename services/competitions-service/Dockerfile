@@ -38,7 +38,7 @@ COPY --from=builder --chown=appuser:appuser /usr/local/lib/python3.12/site-packa
 COPY --from=builder --chown=appuser:appuser /usr/local/bin /usr/local/bin
 COPY --from=builder --chown=appuser:appuser /app/services/competitions-service/src ./src
 COPY --from=builder --chown=appuser:appuser /app/libs /app/libs
-
+COPY --chown=appuser:appuser services/competitions-service/scripts ./services/competitions-service/scripts
 COPY --chown=appuser:appuser services/competitions-service/entrypoint.sh ./entrypoint.sh
 COPY --chown=appuser:appuser services/competitions-service/alembic.ini ./alembic.ini
 COPY --chown=appuser:appuser services/competitions-service/alembic ./alembic
@@ -53,6 +53,6 @@ ENV PYTHONPATH=/app:/app/libs/common:/app/libs/database
 
 EXPOSE 8001
 
-RUN chmod +x /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh /app/services/competitions-service/scripts/*.sh || true
 
 ENTRYPOINT ["/app/entrypoint.sh"]

@@ -38,6 +38,7 @@ export class GoogleCalendarApiService {
     liveId: string,
     frontendBaseUrl: string,
     force: boolean = false,
+    match?: any,
   ): Promise<{ eventId: string; htmlLink: string; alreadyExists: boolean }> {
     const existing = await this.checkEventExists(userId, liveId);
     if (existing.exists && !force) {
@@ -74,15 +75,28 @@ export class GoogleCalendarApiService {
     const startDate = this.getStartDate(live);
     const endDate = this.getEndDate(live, startDate);
 
+    const summary = match && (match.competitionName || (match.homeTeam?.name && match.awayTeam?.name))
+      ? (match.competitionName
+          ? `Live: ${match.competitionName} - ${match.homeTeam?.name || ''} x ${match.awayTeam?.name || ''}`.trim()
+          : `Live: ${match.homeTeam?.name || ''} x ${match.awayTeam?.name || ''}`.trim())
+      : `Live: ${live.externalMatchId}`;
+
+    const eventDescription = match
+      ? this.buildDescriptionFromMatch(match, live, frontendBaseUrl)
+      : this.buildDescription(live, frontendBaseUrl);
+
+    const eventStart = match && match.scheduledDatetime ? new Date(match.scheduledDatetime) : startDate;
+    const eventEnd = match && match.scheduledDatetime ? new Date(new Date(match.scheduledDatetime).getTime() + 2 * 60 * 60 * 1000) : endDate;
+
     const event = {
-      summary: `Live: ${live.externalMatchId}`,
-      description: this.buildDescription(live, frontendBaseUrl),
+      summary,
+      description: eventDescription,
       start: {
-        dateTime: startDate.toISOString(),
+        dateTime: eventStart.toISOString(),
         timeZone: 'UTC',
       },
       end: {
-        dateTime: endDate.toISOString(),
+        dateTime: eventEnd.toISOString(),
         timeZone: 'UTC',
       },
       reminders: {
@@ -116,15 +130,39 @@ export class GoogleCalendarApiService {
     };
   }
 
+  private buildDescriptionFromMatch(match: any, live: any, frontendBaseUrl: string) {
+    const lines: string[] = [];
+
+    if (match.competitionName) lines.push(`Competição: ${match.competitionName}`);
+    if (match.roundName) lines.push(`Rodada: ${match.roundName}`);
+    if (match.groupName) lines.push(`Grupo: ${match.groupName}`);
+
+    if (match.homeTeam || match.awayTeam) {
+      const home = match.homeTeam?.name || 'Casa';
+      const away = match.awayTeam?.name || 'Visitante';
+      lines.push(`Confronto: ${home} x ${away}`);
+    }
+
+    if (match.local) lines.push(`Local: ${match.local}`);
+
+    if (match.scheduledDatetime) lines.push(`Horário: ${new Date(match.scheduledDatetime).toLocaleString('pt-BR')}`);
+
+    lines.push('');
+    lines.push(`Acesse a live em: ${frontendBaseUrl}/jogos/${live.id}`);
+
+    return lines.join('\n');
+  }
+
   async createMultipleEvents(
     userId: string,
     liveIds: string[],
     frontendBaseUrl: string,
     force: boolean = false,
+    matchesByLiveId?: Record<string, any>,
   ): Promise<Array<{ liveId: string; eventId: string; htmlLink: string; success: boolean; alreadyExists: boolean; error?: string }>> {
     const results = await Promise.allSettled(
       liveIds.map((liveId) =>
-        this.createEvent(userId, liveId, frontendBaseUrl, force).then(
+        this.createEvent(userId, liveId, frontendBaseUrl, force, matchesByLiveId?.[liveId]).then(
           (result) => ({ 
             liveId, 
             eventId: result.eventId, 
