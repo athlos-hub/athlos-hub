@@ -1,0 +1,98 @@
+spring:
+  application:
+    name: social-service
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  datasource:
+    url: jdbc:postgresql://${DATABASE_HOST:localhost}:${DATABASE_PORT:5432}/${DATABASE_NAME:social_db}
+    username: ${DATABASE_USER:${SOCIAL_DB_USER:social_user}}
+    password: ${DATABASE_PASSWORD:${SOCIAL_DB_PASSWORD:sOPA5ySJAZcSlHT60NOFEqEhRBMMnAfI}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN_SIZE:5}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
+
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    show-sql: ${JPA_SHOW_SQL:false}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: ${JPA_FORMAT_SQL:true}
+        jdbc:
+          batch_size: ${JPA_BATCH_SIZE:20}
+        default_schema: public
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: ${REDIS_TIMEOUT:2000ms}
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX_ACTIVE:8}
+          max-idle: ${REDIS_POOL_MAX_IDLE:8}
+          min-idle: ${REDIS_POOL_MIN_IDLE:0}
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:${KEYCLOAK_ISSUER:http://localhost:8080}}/realms/${KEYCLOAK_REALM:athloshub}
+          jwk-set-uri: ${KEYCLOAK_ISSUER_URI:${KEYCLOAK_ISSUER:http://localhost:8080}}/realms/${KEYCLOAK_REALM:athloshub}/protocol/openid-connect/certs
+
+server:
+  port: ${SERVER_PORT:${API_PORT:8083}}
+  error:
+    include-message: always
+    include-binding-errors: always
+
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: ${FEIGN_CONNECT_TIMEOUT:5000}
+        readTimeout: ${FEIGN_READ_TIMEOUT:5000}
+        loggerLevel: ${FEIGN_LOG_LEVEL:full}
+      auth-service:
+        url: ${AUTH_SERVICE_URL:http://localhost:8000}
+
+services:
+  auth-service:
+    url: ${AUTH_SERVICE_URL:http://localhost:8000}
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+    br.com.athloshub.social_service: ${APP_LOG_LEVEL:DEBUG}
+    feign: ${FEIGN_LOG_LEVEL:DEBUG}
+    org.springframework.security: ${SECURITY_LOG_LEVEL:INFO}
+    org.hibernate.SQL: ${SQL_LOG_LEVEL:DEBUG}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${SQL_BINDER_LOG_LEVEL:TRACE}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${ACTUATOR_ENDPOINTS:health,info,metrics,prometheus}
+  endpoint:
+    health:
+      show-details: ${ACTUATOR_HEALTH_DETAILS:always}
+  metrics:
+    export:
+      prometheus:
+        enabled: ${PROMETHEUS_ENABLED:true}
+
+springdoc:
+  api-docs:
+    path: /api-docs
+    enabled: ${SWAGGER_ENABLED:true}
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: ${SWAGGER_ENABLED:true}
+    operations-sorter: method
+    tags-sorter: alpha

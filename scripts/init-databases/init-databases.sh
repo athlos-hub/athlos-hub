@@ -46,5 +46,6 @@ create_db auth_db "${AUTH_DB_USER:-auth_user}" AUTH_DB_PASSWORD
 create_db competitions_db "${COMPETITIONS_DB_USER:-competitions_user}" COMPETITIONS_DB_PASSWORD
 create_db livestream_db "${LIVESTREAM_DB_USER:-livestream_user}" LIVESTREAM_DB_PASSWORD
 create_db notifications_db "${NOTIFICATIONS_DB_USER:-notifications_user}" NOTIFICATIONS_DB_PASSWORD
+create_db social_db "${SOCIAL_DB_USER:-social_user}" SOCIAL_DB_PASSWORD
 
 echo "Database initialization finished successfully."
