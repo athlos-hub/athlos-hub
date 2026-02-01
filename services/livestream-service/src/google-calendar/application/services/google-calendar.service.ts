@@ -9,19 +9,20 @@ export class GoogleCalendarService {
     private liveRepository: ILiveRepository,
   ) {}
 
-  async generateCalendarUrl(liveId: string, frontendBaseUrl: string): Promise<string> {
+  async generateCalendarUrl(liveId: string, frontendBaseUrl: string, match?: any): Promise<string> {
     const live = await this.liveRepository.findById(liveId);
 
     if (!live) {
       throw new NotFoundException(`Live com ID ${liveId} não encontrada`);
     }
 
-    return this.buildCalendarUrl(live, frontendBaseUrl);
+    return this.buildCalendarUrl(live, frontendBaseUrl, match);
   }
 
   async generateMultipleCalendarUrls(
     liveIds: string[],
     frontendBaseUrl: string,
+    matchMap?: Record<string, any>,
   ): Promise<Array<{ liveId: string; url: string }>> {
     const lives = await Promise.all(
       liveIds.map((id) => this.liveRepository.findById(id)),
@@ -35,15 +36,19 @@ export class GoogleCalendarService {
 
     return validLives.map((live) => ({
       liveId: live!.id,
-      url: this.buildCalendarUrl(live!, frontendBaseUrl),
+      url: this.buildCalendarUrl(live!, frontendBaseUrl, matchMap?.[live!.id]),
     }));
   }
 
-  private buildCalendarUrl(live: NonNullable<Awaited<ReturnType<typeof this.liveRepository.findById>>>, frontendBaseUrl: string): string {
+  private buildCalendarUrl(live: NonNullable<Awaited<ReturnType<typeof this.liveRepository.findById>>>, frontendBaseUrl: string, match?: any): string {
     const baseUrl = 'https://calendar.google.com/calendar/render';
     const params = new URLSearchParams();
 
-    const eventTitle = `Live: ${live.externalMatchId}`;
+    const eventTitle = match && (match.competitionName || (match.homeTeam?.name && match.awayTeam?.name))
+      ? (match.competitionName
+          ? `Live: ${match.competitionName} - ${match.homeTeam?.name || ''} x ${match.awayTeam?.name || ''}`.trim()
+          : `Live: ${match.homeTeam?.name || ''} x ${match.awayTeam?.name || ''}`.trim())
+      : `Live: ${live.externalMatchId}`;
     params.append('action', 'TEMPLATE');
     params.append('text', encodeURIComponent(eventTitle));
 
@@ -54,7 +59,9 @@ export class GoogleCalendarService {
     const endDateStr = this.formatDateForGoogleCalendar(endDate);
     params.append('dates', `${startDateStr}/${endDateStr}`);
 
-    const description = this.buildDescription(live, frontendBaseUrl);
+    const description = match
+      ? this.buildDescriptionFromMatch(match, live, frontendBaseUrl)
+      : this.buildDescription(live, frontendBaseUrl);
     params.append('details', encodeURIComponent(description));
 
     return `${baseUrl}?${params.toString()}`;
@@ -102,6 +109,32 @@ export class GoogleCalendarService {
     lines.push(`Partida: ${live.externalMatchId}`);
     lines.push(`Status: ${live.status}`);
     lines.push(`Organização: ${live.organizationId}`);
+    lines.push('');
+    lines.push(`Acesse a live em: ${frontendBaseUrl}/jogos/${live.id}`);
+
+    return lines.join('\n');
+  }
+
+  private buildDescriptionFromMatch(match: any, live: any, frontendBaseUrl: string) {
+    const lines: string[] = [];
+
+    if (match.competitionName) lines.push(`Competição: ${match.competitionName}`);
+    if (match.roundName) lines.push(`Rodada: ${match.roundName}`);
+    if (match.groupName) lines.push(`Grupo: ${match.groupName}`);
+
+    if (match.homeTeam || match.awayTeam) {
+      const home = match.homeTeam?.name || 'Casa';
+      const away = match.awayTeam?.name || 'Visitante';
+      lines.push(`Confronto: ${home} x ${away}`);
+      if (typeof match.homeScore === 'number' || typeof match.awayScore === 'number') {
+        lines.push(`Placar: ${match.homeScore ?? '-'} x ${match.awayScore ?? '-'} `);
+      }
+    }
+
+    if (match.local) lines.push(`Local: ${match.local}`);
+
+    if (match.scheduledDatetime) lines.push(`Horário: ${new Date(match.scheduledDatetime).toLocaleString('pt-BR')}`);
+
     lines.push('');
     lines.push(`Acesse a live em: ${frontendBaseUrl}/jogos/${live.id}`);
 

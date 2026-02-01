@@ -68,3 +68,37 @@ class MatchUpdateRequest(BaseModel):
     local: Optional[str] = Field(None, description="Novo local da partida")
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class TeamBasicInfo(BaseModel):
+    """Informações básicas de um time para exibição no card"""
+    id: uuid.UUID
+    name: str
+    logo: Optional[str] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MatchDetailResponse(BaseModel):
+    """
+    Schema para retornar detalhes de uma partida específica.
+    Usado para enriquecer as informações da live no frontend.
+    """
+    id: uuid.UUID
+    competition_id: int
+    home_team: Optional[TeamBasicInfo] = None
+    away_team: Optional[TeamBasicInfo] = None
+    scheduled_datetime: Optional[datetime] = None
+    local: Optional[str] = None
+    status: str
+    home_score: int = 0
+    away_score: int = 0
+    round_name: Optional[str] = None
+    group_name: Optional[str] = None
+    round_number_match: int
+    competition_name: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+class MultipleMatchesDetailResponse(BaseModel):
+    """Response para múltiplas partidas"""
+    matches: List[MatchDetailResponse]
