@@ -72,7 +72,7 @@ export const dropdownData: Record<string, DropdownData> = {
                     { label: "Atletas", description: "Encontre atletas", href: "/comunidade/atletas" },
                     { label: "Clubes", description: "Descubra clubes", href: "/comunidade/clubes" },
                     { label: "Eventos", description: "Próximos eventos", href: "/comunidade/eventos" },
-                    { label: "Perfil", description: "Seu perfil", href: "/perfil" }
+                    { label: "Perfil", description: "Seu perfil", href: "/profile" }
                 ]
             },
             {

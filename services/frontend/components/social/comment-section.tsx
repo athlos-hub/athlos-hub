@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -183,6 +184,7 @@ export function CommentSection({ postId, initialCommentsCount, onCommentCountCha
                 size="sm"
                 onClick={handleSubmit}
                 disabled={isSubmitting || !newComment.trim()}
+                className="bg-main hover:bg-main/90"
               >
                 {isSubmitting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -208,19 +210,29 @@ export function CommentSection({ postId, initialCommentsCount, onCommentCountCha
         <div className="space-y-4">
               {comments.map((comment) => (
                 <div key={comment.id} className="flex gap-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={comment.user?.avatar_url || undefined} />
-                    <AvatarFallback>
-                      {getUserInitials(comment)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <Link 
+                    href={`/profile/${comment.keycloakId}`}
+                    className="shrink-0"
+                  >
+                    <Avatar className="h-8 w-8 cursor-pointer hover:opacity-80 transition-opacity">
+                      <AvatarImage src={comment.user?.avatar_url || undefined} />
+                      <AvatarFallback>
+                        {getUserInitials(comment)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Link>
                   <div className="flex-1">
                     <div className="bg-muted rounded-lg p-3">
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">
-                            {getUserDisplayName(comment)}
-                          </span>
+                          <Link 
+                            href={`/profile/${comment.keycloakId}`}
+                            className="hover:underline"
+                          >
+                            <span className="text-sm font-medium">
+                              {getUserDisplayName(comment)}
+                            </span>
+                          </Link>
                           <span className="text-xs text-muted-foreground">
                             {formatDistanceToNow(new Date(comment.createdAt), {
                               addSuffix: true,

@@ -50,6 +50,8 @@ public class SecurityConfig {
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/api-docs/**").permitAll()
                 .requestMatchers("/api/social/feed/public").permitAll() // Feed público sem auth
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/social/posts/{postId}/comments").permitAll() // Comentários públicos (leitura)
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/social/profile/{keycloakId}").permitAll() // Perfil público (leitura)
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/social/athlete/posts/{keycloakId}").permitAll() // Posts de atleta públicos (leitura)
                 
                 // Todos os outros endpoints requerem autenticação
                 .anyRequest().authenticated()

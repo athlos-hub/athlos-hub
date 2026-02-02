@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,8 +12,10 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { getOrganizationBySlug } from "@/actions/organizations";
 import { togglePostLike, getPostLikeStatus } from "@/actions/social-likes";
+import { sharePost } from "@/actions/athlete-posts";
 import { useSession } from "next-auth/react";
 import { CommentSection } from "./comment-section";
+import { toast } from "sonner";
 
 interface PostCardProps {
     post: Post;
@@ -33,7 +36,9 @@ export function PostCard({ post, onLike, onComment, onDelete, isLiked = false }:
     const [liked, setLiked] = useState(isLiked);
     const [likesCount, setLikesCount] = useState(post.likesCount ?? 0);
     const [commentsCount, setCommentsCount] = useState(post.commentsCount ?? 0);
+    const [sharesCount, setSharesCount] = useState(post.sharesCount ?? 0);
     const [isLiking, setIsLiking] = useState(false);
+    const [isSharing, setIsSharing] = useState(false);
     const [showComments, setShowComments] = useState(false);
     const [profileInfo, setProfileInfo] = useState<ProfileInfo>({
         name: post.profileId,
@@ -100,6 +105,28 @@ export function PostCard({ post, onLike, onComment, onDelete, isLiked = false }:
         }
     };
 
+    const handleShare = async () => {
+        if (!session?.user) {
+            toast.error("Faça login para compartilhar");
+            return;
+        }
+
+        if (isSharing) return;
+
+        setIsSharing(true);
+
+        try {
+            await sharePost(post.id);
+            setSharesCount(sharesCount + 1);
+            toast.success("Post compartilhado no seu perfil!");
+        } catch (error) {
+            console.error('Failed to share post:', error);
+            toast.error("Erro ao compartilhar post");
+        } finally {
+            setIsSharing(false);
+        }
+    };
+
     const getProfileBadge = () => {
         switch (post.profileType) {
             case ProfileType.ORGANIZATION:
@@ -134,13 +161,35 @@ export function PostCard({ post, onLike, onComment, onDelete, isLiked = false }:
     return (
         <Card className="w-full">
             <CardHeader className="flex flex-row items-center gap-4 pb-3">
-                <Avatar className="h-12 w-12">
-                    <AvatarImage src={profileInfo.logoUrl || profileInfo.avatarUrl} />
-                    <AvatarFallback>{profileInfo.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                </Avatar>
+                <Link 
+                    href={
+                        post.profileType === ProfileType.ATHLETE 
+                            ? `/profile/${post.profileId}` 
+                            : post.profileType === ProfileType.ORGANIZATION
+                            ? `/organizations/${post.profileId}`
+                            : `/teams/${post.profileId}`
+                    }
+                    className="flex-shrink-0"
+                >
+                    <Avatar className="h-12 w-12 cursor-pointer hover:opacity-80 transition-opacity">
+                        <AvatarImage src={profileInfo.logoUrl || profileInfo.avatarUrl} />
+                        <AvatarFallback>{profileInfo.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                </Link>
                 <div className="flex-1">
                     <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-sm">{profileInfo.name}</h3>
+                        <Link 
+                            href={
+                                post.profileType === ProfileType.ATHLETE 
+                                    ? `/profile/${post.profileId}` 
+                                    : post.profileType === ProfileType.ORGANIZATION
+                                    ? `/organizations/${post.profileId}`
+                                    : `/teams/${post.profileId}`
+                            }
+                            className="hover:underline"
+                        >
+                            <h3 className="font-semibold text-sm">{profileInfo.name}</h3>
+                        </Link>
                         {getProfileBadge()}
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -204,8 +253,15 @@ export function PostCard({ post, onLike, onComment, onDelete, isLiked = false }:
                         <MessageCircle className="h-4 w-4" />
                         <span className="text-xs">{commentsCount}</span>
                     </Button>
-                    <Button variant="ghost" size="sm" className="gap-2">
+                    <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="gap-2"
+                        onClick={handleShare}
+                        disabled={isSharing}
+                    >
                         <Share2 className="h-4 w-4" />
+                        <span className="text-xs">{sharesCount}</span>
                     </Button>
                 </div>
                 

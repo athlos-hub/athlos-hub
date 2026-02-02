@@ -30,7 +30,7 @@ public class AthleteProfileController {
     
     @GetMapping("/{keycloakId}")
     public ResponseEntity<ApiResponse<AthleteProfile>> getProfileByKeycloakId(@PathVariable String keycloakId) {
-        AthleteProfile profile = profileService.getProfileByKeycloakId(keycloakId);
+        AthleteProfile profile = profileService.getOrCreateProfile(keycloakId);
         return ResponseEntity.ok(ApiResponse.success(profile));
     }
     
