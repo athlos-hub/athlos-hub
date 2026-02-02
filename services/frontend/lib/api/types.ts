@@ -5,7 +5,7 @@ export interface APIProps {
     queryParams?: Record<string, string | number | boolean>;
     withAuth?: boolean;
     withAttachment?: boolean;
-    bearerToken?: string; // optional explicit bearer token to override server session token
+    bearerToken?: string;
 }
 
 export interface APIResponse<T> {

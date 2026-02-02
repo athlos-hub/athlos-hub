@@ -9,7 +9,6 @@ import {
     ApiResponse,
 } from "@/types/social";
 
-// Em desenvolvimento, chamar diretamente o social-service
 const SOCIAL_SERVICE_URL = process.env.SOCIAL_SERVICE_URL || "http://localhost:8083";
 
 async function callSocialService<T>(
@@ -136,7 +135,6 @@ export async function getPublicFeed(
     page: number = 0,
     size: number = 10
 ): Promise<PageResponse<Post>> {
-    // Feed público não precisa de autenticação
     const queryString = '?' + new URLSearchParams({
         page: String(page),
         size: String(size),

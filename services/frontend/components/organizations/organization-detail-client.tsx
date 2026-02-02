@@ -16,6 +16,7 @@ import { LeaveOrganizationDialog } from "./leave-organization-dialog";
 import { RequestToJoinButton } from "./request-to-join-button";
 import { MembersSection } from "./members-section";
 import { OrganizationOverview } from "./organization-overview";
+import { FollowOrganizationButton } from "./follow-organization-button";
 import { OrgRole, OrganizationStatus, OrganizationJoinPolicy } from "@/types/organization";
 import type { OrganizationResponse, OrganizationWithRole, OrganizationAdminWithRole, OrganizationGetPublic } from "@/types/organization";
 
@@ -70,30 +71,34 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
                                 </AvatarFallback>
                             </Avatar>
                             <div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-4">
                                     <CardTitle className="text-2xl">{organization.name}</CardTitle>
-                                    {isPending && (
+                                    {isPending ? (
                                         <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
                                             Pendente
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant={organization.privacy === "PRIVATE" ? "secondary" : "outline"} className={organization.privacy === "PRIVATE" ? "" : "border-main text-main"}>
+                                            {organization.privacy === "PRIVATE" ? (
+                                                <>
+                                                    <Lock className="h-3 w-3 mr-1" />
+                                                    Privada
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Globe className="h-3 w-3 mr-1" />
+                                                    Pública
+                                                </>
+                                            )}
                                         </Badge>
                                     )}
                                 </div>
                                 <CardDescription>{organization.description}</CardDescription>
                             </div>
                         </div>
-                        <Badge variant={organization.privacy === "PRIVATE" ? "secondary" : "outline"} className={organization.privacy === "PRIVATE" ? "" : "border-main text-main"}>
-                            {organization.privacy === "PRIVATE" ? (
-                                <>
-                                    <Lock className="h-3 w-3 mr-1" />
-                                    Privada
-                                </>
-                            ) : (
-                                <>
-                                    <Globe className="h-3 w-3 mr-1" />
-                                    Pública
-                                </>
-                            )}
-                        </Badge>
+                        {!isPending && (
+                            <FollowOrganizationButton organizationSlug={organization.slug} />
+                        )}
                     </div>
                 </CardHeader>
                 <CardContent>

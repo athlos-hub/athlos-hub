@@ -115,7 +115,6 @@ export default function OrganizationInvitesPage() {
           </p>
         </div>
 
-  {/* no CTA on invites page */}
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">

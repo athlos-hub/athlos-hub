@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
 import { AthleteProfile } from "@/actions/athlete-profile";
+import { toggleFollow, checkIsFollowing } from "@/actions/follow";
 import { Post } from "@/types/social";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -15,20 +16,21 @@ import {
   MapPin, 
   Trophy, 
   UserPlus,
+  UserMinus,
   Settings,
   Share2,
   Loader2,
   X,
   Check,
-  Edit2,
-  Building2,
-  Filter
+  Edit2
 } from "lucide-react";
 import { PostCard } from "@/components/social/post-card";
 import { updateBio } from "@/actions/athlete-profile";
 import { EditProfileModal } from "./edit-profile-modal";
+import { EditSocialProfileModal } from "./edit-social-profile-modal";
+import { FollowListModal } from "./follow-list-modal";
+import { getFollowedOrganizations } from "@/actions/organization-follow";
 
-// Interface para dados do auth-service (simplificada para compatibilidade)
 interface AuthUserProfile {
   id: string;
   username: string;
@@ -59,13 +61,37 @@ export function UnifiedProfileClient({
   const [posts] = useState<Post[]>(initialPosts);
   const [activeTab, setActiveTab] = useState<"posts" | "achievements" | "about">("posts");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isEditSocialModalOpen, setIsEditSocialModalOpen] = useState(false);
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bio, setBio] = useState(athleteProfile.bio || "");
   const [savedBio, setSavedBio] = useState(athleteProfile.bio || "");
   const [currentAuthData, setCurrentAuthData] = useState<AuthUserProfile | null>(authUserData || null);
+  const [currentProfile, setCurrentProfile] = useState<AthleteProfile>(athleteProfile);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isLoadingFollow, setIsLoadingFollow] = useState(false);
+  const [isFollowListModalOpen, setIsFollowListModalOpen] = useState(false);
+  const [followListTab, setFollowListTab] = useState<"followers" | "following">("followers");
+  const [totalFollowing, setTotalFollowing] = useState(athleteProfile.followingCount);
 
-  // Atualizar currentAuthData quando authUserData mudar
+  useEffect(() => {
+    if (!isOwnProfile && session?.user?.keycloakId) {
+      checkIsFollowing(athleteProfile.keycloakId).then(setIsFollowing);
+    }
+  }, [isOwnProfile, athleteProfile.keycloakId, session?.user?.keycloakId]);
+
+  useEffect(() => {
+    async function loadFollowingCount() {
+      try {
+        const orgsData = await getFollowedOrganizations(athleteProfile.keycloakId);
+        setTotalFollowing(currentProfile.followingCount + orgsData.totalElements);
+      } catch {
+        setTotalFollowing(currentProfile.followingCount);
+      }
+    }
+    loadFollowingCount();
+  }, [athleteProfile.keycloakId, currentProfile.followingCount]);
+
   useEffect(() => {
     if (authUserData) {
       setCurrentAuthData(authUserData);
@@ -96,17 +122,43 @@ export function UnifiedProfileClient({
     return currentAuthData?.avatar_url || session?.user?.image || undefined;
   };
 
-  // Callback quando o perfil é atualizado no modal
   const handleProfileUpdated = (newData: AuthUserProfile) => {
     setCurrentAuthData(newData);
   };
 
-  // Salvar bio (social-service)
+  const handleSocialProfileUpdated = (newProfile: AthleteProfile) => {
+    setCurrentProfile(newProfile);
+  };
+
+  const handleToggleFollow = async () => {
+    if (!session?.user) {
+      toast.error("Você precisa estar logado para seguir");
+      return;
+    }
+
+    setIsLoadingFollow(true);
+    try {
+      const nowFollowing = await toggleFollow(athleteProfile.keycloakId);
+      setIsFollowing(nowFollowing);
+      
+      setCurrentProfile(prev => ({
+        ...prev,
+        followersCount: nowFollowing ? prev.followersCount + 1 : prev.followersCount - 1
+      }));
+      
+      toast.success(nowFollowing ? "Agora você está seguindo!" : "Deixou de seguir");
+    } catch (error) {
+      toast.error("Erro ao atualizar");
+    } finally {
+      setIsLoadingFollow(false);
+    }
+  };
+
   const handleSaveBio = async () => {
     setIsSubmitting(true);
     try {
       await updateBio(bio);
-      setSavedBio(bio); // Atualiza a bio salva
+      setSavedBio(bio);
       setIsEditingBio(false);
       toast.success("Bio atualizada com sucesso!");
     } catch (error) {
@@ -118,16 +170,13 @@ export function UnifiedProfileClient({
 
   return (
     <div className="container">
-      {/* Header do Perfil */}
       <Card className="mb-6">
         <CardHeader className="relative pb-0">
-          {/* Cover Photo - Banner com cores do sistema */}
           <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-r from-[#00924B] to-main/90 rounded-t-lg flex items-center justify-center">
             <span className="text-white/30 text-4xl font-bold tracking-wider">AthlosHub</span>
           </div>
           
           <div className="relative flex flex-col md:flex-row items-start md:items-end gap-4 pt-20 pb-4">
-            {/* Avatar */}
             <Avatar className="h-32 w-32 border-4 border-background">
               <AvatarImage src={getAvatarUrl()} />
               <AvatarFallback className="text-3xl">
@@ -135,7 +184,6 @@ export function UnifiedProfileClient({
               </AvatarFallback>
             </Avatar>
 
-            {/* Info Básica */}
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <h1 className="text-3xl font-bold">{getUserDisplayName()}</h1>
@@ -151,19 +199,18 @@ export function UnifiedProfileClient({
                 <p className="text-muted-foreground mb-2">@{currentAuthData.username}</p>
               )}
               
-              {(athleteProfile.city || athleteProfile.state) && (
+              {(currentProfile.city || currentProfile.state) && (
                 <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <MapPin className="h-4 w-4" />
                     <span>
-                      {[athleteProfile.city, athleteProfile.state].filter(Boolean).join(", ")}
+                      {[currentProfile.city, currentProfile.state].filter(Boolean).join(", ")}
                     </span>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Botões de Ação */}
             <div className="flex gap-2">
               {isOwnProfile ? (
                 <>
@@ -175,15 +222,31 @@ export function UnifiedProfileClient({
                     <Settings className="h-4 w-4 mr-2" />
                     Editar Perfil
                   </Button>
-                  <Button variant="outline" size="sm">
-                    <Share2 className="h-4 w-4" />
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setIsEditSocialModalOpen(true)}
+                  >
+                    <Edit2 className="h-4 w-4 mr-2" />
+                    Completar Perfil
                   </Button>
                 </>
               ) : (
                 <>
-                  <Button size="sm">
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Seguir
+                  <Button 
+                    size="sm" 
+                    variant={isFollowing ? "outline" : "default"}
+                    onClick={handleToggleFollow}
+                    disabled={isLoadingFollow}
+                  >
+                    {isLoadingFollow ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : isFollowing ? (
+                      <UserMinus className="h-4 w-4 mr-2" />
+                    ) : (
+                      <UserPlus className="h-4 w-4 mr-2" />
+                    )}
+                    {isFollowing ? "Seguindo" : "Seguir"}
                   </Button>
                   <Button variant="outline" size="sm">
                     <Share2 className="h-4 w-4" />
@@ -195,7 +258,6 @@ export function UnifiedProfileClient({
         </CardHeader>
 
         <CardContent className="pt-4">
-          {/* Bio */}
           <div className="mb-4">
             {isOwnProfile && isEditingBio ? (
               <div className="space-y-2">
@@ -215,7 +277,7 @@ export function UnifiedProfileClient({
                     variant="outline" 
                     onClick={() => {
                       setIsEditingBio(false);
-                      setBio(savedBio); // Restaura a bio salva ao cancelar
+                      setBio(savedBio);
                     }}
                   >
                     <X className="h-4 w-4" />
@@ -241,31 +303,41 @@ export function UnifiedProfileClient({
             )}
           </div>
 
-          {/* Estatísticas */}
           <div className="flex gap-6 text-sm border-t pt-4">
-            <div className="flex flex-col items-center">
+            <button className="flex flex-col items-center px-4 py-2 rounded-lg transition-colors">
               <span className="text-2xl font-bold">{totalPosts}</span>
               <span className="text-muted-foreground">Posts</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-2xl font-bold">{athleteProfile.followersCount}</span>
+            </button>
+            <button
+              onClick={() => {
+                setFollowListTab("followers");
+                setIsFollowListModalOpen(true);
+              }}
+              className="flex flex-col items-center hover:bg-gray-50 px-4 py-2 rounded-lg transition-colors cursor-pointer"
+            >
+              <span className="text-2xl font-bold">{currentProfile.followersCount}</span>
               <span className="text-muted-foreground">Seguidores</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-2xl font-bold">{athleteProfile.followingCount}</span>
+            </button>
+            <button
+              onClick={() => {
+                setFollowListTab("following");
+                setIsFollowListModalOpen(true);
+              }}
+              className="flex flex-col items-center hover:bg-gray-50 px-4 py-2 rounded-lg transition-colors cursor-pointer"
+            >
+              <span className="text-2xl font-bold">{totalFollowing}</span>
               <span className="text-muted-foreground">Seguindo</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-2xl font-bold">{athleteProfile.achievementsCount}</span>
+            </button>
+            <button className="flex flex-col items-center px-4 py-2 rounded-lg transition-colors">
+              <span className="text-2xl font-bold">{currentProfile.achievementsCount}</span>
               <span className="text-muted-foreground">Conquistas</span>
-            </div>
+            </button>
           </div>
         </CardContent>
       </Card>
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-6">
         <div className="flex items-center gap-4">
-          <Filter className="w-5 h-5 text-gray-600" />
           <div className="flex gap-2">
             <button
               onClick={() => setActiveTab("posts")}
@@ -301,9 +373,7 @@ export function UnifiedProfileClient({
         </div>
       </div>
 
-      {/* Tabs de Conteúdo */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-        {/* Conteúdo da Tab */}
         {activeTab === "posts" && (
           <div className="space-y-4">
             {posts.length === 0 ? (
@@ -339,27 +409,27 @@ export function UnifiedProfileClient({
 
         {activeTab === "about" && (
           <div className="space-y-4">
-            {athleteProfile.specialization && (
+            {currentProfile.specialization && (
               <div>
                 <h4 className="font-medium mb-1">Especialização</h4>
-                <p className="text-muted-foreground">{athleteProfile.specialization}</p>
+                <p className="text-muted-foreground">{currentProfile.specialization}</p>
               </div>
             )}
             
-            {(athleteProfile.city || athleteProfile.state || athleteProfile.country) && (
+            {(currentProfile.city || currentProfile.state || currentProfile.country) && (
               <div>
                 <h4 className="font-medium mb-1">Localização</h4>
                 <p className="text-muted-foreground">
-                  {[athleteProfile.city, athleteProfile.state, athleteProfile.country].filter(Boolean).join(", ")}
+                  {[currentProfile.city, currentProfile.state, currentProfile.country].filter(Boolean).join(", ")}
                 </p>
               </div>
             )}
 
-            {athleteProfile.statistics && Object.keys(athleteProfile.statistics).length > 0 && (
+            {currentProfile.statistics && Object.keys(currentProfile.statistics).length > 0 && (
               <div>
                 <h4 className="font-medium mb-1">Estatísticas</h4>
                 <div className="grid grid-cols-2 gap-4 mt-2">
-                  {Object.entries(athleteProfile.statistics).map(([key, value]) => (
+                  {Object.entries(currentProfile.statistics).map(([key, value]) => (
                     <div key={key} className="text-sm">
                       <span className="text-muted-foreground">{key}: </span>
                       <span className="font-medium">{String(value)}</span>
@@ -369,8 +439,8 @@ export function UnifiedProfileClient({
               </div>
             )}
 
-            {(!athleteProfile.specialization && !athleteProfile.city && !athleteProfile.state && !athleteProfile.country && 
-              (!athleteProfile.statistics || Object.keys(athleteProfile.statistics).length === 0)) && (
+            {(!currentProfile.specialization && !currentProfile.city && !currentProfile.state && !currentProfile.country && 
+              (!currentProfile.statistics || Object.keys(currentProfile.statistics).length === 0)) && (
               <p className="text-muted-foreground text-center py-8">
                 {isOwnProfile 
                   ? "Complete seu perfil para que outros atletas possam conhecer você melhor."
@@ -382,7 +452,6 @@ export function UnifiedProfileClient({
         )}
       </div>
 
-      {/* Modal de Edição de Perfil */}
       {isOwnProfile && (
         <EditProfileModal
           isOpen={isEditModalOpen}
@@ -391,6 +460,22 @@ export function UnifiedProfileClient({
           onProfileUpdated={handleProfileUpdated}
         />
       )}
+
+      {isOwnProfile && (
+        <EditSocialProfileModal
+          isOpen={isEditSocialModalOpen}
+          onClose={() => setIsEditSocialModalOpen(false)}
+          currentProfile={currentProfile}
+          onProfileUpdated={handleSocialProfileUpdated}
+        />
+      )}
+
+      <FollowListModal
+        isOpen={isFollowListModalOpen}
+        onClose={() => setIsFollowListModalOpen(false)}
+        keycloakId={athleteProfile.keycloakId}
+        initialTab={followListTab}
+      />
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { ProfileContext } from "./profile-selector";
 import { CreatePostDialog } from "./create-post-dialog";
 import { SocialHeader } from "./social-header";
 import { Post, CreatePostPayload } from "@/types/social";
-import { getPublicFeed } from "@/actions/social-feed";
+import { getPublicFeed, getFollowingFeed } from "@/actions/social-feed";
 import { getMyOrganizations } from "@/actions/organizations";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
@@ -20,6 +20,10 @@ interface SocialFeedClientProps {
 export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProps) {
     const { data: session } = useSession();
     const [showCreatePost, setShowCreatePost] = useState(false);
+    const [feedType, setFeedType] = useState<"all" | "following">("all");
+    const [posts, setPosts] = useState<Post[]>(initialPosts);
+    const [hasMorePosts, setHasMorePosts] = useState(hasMore);
+    const [isLoadingFeed, setIsLoadingFeed] = useState(false);
     const [organizations, setOrganizations] = useState<Array<{ slug: string; name: string }>>([]);
     const [selectedProfile, setSelectedProfile] = useState<ProfileContext>({
         type: 'athlete',
@@ -54,8 +58,29 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
         loadOrganizations();
     }, [session]);
 
+    // Carregar feed quando mudar o tipo
+    useEffect(() => {
+        async function loadFeed() {
+            setIsLoadingFeed(true);
+            try {
+                const result = feedType === "following" 
+                    ? await getFollowingFeed(0, 10)
+                    : await getPublicFeed(0, 10);
+                setPosts(result.content);
+                setHasMorePosts(!result.last);
+            } catch (error) {
+                toast.error("Erro ao carregar feed");
+            } finally {
+                setIsLoadingFeed(false);
+            }
+        }
+        loadFeed();
+    }, [feedType]);
+
     const loadMore = async (page: number): Promise<Post[]> => {
-        const result = await getPublicFeed(page, 10);
+        const result = feedType === "following"
+            ? await getFollowingFeed(page, 10)
+            : await getPublicFeed(page, 10);
         return result.content;
     };
     const handleLike = async (_postId: string) => {
@@ -99,11 +124,39 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
                 onSubmit={handleCreatePost}
             />
 
+            {session && (
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setFeedType("all")}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                feedType === "all"
+                                    ? "bg-main text-white"
+                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            }`}
+                        >
+                            Para Você
+                        </button>
+                        <button
+                            onClick={() => setFeedType("following")}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                feedType === "following"
+                                    ? "bg-main text-white"
+                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            }`}
+                        >
+                            Seguindo
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <Feed
-                initialPosts={initialPosts}
+                initialPosts={posts}
                 loadMore={loadMore}
                 onLike={handleLike}
-                hasMore={hasMore}
+                hasMore={hasMorePosts}
+                isLoading={isLoadingFeed}
             />
         </div>
     );
