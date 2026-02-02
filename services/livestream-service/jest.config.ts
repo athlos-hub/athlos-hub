@@ -15,6 +15,7 @@ const config: Config = {
     '**/*.(t|j)s',
   ],
   coverageDirectory: '../coverage',
+  coverageReporters: ['text', 'lcov', 'json-summary', 'json'],
   testEnvironment: 'node',
   roots: ['<rootDir>', '<rootDir>/../'],
   moduleNameMapper: {

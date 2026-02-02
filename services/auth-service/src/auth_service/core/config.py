@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import List, Literal, Optional
 from urllib.parse import quote_plus
@@ -11,12 +12,28 @@ SRC_ROOT = AUTH_SERVICE_ROOT.parent
 SERVICE_ROOT = SRC_ROOT.parent
 MONOREPO_ROOT = SERVICE_ROOT.parent.parent
 
+# Determina quais arquivos .env carregar baseado no ambiente
+def _get_env_files() -> list:
+    """Retorna a lista de arquivos .env a serem carregados."""
+    env_files = []
+    
+    # Verifica se estamos em ambiente de teste (CI ou pytest)
+    is_test = os.environ.get("CI") == "true" or "pytest" in os.environ.get("_", "")
+    
+    if is_test and (SERVICE_ROOT / ".env.test").exists():
+        env_files.append(SERVICE_ROOT / ".env.test")
+    
+    # Adiciona os arquivos padrão
+    env_files.extend([MONOREPO_ROOT / ".env", SERVICE_ROOT / ".env"])
+    
+    return env_files
+
 
 class Settings(BaseSettings):
     """Configurações da aplicação."""
 
     model_config = SettingsConfigDict(
-        env_file=[MONOREPO_ROOT / ".env", SERVICE_ROOT / ".env"],
+        env_file=_get_env_files(),
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -26,11 +43,11 @@ class Settings(BaseSettings):
     ENV: str = Field(default="dev", alias="env")
 
     # Keycloak
-    KEYCLOAK_URL: str
+    KEYCLOAK_URL: str = Field(default="http://localhost:8080")
     KEYCLOAK_ISSUER: str = "https://athloshub.com.br/keycloak"
-    KEYCLOAK_REALM: str
-    KEYCLOAK_CLIENT_ID: str
-    KEYCLOAK_CLIENT_SECRET: str
+    KEYCLOAK_REALM: str = Field(default="test-realm")
+    KEYCLOAK_CLIENT_ID: str = Field(default="test-client-id")
+    KEYCLOAK_CLIENT_SECRET: str = Field(default="test-client-secret")
     # Admin creds for Keycloak (optional for runtime; Keycloak itself may manage admin user)
     KEYCLOAK_ADMIN_USERNAME: Optional[str] = None
     KEYCLOAK_ADMIN_PASSWORD: Optional[str] = None
