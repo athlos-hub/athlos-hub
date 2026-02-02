@@ -12,6 +12,7 @@ import { ptBR } from "date-fns/locale";
 import { getOrganizationBySlug } from "@/actions/organizations";
 import { togglePostLike, getPostLikeStatus } from "@/actions/social-likes";
 import { useSession } from "next-auth/react";
+import { CommentSection } from "./comment-section";
 
 interface PostCardProps {
     post: Post;
@@ -31,7 +32,9 @@ export function PostCard({ post, onLike, onComment, onDelete, isLiked = false }:
     const { data: session } = useSession();
     const [liked, setLiked] = useState(isLiked);
     const [likesCount, setLikesCount] = useState(post.likesCount ?? 0);
+    const [commentsCount, setCommentsCount] = useState(post.commentsCount ?? 0);
     const [isLiking, setIsLiking] = useState(false);
+    const [showComments, setShowComments] = useState(false);
     const [profileInfo, setProfileInfo] = useState<ProfileInfo>({
         name: post.profileId,
     });
@@ -178,26 +181,43 @@ export function PostCard({ post, onLike, onComment, onDelete, isLiked = false }:
                 )}
             </CardContent>
 
-            <CardFooter className="flex items-center gap-4 pt-3 border-t">
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    className="gap-2"
-                    onClick={handleLike}
-                    disabled={isLiking}
-                >
-                    <Heart
-                        className={`h-4 w-4 transition-colors ${liked ? "fill-red-500 text-red-500" : ""}`}
-                    />
-                    <span className="text-xs">{likesCount}</span>
-                </Button>
-                <Button variant="ghost" size="sm" className="gap-2" onClick={onComment}>
-                    <MessageCircle className="h-4 w-4" />
-                    <span className="text-xs">{post.commentsCount ?? 0}</span>
-                </Button>
-                <Button variant="ghost" size="sm" className="gap-2">
-                    <Share2 className="h-4 w-4" />
-                </Button>
+            <CardFooter className="flex flex-col gap-4 pt-3 border-t">
+                <div className="flex items-center gap-4 w-full">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-2"
+                        onClick={handleLike}
+                        disabled={isLiking}
+                    >
+                        <Heart
+                            className={`h-4 w-4 transition-colors ${liked ? "fill-red-500 text-red-500" : ""}`}
+                        />
+                        <span className="text-xs">{likesCount}</span>
+                    </Button>
+                    <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="gap-2" 
+                        onClick={() => setShowComments(!showComments)}
+                    >
+                        <MessageCircle className="h-4 w-4" />
+                        <span className="text-xs">{commentsCount}</span>
+                    </Button>
+                    <Button variant="ghost" size="sm" className="gap-2">
+                        <Share2 className="h-4 w-4" />
+                    </Button>
+                </div>
+                
+                {showComments && (
+                    <div className="w-full">
+                        <CommentSection 
+                            postId={post.id} 
+                            initialCommentsCount={commentsCount}
+                            onCommentCountChange={setCommentsCount}
+                        />
+                    </div>
+                )}
             </CardFooter>
         </Card>
     );

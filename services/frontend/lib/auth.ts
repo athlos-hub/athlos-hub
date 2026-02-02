@@ -173,12 +173,26 @@ export const authOptions: NextAuthOptions = {
         async session({ session, token }) {
             session.accessToken = token.accessToken as string;
             session.refreshToken = token.refreshToken as string;
+            
+            let keycloakId: string | undefined;
+            if (token.accessToken) {
+                try {
+                    const payload = JSON.parse(
+                        Buffer.from((token.accessToken as string).split('.')[1], 'base64').toString()
+                    );
+                    keycloakId = payload.sub;
+                } catch (error) {
+                    console.error('Failed to decode JWT:', error);
+                }
+            }
+            
             session.user = {
                 ...session.user,
                 id: token.id as string,
                 image: token.picture as string | undefined,
                 name: token.name as string | undefined,
                 email: token.email as string | undefined,
+                keycloakId: keycloakId,
             };
             return session;
         },

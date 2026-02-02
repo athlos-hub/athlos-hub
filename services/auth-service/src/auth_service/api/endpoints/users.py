@@ -61,6 +61,17 @@ async def get_user_by_id(user_id: UUID, user_service: UserServiceDep):
     return await user_service.get_user_by_id(user_id)
 
 
+@router.get("/keycloak/{keycloak_id}", response_model=UserPublic)
+async def get_user_by_keycloak_id(keycloak_id: str, user_service: UserServiceDep):
+    """Obtém um usuário específico pelo Keycloak ID."""
+
+    user = await user_service.get_user_by_keycloak_id(keycloak_id)
+    if not user:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    return user
+
+
 @router.post("/organizations/{org_slug}/accept-invite", status_code=status.HTTP_200_OK)
 async def accept_organization_invite(
     org_slug: str,

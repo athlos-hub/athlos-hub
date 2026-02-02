@@ -7,6 +7,7 @@ declare module "next-auth" {
         refreshToken?: string;
         user: {
             id: string;
+            keycloakId?: string;
         } & DefaultSession["user"];
     }
 

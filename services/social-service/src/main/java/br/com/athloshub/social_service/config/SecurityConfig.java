@@ -49,6 +49,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/social/auth/public").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/api-docs/**").permitAll()
                 .requestMatchers("/api/social/feed/public").permitAll() // Feed público sem auth
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/social/posts/{postId}/comments").permitAll() // Comentários públicos (leitura)
                 
                 // Todos os outros endpoints requerem autenticação
                 .anyRequest().authenticated()
