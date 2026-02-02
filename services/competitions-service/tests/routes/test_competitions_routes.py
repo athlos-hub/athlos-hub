@@ -1,5 +1,7 @@
 import pytest
+import uuid
 from datetime import datetime, timedelta
+from unittest.mock import patch, AsyncMock, MagicMock
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -94,6 +96,7 @@ async def test_create_list_get_competitions(client: AsyncClient, session: AsyncS
 async def test_generate_structure_endpoint(client: AsyncClient, session: AsyncSession):
     modality = await _create_modality(session, org_code="ORG2")
     ruleset = await _create_ruleset(session)
+    organization_id = str(uuid.uuid4())
 
     now = datetime.now()
     competition = CompetitionModel(
@@ -116,7 +119,23 @@ async def test_generate_structure_endpoint(client: AsyncClient, session: AsyncSe
     session.add_all([team_a, team_b])
     await session.commit()
 
-    response = await client.post(f"/api/v1/competitions/{competition.id}/generate-structure")
+    # Mock do LivestreamClient
+    mock_livestream_client = AsyncMock()
+    mock_livestream_client.health_check = AsyncMock(return_value=True)
+    mock_livestream_client.__aenter__ = AsyncMock(return_value=mock_livestream_client)
+    mock_livestream_client.__aexit__ = AsyncMock(return_value=None)
+
+    # Mock do LiveCreationService
+    mock_live_service = MagicMock()
+    mock_live_service.create_lives_for_matches = AsyncMock(return_value=[])
+
+    with patch("src.services.competition_generator.competition_generator.LivestreamClient", return_value=mock_livestream_client), \
+         patch("src.services.competition_generator.competition_generator.LiveCreationService", return_value=mock_live_service):
+        response = await client.post(
+            f"/api/v1/competitions/{competition.id}/generate-structure",
+            json={"organization_id": organization_id}
+        )
+    
     assert response.status_code == 200
     body = response.json()
     assert body["message"] == "Estrutura gerada com sucesso"

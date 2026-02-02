@@ -1,7 +1,8 @@
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
+import json
 
 CURRENT_DIR = Path(__file__).resolve().parent 
 SERVICE_ROOT = CURRENT_DIR.parent.parent
@@ -39,9 +40,24 @@ class Settings(BaseSettings):
     DB_POOL_MAX_SIZE: int = Field(default=10)
     DB_POOL_TIMEOUT: int = Field(default=30)
 
-    CORS_ORIGINS: List[str] = Field(default_factory=list)
+    CORS_ORIGINS_RAW: str = Field(default="", alias="CORS_ORIGINS")
     LOG_LEVEL: str = Field(default="INFO")
     LOG_FORMAT: str = Field(default="json")
+
+    @property
+    def CORS_ORIGINS(self) -> List[str]:
+        """Parse CORS_ORIGINS from string to list."""
+        v = self.CORS_ORIGINS_RAW
+        if not v or v.strip() == '':
+            return []
+        # Handle JSON format
+        if v.startswith('['):
+            try:
+                return json.loads(v)
+            except json.JSONDecodeError:
+                return []
+        # Handle comma-separated format
+        return [origin.strip() for origin in v.split(',') if origin.strip()]
 
     @property
     def DATABASE_URL(self) -> str:

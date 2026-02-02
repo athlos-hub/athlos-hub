@@ -40,7 +40,7 @@ describe('GoogleCalendarController', () => {
 
     const result = await controller.generateCalendarUrl(dto);
 
-    expect(calendarService.generateCalendarUrl).toHaveBeenCalledWith('live-1', 'http://front');
+    expect(calendarService.generateCalendarUrl).toHaveBeenCalledWith('live-1', 'http://front', undefined);
     expect(result.url).toBe('url-1');
   });
 
@@ -56,7 +56,7 @@ describe('GoogleCalendarController', () => {
 
     const result = await controller.generateMultipleCalendarUrls(dto);
 
-    expect(calendarService.generateMultipleCalendarUrls).toHaveBeenCalledWith(['l1', 'l2'], 'http://front');
+    expect(calendarService.generateMultipleCalendarUrls).toHaveBeenCalledWith(['l1', 'l2'], 'http://front', undefined);
     expect(result).toHaveLength(2);
   });
 
@@ -79,7 +79,7 @@ describe('GoogleCalendarController', () => {
 
     const result = await controller.createEvent({ sub: 'user-1' } as any, dto);
 
-    expect(apiService.createEvent).toHaveBeenCalledWith('user-1', 'live-1', 'http://localhost:3000', true);
+    expect(apiService.createEvent).toHaveBeenCalledWith('user-1', 'live-1', 'http://localhost:3000', true, undefined);
     expect(result.success).toBe(true);
   });
 
@@ -89,7 +89,7 @@ describe('GoogleCalendarController', () => {
 
     const result = await controller.createMultipleEvents({ sub: 'user-1' } as any, dto);
 
-    expect(apiService.createMultipleEvents).toHaveBeenCalledWith('user-1', ['l1'], 'http://localhost:3000', false);
+    expect(apiService.createMultipleEvents).toHaveBeenCalledWith('user-1', ['l1'], 'http://localhost:3000', false, undefined);
     expect(result.success).toBe(true);
   });
 

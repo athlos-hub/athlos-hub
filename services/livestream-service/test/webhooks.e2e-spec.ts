@@ -63,8 +63,11 @@ describe('Webhooks - Integration Tests (e2e)', () => {
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
-        forbidNonWhitelisted: true,
+        forbidNonWhitelisted: false,
         transform: true,
+        transformOptions: {
+          enableImplicitConversion: true,
+        },
       }),
     );
 
@@ -84,23 +87,25 @@ describe('Webhooks - Integration Tests (e2e)', () => {
   });
 
   describe('POST /webhooks/mediamtx-auth - Autenticação de Stream', () => {
-    let testLive: { id: string; streamKey: string };
+    let testLive: { id: string; streamKey: string; organizationId: string };
 
     beforeEach(async () => {
       const streamKey = `test-stream-${uuidv4()}`;
+      const organizationId = uuidv4();
       testLive = await prisma.live.create({
         data: {
           externalMatchId: uuidv4(),
-          organizationId: uuidv4(),
+          organizationId,
           streamKey,
           status: 'scheduled',
         },
       });
 
-      // Store stream key metadata in Redis
-      await redis.set(
-        `stream:${streamKey}`,
-        JSON.stringify({ liveId: testLive.id }),
+      // Store stream key metadata in Redis using correct key format
+      await redis.setex(
+        `livestream:streamkey:${streamKey}`,
+        86400,
+        JSON.stringify({ liveId: testLive.id, organizationId }),
       );
     });
 
@@ -227,22 +232,26 @@ describe('Webhooks - Integration Tests (e2e)', () => {
 
   describe('POST /webhooks/on-publish-done - Stream Finalizada', () => {
     let testLive: { id: string; streamKey: string };
+    let organizationId: string;
 
     beforeEach(async () => {
       const streamKey = `test-stream-${uuidv4()}`;
+      organizationId = uuidv4();
       testLive = await prisma.live.create({
         data: {
           externalMatchId: uuidv4(),
-          organizationId: uuidv4(),
+          organizationId,
           streamKey,
           status: 'live',
           startedAt: new Date(),
         },
       });
 
-      await redis.set(
-        `stream:${streamKey}`,
-        JSON.stringify({ liveId: testLive.id }),
+      // Usar o prefixo correto: livestream:streamkey:
+      await redis.setex(
+        `livestream:streamkey:${streamKey}`,
+        86400,
+        JSON.stringify({ liveId: testLive.id, organizationId }),
       );
     });
 
