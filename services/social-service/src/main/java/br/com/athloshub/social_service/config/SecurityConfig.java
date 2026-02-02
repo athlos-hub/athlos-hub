@@ -48,6 +48,7 @@ public class SecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/social/athlete/posts/{keycloakId}").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/social/shares/user/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/social/shares/count/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/social/search/**").permitAll()
                 
                 .anyRequest().authenticated()
             )

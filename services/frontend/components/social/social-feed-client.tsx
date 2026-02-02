@@ -126,7 +126,7 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
             />
 
             {session && (
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
                     <div className="flex gap-4 items-center">
                         <Users className="w-5 h-5 text-gray-600"/>
                         <button

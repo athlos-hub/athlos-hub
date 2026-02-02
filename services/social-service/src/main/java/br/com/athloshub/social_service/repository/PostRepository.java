@@ -42,4 +42,10 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     
     @Query("SELECT p FROM Post p WHERE p.visibility = 'PUBLIC' ORDER BY p.createdAt DESC")
     Page<Post> findPublicPostsOrderByCreatedAtDesc(Pageable pageable);
+    
+    @Query("SELECT p FROM Post p WHERE p.visibility = 'PUBLIC' AND LOWER(p.content) LIKE LOWER(CONCAT('%', :query, '%')) ORDER BY p.createdAt DESC")
+    Page<Post> searchByContent(@Param("query") String query, Pageable pageable);
+    
+    @Query("SELECT p FROM Post p WHERE p.visibility = 'PUBLIC' AND p.createdAt >= CURRENT_TIMESTAMP - :days DAY ORDER BY (p.likesCount + p.commentsCount * 2 + p.sharesCount * 3) DESC, p.createdAt DESC")
+    Page<Post> findPopularPosts(@Param("days") int days, Pageable pageable);
 }

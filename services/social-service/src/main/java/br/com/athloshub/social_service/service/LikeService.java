@@ -1,6 +1,7 @@
 package br.com.athloshub.social_service.service;
 
 import br.com.athloshub.social_service.entity.Like;
+import br.com.athloshub.social_service.entity.Notification;
 import br.com.athloshub.social_service.entity.Post;
 import br.com.athloshub.social_service.repository.LikeRepository;
 import br.com.athloshub.social_service.repository.PostRepository;
@@ -23,6 +24,7 @@ public class LikeService {
     private final LikeRepository likeRepository;
     private final PostRepository postRepository;
     private final JwtTokenProvider jwtTokenProvider;
+    private final NotificationService notificationService;
     
     @Transactional
     public boolean toggleLike(UUID postId) {
@@ -57,6 +59,20 @@ public class LikeService {
                 log.debug("Like saved with id: {}", saved.getId());
                 post.setLikesCount(post.getLikesCount() + 1);
                 postRepository.save(post);
+                
+                try {
+                    notificationService.createNotification(
+                        post.getCreatedByKeycloakId(),
+                        keycloakId,
+                        Notification.NotificationType.POST_LIKE,
+                        post.getId(),
+                        "post",
+                        "curtiu seu post"
+                    );
+                } catch (Exception e) {
+                    log.error("Erro ao criar notificação de like", e);
+                }
+                
                 return true;
             });
         
