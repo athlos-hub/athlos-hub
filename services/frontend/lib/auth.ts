@@ -54,6 +54,16 @@ export const authOptions: NextAuthOptions = {
 
                             const userData = (data as BackendLoginResponse).user;
 
+                            try {
+                                await axiosAPI({ 
+                                    endpoint: '/social/profile/me', 
+                                    method: 'GET', 
+                                    withAuth: true, 
+                                    bearerToken: (data as BackendLoginResponse).access_token 
+                                });
+                            } catch {
+                            }
+
                             return {
                                 id: String(userData?.id),
                                 name: userData?.first_name || userData?.username,
@@ -119,6 +129,16 @@ export const authOptions: NextAuthOptions = {
 
                     if (!userProfile || !userProfile.id) {
                         return null;
+                    }
+
+                    try {
+                        await axiosAPI({ 
+                            endpoint: '/social/profile/me', 
+                            method: 'GET', 
+                            withAuth: true, 
+                            bearerToken: tokens.access_token 
+                        });
+                    } catch {
                     }
 
                     return {

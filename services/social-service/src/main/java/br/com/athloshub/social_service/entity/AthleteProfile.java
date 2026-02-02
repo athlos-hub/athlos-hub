@@ -57,6 +57,10 @@ public class AthleteProfile extends BaseEntity {
     
     @Builder.Default
     @Column
+    private Integer postsCount = 0;
+    
+    @Builder.Default
+    @Column
     private Integer achievementsCount = 0;
     
     @Builder.Default

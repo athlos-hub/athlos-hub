@@ -208,4 +208,121 @@ public class PostService {
             metadata
         );
     }
+    
+    @Transactional
+    public Post createAthletePost(String keycloakId, br.com.athloshub.social_service.dto.request.CreatePostRequest request) {
+        // Verificar se o perfil existe, senão criar
+        athleteProfileRepository.findByKeycloakId(keycloakId)
+            .orElseGet(() -> {
+                var profile = br.com.athloshub.social_service.entity.AthleteProfile.builder()
+                    .keycloakId(keycloakId)
+                    .build();
+                return athleteProfileRepository.save(profile);
+            });
+        
+        Post post = Post.builder()
+            .profileType(Post.ProfileType.ATHLETE)
+            .profileId(keycloakId)
+            .createdByKeycloakId(keycloakId)
+            .content(request.getContent())
+            .mediaUrls(request.getMediaUrls())
+            .type(request.getType() != null ? request.getType() : Post.PostType.TEXT)
+            .visibility(request.getVisibility() != null ? request.getVisibility() : Post.PostVisibility.PUBLIC)
+            .metadata(request.getMetadata())
+            .build();
+        
+        Post savedPost = postRepository.save(post);
+        
+        // Atualizar contador
+        athleteProfileRepository.findByKeycloakId(keycloakId).ifPresent(profile -> {
+            profile.setPostsCount(profile.getPostsCount() + 1);
+            athleteProfileRepository.save(profile);
+        });
+        
+        return savedPost;
+    }
+    
+    @Transactional(readOnly = true)
+    public Page<Post> getAthletePostsByKeycloakId(String keycloakId, Pageable pageable) {
+        return postRepository.findByProfileTypeAndProfileIdOrderByCreatedAtDesc(
+            Post.ProfileType.ATHLETE,
+            keycloakId,
+            pageable
+        );
+    }
+    
+    @Transactional
+    public void deleteAthletePost(UUID postId, String keycloakId) {
+        Post post = postRepository.findById(postId)
+            .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Post não encontrado"));
+        
+        if (!post.getCreatedByKeycloakId().equals(keycloakId)) {
+            throw new ResponseStatusException(FORBIDDEN, "Você não tem permissão para deletar este post");
+        }
+        
+        if (post.getProfileType() != Post.ProfileType.ATHLETE) {
+            throw new ResponseStatusException(FORBIDDEN, "Este não é um post de atleta");
+        }
+        
+        postRepository.delete(post);
+        
+        // Atualizar contador
+        athleteProfileRepository.findByKeycloakId(keycloakId).ifPresent(profile -> {
+            profile.setPostsCount(Math.max(0, profile.getPostsCount() - 1));
+            athleteProfileRepository.save(profile);
+        });
+    }
+    
+    @Transactional
+    public Post sharePost(UUID originalPostId, String keycloakId, br.com.athloshub.social_service.dto.request.CreatePostRequest shareRequest) {
+        Post originalPost = postRepository.findById(originalPostId)
+            .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Post original não encontrado"));
+        
+        // Verificar se o perfil existe
+        athleteProfileRepository.findByKeycloakId(keycloakId)
+            .orElseGet(() -> {
+                var profile = br.com.athloshub.social_service.entity.AthleteProfile.builder()
+                    .keycloakId(keycloakId)
+                    .build();
+                return athleteProfileRepository.save(profile);
+            });
+        
+        // Criar metadata com referência ao post original
+        Map<String, Object> shareMetadata = shareRequest != null && shareRequest.getMetadata() != null 
+            ? new java.util.HashMap<>(shareRequest.getMetadata())
+            : new java.util.HashMap<>();
+        
+        shareMetadata.put("sharedPostId", originalPostId.toString());
+        shareMetadata.put("originalAuthor", originalPost.getProfileId());
+        shareMetadata.put("originalProfileType", originalPost.getProfileType().toString());
+        
+        String shareContent = shareRequest != null && shareRequest.getContent() != null 
+            ? shareRequest.getContent() 
+            : "";
+        
+        Post sharedPost = Post.builder()
+            .profileType(Post.ProfileType.ATHLETE)
+            .profileId(keycloakId)
+            .createdByKeycloakId(keycloakId)
+            .content(shareContent)
+            .type(Post.PostType.SHARED)
+            .visibility(Post.PostVisibility.PUBLIC)
+            .metadata(shareMetadata)
+            .build();
+        
+        Post savedPost = postRepository.save(sharedPost);
+        
+        // Atualizar contador de compartilhamentos do post original
+        originalPost.setSharesCount(originalPost.getSharesCount() + 1);
+        postRepository.save(originalPost);
+        
+        // Atualizar contador de posts do atleta
+        athleteProfileRepository.findByKeycloakId(keycloakId).ifPresent(profile -> {
+            profile.setPostsCount(profile.getPostsCount() + 1);
+            athleteProfileRepository.save(profile);
+        });
+        
+        return savedPost;
+    }
 }
+

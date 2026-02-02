@@ -86,7 +86,8 @@ public class Post extends BaseEntity {
         ACHIEVEMENT,
         EVENT,
         TRAINING,
-        ANNOUNCEMENT
+        ANNOUNCEMENT,
+        SHARED
     }
     
     public enum PostVisibility {

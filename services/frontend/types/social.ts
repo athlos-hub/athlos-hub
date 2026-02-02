@@ -58,7 +58,8 @@ export enum PostType {
     ACHIEVEMENT = 'ACHIEVEMENT',
     EVENT = 'EVENT',
     TRAINING = 'TRAINING',
-    ANNOUNCEMENT = 'ANNOUNCEMENT'
+    ANNOUNCEMENT = 'ANNOUNCEMENT',
+    SHARED = 'SHARED'
 }
 
 export enum PostVisibility {

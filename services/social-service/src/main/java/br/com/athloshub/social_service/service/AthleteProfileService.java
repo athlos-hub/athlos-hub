@@ -22,10 +22,16 @@ public class AthleteProfileService {
     private final AuthServiceClient authServiceClient;
     private final JwtTokenProvider jwtTokenProvider;
     
-    @Transactional(readOnly = true)
+    @Transactional
     public AthleteProfile getProfileByKeycloakId(String keycloakId) {
+        // Retorna perfil existente ou cria um novo automaticamente
         return athleteProfileRepository.findByKeycloakId(keycloakId)
-            .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Perfil não encontrado"));
+            .orElseGet(() -> {
+                AthleteProfile newProfile = AthleteProfile.builder()
+                    .keycloakId(keycloakId)
+                    .build();
+                return athleteProfileRepository.save(newProfile);
+            });
     }
     
     @Transactional(readOnly = true)
@@ -72,7 +78,7 @@ public class AthleteProfileService {
         return athleteProfileRepository.save(profile);
     }
     
-    @Transactional(readOnly = true)
+    @Transactional
     public AthleteProfile getOrCreateProfile(String keycloakId) {
         return athleteProfileRepository.findByKeycloakId(keycloakId)
             .orElseGet(() -> {
