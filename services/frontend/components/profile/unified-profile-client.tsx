@@ -18,18 +18,20 @@ import {
   UserPlus,
   UserMinus,
   Settings,
-  Share2,
   Loader2,
   X,
   Check,
-  Edit2
+  Edit2,
+  Filter
 } from "lucide-react";
 import { PostCard } from "@/components/social/post-card";
 import { updateBio } from "@/actions/athlete-profile";
 import { EditProfileModal } from "./edit-profile-modal";
 import { EditSocialProfileModal } from "./edit-social-profile-modal";
 import { FollowListModal } from "./follow-list-modal";
+import { ShareProfileButton } from "./share-profile-button";
 import { getFollowedOrganizations } from "@/actions/organization-follow";
+import { getUserShares, Share } from "@/actions/shares";
 
 interface AuthUserProfile {
   id: string;
@@ -59,7 +61,9 @@ export function UnifiedProfileClient({
 }: UnifiedProfileProps) {
   const { data: session } = useSession();
   const [posts] = useState<Post[]>(initialPosts);
-  const [activeTab, setActiveTab] = useState<"posts" | "achievements" | "about">("posts");
+  const [sharedPosts, setSharedPosts] = useState<Share[]>([]);
+  const [isLoadingShares, setIsLoadingShares] = useState(false);
+  const [activeTab, setActiveTab] = useState<"posts" | "shared" | "achievements" | "about">("posts");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isEditSocialModalOpen, setIsEditSocialModalOpen] = useState(false);
   const [isEditingBio, setIsEditingBio] = useState(false);
@@ -91,6 +95,22 @@ export function UnifiedProfileClient({
     }
     loadFollowingCount();
   }, [athleteProfile.keycloakId, currentProfile.followingCount]);
+
+  useEffect(() => {
+    async function loadSharedPosts() {
+      if (activeTab !== "shared") return;
+      
+      setIsLoadingShares(true);
+      try {
+        const data = await getUserShares(athleteProfile.keycloakId);
+        setSharedPosts(data.content);
+      } catch (error) {
+      } finally {
+        setIsLoadingShares(false);
+      }
+    }
+    loadSharedPosts();
+  }, [activeTab, athleteProfile.keycloakId]);
 
   useEffect(() => {
     if (authUserData) {
@@ -230,6 +250,7 @@ export function UnifiedProfileClient({
                     <Edit2 className="h-4 w-4 mr-2" />
                     Completar Perfil
                   </Button>
+                  <ShareProfileButton keycloakId={athleteProfile.keycloakId} />
                 </>
               ) : (
                 <>
@@ -248,9 +269,7 @@ export function UnifiedProfileClient({
                     )}
                     {isFollowing ? "Seguindo" : "Seguir"}
                   </Button>
-                  <Button variant="outline" size="sm">
-                    <Share2 className="h-4 w-4" />
-                  </Button>
+                  <ShareProfileButton keycloakId={athleteProfile.keycloakId} />
                 </>
               )}
             </div>
@@ -338,6 +357,7 @@ export function UnifiedProfileClient({
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-6">
         <div className="flex items-center gap-4">
+          <Filter className="w-5 h-5 text-gray-600"/>
           <div className="flex gap-2">
             <button
               onClick={() => setActiveTab("posts")}
@@ -348,6 +368,16 @@ export function UnifiedProfileClient({
               }`}
             >
               Posts
+            </button>
+            <button
+              onClick={() => setActiveTab("shared")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === "shared"
+                  ? "bg-main text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              Compartilhados
             </button>
             <button
               onClick={() => setActiveTab("achievements")}
@@ -404,6 +434,39 @@ export function UnifiedProfileClient({
           <div className="py-12 text-center text-muted-foreground">
             <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <p>Conquistas em breve...</p>
+          </div>
+        )}
+
+        {activeTab === "shared" && (
+          <div className="space-y-4">
+            {isLoadingShares ? (
+              <div className="py-12 text-center">
+                <Loader2 className="h-8 w-8 mx-auto animate-spin text-main" />
+                <p className="text-muted-foreground mt-2">Carregando...</p>
+              </div>
+            ) : sharedPosts.length === 0 ? (
+              <div className="py-12 text-center text-muted-foreground">
+                <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Nenhum post compartilhado ainda.</p>
+              </div>
+            ) : (
+              sharedPosts.map((share) => (
+                <div key={share.id} className="space-y-2">
+                  {share.comment && (
+                    <div className="bg-gray-50 rounded-lg p-3 text-sm text-muted-foreground italic">
+                      "{share.comment}"
+                    </div>
+                  )}
+                  <PostCard
+                    post={share.post}
+                    isSharedByMe={isOwnProfile}
+                    onUnshare={() => {
+                      setSharedPosts(sharedPosts.filter(s => s.id !== share.id));
+                    }}
+                  />
+                </div>
+              ))
+            )}
           </div>
         )}
 

@@ -6,4 +6,5 @@ export { Feed } from './feed';
 export { SocialHeader } from './social-header';
 export { SocialFeedClient } from './social-feed-client';
 export { CommentSection } from './comment-section';
+export { ShareButton } from './share-button';
 export type { ProfileContext } from './profile-selector';

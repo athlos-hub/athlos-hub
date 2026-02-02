@@ -11,6 +11,7 @@ import { getMyOrganizations } from "@/actions/organizations";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { createOrganizationPost, createTeamPost } from "@/actions/social-posts";
+import { Users } from "lucide-react";
 
 interface SocialFeedClientProps {
     initialPosts: Post[];
@@ -126,7 +127,8 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
 
             {session && (
                 <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
-                    <div className="flex gap-2">
+                    <div className="flex gap-4 items-center">
+                        <Users className="w-5 h-5 text-gray-600"/>
                         <button
                             onClick={() => setFeedType("all")}
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${

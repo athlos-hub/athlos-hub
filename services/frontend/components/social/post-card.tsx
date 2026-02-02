@@ -6,15 +6,24 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Heart, MessageCircle, Share2, MoreVertical } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Heart, MessageCircle, MoreVertical, Link2, Trash2, Flag, Repeat2 } from "lucide-react";
 import { Post, PostType, ProfileType } from "@/types/social";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { getOrganizationBySlug } from "@/actions/organizations";
 import { togglePostLike, getPostLikeStatus } from "@/actions/social-likes";
-import { sharePost } from "@/actions/athlete-posts";
+import { checkHasShared, unsharePost } from "@/actions/shares";
 import { useSession } from "next-auth/react";
 import { CommentSection } from "./comment-section";
+import { ShareButton } from "./share-button";
+import { generatePostLink } from "@/lib/utils/share-links";
 import { toast } from "sonner";
 
 interface PostCardProps {
@@ -22,7 +31,9 @@ interface PostCardProps {
     onLike?: () => void;
     onComment?: () => void;
     onDelete?: () => void;
+    onUnshare?: () => void;
     isLiked?: boolean;
+    isSharedByMe?: boolean;
 }
 
 interface ProfileInfo {
@@ -31,14 +42,15 @@ interface ProfileInfo {
     avatarUrl?: string;
 }
 
-export function PostCard({ post, onLike, onComment, onDelete, isLiked = false }: PostCardProps) {
+export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked = false, isSharedByMe = false }: PostCardProps) {
     const { data: session } = useSession();
     const [liked, setLiked] = useState(isLiked);
     const [likesCount, setLikesCount] = useState(post.likesCount ?? 0);
     const [commentsCount, setCommentsCount] = useState(post.commentsCount ?? 0);
     const [sharesCount, setSharesCount] = useState(post.sharesCount ?? 0);
+    const [hasShared, setHasShared] = useState(isSharedByMe);
     const [isLiking, setIsLiking] = useState(false);
-    const [isSharing, setIsSharing] = useState(false);
+    const [isUnsharing, setIsUnsharing] = useState(false);
     const [showComments, setShowComments] = useState(false);
     const [profileInfo, setProfileInfo] = useState<ProfileInfo>({
         name: post.profileId,
@@ -56,7 +68,6 @@ export function PostCard({ post, onLike, onComment, onDelete, isLiked = false }:
                 }
                 // TODO: Buscar informações de Team quando implementado
             } catch (error) {
-                console.error('Failed to fetch profile info:', error);
             }
         }
         fetchProfileInfo();
@@ -71,10 +82,22 @@ export function PostCard({ post, onLike, onComment, onDelete, isLiked = false }:
                 setLiked(status.isLiked ?? false);
                 setLikesCount(status.likesCount ?? 0);
             } catch (error) {
-                console.error('Failed to fetch like status:', error);
             }
         }
         fetchLikeStatus();
+    }, [post.id, session?.user]);
+
+    useEffect(() => {
+        async function fetchShareStatus() {
+            if (!session?.user) return;
+            
+            try {
+                const shared = await checkHasShared(post.id);
+                setHasShared(shared);
+            } catch (error) {
+            }
+        }
+        fetchShareStatus();
     }, [post.id, session?.user]);
 
     const handleLike = async () => {
@@ -97,7 +120,6 @@ export function PostCard({ post, onLike, onComment, onDelete, isLiked = false }:
             setLikesCount(result.likesCount ?? (previousLiked ? previousCount - 1 : previousCount + 1));
             onLike?.();
         } catch (error) {
-            console.error('Failed to toggle like:', error);
             setLiked(previousLiked);
             setLikesCount(previousCount);
         } finally {
@@ -105,25 +127,40 @@ export function PostCard({ post, onLike, onComment, onDelete, isLiked = false }:
         }
     };
 
-    const handleShare = async () => {
-        if (!session?.user) {
-            toast.error("Faça login para compartilhar");
-            return;
-        }
+    const handleShareComplete = () => {
+        setSharesCount(sharesCount + 1);
+        setHasShared(true);
+    };
 
-        if (isSharing) return;
+    const handleUnshareComplete = () => {
+        setSharesCount(Math.max(0, sharesCount - 1));
+        setHasShared(false);
+        onUnshare?.();
+    };
 
-        setIsSharing(true);
-
+    const handleUnshare = async () => {
+        if (isUnsharing) return;
+        
+        setIsUnsharing(true);
         try {
-            await sharePost(post.id);
-            setSharesCount(sharesCount + 1);
-            toast.success("Post compartilhado no seu perfil!");
+            await unsharePost(post.id);
+            setSharesCount(Math.max(0, sharesCount - 1));
+            setHasShared(false);
+            toast.success("Compartilhamento removido!");
+            onUnshare?.();
         } catch (error) {
-            console.error('Failed to share post:', error);
-            toast.error("Erro ao compartilhar post");
+            toast.error("Erro ao remover compartilhamento");
         } finally {
-            setIsSharing(false);
+            setIsUnsharing(false);
+        }
+    };
+
+    const handleCopyLink = async () => {
+        try {
+            await navigator.clipboard.writeText(generatePostLink(post.id));
+            toast.success("Link copiado!");
+        } catch {
+            toast.error("Erro ao copiar link");
         }
     };
 
@@ -199,11 +236,44 @@ export function PostCard({ post, onLike, onComment, onDelete, isLiked = false }:
                         })}
                     </p>
                 </div>
-                {onDelete && (
-                    <Button variant="ghost" size="icon" onClick={onDelete}>
-                        <MoreVertical className="h-4 w-4" />
-                    </Button>
-                )}
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                            <MoreVertical className="h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={handleCopyLink} className="gap-2 cursor-pointer">
+                            <Link2 className="h-4 w-4" />
+                            Copiar link
+                        </DropdownMenuItem>
+                        {hasShared && (
+                            <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                    onClick={handleUnshare} 
+                                    className="gap-2 cursor-pointer text-red-600"
+                                    disabled={isUnsharing}
+                                >
+                                    <Repeat2 className="h-4 w-4" />
+                                    Remover compartilhamento
+                                </DropdownMenuItem>
+                            </>
+                        )}
+                        {onDelete && (
+                            <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                    onClick={onDelete} 
+                                    className="gap-2 cursor-pointer text-red-600"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                    Excluir post
+                                </DropdownMenuItem>
+                            </>
+                        )}
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </CardHeader>
 
             <CardContent className="space-y-3">
@@ -253,16 +323,13 @@ export function PostCard({ post, onLike, onComment, onDelete, isLiked = false }:
                         <MessageCircle className="h-4 w-4" />
                         <span className="text-xs">{commentsCount}</span>
                     </Button>
-                    <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="gap-2"
-                        onClick={handleShare}
-                        disabled={isSharing}
-                    >
-                        <Share2 className="h-4 w-4" />
-                        <span className="text-xs">{sharesCount}</span>
-                    </Button>
+                    <ShareButton
+                        postId={post.id}
+                        sharesCount={sharesCount}
+                        hasShared={hasShared}
+                        onShare={handleShareComplete}
+                        onUnshare={handleUnshareComplete}
+                    />
                 </div>
                 
                 {showComments && (
