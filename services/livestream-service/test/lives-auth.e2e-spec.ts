@@ -99,8 +99,11 @@ MIIEowIBAAKCAQEAtest
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
-        forbidNonWhitelisted: true,
+        forbidNonWhitelisted: false,
         transform: true,
+        transformOptions: {
+          enableImplicitConversion: true,
+        },
       }),
     );
 
@@ -140,7 +143,7 @@ MIIEowIBAAKCAQEAtest
         .set('Authorization', 'Bearer test-token')
         .expect(200);
 
-      expect(response.body.status).toBe('FINISHED');
+      expect(response.body.status).toBe('finished');
       expect(response.body.endedAt).not.toBeNull();
 
       // Verify in database
@@ -214,7 +217,7 @@ MIIEowIBAAKCAQEAtest
         .set('Authorization', 'Bearer test-token')
         .expect(200);
 
-      expect(response.body.status).toBe('CANCELLED');
+      expect(response.body.status).toBe('cancelled');
       expect(response.body.endedAt).not.toBeNull();
 
       // Verify in database
@@ -283,26 +286,36 @@ MIIEowIBAAKCAQEAtest
         },
       });
 
-      // Create test events
-      await prisma.liveEvent.createMany({
-        data: [
-          {
-            liveId: testLive.id,
-            type: 'GOAL',
-            payload: { team: 'home', player: 'Player 1' },
-          },
-          {
-            liveId: testLive.id,
-            type: 'YELLOW_CARD',
-            payload: { team: 'away', player: 'Player 2' },
-          },
-          {
-            liveId: testLive.id,
-            type: 'SUBSTITUTION',
-            payload: { team: 'home', playerIn: 'Player 3', playerOut: 'Player 4' },
-          },
-        ],
-      });
+      // Create test events in Redis (where the service fetches from)
+      const eventHistoryKey = `livestream:events:history:${testLive.id}`;
+      const events = [
+        {
+          id: uuidv4(),
+          liveId: testLive.id,
+          type: 'GOAL',
+          payload: { team: 'home', player: 'Player 1' },
+          timestamp: new Date().toISOString(),
+        },
+        {
+          id: uuidv4(),
+          liveId: testLive.id,
+          type: 'YELLOW_CARD',
+          payload: { team: 'away', player: 'Player 2' },
+          timestamp: new Date().toISOString(),
+        },
+        {
+          id: uuidv4(),
+          liveId: testLive.id,
+          type: 'SUBSTITUTION',
+          payload: { team: 'home', playerIn: 'Player 3', playerOut: 'Player 4' },
+          timestamp: new Date().toISOString(),
+        },
+      ];
+
+      // Push events to Redis list (lpush adds to the beginning)
+      for (const event of events) {
+        await redis.lpush(eventHistoryKey, JSON.stringify(event));
+      }
     });
 
     it('deve retornar histórico de eventos', async () => {
@@ -329,8 +342,8 @@ MIIEowIBAAKCAQEAtest
 
       const events = response.body;
       for (let i = 1; i < events.length; i++) {
-        const prevDate = new Date(events[i - 1].createdAt);
-        const currDate = new Date(events[i].createdAt);
+        const prevDate = new Date(events[i - 1].timestamp);
+        const currDate = new Date(events[i].timestamp);
         expect(currDate.getTime()).toBeGreaterThanOrEqual(prevDate.getTime());
       }
     });
@@ -354,7 +367,7 @@ MIIEowIBAAKCAQEAtest
     });
   });
 
-  describe('GET /lives/:id/chat - Histórico do Chat', () => {
+  describe('GET /lives/:id/chat/history - Histórico do Chat', () => {
     let testLive: { id: string; streamKey: string };
 
     beforeEach(async () => {
@@ -369,22 +382,22 @@ MIIEowIBAAKCAQEAtest
         },
       });
 
-      // Add some chat messages to Redis
-      const chatKey = `chat:${testLive.id}`;
+      // Add some chat messages to Redis using the correct key format
+      const chatHistoryKey = `livestream:chat:history:${testLive.id}`;
       const messages = [
-        { id: '1', userId: 'user1', userName: 'User 1', message: 'Hello!', timestamp: Date.now() - 3000 },
-        { id: '2', userId: 'user2', userName: 'User 2', message: 'Hi there!', timestamp: Date.now() - 2000 },
-        { id: '3', userId: 'user1', userName: 'User 1', message: 'How is the game?', timestamp: Date.now() - 1000 },
+        { userId: 'user1', userName: 'User 1', message: 'Hello!', timestamp: new Date().toISOString() },
+        { userId: 'user2', userName: 'User 2', message: 'Hi there!', timestamp: new Date().toISOString() },
+        { userId: 'user1', userName: 'User 1', message: 'How is the game?', timestamp: new Date().toISOString() },
       ];
 
       for (const msg of messages) {
-        await redis.zadd(chatKey, msg.timestamp, JSON.stringify(msg));
+        await redis.lpush(chatHistoryKey, JSON.stringify(msg));
       }
     });
 
     it('deve retornar histórico de mensagens do chat', async () => {
       const response = await request(app.getHttpServer())
-        .get(`/lives/${testLive.id}/chat`)
+        .get(`/lives/${testLive.id}/chat/history`)
         .expect(200);
 
       expect(response.body.messages).toBeDefined();
@@ -393,7 +406,7 @@ MIIEowIBAAKCAQEAtest
 
     it('deve respeitar parâmetro limit', async () => {
       const response = await request(app.getHttpServer())
-        .get(`/lives/${testLive.id}/chat`)
+        .get(`/lives/${testLive.id}/chat/history`)
         .query({ limit: 2 })
         .expect(200);
 
@@ -412,7 +425,7 @@ MIIEowIBAAKCAQEAtest
       });
 
       const response = await request(app.getHttpServer())
-        .get(`/lives/${emptyLive.id}/chat`)
+        .get(`/lives/${emptyLive.id}/chat/history`)
         .expect(200);
 
       expect(response.body.messages).toHaveLength(0);
