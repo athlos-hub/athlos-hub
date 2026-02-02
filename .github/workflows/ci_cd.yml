@@ -17,11 +17,15 @@ jobs:
   # ------------------------------------------------------------------
   test-auth-service:
     runs-on: ubuntu-latest
-    # Só roda se arquivos nesta pasta ou o workflow mudarem
+    outputs:
+      tests_run: ${{ steps.filter.outputs.src }}
+      total_tests: ${{ steps.test-results.outputs.total }}
+      passed_tests: ${{ steps.test-results.outputs.passed }}
+      failed_tests: ${{ steps.test-results.outputs.failed }}
+      coverage: ${{ steps.coverage.outputs.coverage }}
     steps:
       - uses: actions/checkout@v4
       
-      # Verifica se houve mudanças na pasta específica (Otimização)
       - uses: dorny/paths-filter@v2
         id: filter
         with:
@@ -47,7 +51,46 @@ jobs:
       - name: Run Tests
         if: steps.filter.outputs.src == 'true'
         working-directory: ./services/auth-service
-        run: poetry run pytest tests/unit --junitxml=test-results.xml --cov=src/auth_service --cov-report=term --cov-report=xml -v
+        run: poetry run pytest tests/unit --junitxml=test-results.xml --cov=src/auth_service --cov-report=term --cov-report=xml --cov-report=json -v
+
+      - name: Extract Test Results
+        if: steps.filter.outputs.src == 'true' && always()
+        id: test-results
+        working-directory: ./services/auth-service
+        run: |
+          if [ -f test-results.xml ]; then
+            TOTAL=$(grep -oP 'tests="\K[0-9]+' test-results.xml | head -1)
+            FAILURES=$(grep -oP 'failures="\K[0-9]+' test-results.xml | head -1)
+            ERRORS=$(grep -oP 'errors="\K[0-9]+' test-results.xml | head -1)
+            PASSED=$((TOTAL - FAILURES - ERRORS))
+            echo "total=$TOTAL" >> $GITHUB_OUTPUT
+            echo "passed=$PASSED" >> $GITHUB_OUTPUT
+            echo "failed=$((FAILURES + ERRORS))" >> $GITHUB_OUTPUT
+          else
+            echo "total=0" >> $GITHUB_OUTPUT
+            echo "passed=0" >> $GITHUB_OUTPUT
+            echo "failed=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Extract Coverage
+        if: steps.filter.outputs.src == 'true' && always()
+        id: coverage
+        working-directory: ./services/auth-service
+        run: |
+          if [ -f coverage.json ]; then
+            COVERAGE=$(python -c "import json; print(round(json.load(open('coverage.json'))['totals']['percent_covered'], 1))")
+            echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+          else
+            echo "coverage=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload Coverage Artifact
+        if: steps.filter.outputs.src == 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-service-coverage
+          path: services/auth-service/coverage.xml
+          retention-days: 7
 
       - name: Publish Test Results
         if: steps.filter.outputs.src == 'true' && always()
@@ -55,25 +98,19 @@ jobs:
         with:
           files: 'services/auth-service/test-results.xml'
           check_name: 'Auth Service Test Results'
-          comment_title: '🧪 Auth Service Test Results'
-
-      - name: Test Summary
-        if: steps.filter.outputs.src == 'true' && always()
-        working-directory: ./services/auth-service
-        run: |
-          echo "## 🧪 Auth Service Tests" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          poetry run pytest tests/unit --co -q | tail -1 >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ -f test-results.xml ]; then
-            echo "✅ Tests executed successfully" >> $GITHUB_STEP_SUMMARY
-          fi
+          comment_mode: off
 
   # ------------------------------------------------------------------
   # JOB 2: TESTES DO COMPETITIONS-SERVICE
   # ------------------------------------------------------------------
   test-competitions-service:
     runs-on: ubuntu-latest
+    outputs:
+      tests_run: ${{ steps.filter.outputs.src }}
+      total_tests: ${{ steps.test-results.outputs.total }}
+      passed_tests: ${{ steps.test-results.outputs.passed }}
+      failed_tests: ${{ steps.test-results.outputs.failed }}
+      coverage: ${{ steps.coverage.outputs.coverage }}
     steps:
       - uses: actions/checkout@v4
       
@@ -102,7 +139,46 @@ jobs:
       - name: Run Tests
         if: steps.filter.outputs.src == 'true'
         working-directory: ./services/competitions-service
-        run: poetry run pytest --junitxml=test-results.xml --cov=src --cov-report=term --cov-report=xml -v
+        run: poetry run pytest --junitxml=test-results.xml --cov=src --cov-report=term --cov-report=xml --cov-report=json -v
+
+      - name: Extract Test Results
+        if: steps.filter.outputs.src == 'true' && always()
+        id: test-results
+        working-directory: ./services/competitions-service
+        run: |
+          if [ -f test-results.xml ]; then
+            TOTAL=$(grep -oP 'tests="\K[0-9]+' test-results.xml | head -1)
+            FAILURES=$(grep -oP 'failures="\K[0-9]+' test-results.xml | head -1)
+            ERRORS=$(grep -oP 'errors="\K[0-9]+' test-results.xml | head -1)
+            PASSED=$((TOTAL - FAILURES - ERRORS))
+            echo "total=$TOTAL" >> $GITHUB_OUTPUT
+            echo "passed=$PASSED" >> $GITHUB_OUTPUT
+            echo "failed=$((FAILURES + ERRORS))" >> $GITHUB_OUTPUT
+          else
+            echo "total=0" >> $GITHUB_OUTPUT
+            echo "passed=0" >> $GITHUB_OUTPUT
+            echo "failed=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Extract Coverage
+        if: steps.filter.outputs.src == 'true' && always()
+        id: coverage
+        working-directory: ./services/competitions-service
+        run: |
+          if [ -f coverage.json ]; then
+            COVERAGE=$(python -c "import json; print(round(json.load(open('coverage.json'))['totals']['percent_covered'], 1))")
+            echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+          else
+            echo "coverage=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload Coverage Artifact
+        if: steps.filter.outputs.src == 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: competitions-service-coverage
+          path: services/competitions-service/coverage.xml
+          retention-days: 7
 
       - name: Publish Test Results
         if: steps.filter.outputs.src == 'true' && always()
@@ -110,25 +186,19 @@ jobs:
         with:
           files: 'services/competitions-service/test-results.xml'
           check_name: 'Competitions Service Test Results'
-          comment_title: '🏆 Competitions Service Test Results'
-
-      - name: Test Summary
-        if: steps.filter.outputs.src == 'true' && always()
-        working-directory: ./services/competitions-service
-        run: |
-          echo "## 🏆 Competitions Service Tests" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          poetry run pytest --co -q | tail -1 >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ -f test-results.xml ]; then
-            echo "✅ Tests executed successfully" >> $GITHUB_STEP_SUMMARY
-          fi
+          comment_mode: off
 
   # ------------------------------------------------------------------
   # JOB 3: TESTES DO LIVESTREAM-SERVICE
   # ------------------------------------------------------------------
   test-livestream-service:
     runs-on: ubuntu-latest
+    outputs:
+      tests_run: ${{ steps.filter.outputs.src }}
+      total_tests: ${{ steps.test-results.outputs.total }}
+      passed_tests: ${{ steps.test-results.outputs.passed }}
+      failed_tests: ${{ steps.test-results.outputs.failed }}
+      coverage: ${{ steps.coverage.outputs.coverage }}
     steps:
       - uses: actions/checkout@v4
       
@@ -157,28 +227,276 @@ jobs:
       - name: Run Tests
         if: steps.filter.outputs.src == 'true'
         working-directory: ./services/livestream-service
-        run: pnpm test:cov
+        run: pnpm test:cov --json --outputFile=test-results.json 2>/dev/null || pnpm test:cov
 
-      - name: Upload Coverage Report
-        if: steps.filter.outputs.src == 'true'
-        uses: codecov/codecov-action@v3
+      - name: Extract Test Results
+        if: steps.filter.outputs.src == 'true' && always()
+        id: test-results
+        working-directory: ./services/livestream-service
+        run: |
+          if [ -f test-results.json ]; then
+            TOTAL=$(cat test-results.json | jq '.numTotalTests // 0')
+            PASSED=$(cat test-results.json | jq '.numPassedTests // 0')
+            FAILED=$(cat test-results.json | jq '.numFailedTests // 0')
+          else
+            # Fallback: parse from coverage output
+            TOTAL=$(find coverage -name "*.json" -exec cat {} \; 2>/dev/null | jq -s 'map(.numTotalTests // 0) | add' || echo "0")
+            PASSED=$TOTAL
+            FAILED=0
+          fi
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+
+      - name: Extract Coverage
+        if: steps.filter.outputs.src == 'true' && always()
+        id: coverage
+        working-directory: ./services/livestream-service
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            COVERAGE=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
+            echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+          else
+            echo "coverage=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload Coverage Artifact
+        if: steps.filter.outputs.src == 'true' && always()
+        uses: actions/upload-artifact@v4
         with:
-          files: ./services/livestream-service/coverage/lcov.info
-          flags: livestream
-          name: livestream-coverage
+          name: livestream-service-coverage
+          path: services/livestream-service/coverage/lcov.info
+          retention-days: 7
 
   # ------------------------------------------------------------------
-  # JOB 4: TESTES DO SOCIAL-SERVICE
+  # JOB 4: TESTES DO NOTIFICATIONS-SERVICE
   # ------------------------------------------------------------------
+  test-notifications-service:
+    runs-on: ubuntu-latest
+    outputs:
+      tests_run: ${{ steps.filter.outputs.src }}
+      total_tests: ${{ steps.test-results.outputs.total }}
+      passed_tests: ${{ steps.test-results.outputs.passed }}
+      failed_tests: ${{ steps.test-results.outputs.failed }}
+      coverage: ${{ steps.coverage.outputs.coverage }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            src:
+              - 'services/notifications-service/**'
 
-  #IMPLEMENTAÇÃO PENDENTE
+      - name: Set up Python
+        if: steps.filter.outputs.src == 'true'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12.12'
+
+      - name: Install Poetry
+        if: steps.filter.outputs.src == 'true'
+        run: pip install poetry
+
+      - name: Install Deps
+        if: steps.filter.outputs.src == 'true'
+        working-directory: ./services/notifications-service
+        run: poetry install
+
+      - name: Run Tests
+        if: steps.filter.outputs.src == 'true'
+        working-directory: ./services/notifications-service
+        run: poetry run pytest tests/unit --junitxml=test-results.xml --cov=src --cov-report=term --cov-report=xml --cov-report=json -v
+
+      - name: Extract Test Results
+        if: steps.filter.outputs.src == 'true' && always()
+        id: test-results
+        working-directory: ./services/notifications-service
+        run: |
+          if [ -f test-results.xml ]; then
+            TOTAL=$(grep -oP 'tests="\K[0-9]+' test-results.xml | head -1)
+            FAILURES=$(grep -oP 'failures="\K[0-9]+' test-results.xml | head -1)
+            ERRORS=$(grep -oP 'errors="\K[0-9]+' test-results.xml | head -1)
+            PASSED=$((TOTAL - FAILURES - ERRORS))
+            echo "total=$TOTAL" >> $GITHUB_OUTPUT
+            echo "passed=$PASSED" >> $GITHUB_OUTPUT
+            echo "failed=$((FAILURES + ERRORS))" >> $GITHUB_OUTPUT
+          else
+            echo "total=0" >> $GITHUB_OUTPUT
+            echo "passed=0" >> $GITHUB_OUTPUT
+            echo "failed=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Extract Coverage
+        if: steps.filter.outputs.src == 'true' && always()
+        id: coverage
+        working-directory: ./services/notifications-service
+        run: |
+          if [ -f coverage.json ]; then
+            COVERAGE=$(python -c "import json; print(round(json.load(open('coverage.json'))['totals']['percent_covered'], 1))")
+            echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+          else
+            echo "coverage=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload Coverage Artifact
+        if: steps.filter.outputs.src == 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: notifications-service-coverage
+          path: services/notifications-service/coverage.xml
+          retention-days: 7
+
+      - name: Publish Test Results
+        if: steps.filter.outputs.src == 'true' && always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: 'services/notifications-service/test-results.xml'
+          check_name: 'Notifications Service Test Results'
+          comment_mode: off
 
   # ------------------------------------------------------------------
-  # JOB 5: GATEKEEPER (DEPLOY)
+  # JOB 5: SUMÁRIO E COMENTÁRIO NO PR
+  # Consolida resultados de todos os serviços e comenta no PR
+  # ------------------------------------------------------------------
+  test-summary:
+    needs: [test-auth-service, test-competitions-service, test-livestream-service, test-notifications-service]
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate Test Summary Comment
+        id: summary
+        run: |
+          # Função para gerar badge de status
+          get_status_badge() {
+            if [ "$1" == "true" ]; then
+              if [ "$2" == "0" ] || [ -z "$2" ]; then
+                echo "✅"
+              else
+                echo "❌"
+              fi
+            else
+              echo "⏭️"
+            fi
+          }
+
+          # Função para gerar badge de cobertura
+          get_coverage_badge() {
+            local cov=$1
+            if [ -z "$cov" ] || [ "$cov" == "0" ]; then
+              echo "N/A"
+            elif (( $(echo "$cov >= 80" | bc -l) )); then
+              echo "🟢 ${cov}%"
+            elif (( $(echo "$cov >= 60" | bc -l) )); then
+              echo "🟡 ${cov}%"
+            else
+              echo "🔴 ${cov}%"
+            fi
+          }
+
+          # Auth Service
+          AUTH_RUN="${{ needs.test-auth-service.outputs.tests_run }}"
+          AUTH_TOTAL="${{ needs.test-auth-service.outputs.total_tests }}"
+          AUTH_PASSED="${{ needs.test-auth-service.outputs.passed_tests }}"
+          AUTH_FAILED="${{ needs.test-auth-service.outputs.failed_tests }}"
+          AUTH_COV="${{ needs.test-auth-service.outputs.coverage }}"
+          AUTH_STATUS=$(get_status_badge "$AUTH_RUN" "$AUTH_FAILED")
+
+          # Competitions Service
+          COMP_RUN="${{ needs.test-competitions-service.outputs.tests_run }}"
+          COMP_TOTAL="${{ needs.test-competitions-service.outputs.total_tests }}"
+          COMP_PASSED="${{ needs.test-competitions-service.outputs.passed_tests }}"
+          COMP_FAILED="${{ needs.test-competitions-service.outputs.failed_tests }}"
+          COMP_COV="${{ needs.test-competitions-service.outputs.coverage }}"
+          COMP_STATUS=$(get_status_badge "$COMP_RUN" "$COMP_FAILED")
+
+          # Livestream Service
+          LIVE_RUN="${{ needs.test-livestream-service.outputs.tests_run }}"
+          LIVE_TOTAL="${{ needs.test-livestream-service.outputs.total_tests }}"
+          LIVE_PASSED="${{ needs.test-livestream-service.outputs.passed_tests }}"
+          LIVE_FAILED="${{ needs.test-livestream-service.outputs.failed_tests }}"
+          LIVE_COV="${{ needs.test-livestream-service.outputs.coverage }}"
+          LIVE_STATUS=$(get_status_badge "$LIVE_RUN" "$LIVE_FAILED")
+
+          # Notifications Service
+          NOTIF_RUN="${{ needs.test-notifications-service.outputs.tests_run }}"
+          NOTIF_TOTAL="${{ needs.test-notifications-service.outputs.total_tests }}"
+          NOTIF_PASSED="${{ needs.test-notifications-service.outputs.passed_tests }}"
+          NOTIF_FAILED="${{ needs.test-notifications-service.outputs.failed_tests }}"
+          NOTIF_COV="${{ needs.test-notifications-service.outputs.coverage }}"
+          NOTIF_STATUS=$(get_status_badge "$NOTIF_RUN" "$NOTIF_FAILED")
+
+          # Calcular totais
+          TOTAL_TESTS=$((${AUTH_TOTAL:-0} + ${COMP_TOTAL:-0} + ${LIVE_TOTAL:-0} + ${NOTIF_TOTAL:-0}))
+          TOTAL_PASSED=$((${AUTH_PASSED:-0} + ${COMP_PASSED:-0} + ${LIVE_PASSED:-0} + ${NOTIF_PASSED:-0}))
+          TOTAL_FAILED=$((${AUTH_FAILED:-0} + ${COMP_FAILED:-0} + ${LIVE_FAILED:-0} + ${NOTIF_FAILED:-0}))
+
+          # Status geral
+          if [ "$TOTAL_FAILED" -gt 0 ]; then
+            OVERALL_STATUS="❌ Alguns testes falharam"
+          else
+            OVERALL_STATUS="✅ Todos os testes passaram"
+          fi
+
+          # Gerar comentário
+          cat << EOF > comment.md
+          ## 🧪 Relatório de Testes
+
+          $OVERALL_STATUS
+
+          ### 📊 Resumo por Serviço
+
+          | Serviço | Status | Total | ✅ Passou | ❌ Falhou | 📈 Cobertura |
+          |---------|--------|-------|-----------|-----------|--------------|
+          | 🔐 Auth Service | $AUTH_STATUS | ${AUTH_TOTAL:-N/A} | ${AUTH_PASSED:-N/A} | ${AUTH_FAILED:-N/A} | $(get_coverage_badge "$AUTH_COV") |
+          | 🏆 Competitions Service | $COMP_STATUS | ${COMP_TOTAL:-N/A} | ${COMP_PASSED:-N/A} | ${COMP_FAILED:-N/A} | $(get_coverage_badge "$COMP_COV") |
+          | 📺 Livestream Service | $LIVE_STATUS | ${LIVE_TOTAL:-N/A} | ${LIVE_PASSED:-N/A} | ${LIVE_FAILED:-N/A} | $(get_coverage_badge "$LIVE_COV") |
+          | 🔔 Notifications Service | $NOTIF_STATUS | ${NOTIF_TOTAL:-N/A} | ${NOTIF_PASSED:-N/A} | ${NOTIF_FAILED:-N/A} | $(get_coverage_badge "$NOTIF_COV") |
+
+          ### 📈 Totais
+
+          - **Total de Testes:** $TOTAL_TESTS
+          - **Passaram:** $TOTAL_PASSED
+          - **Falharam:** $TOTAL_FAILED
+
+          ---
+
+          <details>
+          <summary>ℹ️ Legenda</summary>
+
+          - ✅ Testes executados e passaram
+          - ❌ Testes executados com falhas
+          - ⏭️ Testes não executados (sem alterações no serviço)
+          - 🟢 Cobertura >= 80%
+          - 🟡 Cobertura >= 60%
+          - 🔴 Cobertura < 60%
+
+          </details>
+
+          ---
+          *Gerado automaticamente pela pipeline de CI/CD*
+          EOF
+
+          echo "comment_file=comment.md" >> $GITHUB_OUTPUT
+
+      - name: Comment on PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: test-summary
+          path: comment.md
+
+      - name: Write Job Summary
+        run: cat comment.md >> $GITHUB_STEP_SUMMARY
+
+  # ------------------------------------------------------------------
+  # JOB 6: GATEKEEPER (DEPLOY)
   # Este job só roda se os anteriores forem bem sucedidos
   # ------------------------------------------------------------------
   gatekeeper:
-    needs: [test-auth-service, test-competitions-service, test-livestream-service]
+    needs: [test-auth-service, test-competitions-service, test-livestream-service, test-notifications-service]
     runs-on: ubuntu-latest
     if: success()
     steps:
@@ -190,5 +508,9 @@ jobs:
           echo "Auth Service: PASSED"
           echo "Competitions Service: PASSED"
           echo "Livestream Service: PASSED"
+          echo "Notifications Service: PASSED"
 
-  #IMPLEMENTAÇÃO PENDENTE (A DEFINIR ESTRATÉGIA DE DEPLOY)
+  # ------------------------------------------------------------------
+  # DEPLOY - IMPLEMENTAÇÃO PENDENTE
+  # A definir estratégia de deploy
+  # ------------------------------------------------------------------
