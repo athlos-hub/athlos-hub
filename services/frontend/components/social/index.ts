@@ -5,4 +5,5 @@ export { ProfileSelector } from './profile-selector';
 export { Feed } from './feed';
 export { SocialHeader } from './social-header';
 export { SocialFeedClient } from './social-feed-client';
+export { CommentSection } from './comment-section';
 export type { ProfileContext } from './profile-selector';
