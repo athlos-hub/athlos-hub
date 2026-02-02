@@ -47,7 +47,6 @@ export async function getMyAthleteProfile(): Promise<AthleteProfile> {
   return response.data.data || response.data as unknown as AthleteProfile;
 }
 
-// Alias para getMyAthleteProfile - o endpoint /me já cria o perfil se não existir
 export async function getOrCreateAthleteProfile(): Promise<AthleteProfile> {
   return getMyAthleteProfile();
 }

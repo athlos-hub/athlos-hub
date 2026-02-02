@@ -195,7 +195,6 @@ export async function createMultipleGoogleCalendarEvents(
   );
 }
 
-// Helpers: normalize matches from competitions service (snake_case) to backend expected camelCase shape
 function transformMatchForCalendar(m: Record<string, any>) {
   if (!m) return m;
 

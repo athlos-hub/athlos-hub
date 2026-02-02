@@ -122,6 +122,8 @@ export interface PageResponse<T> {
     last: boolean;
 }
 
+export type PostPage = PageResponse<Post>;
+
 export interface ApiResponse<T> {
     data: T;
     message?: string;

@@ -13,13 +13,20 @@ interface FeedProps {
     onLike: (postId: string) => Promise<void>;
     onComment?: (postId: string) => void;
     hasMore?: boolean;
+    isLoading?: boolean;
 }
 
-export function Feed({ initialPosts, loadMore, onLike, onComment, hasMore = true }: FeedProps) {
+export function Feed({ initialPosts, loadMore, onLike, onComment, hasMore = true, isLoading = false }: FeedProps) {
     const [posts, setPosts] = useState<Post[]>(initialPosts);
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(false);
     const [hasMorePosts, setHasMorePosts] = useState(hasMore);
+
+    useEffect(() => {
+        setPosts(initialPosts);
+        setPage(1);
+        setHasMorePosts(hasMore);
+    }, [initialPosts, hasMore]);
 
     const handleLoadMore = async () => {
         if (loading || !hasMorePosts) return;
@@ -48,6 +55,15 @@ export function Feed({ initialPosts, loadMore, onLike, onComment, hasMore = true
             toast.error("Erro ao curtir post");
         }
     };
+
+    if (isLoading) {
+        return (
+            <div className="text-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto text-main" />
+                <p className="text-muted-foreground mt-2">Carregando posts...</p>
+            </div>
+        );
+    }
 
     if (posts.length === 0) {
         return (

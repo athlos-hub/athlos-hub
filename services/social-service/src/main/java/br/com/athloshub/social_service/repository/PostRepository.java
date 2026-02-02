@@ -27,6 +27,13 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
         Pageable pageable
     );
     
+    @Query("SELECT p FROM Post p WHERE p.profileType = :profileType AND p.profileId IN :profileIds AND p.visibility = :visibility ORDER BY p.createdAt DESC")
+    List<Post> findByProfileTypeAndProfileIdInAndVisibilityOrderByCreatedAtDesc(
+        @Param("profileType") Post.ProfileType profileType,
+        @Param("profileIds") List<String> profileIds,
+        @Param("visibility") Post.PostVisibility visibility
+    );
+    
     @Query("SELECT COUNT(p) FROM Post p WHERE p.profileType = :profileType AND p.profileId = :profileId")
     long countByProfileTypeAndProfileId(
         @Param("profileType") Post.ProfileType profileType,

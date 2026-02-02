@@ -1,13 +1,37 @@
 "use server";
 
 import { Post, PageResponse } from "@/types/social";
+import { axiosAPI } from "@/lib/api/client";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 const SOCIAL_API_URL = process.env.API_BASE_URL || "http://localhost:8100/api/v1";
+
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+}
+
+export async function getFollowingFeed(page: number = 0, size: number = 10): Promise<PageResponse<Post>> {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.accessToken) {
+    throw new Error("Usuário não autenticado");
+  }
+
+  const response = await axiosAPI<ApiResponse<PageResponse<Post>>>({
+    endpoint: `/social/feed/following?page=${page}&size=${size}`,
+    method: "GET",
+    withAuth: true,
+    bearerToken: session.accessToken,
+  });
+
+  return response.data.data || response.data as unknown as PageResponse<Post>;
+}
 
 export async function getPublicFeed(page: number = 0, size: number = 10): Promise<PageResponse<Post>> {
   try {
     const url = `${SOCIAL_API_URL}/social/feed/public?page=${page}&size=${size}`;
-    console.log('Fetching public feed from:', url);
     
     const response = await fetch(url, {
       method: 'GET',
@@ -17,23 +41,17 @@ export async function getPublicFeed(page: number = 0, size: number = 10): Promis
       cache: 'no-store',
     });
 
-    console.log('Public feed response status:', response.status);
-
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Public feed error:', errorText);
       throw new Error(`Failed to fetch public feed: ${response.status}`);
     }
 
     const text = await response.text();
-    console.log('Public feed raw response length:', text.length);
     
     let data;
     try {
       data = JSON.parse(text);
     } catch (parseError) {
-      console.error('JSON parse error, raw text (first 500 chars):', text.substring(0, 500));
-      console.error('JSON parse error, raw text (last 500 chars):', text.substring(text.length - 500));
       throw parseError;
     }
     
@@ -65,7 +83,6 @@ export async function getPublicFeed(page: number = 0, size: number = 10): Promis
       number: 0,
     };
   } catch (error) {
-    console.error("Failed to fetch public feed:", error);
     throw error;
   }
 }

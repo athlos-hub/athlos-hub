@@ -14,7 +14,6 @@ async function handleRequest(req: NextRequest, method: string) {
         );
     }
 
-    // Extrai o path após /api/v1/social/
     const url = new URL(req.url);
     const pathSegments = url.pathname.split('/');
     const socialIndex = pathSegments.indexOf('social');
