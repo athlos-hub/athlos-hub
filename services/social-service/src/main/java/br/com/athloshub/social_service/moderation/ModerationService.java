@@ -21,7 +21,6 @@ public class ModerationService {
      * retorna 422 se for reprovado
      */
     public void assertAllowed(String text) {
-        if (!props.isEnabled()) return;
         if (text == null || text.isBlank()) return;
 
         if (props.getApiKey() == null || props.getApiKey().isBlank()) {
