@@ -19,6 +19,7 @@ import { LiveChat } from "@/components/livestream/live-chat";
 import { LiveEvents } from "@/components/livestream/live-events";
 import { LiveStatusDisplay } from "@/components/livestream/live-status-display";
 import { StreamKeyDisplay } from "@/components/livestream/stream-key-display";
+import { ScoreboardDisplay } from "@/components/matches/scoreboard-display";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getLiveById, finishLive, cancelLive } from "@/actions/lives";
 import { getMyOrganizations } from "@/actions/organizations";
@@ -172,6 +173,14 @@ export default function LiveDetailPage() {
 
       {((userOrgRole === OrgRole.OWNER) || (userOrgRole === OrgRole.ORGANIZER)) && (live.status === "scheduled" || live.status === "live") && (
         <StreamKeyDisplay streamKey={live.streamKey} />
+      )}
+
+      {/* Placar em Tempo Real */}
+      {live.externalMatchId && (
+        <ScoreboardDisplay 
+          matchId={live.externalMatchId}
+          canEdit={(userOrgRole === OrgRole.OWNER) || (userOrgRole === OrgRole.ORGANIZER)}
+        />
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
