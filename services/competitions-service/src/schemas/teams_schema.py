@@ -13,7 +13,7 @@ class PlayerResponseSchema(PlayerCreateSchema):
     model_config = ConfigDict(from_attributes=True)
 
 class TeamBaseSchema(BaseModel):
-    org_code: str = Field(..., description="Código da organização")
+    organization_slug: str = Field(..., description="Slug da organização")
     competition_id: int = Field(..., description="ID da competição")
     name: str = Field(..., description="Nome do time", max_length=100)
     abbreviation: str = Field(..., description="Abreviação (SIGLA)", max_length=3)

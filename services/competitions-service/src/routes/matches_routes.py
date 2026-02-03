@@ -13,12 +13,12 @@ from src.schemas.rounds_schema import RoundMatchesResponse
 router = APIRouter(prefix="/matches", tags=["matches"])
 
 @router.get(
-    "/organization/{org_code}", 
+    "/organization/{organization_slug}", 
     response_model=List[MatchOrgResponse],
     summary="Listar jogos de uma organização com filtros"
 )
 async def list_organization_matches(
-    org_code: str,
+    organization_slug: str,
     period: MatchPeriodFilter = Query(
         MatchPeriodFilter.ALL, 
         description="Filtro de período: 'today', 'week', ou 'all'"
@@ -27,10 +27,10 @@ async def list_organization_matches(
 ):
     """
     Retorna todos os jogos de todas as competições e modalidades vinculadas
-    a um código de organização (org_code).
+    a um slug de organização (organization_slug).
     """
     service = MatchesService(session)
-    return await service.get_matches_by_org(org_code, period)
+    return await service.get_matches_by_org(organization_slug, period)
 
 @router.get(
     "/competition/{competition_id}",
@@ -104,20 +104,20 @@ async def list_group_rounds(
     return await service.get_rounds_by_group(group_id)
 
 @router.get(
-    "/organization/{org_code}/rounds",
+    "/organization/{organization_slug}/rounds",
     response_model=List[RoundMatchesResponse],
     summary="Listar todas as rodadas de uma organização"
 )
 async def list_org_rounds(
-    org_code: str,
+    organization_slug: str,
     session: AsyncSession = Depends(get_session)
 ):
     """
     Retorna todas as rodadas (e seus respectivos jogos) de todas as competições
-    vinculadas ao código da organização (org_code).
+    vinculadas ao slug da organização (organization_slug).
     """
     service = RoundsService(session)
-    return await service.get_rounds_by_org(org_code)
+    return await service.get_rounds_by_org(organization_slug)
 
 @router.patch(
     "/{match_id}",

@@ -95,7 +95,7 @@ class RoundsService:
             
         return response
     
-    async def get_rounds_by_org(self, org_code: str):
+    async def get_rounds_by_org(self, organization_slug: str):
         """
         Lista todas as rodadas de todas as competições de uma organização.
         """

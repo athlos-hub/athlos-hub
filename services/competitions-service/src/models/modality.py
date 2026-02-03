@@ -11,7 +11,7 @@ class ModalityModel(Base):
     __tablename__ = "modalities"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    org_code: Mapped[str] = mapped_column(String, index=True)
+    organization_slug: Mapped[str] = mapped_column(String(255), index=True)
     name: Mapped[str] = mapped_column(String(50))
     
 

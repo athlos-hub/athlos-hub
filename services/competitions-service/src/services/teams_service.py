@@ -46,7 +46,7 @@ class TeamService:
 
         # 3. Criação do Time (Inicialmente sem capitão para evitar ciclo)
         new_team = TeamModel(
-            org_code=data.org_code,
+            organization_slug=data.organization_slug,
             competition_id=data.competition_id,
             name=data.name,
             abbreviation=data.abbreviation,

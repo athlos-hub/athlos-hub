@@ -31,7 +31,7 @@ class PlayerModel(Base):
 class TeamModel(Base):
     __tablename__ = "teams"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    org_code: Mapped[str] = mapped_column(String(50), index=True) 
+    organization_slug: Mapped[str] = mapped_column(String(255), index=True) 
     competition_id: Mapped[int] = mapped_column(ForeignKey("competitions.id"))
     name: Mapped[str] = mapped_column(String(100))
     abbreviation: Mapped[Optional[str]] = mapped_column(String(3), nullable=False)
