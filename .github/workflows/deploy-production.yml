@@ -75,11 +75,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            NEXT_PUBLIC_API_BASE_URL=http://athloshub.com.br/api/v1
-            NEXT_PUBLIC_API_GATEWAY_URL=http://athloshub.com.br/api/v1
-            NEXT_PUBLIC_LIVESTREAM_WS_URL=ws://athloshub.com.br
-            NEXT_PUBLIC_HLS_URL=http://athloshub.com.br/live
-            NEXT_PUBLIC_NOTIFICATIONS_SSE_URL=http://athloshub.com.br/api/v1/notifications/stream
+            NEXT_PUBLIC_API_BASE_URL=https://athloshub.com.br/api/v1
+            NEXT_PUBLIC_API_GATEWAY_URL=https://athloshub.com.br/api/v1
+            NEXT_PUBLIC_LIVESTREAM_WS_URL=wss://athloshub.com.br
+            NEXT_PUBLIC_HLS_URL=https://athloshub.com.br/live
+            NEXT_PUBLIC_NOTIFICATIONS_SSE_URL=https://athloshub.com.br/api/v1/notifications/stream
 
   deploy:
     name: Deploy to VPS
@@ -167,14 +167,14 @@ jobs:
             sleep 10
             
             # Testar endpoint principal
-            if curl -f -s -o /dev/null -w "%{http_code}" http://athloshub.com.br | grep -q "200\|301\|302"; then
+            if curl -f -s -o /dev/null -w "%{http_code}" https://athloshub.com.br | grep -q "200\|301\|302"; then
               echo "✅ Frontend está respondendo!"
             else
               echo "⚠️ Frontend pode não estar respondendo corretamente"
             fi
             
             # Testar health do auth-service
-            if curl -f -s http://athloshub.com.br/api/v1/health; then
+            if curl -f -s https://athloshub.com.br/api/v1/health; then
               echo "✅ Auth Service health check OK!"
             else
               echo "⚠️ Auth Service health check falhou"
@@ -184,7 +184,7 @@ jobs:
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            echo "🎉 Deploy realizado com sucesso em http://athloshub.com.br"
+            echo "🎉 Deploy realizado com sucesso em https://athloshub.com.br"
           else
             echo "❌ Deploy falhou! Verifique os logs."
           fi
