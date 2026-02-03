@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import List, Literal, Optional
 from urllib.parse import quote_plus
@@ -12,28 +11,12 @@ SRC_ROOT = AUTH_SERVICE_ROOT.parent
 SERVICE_ROOT = SRC_ROOT.parent
 MONOREPO_ROOT = SERVICE_ROOT.parent.parent
 
-# Determina quais arquivos .env carregar baseado no ambiente
-def _get_env_files() -> list:
-    """Retorna a lista de arquivos .env a serem carregados."""
-    env_files = []
-    
-    # Verifica se estamos em ambiente de teste (CI ou pytest)
-    is_test = os.environ.get("CI") == "true" or "pytest" in os.environ.get("_", "")
-    
-    if is_test and (SERVICE_ROOT / ".env.test").exists():
-        env_files.append(SERVICE_ROOT / ".env.test")
-    
-    # Adiciona os arquivos padrão
-    env_files.extend([MONOREPO_ROOT / ".env", SERVICE_ROOT / ".env"])
-    
-    return env_files
-
 
 class Settings(BaseSettings):
     """Configurações da aplicação."""
 
     model_config = SettingsConfigDict(
-        env_file=_get_env_files(),
+        env_file=[MONOREPO_ROOT / ".env", SERVICE_ROOT / ".env"],
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -43,43 +26,43 @@ class Settings(BaseSettings):
     ENV: str = Field(default="dev", alias="env")
 
     # Keycloak
-    KEYCLOAK_URL: str = Field(default="http://localhost:8080")
-    KEYCLOAK_ISSUER: str = "https://athloshub.com.br/keycloak"
-    KEYCLOAK_REALM: str = Field(default="test-realm")
-    KEYCLOAK_CLIENT_ID: str = Field(default="test-client-id")
-    KEYCLOAK_CLIENT_SECRET: str = Field(default="test-client-secret")
+    KEYCLOAK_URL: str
+    KEYCLOAK_ISSUER: str = "http://athloshub.com.br/keycloak"
+    KEYCLOAK_REALM: str
+    KEYCLOAK_CLIENT_ID: str
+    KEYCLOAK_CLIENT_SECRET: str
     # Admin creds for Keycloak (optional for runtime; Keycloak itself may manage admin user)
     KEYCLOAK_ADMIN_USERNAME: Optional[str] = None
     KEYCLOAK_ADMIN_PASSWORD: Optional[str] = None
-    ALGORITHM: str = Field(default="RS256")
+    ALGORITHM: str
 
     # Google OAuth
-    GOOGLE_CLIENT_ID: str = Field(default="test-google-id")
-    GOOGLE_CLIENT_SECRET: str = Field(default="test-google-secret")
-    GOOGLE_REDIRECT_URI: str = Field(default="http://localhost:3000/auth/callback")
+    GOOGLE_CLIENT_ID: str
+    GOOGLE_CLIENT_SECRET: str
+    GOOGLE_REDIRECT_URI: str
 
     # API
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000
 
     # Segurança
-    SECRET_KEY: str = Field(default="test-secret-key-for-development")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=60)
+    SECRET_KEY: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
 
     # Banco de dados
-    DATABASE_HOST: str = Field(default="localhost")
-    DATABASE_PORT: int = Field(default=5432)
-    DATABASE_NAME: str = Field(default="auth_db")
+    DATABASE_HOST: str
+    DATABASE_PORT: int
+    DATABASE_NAME: str
 
     # Conexão com o keycloak
-    KEYCLOAK_DATABASE_URL: str = Field(default="sqlite+aiosqlite:///:memory:")
-    KEYCLOAK_DATABASE_USER: str = Field(default="test_user")
-    KEYCLOAK_DATABASE_PASSWORD: str = Field(default="test_password")
+    KEYCLOAK_DATABASE_URL: str
+    KEYCLOAK_DATABASE_USER: str
+    KEYCLOAK_DATABASE_PASSWORD: str
 
     # Conexão com o schema de auth
-    AUTH_DATABASE_USER: str = Field(default="test_user")
-    AUTH_DATABASE_PASSWORD: str = Field(default="test_password")
-    AUTH_DATABASE_URL: Optional[str] = Field(default="sqlite+aiosqlite:///:memory:")
+    AUTH_DATABASE_USER: str
+    AUTH_DATABASE_PASSWORD: str
+    AUTH_DATABASE_URL: Optional[str] = None
     AUTH_DATABASE_SCHEMA: Optional[str] = None
 
     # Database Pool (optional with sensible defaults)
@@ -94,8 +77,8 @@ class Settings(BaseSettings):
     FRONTEND_URL: Optional[str] = None
 
     # Email Resend
-    EMAIL_TOKEN_SECRET: str = Field(default="test-email-secret")
-    RESEND_API_KEY: str = Field(default="test-resend-key")
+    EMAIL_TOKEN_SECRET: str
+    RESEND_API_KEY: str
 
     # Rate Limiting (optional)
     RATE_LIMIT_ENABLED: bool = False
@@ -105,13 +88,13 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "%(levelname)s:%(name)s:%(message)s"
 
-    NOTIFICATIONS_SERVICE_URL: str = "https://athloshub.com.br"
+    NOTIFICATIONS_SERVICE_URL: str = "http://athloshub.com.br"
 
     # Bucket S3
-    AWS_BUCKET_REGION: str = Field(default="us-east-1")
-    AWS_BUCKET_NAME: str = Field(default="test-bucket")
-    AWS_BUCKET_ACCESS_KEY_ID: str = Field(default="test-key-id")
-    AWS_BUCKET_SECRET_ACCESS_KEY: str = Field(default="test-secret-key")
+    AWS_BUCKET_REGION: str
+    AWS_BUCKET_NAME: str
+    AWS_BUCKET_ACCESS_KEY_ID: str
+    AWS_BUCKET_SECRET_ACCESS_KEY: str
     # Normalize ENV values (support 'production'/'prod' and 'development'/'dev')
     @field_validator("ENV", mode="before")
     def _normalize_env(cls, v):

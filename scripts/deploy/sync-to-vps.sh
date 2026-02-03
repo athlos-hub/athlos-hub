@@ -10,9 +10,9 @@
 set -e
 
 # Configurações (EDITE AQUI)
-VPS_HOST="72.61.24.126"
+VPS_HOST="71.61.24.126"
 VPS_USER="gustavoathlos"
-VPS_PATH="/home/$VPS_USER/athlos-hub"
+VPS_PATH="/home/$VPS_USER/athloshub"
 
 # Cores para output
 RED='\033[0;31m'

@@ -371,7 +371,7 @@ services:
       DB_POOL_MAX_SIZE: "10"
       DB_POOL_MIN_SIZE: "2"
       DB_CONNECTION_TIMEOUT: "30000"
-      JPA_DDL_AUTO: validate
+      JPA_DDL_AUTO: none
       JPA_SHOW_SQL: "false"
       LOG_LEVEL: INFO
       APP_LOG_LEVEL: INFO
