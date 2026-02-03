@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -83,7 +84,7 @@ public class CommentService {
     }
 
     @Transactional
-    public Comment updateComment(UUID commentId, String content) {
+    public Comment updateComment(UUID postId, UUID commentId, String content) {
         String keycloakId = jwtTokenProvider.getCurrentKeycloakId();
         if (keycloakId == null) {
             throw new ResponseStatusException(UNAUTHORIZED, "Usuário não autenticado");
@@ -92,11 +93,16 @@ public class CommentService {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Comentário não encontrado"));
 
+
+        if (comment.getPost() == null || !comment.getPost().getId().equals(postId)) {
+            throw new ResponseStatusException(NOT_FOUND, "Comentário não encontrado neste post");
+        }
+
         if (!comment.getKeycloakId().equals(keycloakId)) {
             throw new ResponseStatusException(FORBIDDEN, "Você não tem permissão para editar este comentário");
         }
 
-        // Re-modera ao editar
+        // modera ao editar
         moderationService.assertAllowed(content);
 
         comment.setContent(content);
@@ -106,7 +112,7 @@ public class CommentService {
     }
 
     @Transactional
-    public void deleteComment(UUID commentId) {
+    public void deleteComment(UUID postId, UUID commentId) {
         String keycloakId = jwtTokenProvider.getCurrentKeycloakId();
         if (keycloakId == null) {
             throw new ResponseStatusException(UNAUTHORIZED, "Usuário não autenticado");
@@ -114,6 +120,10 @@ public class CommentService {
 
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Comentário não encontrado"));
+
+        if (comment.getPost() == null || !comment.getPost().getId().equals(postId)) {
+            throw new ResponseStatusException(NOT_FOUND, "Comentário não encontrado neste post");
+        }
 
         if (!comment.getKeycloakId().equals(keycloakId)) {
             throw new ResponseStatusException(FORBIDDEN, "Você não tem permissão para deletar este comentário");
