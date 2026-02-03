@@ -14,6 +14,7 @@ from notifications_service.api.dependencies import (
 )
 from notifications_service.domain.services import NotificationService
 from notifications_service.infrastructure.sse import sse_manager
+from notifications_service.utils import resolve_user_id
 
 from notifications_service.schemas import (
     NotificationResponse,
@@ -29,14 +30,19 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 @router.get("", response_model=NotificationListResponse)
 async def list_notifications(
     service: Annotated[NotificationService, Depends(get_notification_service)],
-    user_id: UUID = Query(..., description="ID do usuário"),
+    user_id: str = Query(..., description="ID do usuário (aceita user.id ou keycloak_id)"),
     page: int = Query(1, ge=1, description="Número da página"),
     page_size: int = Query(50, ge=1, le=100, description="Tamanho da página"),
     unread_only: bool = Query(False, description="Listar apenas não lidas"),
 ):
     """Lista notificações do usuário com paginação."""
+    resolved_user_id = await resolve_user_id(user_id)
+    if resolved_user_id is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="ID de usuário inválido")
+    
     return await service.list_user_notifications(
-        user_id=user_id,
+        user_id=resolved_user_id,
         page=page,
         page_size=page_size,
         unread_only=unread_only,
@@ -46,24 +52,34 @@ async def list_notifications(
 @router.get("/unread-count", response_model=UnreadCountResponse)
 async def get_unread_count(
     service: Annotated[NotificationService, Depends(get_notification_service)],
-    user_id: UUID = Query(..., description="ID do usuário"),
+    user_id: str = Query(..., description="ID do usuário (aceita user.id ou keycloak_id)"),
 ):
     """Retorna a contagem de notificações não lidas."""
-    count = await service.count_unread(user_id)
+    resolved_user_id = await resolve_user_id(user_id)
+    if resolved_user_id is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="ID de usuário inválido")
+    
+    count = await service.count_unread(resolved_user_id)
     return UnreadCountResponse(count=count)
 
 
 @router.get("/stream")
 async def stream_notifications(
-    user_id: UUID = Query(..., description="ID do usuário"),
+    user_id: str = Query(..., description="ID do usuário (aceita user.id ou keycloak_id)"),
 ):
     """
     Stream de notificações em tempo real usando Server-Sent Events (SSE).
     
     O cliente mantém uma conexão aberta e recebe notificações em tempo real.
     """
+    resolved_user_id = await resolve_user_id(user_id)
+    if resolved_user_id is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="ID de usuário inválido")
+    
     async def event_generator():
-        queue = await sse_manager.connect(user_id)
+        queue = await sse_manager.connect(resolved_user_id)
         
         try:
             yield f"data: {json.dumps({'type': 'connected', 'data': {'message': 'Conectado ao stream de notificações'}})}\n\n"
@@ -77,7 +93,7 @@ async def stream_notifications(
         except asyncio.CancelledError:
             pass
         finally:
-            await sse_manager.disconnect(user_id, queue)
+            await sse_manager.disconnect(resolved_user_id, queue)
     
     return StreamingResponse(
         event_generator(),
@@ -86,6 +102,8 @@ async def stream_notifications(
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Credentials": "true",
         }
     )
 

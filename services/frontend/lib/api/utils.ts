@@ -67,6 +67,9 @@ export function parseErrorMessage(errorData: unknown): string {
 }
 
 export function getBaseURL(): string {
+    if (process.env.NODE_ENV === 'development') {
+        return process.env.API_BASE_URL || "http://localhost:8000";
+    }
     return process.env.API_BASE_URL || "http://localhost:8100/api/v1";
 }
 

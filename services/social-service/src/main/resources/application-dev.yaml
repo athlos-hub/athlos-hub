@@ -1,0 +1,33 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  
+  devtools:
+    restart:
+      enabled: true
+    livereload:
+      enabled: true
+  
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8100/keycloak/realms/athlos
+          jwk-set-uri: http://localhost:8100/keycloak/realms/athlos/protocol/openid-connect/certs
+
+logging:
+  level:
+    root: INFO
+    br.com.athloshub.social_service: DEBUG
+    feign: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+springdoc:
+  swagger-ui:
+    enabled: true
+  api-docs:
+    enabled: true

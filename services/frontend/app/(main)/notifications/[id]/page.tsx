@@ -112,6 +112,16 @@ export default function NotificationDetailPage({ params }: NotificationDetailPag
         return '🟢';
       case 'organization_deleted':
         return '🗑️';
+      case 'follow':
+        return '👤';
+      case 'post_like':
+        return '❤️';
+      case 'post_comment':
+        return '💬';
+      case 'post_share':
+        return '🔄';
+      case 'organization_follow':
+        return '🏢';
       case 'general':
         return '🔔';
       default:

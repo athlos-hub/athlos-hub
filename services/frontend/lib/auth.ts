@@ -54,6 +54,16 @@ export const authOptions: NextAuthOptions = {
 
                             const userData = (data as BackendLoginResponse).user;
 
+                            try {
+                                await axiosAPI({ 
+                                    endpoint: '/social/profile/me', 
+                                    method: 'GET', 
+                                    withAuth: true, 
+                                    bearerToken: (data as BackendLoginResponse).access_token 
+                                });
+                            } catch {
+                            }
+
                             return {
                                 id: String(userData?.id),
                                 name: userData?.first_name || userData?.username,
@@ -121,6 +131,16 @@ export const authOptions: NextAuthOptions = {
                         return null;
                     }
 
+                    try {
+                        await axiosAPI({ 
+                            endpoint: '/social/profile/me', 
+                            method: 'GET', 
+                            withAuth: true, 
+                            bearerToken: tokens.access_token 
+                        });
+                    } catch {
+                    }
+
                     return {
                         id: String(userProfile.id),
                         email: userProfile.email,
@@ -173,12 +193,26 @@ export const authOptions: NextAuthOptions = {
         async session({ session, token }) {
             session.accessToken = token.accessToken as string;
             session.refreshToken = token.refreshToken as string;
+            
+            let keycloakId: string | undefined;
+            if (token.accessToken) {
+                try {
+                    const payload = JSON.parse(
+                        Buffer.from((token.accessToken as string).split('.')[1], 'base64').toString()
+                    );
+                    keycloakId = payload.sub;
+                } catch (error) {
+                    console.error('Failed to decode JWT:', error);
+                }
+            }
+            
             session.user = {
                 ...session.user,
                 id: token.id as string,
                 image: token.picture as string | undefined,
                 name: token.name as string | undefined,
                 email: token.email as string | undefined,
+                keycloakId: keycloakId,
             };
             return session;
         },

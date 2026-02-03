@@ -55,6 +55,7 @@ services:
       COMPETITIONS_DB_PASSWORD: ${COMPETITIONS_DB_PASSWORD}
       LIVESTREAM_DB_PASSWORD: ${LIVESTREAM_DB_PASSWORD}
       NOTIFICATIONS_DB_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD}
+      SOCIAL_DB_PASSWORD: ${SOCIAL_DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backups:/backups
