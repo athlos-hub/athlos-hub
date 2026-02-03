@@ -102,3 +102,13 @@ springdoc:
     enabled: ${SWAGGER_ENABLED:true}
     operations-sorter: method
     tags-sorter: alpha
+
+# -----------------------------------------------------------------------------
+# OPENAI MODERATION API
+# -----------------------------------------------------------------------------
+openai:
+  moderation:
+    enabled: true
+    api-key: ${OPENAI_API_KEY:}
+    model: ${OPENAI_MODERATION_MODEL:omni-moderation-latest}
+    base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
