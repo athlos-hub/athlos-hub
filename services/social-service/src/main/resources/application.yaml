@@ -48,8 +48,8 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8100/keycloak}/realms/${KEYCLOAK_REALM:athloshub}
-          jwk-set-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8100/keycloak}/realms/${KEYCLOAK_REALM:athloshub}/protocol/openid-connect/certs
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8100/keycloak}/realms/${KEYCLOAK_REALM:athlos}
+          jwk-set-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8100/keycloak}/realms/${KEYCLOAK_REALM:athlos}/protocol/openid-connect/certs
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001}
