@@ -6,13 +6,15 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Trophy, Radio, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { ScoreEditor } from "./score-editor";
+import { StatsCreator } from "./stats-creator";
 
 interface ScoreboardDisplayProps {
   matchId: string;
+  competitionId?: number;
   canEdit?: boolean;
 }
 
-export function ScoreboardDisplay({ matchId, canEdit = false }: ScoreboardDisplayProps) {
+export function ScoreboardDisplay({ matchId, competitionId, canEdit = false }: ScoreboardDisplayProps) {
   const { scoreboard, isConnected, error } = useScoreboard(matchId);
 
   if (error) {
@@ -63,10 +65,22 @@ export function ScoreboardDisplay({ matchId, canEdit = false }: ScoreboardDispla
       </div>
 
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Trophy className="w-5 h-5" />
-          Placar
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Trophy className="w-5 h-5" />
+            Placar
+          </CardTitle>
+          
+          {/* Botão para registrar stats */}
+          {canEdit && competitionId && scoreboard.status === "live" && (
+            <StatsCreator
+              matchId={matchId}
+              competitionId={competitionId}
+              homeTeamId={scoreboard.home_team_id || undefined}
+              awayTeamId={scoreboard.away_team_id || undefined}
+            />
+          )}
+        </div>
       </CardHeader>
 
       <CardContent className="space-y-6">

@@ -7,6 +7,15 @@ import uuid
 from src.routes.routes import get_session
 from src.services.matches_service import MatchesService
 from src.schemas.matches_schema import MatchOrgResponse, MatchPeriodFilter, MatchResponse, MatchUpdateRequest, MatchDetailResponse, MultipleMatchesDetailResponse
+from src.schemas.matches_schema import (
+    MatchOrgResponse,
+    MatchPeriodFilter,
+    MatchResponse,
+    MatchUpdateRequest,
+    ScoreUpdateRequest,
+    SetScoreRequest,
+)
+from src.services.manege_matches_service import ManageMatchesService
 from src.services.rounds_service import RoundsService
 from src.schemas.rounds_schema import RoundMatchesResponse
 
@@ -192,3 +201,78 @@ async def get_matches_by_ids(
     service = MatchesService(session)
     matches = await service.get_matches_details_by_ids(match_uuids)
     return MultipleMatchesDetailResponse(matches=matches)
+
+@router.post(
+    "/{match_id}/score",
+    response_model=MatchResponse,
+    summary="Registrar pontuação (segmentada ou geral)"
+)
+async def register_match_score(
+    match_id: uuid.UUID,
+    score: ScoreUpdateRequest,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Registra pontuação em um jogo:
+    - Se `segment_id` for informado, incrementa no segmento e reflete no total do jogo.
+    - Caso contrário, incrementa diretamente no placar geral.
+    - Se a competição possuir StatsRuleSet, exige `player_id` e `stats_metric_abbreviation`.
+    - Só permite incrementar com o jogo no status `live`.
+    """
+    service = ManageMatchesService(session)
+    updated = await service.register_score(
+        match_id=match_id,
+        team_side=score.team_side.value,
+        increment=score.increment,
+        segment_id=score.segment_id,
+        stats_metric_abbreviation=score.stats_metric_abbreviation,
+        player_id=score.player_id,
+    )
+    return updated
+
+
+@router.post(
+    "/{match_id}/set-score",
+    response_model=MatchResponse,
+    summary="Setar placar específico (com segments e stats)"
+)
+async def set_match_score(
+    match_id: uuid.UUID,
+    payload: SetScoreRequest,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Seta placar específico de um jogo:
+    - Se `segments` for fornecido, atualiza os segmentos e recalcula o total do jogo.
+    - Caso contrário, seta diretamente `home_score` e `away_score`.
+    - Se houver `stats_events`, valida ruleset e incrementa PlayerStats.
+    - Só permite alteração com o jogo no status `live`.
+    """
+    service = ManageMatchesService(session)
+    updated = await service.set_score(
+        match_id=match_id,
+        home_score=payload.home_score,
+        away_score=payload.away_score,
+        segments=[{"segment_id": s.segment_id, "home_score": s.home_score, "away_score": s.away_score} for s in (payload.segments or [])],
+        stats_events=[{"player_id": e.player_id, "abbreviation": e.abbreviation, "value": e.value} for e in (payload.stats_events or [])],
+    )
+    return updated
+
+@router.post(
+    "/{match_id}/finish",
+    response_model=MatchResponse,
+    summary="Finalizar jogo"
+)
+async def finish_match(
+    match_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Finaliza um jogo que está em andamento:
+    - Atualiza status para 'finished'.
+    - Garante que o placar final esteja definido.
+    - Dispara atualizações relacionadas (classificações, estatísticas, etc).
+    """
+    service = ManageMatchesService(session)
+    finished_match = await service.finalize_match(match_id)
+    return finished_match

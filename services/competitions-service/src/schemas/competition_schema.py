@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
+import uuid
 
 from src.models.competition import CompetitionStatus, CompetitionSystem
 
@@ -80,4 +81,43 @@ class CompetitionResponse(CompetitionBase):
     sport_ruleset_id: int    
     sport_ruleset: Optional[SportRulesetResponse] = None
 
+    model_config = ConfigDict(from_attributes=True)
+
+
+# Schemas para Stats
+class StatsTypeResponse(BaseModel):
+    id: int
+    name: str
+    abbreviation: str
+    stats_ruleset_id: int
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class StatsRuleSetResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    competition_id: int
+    stats_types: List[StatsTypeResponse] = []
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+# Schemas para Teams com Players
+class PlayerBasicResponse(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    team_id: uuid.UUID
+    # name e number podem vir do serviço de auth/users se necessário
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TeamWithPlayersResponse(BaseModel):
+    id: uuid.UUID
+    name: str
+    abbreviation: str
+    players: List[PlayerBasicResponse] = []
+    
     model_config = ConfigDict(from_attributes=True)

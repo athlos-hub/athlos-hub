@@ -2,10 +2,13 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
+from typing import Optional, List
 
 from src.models.competition import CompetitionModel, CompetitionStatus
 from src.models.sport_ruleset import SportRulesetModel
 from src.models.modality import ModalityModel
+from src.models.stats import StatsRuleSetModel, StatsTypeModel
+from src.models.teams import TeamModel, PlayerModel
 from src.schemas.competition_schema import CompetitionCreate, CompetitionUpdate
 
 class CompetitionService:
@@ -93,3 +96,35 @@ class CompetitionService:
             raise HTTPException(status_code=404, detail="Competição não encontrada")
             
         return competition
+
+    async def get_stats_ruleset(self, competition_id: int) -> Optional[StatsRuleSetModel]:
+        """
+        Retorna o StatsRuleSet da competição com seus tipos de métricas.
+        Retorna None se a competição não tiver stats configurados.
+        """
+        query = (
+            select(StatsRuleSetModel)
+            .options(selectinload(StatsRuleSetModel.stats_types))
+            .where(StatsRuleSetModel.competition_id == competition_id)
+        )
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def get_teams_with_players(self, competition_id: int) -> List[TeamModel]:
+        """
+        Retorna todos os times da competição com seus jogadores.
+        """
+        # Verifica se a competição existe
+        comp_query = select(CompetitionModel).where(CompetitionModel.id == competition_id)
+        comp_result = await self.session.execute(comp_query)
+        if not comp_result.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail="Competição não encontrada")
+
+        query = (
+            select(TeamModel)
+            .options(selectinload(TeamModel.players))
+            .where(TeamModel.competition_id == competition_id)
+            .order_by(TeamModel.name)
+        )
+        result = await self.session.execute(query)
+        return result.scalars().all()

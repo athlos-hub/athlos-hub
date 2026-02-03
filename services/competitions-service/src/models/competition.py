@@ -21,6 +21,10 @@ class CompetitionSystem(str, enum.Enum):
     ELIMINATION = "elimination"
     MIXED = "mixed"
 
+class CompetitionPhase(str, enum.Enum):
+    GROUPS = "groups"
+    ELIMINATION = "elimination"
+
 class CompetitionModel(Base):
     __tablename__ = "competitions"
 
@@ -43,6 +47,7 @@ class CompetitionModel(Base):
     teams_qualified_per_group: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     image: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    current_phase: Mapped[Optional[CompetitionPhase]] = mapped_column(String, nullable=True)
     
     # Relacionamentos
     # Note que importamos classes dentro de strings ou TYPE_CHECKING para evitar ciclo

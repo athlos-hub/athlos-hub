@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import List, Optional
 
 from src.routes.routes import get_session
 from src.services.competitions_service import CompetitionService
@@ -8,7 +8,9 @@ from src.services.competition_generator.competition_generator import StructureGe
 from src.schemas.competition_schema import (
     CompetitionCreate, 
     CompetitionResponse, 
-    CompetitionUpdate
+    CompetitionUpdate,
+    StatsRuleSetResponse,
+    TeamWithPlayersResponse,
 )
 
 from pydantic import BaseModel, Field
@@ -77,3 +79,38 @@ async def generate_structure(
         competition_id=competition_id,
         organization_id=request.organization_id
     )
+
+
+@router.get(
+    "/{competition_id}/stats-ruleset",
+    response_model=Optional[StatsRuleSetResponse],
+    summary="Obter regras de estatísticas da competição"
+)
+async def get_competition_stats_ruleset(
+    competition_id: int,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Retorna o conjunto de regras de estatísticas (StatsRuleSet) da competição,
+    incluindo os tipos de métricas disponíveis (gols, assistências, pontos, etc).
+    Retorna null se a competição não tiver stats configurados.
+    """
+    service = CompetitionService(session)
+    return await service.get_stats_ruleset(competition_id)
+
+
+@router.get(
+    "/{competition_id}/teams-with-players",
+    response_model=List[TeamWithPlayersResponse],
+    summary="Obter times e jogadores da competição"
+)
+async def get_competition_teams_with_players(
+    competition_id: int,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Retorna todos os times da competição com seus respectivos jogadores.
+    Útil para selecionar o jogador ao registrar uma estatística.
+    """
+    service = CompetitionService(session)
+    return await service.get_teams_with_players(competition_id)

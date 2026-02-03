@@ -22,10 +22,12 @@ import { StreamKeyDisplay } from "@/components/livestream/stream-key-display";
 import { ScoreboardDisplay } from "@/components/matches/scoreboard-display";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getLiveById, finishLive, cancelLive } from "@/actions/lives";
+import { getMatchById } from "@/actions/matches";
 import { getMyOrganizations } from "@/actions/organizations";
 import { OrgRole } from "@/types/organization";
 import { useLiveStatus } from "@/hooks/use-live-status";
 import type { Live } from "@/types/livestream";
+import type { MatchDetail } from "@/types/match";
 import { toast } from "sonner";
 import { ArrowLeft, Square, X } from "lucide-react";
 import Link from "next/link";
@@ -35,6 +37,7 @@ export default function LiveDetailPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const [initialLive, setInitialLive] = useState<Live | null>(null);
+  const [matchDetails, setMatchDetails] = useState<MatchDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [userOrgRole, setUserOrgRole] = useState<string | null>(null);
@@ -53,6 +56,17 @@ export default function LiveDetailPage() {
         const data = await getLiveById(liveId);
         setInitialLive(data);
         updateLive(data);
+        
+        // Carrega detalhes do match para obter competition_id
+        if (data.externalMatchId) {
+          try {
+            const matchData = await getMatchById(data.externalMatchId);
+            setMatchDetails(matchData);
+          } catch (matchErr) {
+            console.error("Erro ao carregar detalhes do match:", matchErr);
+          }
+        }
+        
         try {
           const myOrgs = await getMyOrganizations();
           const match = myOrgs.find((o: any) => o.id === data.organizationId);
@@ -179,6 +193,7 @@ export default function LiveDetailPage() {
       {live.externalMatchId && (
         <ScoreboardDisplay 
           matchId={live.externalMatchId}
+          competitionId={matchDetails?.competition_id}
           canEdit={(userOrgRole === OrgRole.OWNER) || (userOrgRole === OrgRole.ORGANIZER)}
         />
       )}
