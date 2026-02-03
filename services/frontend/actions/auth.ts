@@ -245,3 +245,20 @@ export async function updateUserProfile(formData: FormData): Promise<UpdateUserR
         throw error;
     }
 }
+
+export async function getUserPublicInfo(keycloakId: string): Promise<UserProfileResponse> {
+    try {
+        const response = await axiosAPI<UserProfileResponse>({
+            endpoint: `/users/public/${keycloakId}`,
+            method: "GET",
+            withAuth: false
+        });
+
+        return response.data;
+    } catch (error) {
+        if (error instanceof APIException) {
+            throw error;
+        }
+        throw error;
+    }
+}

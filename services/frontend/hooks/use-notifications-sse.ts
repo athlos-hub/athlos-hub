@@ -44,16 +44,11 @@ export function useNotificationsSSE(options: UseNotificationsSSEOptions = {}) {
     try {
       const accessToken = (session as any)?.accessToken; 
 
-      // 2. Garanta a porta 8100 e injete o token na URL
-      const apiGatewayUrl = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8100/api/v1';
+      const notificationsServiceUrl = process.env.NEXT_PUBLIC_NOTIFICATIONS_SERVICE_URL || 'http://localhost:8003/api/v1';
 
-      // Passar o token via query param é a forma mais comum de autenticar SSE
-      const url = `${apiGatewayUrl}/notifications/stream?user_id=${session.user.id}${accessToken ? `&token=${accessToken}` : ''}`;
+      const url = `${notificationsServiceUrl}/notifications/stream?user_id=${session.user.id}${accessToken ? `&token=${accessToken}` : ''}`;
 
-      console.log('[SSE] Conectando ao stream:', url);
-
-      // 3. Adicione withCredentials para o CORS do Kong aceitar
-      const eventSource = new EventSource(url, { withCredentials: true });
+      const eventSource = new EventSource(url);
       eventSourceRef.current = eventSource;
 
       eventSource.onopen = () => {

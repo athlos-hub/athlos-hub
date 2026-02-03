@@ -36,6 +36,9 @@ jobs:
           - name: notifications-service
             context: .
             dockerfile: services/notifications-service/Dockerfile
+          - name: social-service
+            context: services/social-service
+            dockerfile: services/social-service/Dockerfile
 
     steps:
       - name: Checkout code
@@ -139,12 +142,12 @@ jobs:
               echo "❌ Frontend não está rodando!"
               exit 1
             fi
-            
+           
             if ! docker ps --format "{{.Names}} {{.Status}}" | grep -q "athlos_auth_service.*Up"; then
               echo "❌ Auth Service não está rodando!"
               exit 1
             fi
-            
+           
             if ! docker ps --format "{{.Names}} {{.Status}}" | grep -q "athlos_kong_gateway.*Up"; then
               echo "❌ Kong não está rodando!"
               exit 1

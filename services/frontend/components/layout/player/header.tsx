@@ -119,7 +119,7 @@ export default function PlayerHeader({ session }: PlayerHeaderProps) {
                                     <DropdownMenuLabel>Minha conta</DropdownMenuLabel>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem asChild>
-                                        <Link href="/perfil" className="cursor-pointer">
+                                        <Link href="/profile" className="cursor-pointer">
                                             Meu Perfil
                                         </Link>
                                     </DropdownMenuItem>

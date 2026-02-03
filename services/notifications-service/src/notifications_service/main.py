@@ -3,10 +3,12 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from common.logging import setup_logging
+from common.exceptions import AppException
 from database.client import db
 from notifications_service.api import notification_router, health_router
 from notifications_service.core.config import settings
@@ -61,6 +63,18 @@ app = FastAPI(
     lifespan=lifespan,
     redirect_slashes=False,
 )
+
+# Exception handlers
+@app.exception_handler(AppException)
+async def app_exception_handler(request: Request, exc: AppException):
+    """Handler para exceções da aplicação."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "message": exc.message,
+            "code": exc.code,
+        }
+    )
 
 app.add_middleware(
     CORSMiddleware,

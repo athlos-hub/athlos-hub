@@ -1,9 +1,16 @@
 import pytest
 import pytest_asyncio
+from pathlib import Path
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+from dotenv import load_dotenv
+
+# Load test environment variables
+test_env_path = Path(__file__).parent.parent / ".env.test"
+if test_env_path.exists():
+    load_dotenv(test_env_path)
 
 from src.core.app import create_app
 from src.models.base import Base

@@ -22,6 +22,12 @@ export enum NotificationType {
   ORGANIZATION_UNSUSPENDED = 'organization_unsuspended',
   ORGANIZATION_DELETED = 'organization_deleted',
   
+  FOLLOW = 'follow',
+  POST_LIKE = 'post_like',
+  POST_COMMENT = 'post_comment',
+  POST_SHARE = 'post_share',
+  ORGANIZATION_FOLLOW = 'organization_follow',
+  
   GENERAL = 'general',
 }
 
