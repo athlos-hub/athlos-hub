@@ -36,6 +36,9 @@ jobs:
           - name: notifications-service
             context: .
             dockerfile: services/notifications-service/Dockerfile
+          - name: social-service
+            context: services/social-service
+            dockerfile: services/social-service/Dockerfile
 
     steps:
       - name: Checkout code
@@ -93,8 +96,9 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           script: |
-            cd /home/${{ secrets.VPS_USERNAME }}/athloshub
+            cd /home/${{ secrets.VPS_USERNAME }}/athlos-hub
             
             echo "🔄 Fazendo backup do banco de dados..."
             docker exec athlos_postgres pg_dumpall -U postgres > backup_$(date +%Y%m%d_%H%M%S).sql || true
@@ -105,10 +109,10 @@ jobs:
             # Definir variável de ambiente para o owner do repositório
             export GITHUB_REPOSITORY_OWNER=${{ github.repository_owner }}
             
-            docker-compose -f docker-compose.registry.yml pull
+            docker compose -f docker-compose.registry.yml pull
             
             echo "🔄 Reiniciando serviços..."
-            docker-compose -f docker-compose.registry.yml up -d
+            docker compose --env-file .env -f docker-compose.registry.yml up -d --force-recreate --remove-orphans
             
             echo "🧹 Limpando imagens antigas..."
             docker image prune -f
@@ -121,6 +125,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           script: |
             echo "⏳ Aguardando serviços ficarem saudáveis..."
             sleep 30
@@ -131,17 +136,17 @@ jobs:
             echo "🔍 Verificando health checks..."
             
             # Verificar se os principais serviços estão respondendo
-            if ! docker ps | grep -q "athlos_frontend.*Up"; then
+            if ! docker ps --format "{{.Names}} {{.Status}}" | grep -q "athlos_frontend.*Up"; then
               echo "❌ Frontend não está rodando!"
               exit 1
             fi
             
-            if ! docker ps | grep -q "athlos_auth_service.*Up"; then
+            if ! docker ps --format "{{.Names}} {{.Status}}" | grep -q "athlos_auth_service.*Up"; then
               echo "❌ Auth Service não está rodando!"
               exit 1
             fi
             
-            if ! docker ps | grep -q "athlos_kong_gateway.*Up"; then
+            if ! docker ps --format "{{.Names}} {{.Status}}" | grep -q "athlos_kong_gateway.*Up"; then
               echo "❌ Kong não está rodando!"
               exit 1
             fi
@@ -149,25 +154,31 @@ jobs:
             echo "✅ Todos os serviços principais estão rodando!"
 
       - name: Test application endpoints
-        run: |
-          echo "🧪 Testando endpoints..."
-          
-          # Aguardar um pouco mais para os serviços estarem prontos
-          sleep 10
-          
-          # Testar endpoint principal
-          if curl -f -s -o /dev/null -w "%{http_code}" http://athloshub.com.br | grep -q "200\|301\|302"; then
-            echo "✅ Frontend está respondendo!"
-          else
-            echo "⚠️ Frontend pode não estar respondendo corretamente"
-          fi
-          
-          # Testar health do auth-service
-          if curl -f -s http://athloshub.com.br/api/v1/health; then
-            echo "✅ Auth Service health check OK!"
-          else
-            echo "⚠️ Auth Service health check falhou"
-          fi
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          script: |
+            echo "🧪 Testando endpoints..."
+            
+            # Aguardar um pouco mais para os serviços estarem prontos
+            sleep 10
+            
+            # Testar endpoint principal
+            if curl -f -s -o /dev/null -w "%{http_code}" http://athloshub.com.br | grep -q "200\|301\|302"; then
+              echo "✅ Frontend está respondendo!"
+            else
+              echo "⚠️ Frontend pode não estar respondendo corretamente"
+            fi
+            
+            # Testar health do auth-service
+            if curl -f -s http://athloshub.com.br/api/v1/health; then
+              echo "✅ Auth Service health check OK!"
+            else
+              echo "⚠️ Auth Service health check falhou"
+            fi
 
       - name: Notify deployment status
         if: always()
