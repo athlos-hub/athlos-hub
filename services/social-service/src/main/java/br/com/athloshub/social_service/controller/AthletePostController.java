@@ -15,38 +15,40 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+import static org.springframework.http.HttpStatus.CREATED;
+
 @RestController
 @RequestMapping("/api/social/athlete/posts")
 @RequiredArgsConstructor
 public class AthletePostController {
-    
+
     private final PostService postService;
     private final JwtTokenProvider jwtTokenProvider;
-    
+
     @PostMapping
     public ResponseEntity<ApiResponse<Post>> createPost(@Valid @RequestBody CreatePostRequest request) {
         String keycloakId = jwtTokenProvider.getCurrentKeycloakId();
         Post post = postService.createAthletePost(keycloakId, request);
-        return ResponseEntity.ok(ApiResponse.success(post));
+        return ResponseEntity.status(CREATED).body(ApiResponse.success(post));
     }
-    
+
     @GetMapping("/my-posts")
     public ResponseEntity<ApiResponse<Page<Post>>> getMyPosts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        
+
         String keycloakId = jwtTokenProvider.getCurrentKeycloakId();
         Pageable pageable = PageRequest.of(page, size);
         Page<Post> posts = postService.getAthletePostsByKeycloakId(keycloakId, pageable);
         return ResponseEntity.ok(ApiResponse.success(posts));
     }
-    
+
     @GetMapping("/{keycloakId}")
     public ResponseEntity<ApiResponse<Page<Post>>> getAthletePostsByKeycloakId(
             @PathVariable String keycloakId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        
+
         Pageable pageable = PageRequest.of(page, size);
         Page<Post> posts = postService.getAthletePostsByKeycloakId(keycloakId, pageable);
         return ResponseEntity.ok(ApiResponse.success(posts));
