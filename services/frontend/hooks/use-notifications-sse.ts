@@ -44,11 +44,11 @@ export function useNotificationsSSE(options: UseNotificationsSSEOptions = {}) {
     try {
       const accessToken = (session as any)?.accessToken; 
 
-      const apiGatewayUrl = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8100/api/v1';
+      const notificationsServiceUrl = process.env.NEXT_PUBLIC_NOTIFICATIONS_SERVICE_URL || 'http://localhost:8003/api/v1';
 
-      const url = `${apiGatewayUrl}/notifications/stream?user_id=${session.user.id}${accessToken ? `&token=${accessToken}` : ''}`;
+      const url = `${notificationsServiceUrl}/notifications/stream?user_id=${session.user.id}${accessToken ? `&token=${accessToken}` : ''}`;
 
-      const eventSource = new EventSource(url, { withCredentials: true });
+      const eventSource = new EventSource(url);
       eventSourceRef.current = eventSource;
 
       eventSource.onopen = () => {

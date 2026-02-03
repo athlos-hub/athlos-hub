@@ -22,6 +22,22 @@ async def get_users_public(user_service: UserServiceDep):
     return await user_service.get_all_enabled_users()
 
 
+@router.get("/by-keycloak-id/{keycloak_id}", response_model=UserPublic)
+async def get_user_by_keycloak_id(
+    keycloak_id: str,
+    user_service: UserServiceDep,
+):
+    """Obtém informações de um usuário pelo keycloak_id."""
+    
+    user = await user_service.get_user_by_keycloak_id(keycloak_id)
+    
+    if not user:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    return user
+
+
 @router.get("/me", response_model=UserPublic)
 async def get_authenticated_user_info(
     db_user: CurrentUserDep,

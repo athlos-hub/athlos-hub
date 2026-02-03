@@ -1,11 +1,13 @@
 package br.com.athloshub.social_service.service;
 
+import br.com.athloshub.social_service.enums.NotificationType;
 import br.com.athloshub.social_service.entity.Post;
 import br.com.athloshub.social_service.entity.Share;
 import br.com.athloshub.social_service.repository.PostRepository;
 import br.com.athloshub.social_service.repository.ShareRepository;
 import br.com.athloshub.social_service.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -16,6 +18,7 @@ import java.util.UUID;
 
 import static org.springframework.http.HttpStatus.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ShareService {
@@ -23,6 +26,7 @@ public class ShareService {
     private final ShareRepository shareRepository;
     private final PostRepository postRepository;
     private final JwtTokenProvider jwtTokenProvider;
+    private final NotificationService notificationService;
     
     @Transactional
     public Share sharePost(UUID postId, String comment) {
@@ -48,6 +52,29 @@ public class ShareService {
         
         post.setSharesCount(post.getSharesCount() + 1);
         postRepository.save(post);
+        
+        try {
+            java.util.Map<String, Object> notificationData = new java.util.HashMap<>();
+            notificationData.put("actorName", "Usuário");
+            notificationData.put("postContent", post.getContent());
+            notificationData.put("postUrl", "https://athlos-hub.com/social/post/" + post.getId());
+            notificationData.put("actionUrl", "https://athlos-hub.com/social/post/" + post.getId());
+            if (comment != null && !comment.isEmpty()) {
+                notificationData.put("shareComment", comment);
+            }
+            
+            notificationService.createNotification(
+                post.getCreatedByKeycloakId(),
+                keycloakId,
+                NotificationType.POST_SHARE,
+                post.getId(),
+                "post",
+                "compartilhou seu post",
+                notificationData
+            );
+        } catch (Exception e) {
+            log.error("Erro ao criar notificação de compartilhamento", e);
+        }
         
         return savedShare;
     }

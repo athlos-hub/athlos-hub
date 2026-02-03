@@ -255,8 +255,8 @@ export function UnifiedProfileClient({
               ) : (
                 <>
                   <Button 
-                    size="sm" 
-                    variant={isFollowing ? "outline" : "default"}
+                    className={!isFollowing ? "bg-main text-white hover:bg-main/90" : "bg-red-600 hover:bg-red-600"}
+                    size="sm"
                     onClick={handleToggleFollow}
                     disabled={isLoadingFollow}
                   >
@@ -267,7 +267,7 @@ export function UnifiedProfileClient({
                     ) : (
                       <UserPlus className="h-4 w-4 mr-2" />
                     )}
-                    {isFollowing ? "Seguindo" : "Seguir"}
+                    {isFollowing ? "Deixar de Seguir" : "Seguir"}
                   </Button>
                   <ShareProfileButton keycloakId={athleteProfile.keycloakId} />
                 </>

@@ -59,10 +59,11 @@ class NotificationService:
             try:
                 novu_id = await self.novu.send_notification(
                     user_id=notification_data.user_id,
-                    template_id=notification_data.type,
+                    template_id="social-notification",
                     payload={
                         "title": notification_data.title,
                         "message": notification_data.message,
+                        "type": notification_data.type,
                         "extra_data": notification_data.extra_data or {},
                         "action_url": notification_data.action_url,
                     },

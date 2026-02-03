@@ -1,7 +1,7 @@
 package br.com.athloshub.social_service.service;
 
 import br.com.athloshub.social_service.entity.Like;
-import br.com.athloshub.social_service.entity.Notification;
+import br.com.athloshub.social_service.enums.NotificationType;
 import br.com.athloshub.social_service.entity.Post;
 import br.com.athloshub.social_service.repository.LikeRepository;
 import br.com.athloshub.social_service.repository.PostRepository;
@@ -61,13 +61,20 @@ public class LikeService {
                 postRepository.save(post);
                 
                 try {
+                    java.util.Map<String, Object> notificationData = new java.util.HashMap<>();
+                    notificationData.put("actorName", "Usuário");
+                    notificationData.put("postContent", post.getContent());
+                    notificationData.put("postUrl", "https://athlos-hub.com/social/post/" + post.getId());
+                    notificationData.put("actionUrl", "https://athlos-hub.com/social/post/" + post.getId());
+                    
                     notificationService.createNotification(
                         post.getCreatedByKeycloakId(),
                         keycloakId,
-                        Notification.NotificationType.POST_LIKE,
+                        NotificationType.POST_LIKE,
                         post.getId(),
                         "post",
-                        "curtiu seu post"
+                        "curtiu seu post",
+                        notificationData
                     );
                 } catch (Exception e) {
                     log.error("Erro ao criar notificação de like", e);

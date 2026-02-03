@@ -1,6 +1,8 @@
 package br.com.athloshub.social_service.client;
 
 import br.com.athloshub.social_service.dto.auth.OrganizationDTO;
+import br.com.athloshub.social_service.dto.auth.OrganizersListResponse;
+import br.com.athloshub.social_service.dto.auth.TeamOverviewResponse;
 import br.com.athloshub.social_service.dto.auth.UserDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +25,12 @@ public interface AuthServiceClient {
         @RequestHeader("Authorization") String authorization
     );
     
+    @GetMapping("/api/v1/users/by-keycloak-id/{keycloakId}")
+    UserDTO getUserByKeycloakId(
+        @PathVariable("keycloakId") String keycloakId,
+        @RequestHeader("Authorization") String authorization
+    );
+    
     @GetMapping("/api/v1/users")
     List<UserDTO> getAllUsers(
         @RequestHeader("Authorization") String authorization
@@ -30,6 +38,18 @@ public interface AuthServiceClient {
     
     @GetMapping("/api/v1/organizations/{orgSlug}")
     OrganizationDTO getOrganizationBySlug(
+        @PathVariable("orgSlug") String orgSlug,
+        @RequestHeader("Authorization") String authorization
+    );
+    
+    @GetMapping("/api/v1/organizations/{orgSlug}/organizers")
+    OrganizersListResponse getOrganizationOrganizers(
+        @PathVariable("orgSlug") String orgSlug,
+        @RequestHeader("Authorization") String authorization
+    );
+    
+    @GetMapping("/api/v1/organizations/{orgSlug}/team")
+    TeamOverviewResponse getOrganizationTeam(
         @PathVariable("orgSlug") String orgSlug,
         @RequestHeader("Authorization") String authorization
     );

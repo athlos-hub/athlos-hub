@@ -20,6 +20,7 @@ class UserPublic(BaseModel):
 
 class UserOrgMember(UserPublic):
     email: EmailStr
+    keycloak_id: str  # Necessário para enviar notificações
 
 
 class UserAdmin(UserOrgMember):

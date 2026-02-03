@@ -45,7 +45,6 @@ spring:
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8100/keycloak}/realms/${KEYCLOAK_REALM:athloshub}
           jwk-set-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8100/keycloak}/realms/${KEYCLOAK_REALM:athloshub}/protocol/openid-connect/certs
 
-# CORS Configuration
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001}
 
@@ -70,6 +69,11 @@ services:
     url: ${AUTH_SERVICE_URL:http://localhost:8000}
   competitions-service:
     url: ${COMPETITIONS_SERVICE_URL:http://localhost:8081}
+
+notification:
+  service:
+    url: ${NOTIFICATION_SERVICE_URL:http://localhost:8003}
+    enabled: ${NOTIFICATION_SERVICE_ENABLED:true}
 
 logging:
   level:
