@@ -65,6 +65,13 @@ services:
         request_buffering: false
         response_buffering: false
 
+      - name: social-service
+        url: http://social-service:8083
+        routes:
+          - name: social-routes
+            paths: ["/api/social"]
+            strip_path: false
+
   - name: keycloak-service
     url: http://keycloak:8080
     routes:
