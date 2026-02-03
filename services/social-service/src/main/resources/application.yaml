@@ -1,10 +1,9 @@
 spring:
   application:
     name: social-service
-
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
-
+  
   datasource:
     url: jdbc:postgresql://${DATABASE_HOST:localhost}:${DATABASE_PORT:5432}/${DATABASE_NAME:social_db}
     username: ${DATABASE_USER:${SOCIAL_DB_USER:social_user}}
@@ -14,10 +13,10 @@ spring:
       maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
       minimum-idle: ${DB_POOL_MIN_SIZE:5}
       connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
-
+  
   jpa:
     hibernate:
-      ddl-auto: ${JPA_DDL_AUTO:update}
+      ddl-auto: ${JPA_DDL_AUTO:none}
     show-sql: ${JPA_SHOW_SQL:false}
     properties:
       hibernate:
@@ -26,7 +25,14 @@ spring:
         jdbc:
           batch_size: ${JPA_BATCH_SIZE:20}
         default_schema: public
-
+    defer-datasource-initialization: false
+  
+  flyway:
+    enabled: false 
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+  
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -37,7 +43,7 @@ spring:
           max-active: ${REDIS_POOL_MAX_ACTIVE:8}
           max-idle: ${REDIS_POOL_MAX_IDLE:8}
           min-idle: ${REDIS_POOL_MIN_IDLE:0}
-
+  
   security:
     oauth2:
       resourceserver:
@@ -69,11 +75,10 @@ services:
     url: ${AUTH_SERVICE_URL:http://localhost:8000}
   competitions-service:
     url: ${COMPETITIONS_SERVICE_URL:http://localhost:8081}
-
-notification:
-  service:
-    url: ${NOTIFICATION_SERVICE_URL:http://localhost:8003}
-    enabled: ${NOTIFICATION_SERVICE_ENABLED:true}
+  notification:
+    service:
+      url: ${NOTIFICATION_SERVICE_URL:http://localhost:8003}
+      enabled: ${NOTIFICATION_SERVICE_ENABLED:true}
 
 logging:
   level:
@@ -83,6 +88,7 @@ logging:
     org.springframework.security: ${SECURITY_LOG_LEVEL:INFO}
     org.hibernate.SQL: ${SQL_LOG_LEVEL:DEBUG}
     org.hibernate.type.descriptor.sql.BasicBinder: ${SQL_BINDER_LOG_LEVEL:TRACE}
+    org.flywaydb: ${FLYWAY_LOG_LEVEL:INFO}
 
 management:
   endpoints:
@@ -106,3 +112,10 @@ springdoc:
     enabled: ${SWAGGER_ENABLED:true}
     operations-sorter: method
     tags-sorter: alpha
+
+openai:
+  moderation:
+    enabled: true
+    api-key: ${OPENAI_API_KEY:}
+    model: ${OPENAI_MODERATION_MODEL:omni-moderation-latest}
+    base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
