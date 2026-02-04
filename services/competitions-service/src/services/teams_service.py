@@ -1,8 +1,9 @@
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload # <--- Importante!
-from typing import List, Optional
+from sqlalchemy.orm import selectinload
+from typing import List, Optional, TYPE_CHECKING
+from datetime import datetime
 import uuid
 import logging
 
@@ -17,6 +18,9 @@ from src.services.auth_client import (
     OrganizationNotFound,
 )
 from src.config.settings import settings
+
+if TYPE_CHECKING:
+    from src.models.teams import TeamInviteModel
 
 logger = logging.getLogger(__name__)
 
@@ -248,3 +252,461 @@ class TeamService:
         loaded_team = result_refresh.scalar_one()
         
         return loaded_team
+
+    # ==================== Métodos de Listagem de Times ====================
+    
+    async def get_user_teams(self, keycloak_id: uuid.UUID) -> list:
+        """
+        Retorna todos os times do usuário.
+        """
+        from src.schemas.teams_schema import TeamListItemSchema
+        
+        # Buscar todos os players do usuário
+        query = (
+            select(PlayerModel)
+            .where(PlayerModel.keycloak_id == keycloak_id)
+        )
+        result = await self.db.execute(query)
+        players = result.scalars().all()
+        
+        if not players:
+            return []
+        
+        team_ids = [p.team_id for p in players]
+        
+        # Buscar os times com informações da competição
+        teams_query = (
+            select(TeamModel)
+            .options(
+                selectinload(TeamModel.players),
+                selectinload(TeamModel.competition)
+            )
+            .where(TeamModel.id.in_(team_ids))
+            .order_by(TeamModel.created_at.desc())
+        )
+        teams_result = await self.db.execute(teams_query)
+        teams = teams_result.scalars().all()
+        
+        result_list = []
+        for team in teams:
+            # Determinar role do usuário
+            is_captain = team.team_captain is not None and any(
+                p.id == team.team_captain and p.keycloak_id == keycloak_id 
+                for p in team.players
+            )
+            role = "CAPTAIN" if is_captain else "PLAYER"
+            
+            result_list.append({
+                "id": team.id,
+                "name": team.name,
+                "abbreviation": team.abbreviation,
+                "status": team.status.value if hasattr(team.status, 'value') else team.status,
+                "organization_slug": team.organization_slug,
+                "competition_id": team.competition_id,
+                "team_captain": team.team_captain,
+                "created_at": team.created_at,
+                "competition_name": team.competition.name if team.competition else None,
+                "organization_name": None,  # TODO: buscar do auth-service
+                "player_count": len(team.players),
+                "role": role,
+            })
+        
+        return result_list
+    
+    async def get_team_detail(
+        self, 
+        team_id: uuid.UUID, 
+        keycloak_id: Optional[uuid.UUID] = None
+    ) -> Optional[dict]:
+        """
+        Retorna os detalhes de um time específico.
+        """
+        query = (
+            select(TeamModel)
+            .options(
+                selectinload(TeamModel.players),
+                selectinload(TeamModel.competition)
+            )
+            .where(TeamModel.id == team_id)
+        )
+        result = await self.db.execute(query)
+        team = result.scalar_one_or_none()
+        
+        if not team:
+            return None
+        
+        # Determinar role do usuário se autenticado
+        role = None
+        if keycloak_id:
+            user_player = next(
+                (p for p in team.players if p.keycloak_id == keycloak_id), 
+                None
+            )
+            if user_player:
+                is_captain = team.team_captain is not None and user_player.id == team.team_captain
+                role = "CAPTAIN" if is_captain else "PLAYER"
+        
+        return {
+            "id": team.id,
+            "name": team.name,
+            "abbreviation": team.abbreviation,
+            "status": team.status.value if hasattr(team.status, 'value') else team.status,
+            "organization_slug": team.organization_slug,
+            "competition_id": team.competition_id,
+            "team_captain": team.team_captain,
+            "created_at": team.created_at,
+            "competition_name": team.competition.name if team.competition else "Competição",
+            "organization_name": None,  # TODO: buscar do auth-service
+            "modality_name": None,  # TODO: buscar da modalidade
+            "players": [
+                {
+                    "id": p.id,
+                    "team_id": p.team_id,
+                    "keycloak_id": p.keycloak_id,
+                }
+                for p in team.players
+            ],
+            "role": role,
+        }
+
+    # ==================== Métodos de Convite ====================
+    
+    async def get_team_by_id(self, team_id: uuid.UUID) -> Optional[TeamModel]:
+        """Busca um time pelo ID."""
+        query = (
+            select(TeamModel)
+            .options(
+                selectinload(TeamModel.players),
+                selectinload(TeamModel.competition)
+            )
+            .where(TeamModel.id == team_id)
+        )
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
+
+    async def _verify_is_captain(self, team: TeamModel, keycloak_id: uuid.UUID) -> None:
+        """
+        Verifica se o usuário é o capitão do time.
+        
+        Raises:
+            HTTPException 403: Se não for o capitão
+        """
+        # Buscar o player que corresponde ao keycloak_id
+        captain_player = None
+        for player in team.players:
+            if player.keycloak_id == keycloak_id:
+                captain_player = player
+                break
+        
+        if not captain_player or team.team_captain != captain_player.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Apenas o capitão do time pode gerar convites"
+            )
+
+    async def generate_invite(
+        self,
+        team_id: uuid.UUID,
+        created_by_keycloak_id: uuid.UUID,
+        expires_in_days: int = 7,
+        max_uses: Optional[int] = None,
+        base_url: str = "http://localhost:3000"
+    ) -> "TeamInviteModel":
+        """
+        Gera um convite para um time.
+        
+        Args:
+            team_id: ID do time
+            created_by_keycloak_id: Keycloak ID de quem está criando (deve ser capitão)
+            expires_in_days: Dias até expirar
+            max_uses: Número máximo de usos (None = ilimitado)
+            base_url: URL base para montar o link de convite
+            
+        Returns:
+            TeamInviteModel com o convite criado
+            
+        Raises:
+            HTTPException 404: Time não encontrado
+            HTTPException 403: Não é o capitão
+            HTTPException 400: Competição não está em status válido
+        """
+        from src.models.teams import TeamInviteModel, InviteStatus
+        from datetime import timedelta
+        
+        # 1. Buscar o time
+        team = await self.get_team_by_id(team_id)
+        if not team:
+            raise HTTPException(status_code=404, detail="Time não encontrado")
+        
+        # 2. Verificar se é o capitão
+        await self._verify_is_captain(team, created_by_keycloak_id)
+        
+        # 3. Verificar se a competição ainda aceita inscrições
+        if team.competition.status != CompetitionStatus.PENDING:
+            raise HTTPException(
+                status_code=400,
+                detail="A competição não está mais aceitando novos jogadores"
+            )
+        
+        # 4. Verificar se o time ainda tem vagas
+        current_players = len(team.players)
+        if current_players >= team.competition.max_members_per_team:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Time já atingiu o limite de {team.competition.max_members_per_team} jogadores"
+            )
+        
+        # 5. Criar o convite
+        invite = TeamInviteModel(
+            team_id=team_id,
+            invite_token=TeamInviteModel.generate_token(),
+            created_by=created_by_keycloak_id,
+            expires_at=datetime.utcnow() + timedelta(days=expires_in_days),
+            status=InviteStatus.PENDING,
+            max_uses=max_uses,
+            use_count=0
+        )
+        
+        self.db.add(invite)
+        await self.db.commit()
+        await self.db.refresh(invite)
+        
+        logger.info(
+            f"Convite criado para time {team_id} por {created_by_keycloak_id}. "
+            f"Token: {invite.invite_token[:8]}... Expira em: {expires_in_days} dias"
+        )
+        
+        return invite
+
+    async def get_invite_by_token(self, invite_token: str) -> Optional["TeamInviteModel"]:
+        """Busca um convite pelo token."""
+        from src.models.teams import TeamInviteModel
+        
+        query = (
+            select(TeamInviteModel)
+            .options(
+                selectinload(TeamInviteModel.team).selectinload(TeamModel.competition),
+                selectinload(TeamInviteModel.team).selectinload(TeamModel.players)
+            )
+            .where(TeamInviteModel.invite_token == invite_token)
+        )
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
+
+    async def validate_invite(self, invite_token: str) -> dict:
+        """
+        Valida um convite e retorna informações sobre ele.
+        Usado para mostrar preview antes do usuário aceitar.
+        
+        Returns:
+            Dict com informações do convite e sua validade
+        """
+        from src.models.teams import InviteStatus
+        
+        invite = await self.get_invite_by_token(invite_token)
+        
+        if not invite:
+            return {
+                "valid": False,
+                "error": "Convite não encontrado"
+            }
+        
+        if invite.status != InviteStatus.PENDING:
+            return {
+                "valid": False,
+                "error": f"Convite está {invite.status.value.lower()}"
+            }
+        
+        if datetime.utcnow() > invite.expires_at.replace(tzinfo=None):
+            return {
+                "valid": False,
+                "error": "Convite expirado"
+            }
+        
+        if invite.max_uses is not None and invite.use_count >= invite.max_uses:
+            return {
+                "valid": False,
+                "error": "Convite atingiu o limite de usos"
+            }
+        
+        remaining_uses = None
+        if invite.max_uses is not None:
+            remaining_uses = invite.max_uses - invite.use_count
+        
+        return {
+            "valid": True,
+            "team_id": invite.team_id,
+            "team_name": invite.team.name,
+            "organization_slug": invite.team.organization_slug,
+            "competition_id": invite.team.competition_id,
+            "competition_name": invite.team.competition.name if invite.team.competition else None,
+            "expires_at": invite.expires_at,
+            "remaining_uses": remaining_uses
+        }
+
+    async def accept_invite(
+        self,
+        invite_token: str,
+        keycloak_id: uuid.UUID
+    ) -> dict:
+        """
+        Aceita um convite e adiciona o usuário ao time.
+        
+        Args:
+            invite_token: Token do convite
+            keycloak_id: Keycloak ID do usuário que está aceitando
+            
+        Returns:
+            Dict com informações do time e player criado
+            
+        Raises:
+            HTTPException 404: Convite não encontrado
+            HTTPException 400: Convite inválido, usuário já no time, etc.
+        """
+        from src.models.teams import TeamInviteModel, InviteStatus
+        
+        # 1. Buscar e validar o convite
+        invite = await self.get_invite_by_token(invite_token)
+        
+        if not invite:
+            raise HTTPException(status_code=404, detail="Convite não encontrado")
+        
+        if not invite.is_valid:
+            if invite.status != InviteStatus.PENDING:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Convite está {invite.status.value.lower()}"
+                )
+            if datetime.utcnow() > invite.expires_at.replace(tzinfo=None):
+                raise HTTPException(status_code=400, detail="Convite expirado")
+            if invite.max_uses is not None and invite.use_count >= invite.max_uses:
+                raise HTTPException(status_code=400, detail="Convite atingiu o limite de usos")
+        
+        team = invite.team
+        competition = team.competition
+        
+        # 2. Verificar se a competição ainda aceita inscrições
+        if competition.status != CompetitionStatus.PENDING:
+            raise HTTPException(
+                status_code=400,
+                detail="A competição não está mais aceitando novos jogadores"
+            )
+        
+        # 3. Verificar se o time ainda tem vagas
+        current_players = len(team.players)
+        if current_players >= competition.max_members_per_team:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Time já atingiu o limite de {competition.max_members_per_team} jogadores"
+            )
+        
+        # 4. Validar que o usuário é membro da organização
+        await self._validate_players_membership(
+            organization_slug=team.organization_slug,
+            keycloak_ids=[keycloak_id]
+        )
+        
+        # 5. Verificar se o usuário já está neste time
+        for player in team.players:
+            if player.keycloak_id == keycloak_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Você já é membro deste time"
+                )
+        
+        # 6. Verificar se o usuário já está em outro time desta competição
+        await self._validate_players_not_in_competition(
+            competition_id=competition.id,
+            keycloak_ids=[keycloak_id]
+        )
+        
+        # 7. Criar o player
+        new_player = PlayerModel(
+            id=uuid.uuid4(),
+            team_id=team.id,
+            keycloak_id=keycloak_id
+        )
+        self.db.add(new_player)
+        
+        # 8. Atualizar o convite
+        invite.use_count += 1
+        invite.accepted_by = keycloak_id
+        invite.accepted_at = datetime.utcnow()
+        
+        # Se atingiu o limite de usos, marca como aceito (usado)
+        if invite.max_uses is not None and invite.use_count >= invite.max_uses:
+            invite.status = InviteStatus.ACCEPTED
+        
+        await self.db.commit()
+        await self.db.refresh(new_player)
+        
+        logger.info(
+            f"Usuário {keycloak_id} entrou no time {team.id} ({team.name}) "
+            f"via convite {invite.invite_token[:8]}..."
+        )
+        
+        return {
+            "message": "Você entrou no time com sucesso!",
+            "team_id": team.id,
+            "team_name": team.name,
+            "player_id": new_player.id,
+            "competition_id": competition.id
+        }
+
+    async def revoke_invite(
+        self,
+        invite_token: str,
+        keycloak_id: uuid.UUID
+    ) -> None:
+        """
+        Revoga um convite (apenas o capitão pode fazer isso).
+        
+        Args:
+            invite_token: Token do convite
+            keycloak_id: Keycloak ID de quem está revogando (deve ser capitão)
+        """
+        from src.models.teams import InviteStatus
+        
+        invite = await self.get_invite_by_token(invite_token)
+        
+        if not invite:
+            raise HTTPException(status_code=404, detail="Convite não encontrado")
+        
+        if invite.status != InviteStatus.PENDING:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Convite já está {invite.status.value.lower()}"
+            )
+        
+        # Verificar se é o capitão
+        await self._verify_is_captain(invite.team, keycloak_id)
+        
+        invite.status = InviteStatus.REVOKED
+        await self.db.commit()
+        
+        logger.info(f"Convite {invite_token[:8]}... revogado por {keycloak_id}")
+
+    async def list_team_invites(
+        self,
+        team_id: uuid.UUID,
+        keycloak_id: uuid.UUID
+    ) -> List["TeamInviteModel"]:
+        """
+        Lista todos os convites de um time (apenas capitão pode ver).
+        """
+        from src.models.teams import TeamInviteModel, InviteStatus
+        
+        team = await self.get_team_by_id(team_id)
+        if not team:
+            raise HTTPException(status_code=404, detail="Time não encontrado")
+        
+        # Verificar se é o capitão
+        await self._verify_is_captain(team, keycloak_id)
+        
+        query = (
+            select(TeamInviteModel)
+            .where(TeamInviteModel.team_id == team_id)
+            .order_by(TeamInviteModel.created_at.desc())
+        )
+        result = await self.db.execute(query)
+        return result.scalars().all()

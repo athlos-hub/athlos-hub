@@ -116,6 +116,45 @@ async def get_current_keycloak_id(
 # Alias para compatibilidade - retorna keycloak_id
 get_current_user_id = get_current_keycloak_id
 
+# Scheme opcional para endpoints que podem funcionar com ou sem auth
+optional_bearer_scheme = HTTPBearer(auto_error=False)
+
+
+async def get_optional_keycloak_id(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(optional_bearer_scheme),
+) -> Optional[UUID]:
+    """
+    Extrai o keycloak_id do token JWT se presente.
+    
+    Returns:
+        UUID do keycloak_id do usuário autenticado ou None se não autenticado
+    """
+    if credentials is None:
+        return None
+    
+    try:
+        public_key = await get_keycloak_public_key()
+        
+        keycloak_url = settings.KEYCLOAK_URL.rstrip('/')
+        expected_issuer = f"{keycloak_url}/realms/{settings.KEYCLOAK_REALM}"
+        
+        payload = JwtHandler.decode_token(
+            token=credentials.credentials,
+            public_key=public_key,
+            audience=None,
+            issuer=expected_issuer,
+            verify_aud=False
+        )
+        
+        keycloak_id = payload.get("sub")
+        if not keycloak_id:
+            return None
+        
+        return UUID(keycloak_id)
+        
+    except (TokenExpiredError, InvalidCredentialsError):
+        return None
+
 
 class RequireOrgPermission:
     """

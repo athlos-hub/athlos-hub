@@ -38,6 +38,8 @@ class Settings(BaseSettings):
 
     AUTH_SERVICE_URL: str = Field(default="http://localhost:8000")
     AUTH_SERVICE_TIMEOUT: int = Field(default=10)
+    
+    FRONTEND_URL: str = Field(default="http://localhost:3000")
 
     DB_POOL_MIN_SIZE: int = Field(default=2)
     DB_POOL_MAX_SIZE: int = Field(default=10)

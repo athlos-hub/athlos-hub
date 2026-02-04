@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from src.schemas.modality_schema import ModalityCreateSchema, ModalityResponseSchema
@@ -41,10 +41,20 @@ async def create_modality(
 async def get_modalities(
     offset: int = 0,
     limit: int = 10,
+    organization_slug: Optional[str] = None,
     session: AsyncSession = Depends(get_session)
 ):
-    """Lista todas as modalidades (público)."""
+    """
+    Lista modalidades (público).
+    
+    Se organization_slug for fornecido, retorna apenas as modalidades da organização.
+    Caso contrário, retorna todas as modalidades.
+    """
     modality_service = ModalityService(session)
-    modalities = await modality_service.get_all_modalities(offset=offset, limit=limit)
+    modalities = await modality_service.get_all_modalities(
+        offset=offset, 
+        limit=limit,
+        organization_slug=organization_slug
+    )
     
     return modalities
