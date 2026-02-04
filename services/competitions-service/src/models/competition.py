@@ -9,6 +9,7 @@ from src.models.base import Base
 if TYPE_CHECKING:
     from modality import ModalityModel
     from sport_ruleset import SportRulesetModel
+    from stats import StatsRuleSetModel
 
 
 class CompetitionStatus(str, enum.Enum):
@@ -59,4 +60,10 @@ class CompetitionModel(Base):
     sport_ruleset: Mapped["SportRulesetModel"] = relationship(
         "SportRulesetModel", 
         back_populates="competitions"
+    )
+    
+    stats_ruleset: Mapped[Optional["StatsRuleSetModel"]] = relationship(
+        "StatsRuleSetModel",
+        back_populates="competition",
+        uselist=False
     )

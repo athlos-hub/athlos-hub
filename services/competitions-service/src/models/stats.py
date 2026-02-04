@@ -1,5 +1,5 @@
 import uuid
-from typing import List, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING
 from sqlalchemy import Integer, String, ForeignKey
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 from sqlalchemy.dialects.postgresql import UUID
@@ -16,7 +16,7 @@ class StatsRuleSetModel(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[str] = mapped_column(String(500), nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     competition_id: Mapped[int] = mapped_column(ForeignKey("competitions.id"), unique=True)
 
     # Relacionamentos
@@ -31,6 +31,9 @@ class StatsTypeModel(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     abbreviation: Mapped[str] = mapped_column(String(20), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    icon: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    display_order: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     stats_ruleset_id: Mapped[int] = mapped_column(ForeignKey("stats_rulesets.id"))
 
     # Relacionamentos
