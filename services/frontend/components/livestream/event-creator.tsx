@@ -21,7 +21,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MatchEventType } from "@/types/livestream";
+import { CompetitionStat, TeamWithPlayers, Player } from "@/types/competition";
+import { SegmentScore } from "@/hooks/use-scoreboard";
+import { RegisterScoreRequest } from "@/types/stats";
 import { publishMatchEvent } from "@/actions/lives";
+import { registerMatchScore } from "@/actions/matches";
 import { toast } from "sonner";
 import { 
   Plus, 
@@ -35,11 +39,21 @@ import {
   UserX,
   Video,
   HeartPulse,
-  MessageSquare
+  MessageSquare,
+  BarChart3,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface EventCreatorProps {
   liveId: string;
+  matchId: string;
+  matchData: {
+    home_team_id?: string;
+    away_team_id?: string;
+  };
+  competitionStats: CompetitionStat[];
+  teamsWithPlayers: TeamWithPlayers[];
+  segments: SegmentScore[];
   onEventCreated?: () => void;
 }
 
@@ -174,7 +188,15 @@ const eventTypeConfig: Record<MatchEventType, {
   },
 };
 
-export function EventCreator({ liveId, onEventCreated }: EventCreatorProps) {
+export function EventCreator({ 
+  liveId, 
+  matchId,
+  matchData,
+  competitionStats, 
+  teamsWithPlayers,
+  segments,
+  onEventCreated 
+}: EventCreatorProps) {
   const [open, setOpen] = useState(false);
   const [selectedType, setSelectedType] = useState<MatchEventType | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
@@ -194,6 +216,24 @@ export function EventCreator({ liveId, onEventCreated }: EventCreatorProps) {
     setFormData({});
   };
 
+  // Busca o jogador pelo ID
+  const getPlayerById = (playerId: string) => {
+    for (const team of teamsWithPlayers) {
+      const player = team.players.find(p => p.id === playerId);
+      if (player) {
+        return { player, team };
+      }
+    }
+    return null;
+  };
+
+  // Determina se o jogador é do time da casa ou visitante
+  const getTeamSide = (teamId: string): "home" | "away" => {
+    if (teamId === matchData.home_team_id) return "home";
+    if (teamId === matchData.away_team_id) return "away";
+    return "home"; // fallback
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -202,7 +242,9 @@ export function EventCreator({ liveId, onEventCreated }: EventCreatorProps) {
       return;
     }
 
-    const config = eventTypeConfig[selectedType];
+    const eventType = selectedType as MatchEventType;
+    const config = eventTypeConfig[eventType];
+
     const requiredFields = config.fields.filter(f => f.required);
     
     for (const field of requiredFields) {
@@ -215,6 +257,7 @@ export function EventCreator({ liveId, onEventCreated }: EventCreatorProps) {
     setIsSubmitting(true);
 
     try {
+      // Registra o evento na timeline
       const payload: Record<string, unknown> = {};
       
       for (const field of config.fields) {
@@ -231,7 +274,7 @@ export function EventCreator({ liveId, onEventCreated }: EventCreatorProps) {
       }
 
       await publishMatchEvent(liveId, {
-        type: selectedType,
+        type: eventType,
         payload,
       });
 
@@ -247,7 +290,18 @@ export function EventCreator({ liveId, onEventCreated }: EventCreatorProps) {
     }
   };
 
-  const selectedConfig = selectedType ? eventTypeConfig[selectedType] : null;
+  const selectedConfig = selectedType ? eventTypeConfig[selectedType as MatchEventType] : null;
+
+  // Lista de jogadores para o combobox
+  const allPlayers = teamsWithPlayers.flatMap(team => 
+    team.players.map(player => ({
+      id: player.id,
+      label: `${player.user_id.substring(0, 8)} - ${team.name}`,
+      teamId: team.id,
+      teamName: team.name,
+      userId: player.user_id,
+    }))
+  );
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
@@ -277,6 +331,7 @@ export function EventCreator({ liveId, onEventCreated }: EventCreatorProps) {
                 <SelectValue placeholder="Selecione o tipo de evento..." />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
+                {/* Eventos padrão do sistema */}
                 {Object.entries(eventTypeConfig).map(([type, config]) => {
                   const Icon = config.icon;
                   return (
@@ -301,6 +356,7 @@ export function EventCreator({ liveId, onEventCreated }: EventCreatorProps) {
 
           {selectedConfig && (
             <div className="space-y-4 pt-2 border-t">
+              {/* Campos dinâmicos do evento */}
               {selectedConfig.fields.map((field) => (
                 <div key={field.name} className="space-y-2">
                   <Label className="text-sm">
