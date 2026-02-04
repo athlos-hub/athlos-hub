@@ -1,24 +1,11 @@
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
+import uuid
 
 from src.models.competition import CompetitionStatus, CompetitionSystem
-
-
-class SportRulesetBase(BaseModel):
-    name: str = Field(..., max_length=50, description="Nome da regra (ex: Futsal Oficial)")
-    segment_type: str = Field(..., max_length=20, description="Tipo de divisão (TIME, SET, QUARTER)")
-    segments_regular_number: int = Field(default=2, ge=1, description="Número de tempos/sets regulares")
-    overtime_segments: int = Field(default=0, ge=0, description="Número de tempos de prorrogação")
-    penalty_segments: int = Field(default=0, ge=0, description="Número de séries de pênaltis")
-    has_break_segments: bool = Field(default=True, description="Se existe intervalo entre segmentos")
-
-class SportRulesetCreate(SportRulesetBase):
-    pass
-
-class SportRulesetResponse(SportRulesetBase):
-    id: int
-    model_config = ConfigDict(from_attributes=True)
+from src.schemas.sport_ruleset_schema import SportRulesetCreate, SportRulesetResponse
+from src.schemas.stats_ruleset_schema import StatsRuleSetForCompetition, StatsRuleSetResponse
 
 
 class CompetitionBase(BaseModel):
@@ -45,22 +32,37 @@ class CompetitionBase(BaseModel):
 class CompetitionCreate(CompetitionBase):
     """
     Schema de criação flexível:
-    1. Pode criar um Ruleset NOVO (passando 'ruleset')
-    2. Pode REUSAR um Ruleset existente (passando 'sport_ruleset_id')
+    1. Sport Ruleset: Pode criar NOVO (ruleset) ou REUSAR (sport_ruleset_id)
+    2. Stats Ruleset: Pode criar NOVO (stats_ruleset) ou REUSAR (stats_ruleset_id)
     """
+    # Sport Ruleset (obrigatório)
     ruleset: Optional[SportRulesetCreate] = Field(
         None, 
-        description="Objeto para criar um NOVO conjunto de regras exclusivo"
+        description="Objeto para criar um NOVO conjunto de regras esportivas"
     )
     sport_ruleset_id: Optional[int] = Field(
         None, 
-        description="ID de um conjunto de regras JÁ EXISTENTE para reutilizar"
+        description="ID de um sport ruleset JÁ EXISTENTE para reutilizar"
+    )
+    
+    # Stats Ruleset (opcional)
+    stats_ruleset: Optional[StatsRuleSetForCompetition] = Field(
+        None,
+        description="Objeto para criar um NOVO conjunto de estatísticas junto com a competição"
+    )
+    stats_ruleset_id: Optional[int] = Field(
+        None,
+        description="ID de um stats ruleset JÁ EXISTENTE para vincular à competição"
     )
 
     @model_validator(mode='after')
     def check_ruleset_presence(self):
         if not self.ruleset and not self.sport_ruleset_id:
             raise ValueError('Você deve fornecer um novo "ruleset" ou um "sport_ruleset_id" existente.')
+        
+        if self.stats_ruleset and self.stats_ruleset_id:
+            raise ValueError('Forneça apenas "stats_ruleset" OU "stats_ruleset_id", não ambos.')
+        
         return self
 
 class CompetitionUpdate(BaseModel):
@@ -79,5 +81,27 @@ class CompetitionResponse(CompetitionBase):
     # Retorna o ID da regra vinculada
     sport_ruleset_id: int    
     sport_ruleset: Optional[SportRulesetResponse] = None
+    
+    # Stats Ruleset (opcional)
+    stats_ruleset: Optional[StatsRuleSetResponse] = None
 
+    model_config = ConfigDict(from_attributes=True)
+
+
+# Schemas para Teams com Players
+class PlayerBasicResponse(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    team_id: uuid.UUID
+    # name e number podem vir do serviço de auth/users se necessário
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TeamWithPlayersResponse(BaseModel):
+    id: uuid.UUID
+    name: str
+    abbreviation: str
+    players: List[PlayerBasicResponse] = []
+    
     model_config = ConfigDict(from_attributes=True)

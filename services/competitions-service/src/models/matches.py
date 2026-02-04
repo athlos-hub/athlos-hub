@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import Optional, List, TYPE_CHECKING
-from sqlalchemy import String, Integer, ForeignKey, DateTime, Boolean
+from sqlalchemy import String, Integer, ForeignKey, DateTime, Boolean, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import enum
@@ -111,6 +111,9 @@ class MatchModel(Base):
 
 class SegmentModel(Base):
     __tablename__ = "segments"
+    __table_args__ = (
+        UniqueConstraint('match_id', 'segment_number', name='uq_match_segment'),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     match_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("matches.id"))

@@ -102,3 +102,39 @@ class MatchDetailResponse(BaseModel):
 class MultipleMatchesDetailResponse(BaseModel):
     """Response para múltiplas partidas"""
     matches: List[MatchDetailResponse]
+
+# Novo: Enum e Schema para registrar pontuação
+class TeamSide(str, Enum):
+    home = "home"
+    away = "away"
+
+class ScoreUpdateRequest(BaseModel):
+    team_side: TeamSide = Field(..., description="Lado do time que pontuou: 'home' ou 'away'")
+    increment: int = Field(1, ge=0, description="Valor a incrementar no placar (>= 0)")
+    segment_id: Optional[int] = Field(None, description="ID do segmento (se o jogo for segmentado)")
+
+    # Métrica de stats (obrigatória se a competição possuir StatsRuleSet)
+    stats_metric_abbreviation: Optional[str] = Field(None, description="Abreviação da métrica (ex: 'GOL', 'PTS')")
+    player_id: Optional[uuid.UUID] = Field(None, description="ID do jogador que realizou a pontuação")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# Novo: Schema para setar placar específico
+class SegmentScoreInput(BaseModel):
+    segment_id: int
+    home_score: int = Field(ge=0)
+    away_score: int = Field(ge=0)
+
+class StatsEventInput(BaseModel):
+    player_id: uuid.UUID
+    abbreviation: str
+    value: int = Field(ge=0)
+
+class SetScoreRequest(BaseModel):
+    home_score: int = Field(..., ge=0)
+    away_score: int = Field(..., ge=0)
+    segments: Optional[List[SegmentScoreInput]] = None
+    stats_events: Optional[List[StatsEventInput]] = None
+
+    model_config = ConfigDict(from_attributes=True)

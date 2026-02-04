@@ -13,7 +13,7 @@ services:
     url: http://host.docker.internal:8001
     routes:
       - name: competitions-routes
-        paths: ["/api/v1/competitions", "/api/v1/matches", "/api/v1/teams", "/api/v1/modalities"]
+        paths: ["/api/v1/competitions", "/api/v1/matches", "/api/v1/teams", "/api/v1/modalities", "/api/v1/scoreboard"]
         strip_path: false
 
   - name: mediamtx-hls
