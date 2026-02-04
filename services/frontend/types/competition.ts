@@ -66,6 +66,12 @@ export interface CompetitionCreate {
   teams_per_group?: number;
   ruleset?: SportRulesetCreate;
   sport_ruleset_id?: number;
+  stats_ruleset?: {
+    name: string;
+    description?: string;
+    stats_types: any[];
+  };
+  stats_ruleset_id?: number;
 }
 
 export interface CompetitionUpdate {

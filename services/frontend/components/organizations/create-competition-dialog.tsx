@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { createCompetition } from "@/actions/competitions";
+import { createCompetition, listSportRulesets, listStatsRulesets } from "@/actions/competitions";
 import { listModalities } from "@/actions/modalities";
 import type { CompetitionCreate, CompetitionSystem } from "@/types/competition";
 import type { Modality } from "@/types/modality";
@@ -41,6 +41,13 @@ export function CreateCompetitionDialog({
 }: CreateCompetitionDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [modalities, setModalities] = useState<Modality[]>([]);
+  const [sportRulesets, setSportRulesets] = useState<any[]>([]);
+  const [statsRulesets, setStatsRulesets] = useState<any[]>([]);
+  const [rulesetOption, setRulesetOption] = useState<"existing" | "new" | "none">("none");
+  const [statsRulesetOption, setStatsRulesetOption] = useState<"existing" | "new" | "none">("none");
+  const [selectedRulesetId, setSelectedRulesetId] = useState<string>("");
+  const [selectedStatsRulesetId, setSelectedStatsRulesetId] = useState<string>("");
+  
   const [formData, setFormData] = useState<CompetitionCreate>({
     name: "",
     modality_id: 0,
@@ -49,19 +56,22 @@ export function CreateCompetitionDialog({
     system: "points" as CompetitionSystem,
     min_members_per_team: 5,
     max_members_per_team: 20,
-    ruleset: {
-      name: "Regras Padrão",
-      segment_type: "TIME",
-      segments_regular_number: 2,
-      overtime_segments: 0,
-      penalty_segments: 0,
-      has_break_segments: true,
-    },
+  });
+
+  const [newRuleset, setNewRuleset] = useState({
+    name: "Regras Padrão",
+    segment_type: "TIME",
+    segments_regular_number: 2,
+    overtime_segments: 0,
+    penalty_segments: 0,
+    has_break_segments: true,
   });
 
   useEffect(() => {
     if (open) {
       loadModalities();
+      loadSportRulesets();
+      loadStatsRulesets();
     }
   }, [open, orgCode]);
 
@@ -76,8 +86,65 @@ export function CreateCompetitionDialog({
     }
   }
 
+  async function loadSportRulesets() {
+    try {
+      console.log("[SPORT RULESETS] Iniciando carregamento...");
+      const data = await listSportRulesets(0, 100);
+      console.log("[SPORT RULESETS] Dados recebidos:", data);
+      
+      // Filtrar para mostrar apenas um ruleset por nome
+      const uniqueRulesets = data.reduce((acc: any[], current: any) => {
+        const exists = acc.find(item => item.name === current.name);
+        if (!exists) {
+          acc.push(current);
+        }
+        return acc;
+      }, []);
+      
+      console.log("[SPORT RULESETS] Rulesets únicos:", uniqueRulesets);
+      setSportRulesets(uniqueRulesets);
+      if (uniqueRulesets.length > 0 && rulesetOption === "existing") {
+        setSelectedRulesetId(uniqueRulesets[0].id.toString());
+      }
+    } catch (error) {
+      console.error("[SPORT RULESETS] Erro ao carregar:", error);
+      toast.error("Erro ao carregar conjunto de regras");
+    }
+  }
+
+  async function loadStatsRulesets() {
+    try {
+      console.log("[STATS RULESETS] Iniciando carregamento...");
+      const data = await listStatsRulesets(0, 100);
+      console.log("[STATS RULESETS] Dados recebidos:", data);
+      
+      // Filtrar para mostrar apenas um ruleset por nome
+      const uniqueRulesets = data.reduce((acc: any[], current: any) => {
+        const exists = acc.find(item => item.name === current.name);
+        if (!exists) {
+          acc.push(current);
+        }
+        return acc;
+      }, []);
+      
+      console.log("[STATS RULESETS] Rulesets únicos:", uniqueRulesets);
+      setStatsRulesets(uniqueRulesets);
+      if (uniqueRulesets.length > 0 && statsRulesetOption === "existing") {
+        setSelectedStatsRulesetId(uniqueRulesets[0].id.toString());
+      }
+    } catch (error) {
+      console.error("[STATS RULESETS] Erro ao carregar:", error);
+      toast.error("Erro ao carregar estatísticas");
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    console.log("[SUBMIT] Iniciando submissão...");
+    console.log("[SUBMIT] FormData:", formData);
+    console.log("[SUBMIT] Ruleset Option:", rulesetOption);
+    console.log("[SUBMIT] Stats Ruleset Option:", statsRulesetOption);
 
     if (!formData.name || !formData.modality_id || !formData.start_date || !formData.end_date) {
       toast.error("Preencha todos os campos obrigatórios");
@@ -86,8 +153,44 @@ export function CreateCompetitionDialog({
 
     try {
       setIsLoading(true);
-      await createCompetition(formData);
+      
+      // Preparar dados baseado na opção selecionada
+      const dataToSend: CompetitionCreate = {
+        ...formData,
+      };
+
+      // Sport Ruleset
+      if (rulesetOption === "existing") {
+        if (selectedRulesetId) {
+          dataToSend.sport_ruleset_id = parseInt(selectedRulesetId);
+          console.log("[SUBMIT] Usando sport_ruleset_id:", dataToSend.sport_ruleset_id);
+        }
+      } else if (rulesetOption === "new") {
+        dataToSend.ruleset = newRuleset;
+        console.log("[SUBMIT] Criando novo ruleset:", dataToSend.ruleset);
+      }
+
+      // Stats Ruleset
+      if (statsRulesetOption === "existing") {
+        if (selectedStatsRulesetId) {
+          dataToSend.stats_ruleset_id = parseInt(selectedStatsRulesetId);
+          console.log("[SUBMIT] Usando stats_ruleset_id:", dataToSend.stats_ruleset_id);
+        }
+      } else if (statsRulesetOption === "new") {
+        dataToSend.stats_ruleset = {
+          name: "Estatísticas Padrão",
+          description: "Conjunto de estatísticas padrão",
+          stats_types: [],
+        };
+        console.log("[SUBMIT] Criando novo stats_ruleset:", dataToSend.stats_ruleset);
+      }
+
+      console.log("[SUBMIT] Dados finais a serem enviados:", JSON.stringify(dataToSend, null, 2));
+
+      await createCompetition(dataToSend);
       toast.success("Competição criada com sucesso!");
+      
+      // Reset form
       setFormData({
         name: "",
         modality_id: 0,
@@ -96,15 +199,10 @@ export function CreateCompetitionDialog({
         system: "points" as CompetitionSystem,
         min_members_per_team: 5,
         max_members_per_team: 20,
-        ruleset: {
-          name: "Regras Padrão",
-          segment_type: "TIME",
-          segments_regular_number: 2,
-          overtime_segments: 0,
-          penalty_segments: 0,
-          has_break_segments: true,
-        },
       });
+      setRulesetOption("none");
+      setStatsRulesetOption("none");
+      
       onSuccess();
     } catch (error) {
       console.error("Erro ao criar competição:", error);
@@ -240,6 +338,165 @@ export function CreateCompetitionDialog({
                   required
                 />
               </div>
+            </div>
+
+            {/* Seção de Sport Ruleset */}
+            <div className="space-y-4 border-t pt-4 mt-4">
+              <Label>Conjunto de Regras Esportivas (Opcional)</Label>
+              <Select
+                value={rulesetOption}
+                onValueChange={(value: any) => setRulesetOption(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  <SelectItem value="existing">Usar conjunto existente</SelectItem>
+                  <SelectItem value="new">Criar novo conjunto</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {rulesetOption === "existing" && (
+                <div className="space-y-2">
+                  <Label htmlFor="ruleset">Selecione um conjunto</Label>
+                  <Select
+                    value={selectedRulesetId}
+                    onValueChange={setSelectedRulesetId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um conjunto de regras" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sportRulesets.length === 0 ? (
+                        <div className="p-2 text-sm text-muted-foreground">
+                          Nenhum conjunto cadastrado. Crie um novo.
+                        </div>
+                      ) : (
+                        sportRulesets.map((ruleset) => (
+                          <SelectItem key={ruleset.id} value={ruleset.id.toString()}>
+                            {ruleset.name} ({ruleset.segment_type}, {ruleset.segments_regular_number} tempos)
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {rulesetOption === "new" && (
+                <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="ruleset_name">Nome do Conjunto *</Label>
+                      <Input
+                        id="ruleset_name"
+                        value={newRuleset.name}
+                        onChange={(e) => setNewRuleset({ ...newRuleset, name: e.target.value })}
+                        placeholder="Ex: Regras Futsal FIFUSF"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="segment_type">Tipo de Segmento *</Label>
+                      <Select
+                        value={newRuleset.segment_type}
+                        onValueChange={(value) => setNewRuleset({ ...newRuleset, segment_type: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="TIME">Tempos</SelectItem>
+                          <SelectItem value="SET">Sets</SelectItem>
+                          <SelectItem value="QUARTER">Quartos</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="segments_regular">Número de Tempos Regulares *</Label>
+                      <Input
+                        id="segments_regular"
+                        type="number"
+                        min="1"
+                        value={newRuleset.segments_regular_number}
+                        onChange={(e) => setNewRuleset({ ...newRuleset, segments_regular_number: parseInt(e.target.value) })}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="overtime_segments">Prorrogações</Label>
+                      <Input
+                        id="overtime_segments"
+                        type="number"
+                        min="0"
+                        value={newRuleset.overtime_segments}
+                        onChange={(e) => setNewRuleset({ ...newRuleset, overtime_segments: parseInt(e.target.value) })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Seção de Stats Ruleset */}
+            <div className="space-y-4 border-t pt-4 mt-4">
+              <div>
+                <Label>Conjunto de Estatísticas (Opcional)</Label>
+                <p className="text-xs text-gray-500 mt-1">
+                  Define quais estatísticas serão rastreadas durante os jogos
+                </p>
+              </div>
+              <Select
+                value={statsRulesetOption}
+                onValueChange={(value: any) => setStatsRulesetOption(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  <SelectItem value="existing">Usar conjunto existente</SelectItem>
+                  <SelectItem value="new">Criar novo conjunto</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {statsRulesetOption === "existing" && (
+                <div className="space-y-2">
+                  <Label htmlFor="stats_ruleset">Selecione um conjunto</Label>
+                  <Select
+                    value={selectedStatsRulesetId}
+                    onValueChange={setSelectedStatsRulesetId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um conjunto de estatísticas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {statsRulesets.length === 0 ? (
+                        <div className="p-2 text-sm text-muted-foreground">
+                          Nenhum conjunto cadastrado
+                        </div>
+                      ) : (
+                        statsRulesets.map((ruleset) => (
+                          <SelectItem key={ruleset.id} value={ruleset.id.toString()}>
+                            {ruleset.name}
+                            {ruleset.description && ` - ${ruleset.description}`}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {statsRulesetOption === "new" && (
+                <div className="p-4 border rounded-lg bg-blue-50">
+                  <p className="text-sm text-gray-600">
+                    Um conjunto de estatísticas padrão será criado. Você poderá adicionar estatísticas específicas após criar a competição.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter className="mt-6">

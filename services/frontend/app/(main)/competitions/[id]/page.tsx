@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { 
   Trophy, 
   Calendar, 
@@ -15,7 +16,9 @@ import {
   CalendarDays,
   Shield,
   Building2,
-  Filter
+  Filter,
+  Play,
+  Square
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -35,13 +38,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getCompetition, getCompetitionTeamsWithPlayers, getCompetitionStats } from "@/actions/competitions";
+import { getCompetition, getCompetitionTeamsWithPlayers, getCompetitionStats, updateCompetition } from "@/actions/competitions";
 import { 
   getCompetitionStandings, 
   getPlayerRankings,
   getCompetitionMatches 
 } from "@/actions/rankings";
 import type { Competition, CompetitionPhase } from "@/types/competition";
+import { CompetitionStatus } from "@/types/competition";
 import type { StandingsTeam, PlayerRanking } from "@/actions/rankings";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -52,6 +56,7 @@ import Image from "next/image";
 export default function CompetitionDetailPage() {
   const params = useParams();
   const competitionId = parseInt(params?.id as string);
+  const { data: session } = useSession();
 
   const [competition, setCompetition] = useState<Competition | null>(null);
   const [standings, setStandings] = useState<StandingsTeam[]>([]);
@@ -62,6 +67,7 @@ export default function CompetitionDetailPage() {
   const [selectedStat, setSelectedStat] = useState<string>("");
   const [playerRankings, setPlayerRankings] = useState<PlayerRanking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [activeTab, setActiveTab] = useState("standings");
   
   // Filtros de jogos
@@ -202,6 +208,43 @@ export default function CompetitionDetailPage() {
     }
   };
 
+  // Funções para controlar o status da competição
+  const handleStartCompetition = async () => {
+    if (!competition) return;
+    
+    setIsUpdatingStatus(true);
+    try {
+      await updateCompetition(competitionId, { status: CompetitionStatus.STARTED });
+      toast.success("Competição iniciada com sucesso!");
+      await loadCompetitionData();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erro ao iniciar competição";
+      toast.error(message);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleFinishCompetition = async () => {
+    if (!competition) return;
+    
+    setIsUpdatingStatus(true);
+    try {
+      await updateCompetition(competitionId, { status: CompetitionStatus.FINISHED });
+      toast.success("Competição finalizada com sucesso!");
+      await loadCompetitionData();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erro ao finalizar competição";
+      toast.error(message);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  // Verificar se o usuário pode gerenciar a competição
+  // TODO: Implementar verificação de permissão via API
+  const canManageCompetition = !!session;
+
   // Efeito para carregar rankings quando mudar a estatística selecionada
   useEffect(() => {
     if (selectedStat && activeTab === "stats") {
@@ -329,7 +372,7 @@ export default function CompetitionDetailPage() {
         <Card className="p-6">
           <div className="flex items-start gap-6">
             <div className="flex-1">
-              <div className="flex items-center gap-3 mb-3">
+              <div className="flex items-center gap-3 mb-3 flex-wrap">
                 <Trophy className="w-8 h-8 text-main" />
                 <h1 className="text-3xl font-bold text-gray-900">
                   {competition.name}
@@ -339,6 +382,34 @@ export default function CompetitionDetailPage() {
                 >
                   {getStatusLabel(competition.status)}
                 </span>
+                
+                {/* Botões de Controle - Apenas para owner/organizador */}
+                {canManageCompetition && (
+                  <div className="flex gap-2 ml-auto">
+                    {competition.status === "pending" && (
+                      <Button 
+                        onClick={handleStartCompetition}
+                        disabled={isUpdatingStatus}
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <Play className="w-4 h-4 mr-2" />
+                        {isUpdatingStatus ? "Iniciando..." : "Iniciar Competição"}
+                      </Button>
+                    )}
+                    {competition.status === "started" && (
+                      <Button 
+                        onClick={handleFinishCompetition}
+                        disabled={isUpdatingStatus}
+                        size="sm"
+                        variant="destructive"
+                      >
+                        <Square className="w-4 h-4 mr-2" />
+                        {isUpdatingStatus ? "Finalizando..." : "Finalizar Competição"}
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">

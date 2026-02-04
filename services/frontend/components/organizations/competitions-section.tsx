@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { listCompetitions } from "@/actions/competitions";
 import { CreateCompetitionDialog } from "./create-competition-dialog";
 import type { Competition, CompetitionStatus } from "@/types/competition";
+import Link from "next/link";
 
 const statusLabels: Record<CompetitionStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pending: { label: "Pendente", variant: "secondary" },
@@ -108,41 +109,44 @@ export function CompetitionsSection({ organizationSlug, orgCode, isAdmin, isPend
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {competitions.map((competition) => (
-                <Card
+                <Link 
                   key={competition.id}
-                  className="hover:shadow-md transition-shadow"
+                  href={`/competitions/${competition.id}`}
+                  className="block"
                 >
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <CardTitle className="text-base">{competition.name}</CardTitle>
-                      <Badge variant={statusLabels[competition.status].variant}>
-                        {statusLabels[competition.status].label}
-                      </Badge>
-                    </div>
-                    <CardDescription className="flex items-center gap-1 text-xs">
-                      <Trophy className="w-3 h-3" />
-                      {competition.system === "points"
-                        ? "Pontos Corridos"
-                        : competition.system === "elimination"
-                        ? "Eliminatória"
-                        : "Misto"}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="flex items-center gap-2 text-xs text-gray-600">
-                      <Calendar className="w-3 h-3" />
-                      <span>
-                        {new Date(competition.start_date).toLocaleDateString("pt-BR")}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-600">
-                      <Users className="w-3 h-3" />
-                      <span>
-                        {competition.min_members_per_team}-{competition.max_members_per_team} jogadores
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <CardTitle className="text-base">{competition.name}</CardTitle>
+                        <Badge variant={statusLabels[competition.status].variant}>
+                          {statusLabels[competition.status].label}
+                        </Badge>
+                      </div>
+                      <CardDescription className="flex items-center gap-1 text-xs">
+                        <Trophy className="w-3 h-3" />
+                        {competition.system === "points"
+                          ? "Pontos Corridos"
+                          : competition.system === "elimination"
+                          ? "Eliminatória"
+                          : "Misto"}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="flex items-center gap-2 text-xs text-gray-600">
+                        <Calendar className="w-3 h-3" />
+                        <span>
+                          {new Date(competition.start_date).toLocaleDateString("pt-BR")}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-600">
+                        <Users className="w-3 h-3" />
+                        <span>
+                          {competition.min_members_per_team}-{competition.max_members_per_team} jogadores
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
               ))}
             </div>
           )}
