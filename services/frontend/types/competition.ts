@@ -81,3 +81,34 @@ export interface GenerateStructureResponse {
   lives_created: number;
   lives: any[];
 }
+
+export interface CompetitionStat {
+  id: number;
+  competition_id: number;
+  name: string;
+  abbreviation: string;
+  description?: string;
+  icon?: string;
+  display_order: number;
+}
+
+export interface CompetitionStatCreate {
+  name: string;
+  abbreviation: string;
+  description?: string;
+  icon?: string;
+  display_order?: number;
+}
+
+export interface Player {
+  id: string;
+  user_id: string;
+  team_id: string;
+}
+
+export interface TeamWithPlayers {
+  id: string;
+  name: string;
+  abbreviation: string;
+  players: Player[];
+}

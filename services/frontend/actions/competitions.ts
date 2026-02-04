@@ -7,6 +7,9 @@ import type {
   CompetitionUpdate,
   GenerateStructureRequest,
   GenerateStructureResponse,
+  CompetitionStat,
+  CompetitionStatCreate,
+  TeamWithPlayers,
 } from "@/types/competition";
 
 export async function listCompetitions(
@@ -68,6 +71,44 @@ export async function generateCompetitionStructure(
     endpoint: `/competitions/${competitionId}/generate-structure`,
     method: "POST",
     data: request,
+    withAuth: true,
+  });
+
+  return response.data;
+}
+
+export async function getCompetitionStats(
+  competitionId: number
+): Promise<CompetitionStat[]> {
+  const response = await axiosAPI<CompetitionStat[]>({
+    endpoint: `/competitions/${competitionId}/stats`,
+    method: "GET",
+    withAuth: false,
+  });
+
+  return response.data;
+}
+
+export async function getCompetitionTeamsWithPlayers(
+  competitionId: number
+): Promise<TeamWithPlayers[]> {
+  const response = await axiosAPI<TeamWithPlayers[]>({
+    endpoint: `/competitions/${competitionId}/teams-with-players`,
+    method: "GET",
+    withAuth: false,
+  });
+
+  return response.data;
+}
+
+export async function createCompetitionStat(
+  competitionId: number,
+  data: CompetitionStatCreate
+): Promise<CompetitionStat> {
+  const response = await axiosAPI<CompetitionStat>({
+    endpoint: `/competitions/${competitionId}/stats`,
+    method: "POST",
+    data,
     withAuth: true,
   });
 
