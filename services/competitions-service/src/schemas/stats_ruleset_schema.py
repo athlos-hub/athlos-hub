@@ -48,7 +48,7 @@ class StatsRuleSetUpdate(BaseModel):
 
 class StatsRuleSetResponse(StatsRuleSetBase):
     id: int
-    competition_id: int
+    competition_id: Optional[int] = None
     stats_types: List[StatsTypeResponse] = []
     
     model_config = ConfigDict(from_attributes=True)

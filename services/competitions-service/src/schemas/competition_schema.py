@@ -32,10 +32,10 @@ class CompetitionBase(BaseModel):
 class CompetitionCreate(CompetitionBase):
     """
     Schema de criação flexível:
-    1. Sport Ruleset: Pode criar NOVO (ruleset) ou REUSAR (sport_ruleset_id)
-    2. Stats Ruleset: Pode criar NOVO (stats_ruleset) ou REUSAR (stats_ruleset_id)
+    1. Sport Ruleset: OPCIONAL - Pode criar NOVO (ruleset) ou REUSAR (sport_ruleset_id)
+    2. Stats Ruleset: OPCIONAL - Pode criar NOVO (stats_ruleset) ou REUSAR (stats_ruleset_id)
     """
-    # Sport Ruleset (obrigatório)
+    # Sport Ruleset (opcional)
     ruleset: Optional[SportRulesetCreate] = Field(
         None, 
         description="Objeto para criar um NOVO conjunto de regras esportivas"
@@ -57,9 +57,11 @@ class CompetitionCreate(CompetitionBase):
 
     @model_validator(mode='after')
     def check_ruleset_presence(self):
-        if not self.ruleset and not self.sport_ruleset_id:
-            raise ValueError('Você deve fornecer um novo "ruleset" ou um "sport_ruleset_id" existente.')
+        # Sport ruleset não é mais obrigatório, mas se fornecido deve ser apenas um
+        if self.ruleset and self.sport_ruleset_id:
+            raise ValueError('Forneça apenas "ruleset" OU "sport_ruleset_id", não ambos.')
         
+        # Stats ruleset continua sendo opcional, mas apenas um pode ser fornecido
         if self.stats_ruleset and self.stats_ruleset_id:
             raise ValueError('Forneça apenas "stats_ruleset" OU "stats_ruleset_id", não ambos.')
         
@@ -78,8 +80,8 @@ class CompetitionResponse(CompetitionBase):
     id: int
     status: CompetitionStatus
     
-    # Retorna o ID da regra vinculada
-    sport_ruleset_id: int    
+    # Retorna o ID da regra vinculada (opcional)
+    sport_ruleset_id: Optional[int] = None
     sport_ruleset: Optional[SportRulesetResponse] = None
     
     # Stats Ruleset (opcional)

@@ -35,7 +35,7 @@ class CompetitionService:
                 detail=f"Modalidade com ID {data.modality_id} não encontrada."
             )
 
-        # 2. Resolução do Sport Ruleset (Regras do Jogo)
+        # 2. Resolução do Sport Ruleset (Regras do Jogo) - OPCIONAL
         final_sport_ruleset_id = None
 
         if data.sport_ruleset_id:
@@ -55,6 +55,7 @@ class CompetitionService:
             self.session.add(new_ruleset)
             await self.session.flush() 
             final_sport_ruleset_id = new_ruleset.id
+        # Se nenhum foi fornecido, final_sport_ruleset_id permanece None (válido)
 
         # 3. Criação da Competição
         comp_data = data.model_dump(exclude={
@@ -80,6 +81,7 @@ class CompetitionService:
         await self.session.flush()  # Precisamos do competition.id para stats_ruleset
 
         # 4. Resolução do Stats Ruleset (se fornecido)
+        # IMPORTANTE: Agora um stats_ruleset pode ser usado por múltiplas competições
         if data.stats_ruleset_id:
             # Verificar se o stats_ruleset existe
             query_stats = select(StatsRuleSetModel).where(StatsRuleSetModel.id == data.stats_ruleset_id)
@@ -92,16 +94,34 @@ class CompetitionService:
                     detail=f"Stats Ruleset com ID {data.stats_ruleset_id} não encontrado."
                 )
             
-            # Atualizar o stats_ruleset para apontar para esta competição
-            # Nota: Como competition_id é unique em stats_rulesets, isso pode falhar
-            # se o stats_ruleset já estiver vinculado a outra competição
-            if existing_stats.competition_id and existing_stats.competition_id != new_competition.id:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Stats Ruleset {data.stats_ruleset_id} já está vinculado a outra competição."
-                )
+            # Como removemos o unique constraint, podemos reutilizar o stats_ruleset
+            # Mas vamos criar uma cópia vinculada a esta competição para manter
+            # o controle individual (se desejar compartilhamento, remova esse bloco)
+            stats_data = {
+                "name": existing_stats.name,
+                "description": existing_stats.description,
+                "competition_id": new_competition.id
+            }
+            new_stats_copy = StatsRuleSetModel(**stats_data)
+            self.session.add(new_stats_copy)
+            await self.session.flush()
             
-            existing_stats.competition_id = new_competition.id
+            # Copiar os tipos de estatísticas
+            query_types = select(StatsTypeModel).where(StatsTypeModel.stats_ruleset_id == data.stats_ruleset_id)
+            result_types = await self.session.execute(query_types)
+            existing_types = result_types.scalars().all()
+            
+            for existing_type in existing_types:
+                type_data = {
+                    "name": existing_type.name,
+                    "abbreviation": existing_type.abbreviation,
+                    "description": existing_type.description,
+                    "icon": existing_type.icon,
+                    "display_order": existing_type.display_order,
+                    "stats_ruleset_id": new_stats_copy.id
+                }
+                new_type = StatsTypeModel(**type_data)
+                self.session.add(new_type)
 
         elif data.stats_ruleset:
             # Criar novo stats ruleset com seus tipos
