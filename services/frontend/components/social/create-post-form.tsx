@@ -43,8 +43,12 @@ export function CreatePostForm({ profileType, profileId, profileName, onSubmit, 
             setType(PostType.TEXT);
             setVisibility(PostVisibility.PUBLIC);
             toast.success("Post criado com sucesso!");
-        } catch (error) {
-            toast.error("Erro ao criar post. Tente novamente.");
+        } catch (error: any) {
+            if (error?.status === 422 || error?.message?.toLowerCase().includes("moderação")) {
+                toast.error("Seu post foi bloqueado pela moderação automática por conter conteúdo inadequado.");
+            } else {
+                toast.error("Erro ao criar post. Tente novamente.");
+            }
         } finally {
             setIsSubmitting(false);
         }

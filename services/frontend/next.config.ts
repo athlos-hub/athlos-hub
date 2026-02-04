@@ -26,8 +26,12 @@ const nextConfig: NextConfig = {
         if (!isProd) {
             return [
                 {
-                source: '/api/social/:path*',
-                destination: 'http://localhost:8083/api/social/:path*',
+                    source: '/api/v1/auth/:path*',
+                    destination: 'http://localhost:8000/api/v1/auth/:path*',
+                },
+                {
+                    source: '/api/social/:path*',
+                    destination: 'http://localhost:8083/api/social/:path*',
                 },
             ];
         }

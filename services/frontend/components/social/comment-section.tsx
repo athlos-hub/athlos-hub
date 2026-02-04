@@ -98,8 +98,12 @@ export function CommentSection({ postId, initialCommentsCount, onCommentCountCha
       setCommentsCount(newCount);
       onCommentCountChange?.(newCount);
       toast.success("Comentário adicionado!");
-    } catch (error) {
-      toast.error("Erro ao adicionar comentário");
+    } catch (error: any) {
+      if (error?.status === 422 || error?.message?.toLowerCase().includes("moderação")) {
+        toast.error("Seu comentário foi bloqueado pela moderação automática por conter conteúdo inadequado.");
+      } else {
+        toast.error("Erro ao adicionar comentário");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -114,8 +118,13 @@ export function CommentSection({ postId, initialCommentsCount, onCommentCountCha
       setEditingId(null);
       setEditContent("");
       toast.success("Comentário editado!");
-    } catch (error) {
-      toast.error("Erro ao editar comentário");
+    } catch (error: any) {
+      // Tratamento específico para erros de moderação (status 422)
+      if (error?.status === 422 || error?.message?.toLowerCase().includes("moderação")) {
+        toast.error("Sua edição foi bloqueada pela moderação automática por conter conteúdo inadequado.");
+      } else {
+        toast.error("Erro ao editar comentário");
+      }
     }
   };
 
