@@ -74,7 +74,7 @@ services:
   auth-service:
     url: ${AUTH_SERVICE_URL:http://localhost:8000}
   competitions-service:
-    url: ${COMPETITIONS_SERVICE_URL:http://localhost:8081}
+    url: ${COMPETITIONS_SERVICE_URL:http://localhost:8001}
   notification:
     service:
       url: ${NOTIFICATION_SERVICE_URL:http://localhost:8003}

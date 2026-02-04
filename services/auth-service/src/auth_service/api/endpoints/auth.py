@@ -104,7 +104,7 @@ async def register(
             "expiry_hours": 24,
             "company_name": "AthlosHub",
             "support_email": "suporte@athloshub.com.br",
-            "logo_url": "https://upload.wikimedia.org/wikipedia/commons/3/36/Logo_nike_principal.jpg",
+            "logo_url": "https://athloshub-media.s3.us-east-2.amazonaws.com//faedd37d-d03d-4027-9e55-28ffbc52783d_logo-athlos.jpeg",
         },
     )
 
@@ -154,7 +154,7 @@ async def resend_verification_email(
             "expiry_hours": 24,
             "company_name": "AthlosHub",
             "support_email": "suporte@athloshub.com.br",
-            "logo_url": "https://upload.wikimedia.org/wikipedia/commons/3/36/Logo_nike_principal.jpg",
+            "logo_url": "https://athloshub-media.s3.us-east-2.amazonaws.com//faedd37d-d03d-4027-9e55-28ffbc52783d_logo-athlos.jpeg",
         },
     )
 
@@ -198,7 +198,7 @@ async def request_reset_password(
             "expiry_hours": 2,
             "company_name": "AthlosHub",
             "support_email": "suporte@athloshub.com.br",
-            "logo_url": "https://upload.wikimedia.org/wikipedia/commons/3/36/Logo_nike_principal.jpg",
+            "logo_url": "https://athloshub-media.s3.us-east-2.amazonaws.com//faedd37d-d03d-4027-9e55-28ffbc52783d_logo-athlos.jpeg",
         },
     )
     logger.info(f"Email de reset de senha enviado para: {user_info['email']}")

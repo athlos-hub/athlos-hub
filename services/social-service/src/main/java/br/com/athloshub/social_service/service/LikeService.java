@@ -1,5 +1,7 @@
 package br.com.athloshub.social_service.service;
 
+import br.com.athloshub.social_service.client.AuthServiceClient;
+import br.com.athloshub.social_service.dto.auth.UserDTO;
 import br.com.athloshub.social_service.entity.Like;
 import br.com.athloshub.social_service.enums.NotificationType;
 import br.com.athloshub.social_service.entity.Post;
@@ -25,6 +27,7 @@ public class LikeService {
     private final PostRepository postRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final NotificationService notificationService;
+    private final AuthServiceClient authServiceClient;
     
     @Transactional
     public boolean toggleLike(UUID postId) {
@@ -61,8 +64,22 @@ public class LikeService {
                 postRepository.save(post);
                 
                 try {
+                    String actorName = "Usuário";
+                    
+                    try {
+                        String token = jwtTokenProvider.getCurrentToken();
+                        if (token != null) {
+                            UserDTO actor = authServiceClient.getUserByKeycloakId(keycloakId, "Bearer " + token);
+                            if (actor != null) {
+                                actorName = actor.getFullName();
+                            }
+                        }
+                    } catch (Exception e) {
+                        log.warn("Não foi possível buscar nome do usuário {}: {}", keycloakId, e.getMessage());
+                    }
+                    
                     java.util.Map<String, Object> notificationData = new java.util.HashMap<>();
-                    notificationData.put("actorName", "Usuário");
+                    notificationData.put("actorName", actorName);
                     notificationData.put("postContent", post.getContent());
                     notificationData.put("postUrl", "https://athlos-hub.com/social/post/" + post.getId());
                     notificationData.put("actionUrl", "https://athlos-hub.com/social/post/" + post.getId());

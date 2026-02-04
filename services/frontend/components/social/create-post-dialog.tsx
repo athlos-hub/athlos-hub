@@ -10,6 +10,7 @@ interface CreatePostDialogProps {
     onOpenChange: (open: boolean) => void;
     profileType: 'organization' | 'team';
     profileId: string;
+    profileName: string;
     onSubmit: (payload: CreatePostPayload) => Promise<void>;
 }
 
@@ -18,6 +19,7 @@ export function CreatePostDialog({
     onOpenChange,
     profileType,
     profileId,
+    profileName,
     onSubmit
 }: CreatePostDialogProps) {
     const handleSubmit = async (payload: CreatePostPayload) => {
@@ -37,6 +39,7 @@ export function CreatePostDialog({
                 <CreatePostForm
                     profileType={profileType}
                     profileId={profileId}
+                    profileName={profileName}
                     onSubmit={handleSubmit}
                     onCancel={() => onOpenChange(false)}
                 />

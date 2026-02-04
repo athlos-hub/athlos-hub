@@ -132,6 +132,7 @@ export interface TeamOverviewResponse {
   members: OrganizationMemberResponse[];
   total_members: number;
   total_organizers: number;
+  total_followers?: number;
   created_at: string;
 }
 

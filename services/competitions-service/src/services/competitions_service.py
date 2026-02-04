@@ -10,10 +10,15 @@ from src.models.modality import ModalityModel
 from src.models.stats import StatsRuleSetModel, StatsTypeModel
 from src.models.teams import TeamModel, PlayerModel
 from src.schemas.competition_schema import CompetitionCreate, CompetitionUpdate
+from src.config.settings import settings
+from src.services.social_client import SocialServiceClient
+from src.services.achievements_service import AchievementsService
 
 class CompetitionService:
     def __init__(self, session: AsyncSession):
         self.session = session
+        self.social_client = SocialServiceClient(settings.SOCIAL_SERVICE_URL)
+        self.achievements_service = AchievementsService(session, self.social_client)
 
     async def create(self, data: CompetitionCreate) -> CompetitionModel:
         """
@@ -206,3 +211,57 @@ class CompetitionService:
         )
         result = await self.session.execute(query)
         return result.scalars().all()
+    
+    async def finalize_competition(self, competition_id: int) -> dict:
+        """
+        Finaliza uma competição e verifica todas as conquistas.
+        
+        Args:
+            competition_id: ID da competição a ser finalizada
+            
+        Returns:
+            Dicionário com informações sobre a finalização
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Buscar competição
+        query = select(CompetitionModel).where(CompetitionModel.id == competition_id)
+        result = await self.session.execute(query)
+        competition = result.scalar_one_or_none()
+        
+        if not competition:
+            raise HTTPException(status_code=404, detail="Competição não encontrada")
+        
+        if competition.status == CompetitionStatus.FINISHED:
+            raise HTTPException(
+                status_code=400, 
+                detail="Competição já está finalizada"
+            )
+        
+        # Atualizar status para finalizada
+        competition.status = CompetitionStatus.FINISHED
+        self.session.add(competition)
+        await self.session.commit()
+        
+        # Verificar conquistas
+        achievements_checked = True
+        error_message = None
+        
+        try:
+            await self.achievements_service.check_competition_end_achievements(
+                competition.id
+            )
+        except Exception as e:
+            logger.error(f"Erro ao verificar conquistas: {str(e)}", exc_info=True)
+            achievements_checked = False
+            error_message = str(e)
+        
+        return {
+            "competition_id": competition_id,
+            "competition_name": competition.name,
+            "status": competition.status.value,
+            "achievements_checked": achievements_checked,
+            "message": "Competição finalizada com sucesso" if achievements_checked 
+                      else f"Competição finalizada, mas houve erro ao verificar conquistas: {error_message}"
+        }

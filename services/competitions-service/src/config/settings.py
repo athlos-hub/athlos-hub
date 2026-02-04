@@ -35,6 +35,9 @@ class Settings(BaseSettings):
 
     LIVESTREAM_SERVICE_URL: str = Field(default="http://localhost:3333")
     LIVESTREAM_SERVICE_TIMEOUT: int = Field(default=10)
+    
+    SOCIAL_SERVICE_URL: str = Field(default="http://localhost:8083")
+    SOCIAL_SERVICE_TIMEOUT: int = Field(default=10)
 
     AUTH_SERVICE_URL: str = Field(default="http://localhost:8000")
     AUTH_SERVICE_TIMEOUT: int = Field(default=10)

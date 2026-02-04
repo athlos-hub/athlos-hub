@@ -8,6 +8,8 @@ import br.com.athloshub.social_service.dto.competitions.TeamDTO;
 import br.com.athloshub.social_service.entity.Post;
 import br.com.athloshub.social_service.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -16,6 +18,7 @@ import java.util.UUID;
 
 import static org.springframework.http.HttpStatus.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProfileContextService {
@@ -41,6 +44,7 @@ public class ProfileContextService {
     
     public boolean canCreatePostAsTeam(String teamId) {
         String keycloakId = jwtTokenProvider.getCurrentKeycloakId();
+        
         if (keycloakId == null) {
             throw new ResponseStatusException(UNAUTHORIZED, "Usuário não autenticado");
         }
@@ -51,10 +55,14 @@ public class ProfileContextService {
         
         try {
             UUID teamUUID = UUID.fromString(teamId);
+            
             TeamDTO team = competitionsServiceClient.getTeamById(teamUUID, token);
             
             UUID userUUID = UUID.fromString(keycloakId);
-            return team.isPlayerMember(userUUID);
+            
+            boolean isMember = team.isPlayerMember(userUUID);
+            
+            return isMember;
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(BAD_REQUEST, "ID de equipe inválido");
         } catch (Exception e) {

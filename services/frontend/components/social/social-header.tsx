@@ -68,7 +68,7 @@ export function SocialHeader({
                         onChange={onProfileChange}
                     />
                     {canCreatePost && (
-                        <Button onClick={onCreatePost}>
+                        <Button onClick={onCreatePost} className="bg-main hover:bg-main/90">
                             <PlusCircle className="h-4 w-4 mr-2" />
                             Criar Post
                         </Button>

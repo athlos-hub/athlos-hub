@@ -52,4 +52,19 @@ public class OrganizationProfileService {
         
         return organizationProfileRepository.save(profile);
     }
+    
+    @Transactional
+    public void incrementFollowersCount(String slug) {
+        OrganizationProfile profile = getOrCreateProfile(slug);
+        profile.setFollowersCount(profile.getFollowersCount() + 1);
+        organizationProfileRepository.save(profile);
+    }
+    
+    @Transactional
+    public void decrementFollowersCount(String slug) {
+        OrganizationProfile profile = getOrCreateProfile(slug);
+        int newCount = Math.max(0, profile.getFollowersCount() - 1);
+        profile.setFollowersCount(newCount);
+        organizationProfileRepository.save(profile);
+    }
 }

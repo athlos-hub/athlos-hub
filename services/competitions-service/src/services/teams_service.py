@@ -10,6 +10,7 @@ import logging
 from src.models.teams import TeamModel, PlayerModel, TeamStatus
 from src.schemas.teams_schema import TeamCreateSchema
 from src.models.competition import CompetitionModel, CompetitionStatus
+from src.services.social_client import SocialServiceClient
 from src.services.auth_client import (
     AuthClient,
     AuthClientError,
@@ -29,6 +30,7 @@ class TeamService:
     def __init__(self, db: AsyncSession, auth_client: Optional[AuthClient] = None):
         self.db = db
         self._auth_client = auth_client
+        self.social_client = SocialServiceClient(settings.SOCIAL_SERVICE_URL)
 
     async def _get_auth_client(self) -> AuthClient:
         """Retorna o cliente de auth configurado."""
@@ -265,6 +267,17 @@ class TeamService:
         )
         result_refresh = await self.db.execute(query_refresh)
         loaded_team = result_refresh.scalar_one()
+
+        # 7. Criar perfil no social-service
+        try:
+            await self.social_client.create_team_profile(
+                team_id=str(loaded_team.id),
+                organization_slug=loaded_team.organization_slug
+            )
+            logger.info(f"Perfil criado no social-service para time {loaded_team.id}")
+        except Exception as e:
+            # Não falhar a criação do time se houver erro ao criar perfil
+            logger.error(f"Erro ao criar perfil do time no social-service: {str(e)}")
         
         return loaded_team
 

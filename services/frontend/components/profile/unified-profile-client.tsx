@@ -32,6 +32,7 @@ import { FollowListModal } from "./follow-list-modal";
 import { ShareProfileButton } from "./share-profile-button";
 import { getFollowedOrganizations } from "@/actions/organization-follow";
 import { getUserShares, Share } from "@/actions/shares";
+import { AchievementsSection } from "@/components/achievements/achievements-section";
 
 interface AuthUserProfile {
   id: string;
@@ -355,6 +356,17 @@ export function UnifiedProfileClient({
         </CardContent>
       </Card>
 
+      {/* Seção de Conquistas */}
+      {currentProfile.achievementsCount > 0 && (
+        <div className="mb-6">
+          <AchievementsSection
+            achievements={currentProfile.achievements}
+            achievementsCount={currentProfile.achievementsCount}
+            maxDisplay={6}
+          />
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-6">
         <div className="flex items-center gap-4">
           <Filter className="w-5 h-5 text-gray-600"/>
@@ -431,9 +443,24 @@ export function UnifiedProfileClient({
         )}
 
         {activeTab === "achievements" && (
-          <div className="py-12 text-center text-muted-foreground">
-            <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>Conquistas em breve...</p>
+          <div>
+            {currentProfile.achievementsCount === 0 ? (
+              <div className="py-12 text-center text-muted-foreground">
+                <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Nenhuma conquista desbloqueada ainda.</p>
+                {isOwnProfile && (
+                  <p className="text-sm mt-2">
+                    Participe de competições e desbloqueie conquistas!
+                  </p>
+                )}
+              </div>
+            ) : (
+              <AchievementsSection
+                achievements={currentProfile.achievements}
+                achievementsCount={currentProfile.achievementsCount}
+                maxDisplay={999}
+              />
+            )}
           </div>
         )}
 
