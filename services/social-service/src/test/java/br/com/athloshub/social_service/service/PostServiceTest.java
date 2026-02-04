@@ -60,8 +60,6 @@ class PostServiceTest {
         existingPost.setId(postId);
     }
 
-    // -------------------- createPost --------------------
-
     @Test
     void createPost_whenNotAuthenticated_shouldThrow401() {
         when(jwtTokenProvider.getCurrentKeycloakId()).thenReturn(null);
@@ -128,8 +126,8 @@ class PostServiceTest {
                 "org-1",
                 "conteudo",
                 List.of("m1"),
-                null,   // type null -> default TEXT
-                null,   // visibility null -> default PUBLIC
+                null,
+                null,
                 Map.of("a", 1)
         );
 
@@ -165,7 +163,6 @@ class PostServiceTest {
         assertThat(team.getPostsCount()).isEqualTo(1);
     }
 
-    // -------------------- createAchievementPost --------------------
 
     @Test
     void createAchievementPost_shouldSaveAchievement_andIncrementAchievementsCount_whenProfileExists() {
@@ -194,8 +191,6 @@ class PostServiceTest {
         verify(athleteProfileRepository).save(profile);
     }
 
-    // -------------------- getPostById --------------------
-
     @Test
     void getPostById_whenNotFound_shouldThrow404() {
         when(postRepository.findById(postId)).thenReturn(Optional.empty());
@@ -206,7 +201,6 @@ class PostServiceTest {
                 .isEqualTo(NOT_FOUND);
     }
 
-    // -------------------- updatePost --------------------
 
     @Test
     void updatePost_whenNotAuthenticated_shouldThrow401() {
@@ -248,7 +242,6 @@ class PostServiceTest {
         verify(postRepository).save(existingPost);
     }
 
-    // -------------------- deletePost --------------------
 
     @Test
     void deletePost_whenNotAuthenticated_shouldThrow401() {
@@ -298,7 +291,6 @@ class PostServiceTest {
         assertThat(org.getPostsCount()).isEqualTo(0); // não pode ficar negativo
     }
 
-    // -------------------- createAthletePost --------------------
 
     @Test
     void createAthletePost_shouldCreateProfileIfMissing_moderate_save_andIncrementPostsCount() {
@@ -311,7 +303,6 @@ class PostServiceTest {
         req.setVisibility(Post.PostVisibility.PUBLIC);
         req.setMetadata(Map.of());
 
-        // primeiro: não existe -> cria; depois: existe para incrementar postsCount
         AthleteProfile profile = AthleteProfile.builder().keycloakId(keycloakId).postsCount(0).build();
 
         when(athleteProfileRepository.findByKeycloakId(keycloakId))
@@ -335,8 +326,6 @@ class PostServiceTest {
         verify(moderationService).assertAllowed("hello");
         verify(postRepository).save(any(Post.class));
     }
-
-    // -------------------- deleteAthletePost --------------------
 
     @Test
     void deleteAthletePost_whenNotFound_shouldThrow404() {
@@ -412,8 +401,6 @@ class PostServiceTest {
         verify(postRepository).delete(p);
         assertThat(profile.getPostsCount()).isEqualTo(0);
     }
-
-    // -------------------- sharePost --------------------
 
     @Test
     void sharePost_whenOriginalNotFound_shouldThrow404() {
