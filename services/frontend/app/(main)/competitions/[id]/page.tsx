@@ -38,12 +38,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getCompetition, getCompetitionTeamsWithPlayers, getCompetitionStats, updateCompetition } from "@/actions/competitions";
+import { getCompetition, getCompetitionTeamsWithPlayers, getCompetitionStats, generateCompetitionStructure, finalizeCompetition } from "@/actions/competitions";
 import { 
   getCompetitionStandings, 
   getPlayerRankings,
   getCompetitionMatches 
 } from "@/actions/rankings";
+import { getOrganizationBySlug } from "@/actions/organizations";
 import type { Competition, CompetitionPhase } from "@/types/competition";
 import { CompetitionStatus } from "@/types/competition";
 import type { StandingsTeam, PlayerRanking } from "@/actions/rankings";
@@ -210,12 +211,26 @@ export default function CompetitionDetailPage() {
 
   // Funções para controlar o status da competição
   const handleStartCompetition = async () => {
-    if (!competition) return;
+    if (!competition || !competition.organization_slug) {
+      toast.error("Informações da organização não encontradas");
+      return;
+    }
     
     setIsUpdatingStatus(true);
     try {
-      await updateCompetition(competitionId, { status: CompetitionStatus.STARTED });
-      toast.success("Competição iniciada com sucesso!");
+      // Buscar o organization_id através do slug
+      const organization = await getOrganizationBySlug(competition.organization_slug, true);
+      
+      if (!organization.id) {
+        toast.error("ID da organização não encontrado");
+        return;
+      }
+      
+      // Gerar estrutura da competição (grupos e partidas)
+      await generateCompetitionStructure(competitionId, {
+        organization_id: organization.id
+      });
+      toast.success("Competição iniciada e estrutura gerada com sucesso!");
       await loadCompetitionData();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erro ao iniciar competição";
@@ -230,7 +245,7 @@ export default function CompetitionDetailPage() {
     
     setIsUpdatingStatus(true);
     try {
-      await updateCompetition(competitionId, { status: CompetitionStatus.FINISHED });
+      await finalizeCompetition(competitionId);
       toast.success("Competição finalizada com sucesso!");
       await loadCompetitionData();
     } catch (error) {

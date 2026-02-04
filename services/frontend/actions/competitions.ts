@@ -90,6 +90,20 @@ export async function generateCompetitionStructure(
     method: "POST",
     data: request as unknown as Record<string, unknown>,
     withAuth: true,
+    service: "competitions",
+  });
+
+  return response.data;
+}
+
+export async function finalizeCompetition(
+  competitionId: number
+): Promise<Competition> {
+  const response = await axiosAPI<Competition>({
+    endpoint: `/competitions/${competitionId}/finalize`,
+    method: "POST",
+    withAuth: true,
+    service: "competitions",
   });
 
   return response.data;
