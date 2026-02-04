@@ -158,6 +158,21 @@ class TeamService:
             f"Validação de duplicidade OK: {len(keycloak_ids)} jogadores disponíveis "
             f"para competição {competition_id}"
         )
+
+    async def create_team(self, data: TeamCreateSchema) -> TeamModel:
+        """
+        Cria um novo time para uma competição.
+        
+        Args:
+            data: Dados do time a ser criado
+            
+        Returns:
+            O time criado
+            
+        Raises:
+            HTTPException: Se validações falharem
+        """
+        # 1. Validação da Competição
         query = select(CompetitionModel).where(CompetitionModel.id == data.competition_id)
         result = await self.db.execute(query)
         competition = result.scalar_one_or_none()

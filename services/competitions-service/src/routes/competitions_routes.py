@@ -106,11 +106,21 @@ async def create_competition(
 )
 async def list_competitions(
     skip: int = 0, 
-    limit: int = 100, 
+    limit: int = 100,
+    organization_slug: Optional[str] = None,
+    status: Optional[str] = None,
     session: AsyncSession = Depends(get_session)
 ):
+    """
+    Lista competições (público).
+    
+    Se organization_slug for fornecido, retorna apenas as competições 
+    da organização (via modalidade).
+    Se status for fornecido, filtra pelo status da competição.
+    Caso contrário, retorna todas as competições.
+    """
     service = CompetitionService(session)
-    return await service.list_all(skip, limit)
+    return await service.list_all(skip, limit, organization_slug=organization_slug, status=status)
 
 @router.get(
     "/{competition_id}", 
