@@ -8,7 +8,8 @@ import br.com.athloshub.social_service.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.*;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -57,8 +58,10 @@ class FeedServiceTest {
     void getMyFeed_shouldFetchAthleteAndOrgPosts_sortByCreatedAtDesc_andPaginate() {
         when(jwtTokenProvider.getCurrentKeycloakId()).thenReturn(me);
 
-        when(followRepository.findFollowingIdsByKeycloakId(me)).thenReturn(new java.util.ArrayList<>(List.of("kc-a1", "kc-a2")));
-        when(organizationFollowRepository.findOrganizationSlugsByFollowerKeycloakId(me)).thenReturn(List.of("org-1"));
+        when(followRepository.findFollowingIdsByKeycloakId(me))
+                .thenReturn(new java.util.ArrayList<>(List.of("kc-a1", "kc-a2")));
+        when(organizationFollowRepository.findOrganizationSlugsByFollowerKeycloakId(me))
+                .thenReturn(List.of("org-1"));
 
         Post p1 = postWithCreatedAt(Post.ProfileType.ATHLETE, "kc-a1", LocalDateTime.parse("2026-01-01T10:00:00"));
         Post p2 = postWithCreatedAt(Post.ProfileType.ORGANIZATION, "org-1", LocalDateTime.parse("2026-01-03T10:00:00"));
@@ -101,11 +104,13 @@ class FeedServiceTest {
     }
 
     @Test
-    void getMyFeed_whenPageOutOfRange_shouldReturnEmptyPage() {
+    void getMyFeed_whenPageOutOfRange_shouldThrowIllegalArgumentException() {
         when(jwtTokenProvider.getCurrentKeycloakId()).thenReturn(me);
 
-        when(followRepository.findFollowingIdsByKeycloakId(me)).thenReturn(new java.util.ArrayList<>(List.of("kc-a1")));
-        when(organizationFollowRepository.findOrganizationSlugsByFollowerKeycloakId(me)).thenReturn(List.of());
+        when(followRepository.findFollowingIdsByKeycloakId(me))
+                .thenReturn(new java.util.ArrayList<>(List.of("kc-a1")));
+        when(organizationFollowRepository.findOrganizationSlugsByFollowerKeycloakId(me))
+                .thenReturn(List.of());
 
         Post p1 = postWithCreatedAt(Post.ProfileType.ATHLETE, "kc-a1", LocalDateTime.parse("2026-01-01T10:00:00"));
 
@@ -116,25 +121,39 @@ class FeedServiceTest {
         )).thenReturn(List.of(p1));
 
         Pageable pageable = PageRequest.of(2, 10);
-        Page<Post> page = service.getMyFeed(pageable);
 
-        assertThat(page.getTotalElements()).isEqualTo(1);
-        assertThat(page.getContent()).isEmpty();
+        assertThatThrownBy(() -> service.getMyFeed(pageable))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    void getMyFeed_whenNoFollowingAndNoOrg_shouldReturnEmptyPage_andNotHitPostRepo() {
+    void getMyFeed_whenNoFollowingAndNoOrg_shouldReturnEmptyPage_butStillQueryOwnAthletePosts() {
         when(jwtTokenProvider.getCurrentKeycloakId()).thenReturn(me);
 
         when(followRepository.findFollowingIdsByKeycloakId(me)).thenReturn(new java.util.ArrayList<>());
         when(organizationFollowRepository.findOrganizationSlugsByFollowerKeycloakId(me)).thenReturn(List.of());
+
+        when(postRepository.findByProfileTypeAndProfileIdInAndVisibilityOrderByCreatedAtDesc(
+                eq(Post.ProfileType.ATHLETE),
+                anyList(),
+                eq(Post.PostVisibility.PUBLIC)
+        )).thenReturn(List.of());
 
         Page<Post> page = service.getMyFeed(PageRequest.of(0, 10));
 
         assertThat(page.getTotalElements()).isEqualTo(0);
         assertThat(page.getContent()).isEmpty();
 
-        verifyNoInteractions(postRepository);
+        verify(postRepository).findByProfileTypeAndProfileIdInAndVisibilityOrderByCreatedAtDesc(
+                eq(Post.ProfileType.ATHLETE),
+                argThat(list -> list.size() == 1 && list.contains(me)),
+                eq(Post.PostVisibility.PUBLIC)
+        );
+        verify(postRepository, never()).findByProfileTypeAndProfileIdInAndVisibilityOrderByCreatedAtDesc(
+                eq(Post.ProfileType.ORGANIZATION),
+                anyList(),
+                eq(Post.PostVisibility.PUBLIC)
+        );
     }
 
     @Test
@@ -155,10 +174,17 @@ class FeedServiceTest {
         when(followRepository.findFollowingIdsByKeycloakId(me)).thenReturn(new java.util.ArrayList<>());
         when(organizationFollowRepository.findOrganizationSlugsByFollowerKeycloakId(me)).thenReturn(List.of());
 
+        when(postRepository.findByProfileTypeAndProfileIdInAndVisibilityOrderByCreatedAtDesc(
+                eq(Post.ProfileType.ATHLETE),
+                anyList(),
+                eq(Post.PostVisibility.PUBLIC)
+        )).thenReturn(List.of());
+
         Page<Post> result = service.getFollowingFeed(PageRequest.of(0, 10));
 
         assertThat(result.getTotalElements()).isEqualTo(0);
         verify(followRepository).findFollowingIdsByKeycloakId(me);
+        verify(organizationFollowRepository).findOrganizationSlugsByFollowerKeycloakId(me);
     }
 
     private Post postWithCreatedAt(Post.ProfileType type, String profileId, LocalDateTime createdAt) {
