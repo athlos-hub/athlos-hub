@@ -2,7 +2,6 @@ package br.com.athloshub.social_service.service;
 
 import br.com.athloshub.social_service.entity.Comment;
 import br.com.athloshub.social_service.entity.Post;
-import br.com.athloshub.social_service.enums.NotificationType;
 import br.com.athloshub.social_service.moderation.ModerationService;
 import br.com.athloshub.social_service.repository.CommentRepository;
 import br.com.athloshub.social_service.repository.PostRepository;
@@ -28,7 +27,6 @@ class CommentServiceTest {
     @Mock CommentRepository commentRepository;
     @Mock PostRepository postRepository;
     @Mock JwtTokenProvider jwtTokenProvider;
-    @Mock NotificationService notificationService;
     @Mock ModerationService moderationService;
 
     @InjectMocks CommentService service;
@@ -55,8 +53,6 @@ class CommentServiceTest {
         post.setId(postId);
     }
 
-    // -------------------- createComment --------------------
-
     @Test
     void createComment_whenNotAuthenticated_shouldThrow401() {
         when(jwtTokenProvider.getCurrentKeycloakId()).thenReturn(null);
@@ -69,7 +65,6 @@ class CommentServiceTest {
         verifyNoInteractions(moderationService);
         verifyNoInteractions(postRepository);
         verifyNoInteractions(commentRepository);
-        verifyNoInteractions(notificationService);
     }
 
     @Test
@@ -86,11 +81,10 @@ class CommentServiceTest {
         verify(moderationService).assertAllowed("oi");
         verify(commentRepository, never()).save(any());
         verify(postRepository, never()).save(any(Post.class));
-        verifyNoInteractions(notificationService);
     }
 
     @Test
-    void createComment_shouldModerateSave_incrementCommentsCount_andCreateNotification() {
+    void createComment_shouldModerateSave_andIncrementCommentsCount() {
         when(jwtTokenProvider.getCurrentKeycloakId()).thenReturn("kc-actor");
         doNothing().when(moderationService).assertAllowed("comment text");
         when(postRepository.findById(postId)).thenReturn(Optional.of(post));
@@ -107,59 +101,17 @@ class CommentServiceTest {
 
         assertThat(saved.getId()).isEqualTo(commentId);
 
-        // comentario criado com dados corretos
         verify(commentRepository).save(commentCaptor.capture());
         Comment created = commentCaptor.getValue();
         assertThat(created.getKeycloakId()).isEqualTo("kc-actor");
         assertThat(created.getPost()).isSameAs(post);
         assertThat(created.getContent()).isEqualTo("comment text");
 
-        // contador incrementado e post salvo
         verify(postRepository).save(postCaptor.capture());
-        Post savedPost = postCaptor.getValue();
-        assertThat(savedPost.getCommentsCount()).isEqualTo(1);
+        assertThat(postCaptor.getValue().getCommentsCount()).isEqualTo(1);
 
-        // notificação chamada (não precisa validar o map todo)
-        verify(notificationService).createNotification(
-                eq("kc-owner-post"),
-                eq("kc-actor"),
-                eq(NotificationType.POST_COMMENT),
-                eq(postId),
-                eq("post"),
-                anyString(),
-                anyMap()
-        );
+        verify(moderationService).assertAllowed("comment text");
     }
-
-    @Test
-    void createComment_whenNotificationFails_shouldNotThrow_andStillReturnComment() {
-        when(jwtTokenProvider.getCurrentKeycloakId()).thenReturn("kc-actor");
-        doNothing().when(moderationService).assertAllowed(anyString());
-        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
-
-        when(commentRepository.save(any(Comment.class))).thenAnswer(inv -> {
-            Comment c = inv.getArgument(0);
-            c.setId(commentId);
-            return c;
-        });
-
-        when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        doThrow(new RuntimeException("boom"))
-                .when(notificationService)
-                .createNotification(anyString(), anyString(), any(), any(), anyString(), anyString(), anyMap());
-
-        Comment saved = service.createComment(postId, "comment text");
-
-        assertThat(saved.getId()).isEqualTo(commentId);
-        verify(commentRepository).save(any(Comment.class));
-        verify(postRepository).save(any(Post.class));
-        verify(notificationService).createNotification(
-                anyString(), anyString(), any(), any(), anyString(), anyString(), anyMap()
-        );
-    }
-
-    // -------------------- updateComment --------------------
 
     @Test
     void updateComment_whenNotAuthenticated_shouldThrow401() {
@@ -195,11 +147,11 @@ class CommentServiceTest {
         otherPost.setId(UUID.randomUUID());
 
         Comment comment = Comment.builder()
-                .id(commentId)
                 .keycloakId("kc-actor")
                 .post(otherPost)
                 .content("old")
                 .build();
+        comment.setId(commentId);
 
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
 
@@ -217,11 +169,11 @@ class CommentServiceTest {
         when(jwtTokenProvider.getCurrentKeycloakId()).thenReturn("kc-other");
 
         Comment comment = Comment.builder()
-                .id(commentId)
                 .keycloakId("kc-owner")
                 .post(post)
                 .content("old")
                 .build();
+        comment.setId(commentId);
 
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
 
@@ -239,12 +191,12 @@ class CommentServiceTest {
         when(jwtTokenProvider.getCurrentKeycloakId()).thenReturn("kc-actor");
 
         Comment comment = Comment.builder()
-                .id(commentId)
                 .keycloakId("kc-actor")
                 .post(post)
                 .content("old")
                 .isEdited(false)
                 .build();
+        comment.setId(commentId);
 
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
         doNothing().when(moderationService).assertAllowed("new text");
@@ -258,8 +210,6 @@ class CommentServiceTest {
         verify(moderationService).assertAllowed("new text");
         verify(commentRepository).save(comment);
     }
-
-    // -------------------- deleteComment --------------------
 
     @Test
     void deleteComment_whenNotAuthenticated_shouldThrow401() {
@@ -295,11 +245,11 @@ class CommentServiceTest {
         otherPost.setId(UUID.randomUUID());
 
         Comment comment = Comment.builder()
-                .id(commentId)
                 .keycloakId("kc-actor")
                 .post(otherPost)
                 .content("old")
                 .build();
+        comment.setId(commentId);
 
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
 
@@ -317,11 +267,11 @@ class CommentServiceTest {
         when(jwtTokenProvider.getCurrentKeycloakId()).thenReturn("kc-other");
 
         Comment comment = Comment.builder()
-                .id(commentId)
                 .keycloakId("kc-owner")
                 .post(post)
                 .content("old")
                 .build();
+        comment.setId(commentId);
 
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
 
@@ -341,11 +291,11 @@ class CommentServiceTest {
         post.setCommentsCount(0);
 
         Comment comment = Comment.builder()
-                .id(commentId)
                 .keycloakId("kc-actor")
                 .post(post)
                 .content("old")
                 .build();
+        comment.setId(commentId);
 
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
         doNothing().when(commentRepository).delete(comment);
