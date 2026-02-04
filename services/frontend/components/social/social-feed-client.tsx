@@ -8,6 +8,7 @@ import { SocialHeader } from "./social-header";
 import { Post, CreatePostPayload } from "@/types/social";
 import { getPublicFeed, getFollowingFeed } from "@/actions/social-feed";
 import { getMyOrganizations } from "@/actions/organizations";
+import { getMyTeams } from "@/actions/teams";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { createOrganizationPost, createTeamPost } from "@/actions/social-posts";
@@ -26,6 +27,7 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
     const [hasMorePosts, setHasMorePosts] = useState(hasMore);
     const [isLoadingFeed, setIsLoadingFeed] = useState(false);
     const [organizations, setOrganizations] = useState<Array<{ slug: string; name: string }>>([]);
+    const [teams, setTeams] = useState<Array<{ id: string; name: string }>>([]);
     const [selectedProfile, setSelectedProfile] = useState<ProfileContext>({
         type: 'athlete',
         id: session?.user?.id || '',
@@ -48,9 +50,11 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
                         name: org.name
                     })));
                     
-                    // TODO: Buscar equipes do competitions-service
-                    // Por enquanto, deixar vazio até implementar rota no backend
-                    // const teams = await getMyTeams();
+                    const myTeams = await getMyTeams();
+                    setTeams(myTeams.map(team => ({
+                        id: team.id,
+                        name: team.name
+                    })));
                     
                 } catch (error) {
                 }
@@ -59,7 +63,6 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
         loadOrganizations();
     }, [session]);
 
-    // Carregar feed quando mudar o tipo
     useEffect(() => {
         async function loadFeed() {
             setIsLoadingFeed(true);
@@ -89,9 +92,23 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
 
     const handleCreatePost = async (payload: CreatePostPayload) => {
         if (selectedProfile.type === 'organization') {
-            await createOrganizationPost(selectedProfile.id, payload.content, payload.mediaUrls, payload.metadata);
+            await createOrganizationPost(
+                selectedProfile.id, 
+                payload.content, 
+                payload.mediaUrls, 
+                payload.metadata,
+                payload.type,
+                payload.visibility
+            );
         } else if (selectedProfile.type === 'team') {
-            await createTeamPost(selectedProfile.id, payload.content, payload.mediaUrls, payload.metadata);
+            await createTeamPost(
+                selectedProfile.id, 
+                payload.content, 
+                payload.mediaUrls, 
+                payload.metadata,
+                payload.type,
+                payload.visibility
+            );
         } else {
             toast.error("Atletas não podem criar posts manualmente");
             return;
@@ -113,7 +130,7 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
                     name: session?.user?.name || 'Você',
                 }}
                 organizations={organizations}
-                teams={[]} // TODO: Adicionar teams quando implementar
+                teams={teams}
                 canCreatePost={canCreatePost}
             />
 
@@ -122,6 +139,7 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
                 onOpenChange={setShowCreatePost}
                 profileType={selectedProfile.type as 'organization' | 'team'}
                 profileId={selectedProfile.id}
+                profileName={selectedProfile.name}
                 onSubmit={handleCreatePost}
             />
 

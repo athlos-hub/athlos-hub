@@ -99,6 +99,36 @@ public class PostService {
 
         return savedPost;
     }
+    
+    public Post createTeamAchievementPost(
+            UUID teamProfileId,
+            String teamId,
+            String content,
+            Map<String, Object> achievementData
+    ) {
+
+        moderationService.assertAllowed(content);
+
+        Post post = Post.builder()
+                .profileType(Post.ProfileType.TEAM)
+                .profileId(teamProfileId.toString())
+                .createdByKeycloakId("SYSTEM")
+                .content(content)
+                .type(Post.PostType.ACHIEVEMENT)
+                .visibility(Post.PostVisibility.PUBLIC)
+                .metadata(achievementData)
+                .build();
+
+        Post savedPost = postRepository.save(post);
+
+        teamProfileRepository.findByTeamId(teamId).ifPresent(profile -> {
+            profile.setPostsCount(profile.getPostsCount() + 1);
+            profile.setAchievementsCount(profile.getAchievementsCount() + 1);
+            teamProfileRepository.save(profile);
+        });
+
+        return savedPost;
+    }
 
     @Transactional(readOnly = true)
     public Post getPostById(UUID postId) {

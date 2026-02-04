@@ -20,6 +20,7 @@ import { FollowOrganizationButton } from "./follow-organization-button";
 import { CompetitionsSection } from "./competitions-section";
 import { ModalitiesSection } from "./modalities-section";
 import { PendingTeamsSection } from "./pending-teams-section";
+import { OrganizationPostsSection } from "./organization-posts-section";
 import { OrgRole, OrganizationStatus, OrganizationJoinPolicy } from "@/types/organization";
 import type { OrganizationResponse, OrganizationWithRole, OrganizationAdminWithRole, OrganizationGetPublic } from "@/types/organization";
 
@@ -220,6 +221,10 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
                 isAdmin={isAdmin}
                 isPending={isPending}
             />
+
+            {!isPending && (
+                <OrganizationPostsSection organizationSlug={organization.slug} />
+            )}
         </div>
     );
 }

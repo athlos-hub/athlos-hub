@@ -39,5 +39,13 @@ public class TeamProfile extends BaseEntity {
     
     @Builder.Default
     @Column
+    private Integer achievementsCount = 0;
+    
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private Map<String, Object> achievements;
+    
+    @Builder.Default
+    @Column
     private Boolean isPrivate = false;
 }

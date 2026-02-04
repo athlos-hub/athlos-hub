@@ -13,11 +13,12 @@ import { toast } from "sonner";
 interface CreatePostFormProps {
     profileType: 'organization' | 'team';
     profileId: string;
+    profileName: string;
     onSubmit: (payload: CreatePostPayload) => Promise<void>;
     onCancel?: () => void;
 }
 
-export function CreatePostForm({ profileType, profileId, onSubmit, onCancel }: CreatePostFormProps) {
+export function CreatePostForm({ profileType, profileId, profileName, onSubmit, onCancel }: CreatePostFormProps) {
     const [content, setContent] = useState("");
     const [type, setType] = useState<PostType>(PostType.TEXT);
     const [visibility, setVisibility] = useState<PostVisibility>(PostVisibility.PUBLIC);
@@ -55,7 +56,7 @@ export function CreatePostForm({ profileType, profileId, onSubmit, onCancel }: C
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">Criar Post</CardTitle>
                     <Badge variant={profileType === 'organization' ? 'secondary' : 'outline'}>
-                        {profileType === 'organization' ? '🏢 Organização' : '👥 Equipe'}: {profileId}
+                        {profileType === 'organization' ? '🏢 Organização' : '👥 Equipe'}: {profileName}
                     </Badge>
                 </div>
             </CardHeader>
@@ -128,7 +129,7 @@ export function CreatePostForm({ profileType, profileId, onSubmit, onCancel }: C
                                 Cancelar
                             </Button>
                         )}
-                        <Button type="submit" disabled={isSubmitting || !content.trim()}>
+                        <Button className="bg-main hover:bg-main/90" type="submit" disabled={isSubmitting || !content.trim()}>
                             <Send className="h-4 w-4 mr-2" />
                             {isSubmitting ? "Publicando..." : "Publicar"}
                         </Button>

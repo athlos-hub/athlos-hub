@@ -49,6 +49,14 @@ public class SecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/social/shares/user/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/social/shares/count/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/social/search/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/social/team-profiles").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/social/achievements/notify").permitAll()
+
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/social/organization-profiles/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/social/team-profiles/**").permitAll()
+                
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/social/team-profiles").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/social/achievements/notify").permitAll()
                 
                 .anyRequest().authenticated()
             )

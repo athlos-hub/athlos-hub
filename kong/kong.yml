@@ -64,6 +64,15 @@ services:
         request_buffering: false
         response_buffering: false
 
+  - name: social-service
+    url: http://host.docker.internal:8083/api/social
+    routes:
+      - name: social-routes
+        paths: 
+          - /api/social
+          - /api/v1/social
+        strip_path: true
+
   - name: keycloak-service
     url: http://keycloak-local:8080/keycloak
     routes:

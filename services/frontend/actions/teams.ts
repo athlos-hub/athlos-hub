@@ -324,3 +324,12 @@ export async function getPendingTeams(
   }
 }
 
+
+export async function canPostAsTeam(teamId: string): Promise<boolean> {
+  try {
+    const teams = await getMyTeams();
+    return teams.some(team => team.id === teamId);
+  } catch {
+    return false;
+  }
+}

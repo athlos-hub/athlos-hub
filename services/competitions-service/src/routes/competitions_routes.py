@@ -221,3 +221,23 @@ async def get_competition_teams_with_players(
     """
     service = CompetitionService(session)
     return await service.get_teams_with_players(competition_id)
+
+
+@router.post(
+    "/{competition_id}/finalize",
+    status_code=status.HTTP_200_OK,
+    summary="Finalizar competição e verificar conquistas"
+)
+async def finalize_competition(
+    competition_id: int,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Finaliza uma competição e verifica todas as conquistas.
+    
+    - Atualiza status para 'finished'
+    - Verifica conquistas de campeão, vice, artilheiro, melhor defesa, etc.
+    - Notifica o social-service sobre as conquistas
+    """
+    service = CompetitionService(session)
+    return await service.finalize_competition(competition_id)

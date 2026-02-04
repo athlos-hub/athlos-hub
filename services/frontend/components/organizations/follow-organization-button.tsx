@@ -20,8 +20,15 @@ export function FollowOrganizationButton({ organizationSlug }: FollowOrganizatio
   useEffect(() => {
     if (session?.user) {
       checkIsFollowingOrganization(organizationSlug)
-        .then(setIsFollowing)
-        .finally(() => setIsCheckingStatus(false));
+        .then(result => {
+          setIsFollowing(result);
+        })
+        .catch(error => {
+          setIsFollowing(false);
+        })
+        .finally(() => {
+          setIsCheckingStatus(false);
+        });
     } else {
       setIsCheckingStatus(false);
     }
@@ -36,8 +43,14 @@ export function FollowOrganizationButton({ organizationSlug }: FollowOrganizatio
     setIsLoading(true);
     try {
       const nowFollowing = await toggleFollowOrganization(organizationSlug);
+      
       setIsFollowing(nowFollowing);
       toast.success(nowFollowing ? "Agora você está seguindo esta organização!" : "Deixou de seguir");
+
+      const event = new CustomEvent('organization:follow-changed', { 
+        detail: { slug: organizationSlug, following: nowFollowing }
+      });
+      window.dispatchEvent(event);
     } catch (error) {
       toast.error("Erro ao atualizar");
     } finally {
@@ -45,8 +58,17 @@ export function FollowOrganizationButton({ organizationSlug }: FollowOrganizatio
     }
   };
 
-  if (!session?.user || isCheckingStatus) {
+  if (!session?.user) {
     return null;
+  }
+
+  if (isCheckingStatus) {
+    return (
+      <Button size="sm" disabled>
+        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+        Carregando...
+      </Button>
+    );
   }
 
   return (

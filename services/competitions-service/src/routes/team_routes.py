@@ -3,8 +3,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from uuid import UUID
 
-from .routes import get_session
-from src.models.teams import TeamModel
 from src.schemas.teams_schema import (
     TeamCreateSchema, 
     TeamResponseSchema,
@@ -16,6 +14,12 @@ from src.schemas.teams_schema import (
     TeamListItemSchema,
     TeamDetailSchema,
 )
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+import uuid
+
+from .routes import get_session, get_current_user
+from src.models.teams import TeamModel, PlayerModel
 from src.services.teams_service import TeamService
 from src.services.auth_client import AuthClient, PermissionDenied, AuthServiceUnavailable
 from src.api.deps import get_current_keycloak_id, get_optional_keycloak_id

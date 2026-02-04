@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Heart, MessageCircle, MoreVertical, Link2, Trash2, Flag, Repeat2 } from "lucide-react";
-import { Post, PostType, ProfileType } from "@/types/social";
+import { Post, PostType, ProfileType, PostVisibility } from "@/types/social";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { getOrganizationBySlug } from "@/actions/organizations";
@@ -25,6 +25,7 @@ import { CommentSection } from "./comment-section";
 import { ShareButton } from "./share-button";
 import { generatePostLink } from "@/lib/utils/share-links";
 import { toast } from "sonner";
+import { AchievementBadge, Achievement } from "@/components/achievements/achievement-badge";
 
 interface PostCardProps {
     post: Post;
@@ -65,8 +66,15 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
                         name: org.name,
                         logoUrl: org.logo_url || undefined,
                     });
+                } else if (post.profileType === ProfileType.TEAM) {
+                    const { getTeamById } = await import("@/actions/teams");
+                    const team = await getTeamById(post.profileId);
+                    if (team) {
+                        setProfileInfo({
+                            name: team.name,
+                        });
+                    }
                 }
-                // TODO: Buscar informações de Team quando implementado
             } catch (error) {
             }
         }
@@ -206,7 +214,7 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
                             ? `/organizations/${post.profileId}`
                             : `/teams/${post.profileId}`
                     }
-                    className="flex-shrink-0"
+                    className="shrink-0"
                 >
                     <Avatar className="h-12 w-12 cursor-pointer hover:opacity-80 transition-opacity">
                         <AvatarImage src={profileInfo.logoUrl || profileInfo.avatarUrl} />
@@ -214,7 +222,7 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
                     </Avatar>
                 </Link>
                 <div className="flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                         <Link 
                             href={
                                 post.profileType === ProfileType.ATHLETE 
@@ -228,6 +236,24 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
                             <h3 className="font-semibold text-sm">{profileInfo.name}</h3>
                         </Link>
                         {getProfileBadge()}
+
+                        {/* Badge do tipo de post */}
+                        {post.type !== PostType.TEXT && (
+                            <Badge variant="secondary" className="text-xs">
+                                {post.type === PostType.ANNOUNCEMENT && "📢 Anúncio"}
+                                {post.type === PostType.EVENT && "📅 Evento"}
+                                {post.type === PostType.TRAINING && "💪 Treino"}
+                                {post.type === PostType.IMAGE && "🖼️ Imagem"}
+                                {post.type === PostType.ACHIEVEMENT && "🏆 Conquista"}
+                            </Badge>
+                        )}
+                        
+                        {post.visibility !== PostVisibility.PUBLIC && (
+                            <Badge variant="outline" className="text-xs">
+                                {post.visibility === PostVisibility.FOLLOWERS && "👥 Seguidores"}
+                                {post.visibility === PostVisibility.MEMBERS_ONLY && "🔒 Membros"}
+                            </Badge>
+                        )}
                     </div>
                     <p className="text-xs text-muted-foreground">
                         {formatDistanceToNow(new Date(post.createdAt), {
@@ -277,14 +303,25 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
             </CardHeader>
 
             <CardContent className="space-y-3">
-                {getPostTypeIcon() && (
-                    <div className="flex items-center gap-2">
-                        <span className="text-2xl">{getPostTypeIcon()}</span>
-                        <span className="text-sm font-medium text-muted-foreground">
-                            {post.type}
-                        </span>
+                {/* Renderização especial para conquistas */}
+                {post.type === PostType.ACHIEVEMENT && post.metadata && (
+                    <div className="mb-4">
+                        <AchievementBadge
+                            achievement={{
+                                achievementType: post.metadata.achievementType || "ACHIEVEMENT",
+                                displayName: post.metadata.displayName || "Conquista",
+                                description: post.metadata.description || "",
+                                competitionName: post.metadata.competitionName,
+                                competitionId: post.metadata.competitionId,
+                                metadata: post.metadata
+                            }}
+                            size="lg"
+                            showDetails
+                        />
                     </div>
                 )}
+                
+                
                 <p className="text-sm whitespace-pre-wrap">{post.content}</p>
                 {post.mediaUrls && post.mediaUrls.length > 0 && (
                     <div className="grid grid-cols-2 gap-2 mt-3">
