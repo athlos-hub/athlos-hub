@@ -4,6 +4,7 @@ import uuid
 
 class SegmentScoreSchema(BaseModel):
     """Schema para o placar de um segment individual"""
+    segment_id: int = Field(..., description="ID do segment no banco")
     segment_number: int = Field(..., description="Número do segment (1, 2, 3...)")
     segment_type: str = Field(..., description="Tipo do segment (REGULAR, OVERTIME, PENALTY)")
     home_score: int = Field(default=0, description="Placar do time da casa neste segment")

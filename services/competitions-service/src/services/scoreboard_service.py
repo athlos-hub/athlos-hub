@@ -37,6 +37,7 @@ class ScoreboardService:
         # Converte segments para o schema
         segments = [
             SegmentScoreSchema(
+                segment_id=seg.id,
                 segment_number=seg.segment_number,
                 segment_type=seg.segment_type,
                 home_score=seg.home_score,

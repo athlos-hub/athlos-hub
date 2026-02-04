@@ -10,6 +10,8 @@ from src.models.matches import MatchModel, SegmentModel, MatchStatus
 from src.models.competition import CompetitionModel, CompetitionSystem, CompetitionPhase
 from src.models.standings import ClassificationModel
 from src.models.stats import StatsRuleSetModel, StatsTypeModel, PlayerStatsModel
+from src.websockets.scoreboard_manager import scoreboard_manager
+from src.services.scoreboard_service import ScoreboardService
 
 
 class ManageMatchesService:
@@ -43,7 +45,12 @@ class ManageMatchesService:
         q_match = (
             select(MatchModel)
             .where(MatchModel.id == match_id)
-            .options(selectinload(MatchModel.segments))
+            .options(
+                selectinload(MatchModel.segments),
+                selectinload(MatchModel.home_team),
+                selectinload(MatchModel.away_team),
+                selectinload(MatchModel.round)
+            )
         )
         result = await self.session.execute(q_match)
         match: Optional[MatchModel] = result.scalar_one_or_none()
@@ -139,6 +146,22 @@ class ManageMatchesService:
         # 4) Persiste alterações
         await self.session.commit()
         await self.session.refresh(match)
+        
+        # 5) Envia atualização via WebSocket
+        try:
+            scoreboard_service = ScoreboardService(self.session)
+            scoreboard = await scoreboard_service.get_scoreboard(match_id)
+            await scoreboard_manager.broadcast_to_match(
+                str(match_id),
+                {
+                    "type": "scoreboard_update",
+                    "data": scoreboard.model_dump(mode="json")
+                }
+            )
+        except Exception as e:
+            # Log mas não falha se o WebSocket der erro
+            print(f"Erro ao enviar atualização via WebSocket: {e}")
+        
         return match
 
     async def set_score(
