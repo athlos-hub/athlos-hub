@@ -1,24 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-
-export interface SegmentScore {
-  segment_number: number;
-  segment_type: string;
-  home_score: number;
-  away_score: number;
-  finished: boolean;
-}
-
-export interface Scoreboard {
-  match_id: string;
-  home_team_id: string | null;
-  away_team_id: string | null;
-  home_team_name: string | null;
-  away_team_name: string | null;
-  home_total_score: number;
-  away_total_score: number;
-  segments: SegmentScore[];
-  status: string;
-}
+import type { SegmentScore, Scoreboard } from '@/types/scoreboard';
 
 interface UseScoreboardReturn {
   scoreboard: Scoreboard | null;
@@ -36,7 +17,7 @@ export function useScoreboard(matchId: string | null): UseScoreboardReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
 
@@ -74,8 +55,9 @@ export function useScoreboard(matchId: string | null): UseScoreboardReturn {
         }
       };
 
-      ws.onerror = (event) => {
-        console.error('[Scoreboard] Erro no WebSocket:', event);
+      ws.onerror = () => {
+        // O evento onerror do WebSocket não fornece detalhes úteis
+        // O erro real geralmente aparece no onclose
         setError('Erro na conexão com o servidor');
       };
 
