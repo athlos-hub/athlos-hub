@@ -17,6 +17,10 @@ import { RequestToJoinButton } from "./request-to-join-button";
 import { MembersSection } from "./members-section";
 import { OrganizationOverview } from "./organization-overview";
 import { FollowOrganizationButton } from "./follow-organization-button";
+import { CompetitionsSection } from "./competitions-section";
+import { ModalitiesSection } from "./modalities-section";
+import { PendingTeamsSection } from "./pending-teams-section";
+import { OrganizationPostsSection } from "./organization-posts-section";
 import { OrgRole, OrganizationStatus, OrganizationJoinPolicy } from "@/types/organization";
 import type { OrganizationResponse, OrganizationWithRole, OrganizationAdminWithRole, OrganizationGetPublic } from "@/types/organization";
 
@@ -200,23 +204,27 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
                 </Card>
             )}
 
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Trophy className="h-5 w-5" />
-                        Competições
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {isPending && isOwner ? (
-                        <div className="py-8 text-center text-muted-foreground">
-                            <p>A criação de competições estará disponível após a aprovação da organização.</p>
-                        </div>
-                    ) : (
-                        <p className="text-muted-foreground">Nenhuma competição ainda</p>
-                    )}
-                </CardContent>
-            </Card>
+            <ModalitiesSection 
+                orgCode={organization.slug}
+                isAdmin={isAdmin}
+                isPending={isPending}
+            />
+
+            <PendingTeamsSection 
+                organizationSlug={organization.slug}
+                isAdmin={isAdmin}
+            />
+
+            <CompetitionsSection 
+                organizationSlug={organization.slug}
+                orgCode={organization.slug}
+                isAdmin={isAdmin}
+                isPending={isPending}
+            />
+
+            {!isPending && (
+                <OrganizationPostsSection organizationSlug={organization.slug} />
+            )}
         </div>
     );
 }

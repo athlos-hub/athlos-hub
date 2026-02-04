@@ -1521,3 +1521,205 @@ class OrganizationService:
                 raise JoinPolicyViolationError(
                     "Esta organização não aceita solicitações de adesão."
                 )
+    # ==================== Métodos Internos (Service-to-Service) ====================
+
+    async def get_organization_by_slug_internal(
+        self, slug: str
+    ) -> Optional[Organization]:
+        """
+        Obtém organização por slug sem validações de usuário.
+        
+        Método interno para uso em comunicação service-to-service.
+        """
+        return await self._org_repo.get_by_slug(slug)
+
+    async def validate_members_for_organization(
+        self,
+        organization_slug: str,
+        keycloak_ids: list[UUID],
+    ):
+        """
+        Valida se os usuários existem e são membros ativos da organização.
+        
+        Método interno para uso em comunicação service-to-service.
+        
+        Args:
+            organization_slug: Slug da organização
+            keycloak_ids: Lista de Keycloak IDs dos usuários a validar
+            
+        Returns:
+            ValidateMembersResponse com o resultado da validação
+        """
+        from auth_service.schemas.internal import (
+            ValidateMembersResponse,
+            UserValidationResult,
+        )
+        
+        # Verificar se a organização existe
+        org = await self._org_repo.get_by_slug(organization_slug)
+        
+        if not org:
+            return ValidateMembersResponse(
+                organization_slug=organization_slug,
+                organization_exists=False,
+                all_valid=False,
+                valid_count=0,
+                invalid_count=len(keycloak_ids),
+                results=[
+                    UserValidationResult(
+                        keycloak_id=kid,
+                        exists=False,
+                        is_member=False,
+                        error="Organização não encontrada",
+                    )
+                    for kid in keycloak_ids
+                ],
+            )
+        
+        results = []
+        valid_count = 0
+        
+        for keycloak_id in keycloak_ids:
+            # Verificar se o usuário existe pelo keycloak_id
+            user = await self._user_repo.get_by_keycloak_id(str(keycloak_id))
+            
+            if not user:
+                results.append(
+                    UserValidationResult(
+                        keycloak_id=keycloak_id,
+                        exists=False,
+                        is_member=False,
+                        error="Usuário não encontrado",
+                    )
+                )
+                continue
+            
+            # Verificar se é o owner da organização
+            if user.id == org.owner_id:
+                results.append(
+                    UserValidationResult(
+                        keycloak_id=keycloak_id,
+                        exists=True,
+                        is_member=True,
+                        username=user.username,
+                    )
+                )
+                valid_count += 1
+                continue
+            
+            # Verificar se é membro ativo
+            membership = await self._member_repo.get_membership_by_status(
+                org.id, user.id, MemberStatus.ACTIVE
+            )
+            
+            if membership:
+                results.append(
+                    UserValidationResult(
+                        keycloak_id=keycloak_id,
+                        exists=True,
+                        is_member=True,
+                        username=user.username,
+                    )
+                )
+                valid_count += 1
+            else:
+                results.append(
+                    UserValidationResult(
+                        keycloak_id=keycloak_id,
+                        exists=True,
+                        is_member=False,
+                        username=user.username,
+                        error="Usuário não é membro ativo da organização",
+                    )
+                )
+        
+        return ValidateMembersResponse(
+            organization_slug=organization_slug,
+            organization_exists=True,
+            all_valid=valid_count == len(keycloak_ids),
+            valid_count=valid_count,
+            invalid_count=len(keycloak_ids) - valid_count,
+            results=results,
+        )
+
+    async def check_user_permission_internal(
+        self,
+        keycloak_id: UUID,
+        organization_slug: str,
+        allowed_roles: list[str],
+    ):
+        """
+        Verifica se um usuário tem permissão em uma organização.
+        
+        Método interno para uso em comunicação service-to-service.
+        
+        Args:
+            keycloak_id: Keycloak ID do usuário
+            organization_slug: Slug da organização
+            allowed_roles: Lista de roles permitidas (OWNER, ORGANIZER, MEMBER)
+            
+        Returns:
+            CheckPermissionResponse com o resultado da verificação
+        """
+        from auth_service.schemas.internal import CheckPermissionResponse
+        from auth_service.infrastructure.repositories.organization_member_repository import OrgRole
+        
+        # Verificar se a organização existe
+        org = await self._org_repo.get_by_slug(organization_slug)
+        
+        if not org:
+            return CheckPermissionResponse(
+                has_permission=False,
+                keycloak_id=keycloak_id,
+                organization_slug=organization_slug,
+                role=None,
+                organization_exists=False,
+                user_exists=True,  # Não verificamos o usuário se a org não existe
+                error="Organização não encontrada",
+            )
+        
+        # Verificar se o usuário existe pelo keycloak_id
+        user = await self._user_repo.get_by_keycloak_id(str(keycloak_id))
+        
+        if not user:
+            return CheckPermissionResponse(
+                has_permission=False,
+                keycloak_id=keycloak_id,
+                organization_slug=organization_slug,
+                role=None,
+                organization_exists=True,
+                user_exists=False,
+                error="Usuário não encontrado",
+            )
+        
+        # Determinar a role do usuário na organização
+        user_role = OrgRole.NONE
+        
+        # Verificar se é owner (usando user.id interno)
+        if user.id == org.owner_id:
+            user_role = OrgRole.OWNER
+        else:
+            # Verificar se é organizador
+            organizer = await self._organizer_repo.get_by_org_and_user(org.id, user.id)
+            if organizer:
+                user_role = OrgRole.ORGANIZER
+            else:
+                # Verificar se é membro ativo
+                membership = await self._member_repo.get_membership_by_status(
+                    org.id, user.id, MemberStatus.ACTIVE
+                )
+                if membership:
+                    user_role = OrgRole.MEMBER
+        
+        # Verificar se a role está nas permitidas
+        has_permission = user_role in allowed_roles
+        
+        return CheckPermissionResponse(
+            has_permission=has_permission,
+            keycloak_id=keycloak_id,
+            organization_slug=organization_slug,
+            role=user_role,
+            organization_exists=True,
+            user_exists=True,
+            error=None if has_permission else f"Usuário não tem permissão. Role atual: {user_role}",
+        )

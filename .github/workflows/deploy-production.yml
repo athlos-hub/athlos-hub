@@ -36,6 +36,9 @@ jobs:
           - name: notifications-service
             context: .
             dockerfile: services/notifications-service/Dockerfile
+          - name: social-service
+            context: services/social-service
+            dockerfile: services/social-service/Dockerfile
 
     steps:
       - name: Checkout code
@@ -77,8 +80,6 @@ jobs:
             NEXT_PUBLIC_LIVESTREAM_WS_URL=wss://athloshub.com.br
             NEXT_PUBLIC_HLS_URL=https://athloshub.com.br/live
             NEXT_PUBLIC_NOTIFICATIONS_SSE_URL=https://athloshub.com.br/api/v1/notifications/stream
-            NEXT_PUBLIC_NOTIFICATIONS_API_URL=https://athloshub.com.br/api/v1
-            NEXT_PUBLIC_NOTIFICATIONS_WS_URL=wss://athloshub.com.br/api/v1/ws/notifications
 
   deploy:
     name: Deploy to VPS

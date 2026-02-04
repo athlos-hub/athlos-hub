@@ -30,7 +30,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<{
         
         if (typeof window !== 'undefined') {
             if (window.location.origin.includes('athloshub.com.br')) {
-                baseUrl = 'https://athloshub.com.br/api/v1';
+                baseUrl = 'http://athloshub.com.br/api/v1';
             } else {
                 baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1';
             }

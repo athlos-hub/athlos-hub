@@ -229,6 +229,33 @@ function formatEventDescription(type: MatchEventType, payload: Record<string, un
       );
     
     case MatchEventType.CUSTOM:
+      // Verifica se é um evento de estatística
+      if (payload.statName && payload.playerName) {
+        const value = payload.value as number | undefined;
+        const segmentInfo = payload.segmentNumber 
+          ? ` - ${payload.segmentNumber}º Tempo` 
+          : '';
+        
+        return (
+          <div className="space-y-0.5">
+            <div className="font-semibold text-foreground">
+              {minuteStr && <span className="text-muted-foreground mr-2">{minuteStr}</span>}
+              {String(payload.playerName)}
+              {value && value > 1 ? ` (+${value})` : ''}
+            </div>
+            <div className="text-muted-foreground text-sm">
+              {String(payload.playerTeam)}{segmentInfo}
+            </div>
+            {payload.description ? (
+              <div className="text-xs text-muted-foreground italic mt-1">
+                {String(payload.description)}
+              </div>
+            ) : null}
+          </div>
+        );
+      }
+      
+      // Evento customizado genérico
       return (
         <div className="space-y-0.5">
           <div className="font-semibold text-foreground">
@@ -258,6 +285,11 @@ function formatEventDescription(type: MatchEventType, payload: Record<string, un
 export function EventItem({ type, payload, timestamp }: EventItemProps) {
   const config = eventConfig[type] || eventConfig[MatchEventType.CUSTOM];
   const Icon = config.icon;
+  
+  // Se for CUSTOM com estatística, usa o nome da estatística como label
+  const label = type === MatchEventType.CUSTOM && payload.statName 
+    ? String(payload.statName)
+    : config.label;
 
   const formatTime = (isoString: string) => {
     const date = new Date(isoString);
@@ -285,7 +317,7 @@ export function EventItem({ type, payload, timestamp }: EventItemProps) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2 mb-1">
           <span className={cn("text-xs font-bold uppercase tracking-wide", config.color)}>
-            {config.label}
+            {label}
           </span>
           <span className="text-[10px] text-muted-foreground shrink-0 font-mono">
             {formatTime(timestamp)}

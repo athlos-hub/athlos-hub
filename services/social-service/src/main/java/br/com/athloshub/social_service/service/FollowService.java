@@ -1,10 +1,14 @@
 package br.com.athloshub.social_service.service;
 
+import br.com.athloshub.social_service.client.AuthServiceClient;
+import br.com.athloshub.social_service.dto.auth.UserDTO;
 import br.com.athloshub.social_service.entity.Follow;
+import br.com.athloshub.social_service.enums.NotificationType;
 import br.com.athloshub.social_service.repository.AthleteProfileRepository;
 import br.com.athloshub.social_service.repository.FollowRepository;
 import br.com.athloshub.social_service.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -13,6 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import static org.springframework.http.HttpStatus.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class FollowService {
@@ -20,6 +25,8 @@ public class FollowService {
     private final FollowRepository followRepository;
     private final AthleteProfileRepository athleteProfileRepository;
     private final JwtTokenProvider jwtTokenProvider;
+    private final NotificationService notificationService;
+    private final AuthServiceClient authServiceClient;
     
     @Transactional
     public boolean toggleFollow(String targetKeycloakId) {
@@ -65,6 +72,39 @@ public class FollowService {
                     profile.setFollowersCount(profile.getFollowersCount() + 1);
                     athleteProfileRepository.save(profile);
                 });
+                
+                try {
+                    String actorName = "Usuário";
+                    
+                    try {
+                        String token = jwtTokenProvider.getCurrentToken();
+                        if (token != null) {
+                            UserDTO actor = authServiceClient.getUserByKeycloakId(keycloakId, "Bearer " + token);
+                            if (actor != null) {
+                                actorName = actor.getFullName();
+                            }
+                        }
+                    } catch (Exception e) {
+                        log.warn("Não foi possível buscar nome do usuário {}: {}", keycloakId, e.getMessage());
+                    }
+                    
+                    java.util.Map<String, Object> notificationData = new java.util.HashMap<>();
+                    notificationData.put("actorName", actorName);
+                    notificationData.put("actorProfileUrl", "https://athlos-hub.com/profile/" + keycloakId);
+                    notificationData.put("actionUrl", "https://athlos-hub.com/profile/" + keycloakId);
+                    
+                    notificationService.createNotification(
+                        targetKeycloakId,
+                        keycloakId,
+                        NotificationType.FOLLOW,
+                        null,
+                        "follow",
+                        "começou a seguir você",
+                        notificationData
+                    );
+                } catch (Exception e) {
+                    log.error("Erro ao criar notificação de follow", e);
+                }
                 
                 return true;
             });

@@ -17,6 +17,7 @@ if TYPE_CHECKING:
         OrganizationMember,
         OrganizationOrganizer,
     )
+    from auth_service.infrastructure.database.models.team_model import TeamMember
 
 
 class User(Base):
@@ -64,6 +65,10 @@ class User(Base):
     )
     organizer_roles: Mapped[list["OrganizationOrganizer"]] = relationship(
         back_populates="user"
+    )
+    team_memberships: Mapped[list["TeamMember"]] = relationship(
+        "TeamMember",
+        back_populates="user",
     )
 
     def __repr__(self) -> str:

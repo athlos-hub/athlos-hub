@@ -20,7 +20,7 @@ class MatchesService:
 
     async def get_matches_by_org(
         self, 
-        org_code: str, 
+        organization_slug: str, 
         period: MatchPeriodFilter = MatchPeriodFilter.ALL
     ):
         # 1. Monta a Query Base com Joins
@@ -29,7 +29,7 @@ class MatchesService:
             select(MatchModel)
             .join(MatchModel.competition) # Join com Competition
             .join(CompetitionModel.modality) # Join com Modality
-            .where(ModalityModel.org_code == org_code)
+            .where(ModalityModel.organization_slug == organization_slug)
             .order_by(MatchModel.scheduled_datetime)
             .options(
                 # Carrega os relacionamentos para o Schema preencher os nomes

@@ -52,6 +52,16 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- Flyway para migrations -->
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-core</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-postgresql</artifactId>
+		</dependency>
+
 		<!-- Jackson para serialização JSON (usado com @JdbcTypeCode) -->
 		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>

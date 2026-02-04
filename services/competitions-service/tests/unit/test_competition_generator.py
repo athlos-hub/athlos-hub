@@ -19,6 +19,7 @@ pytestmark = pytest.mark.asyncio
 async def test_structure_generator_points_calls_league():
     mock_session = AsyncMock(spec=AsyncSession)
     now = datetime.now()
+    organization_id = uuid.uuid4()
     competition = CompetitionModel(
         id=1,
         name="Competicao",
@@ -42,12 +43,32 @@ async def test_structure_generator_points_calls_league():
     mock_result_teams = MagicMock()
     mock_result_teams.scalars.return_value.all.return_value = teams
 
-    mock_session.execute.side_effect = [mock_result_competition, mock_result_teams]
+    # Mock para _get_competition_matches - retorna lista vazia de matches
+    mock_matches_result = MagicMock()
+    mock_matches_result.scalars.return_value.all.return_value = []
+
+    mock_session.execute.side_effect = [
+        mock_result_competition, 
+        mock_result_teams,
+        mock_matches_result  # Para _get_competition_matches
+    ]
+
+    # Mock do LivestreamClient
+    mock_livestream_client = AsyncMock()
+    mock_livestream_client.health_check = AsyncMock(return_value=True)
+    mock_livestream_client.__aenter__ = AsyncMock(return_value=mock_livestream_client)
+    mock_livestream_client.__aexit__ = AsyncMock(return_value=None)
+
+    # Mock do LiveCreationService
+    mock_live_service = MagicMock()
+    mock_live_service.create_lives_for_matches = AsyncMock(return_value=[])
 
     with patch("src.services.competition_generator.competition_generator.initialize_standings", new=AsyncMock()) as mock_init, \
-        patch("src.services.competition_generator.competition_generator.LeagueService.generate_league_system", new=AsyncMock()) as mock_generate:
+        patch("src.services.competition_generator.competition_generator.LeagueService.generate_league_system", new=AsyncMock()) as mock_generate, \
+        patch("src.services.competition_generator.competition_generator.LivestreamClient", return_value=mock_livestream_client), \
+        patch("src.services.competition_generator.competition_generator.LiveCreationService", return_value=mock_live_service):
         service = StructureGeneratorService(mock_session)
-        result = await service.generate_structure(competition.id)
+        result = await service.generate_structure(competition.id, organization_id)
 
     mock_init.assert_awaited_once()
     mock_generate.assert_awaited_once()
@@ -59,6 +80,7 @@ async def test_structure_generator_points_calls_league():
 async def test_structure_generator_invalid_status():
     mock_session = AsyncMock(spec=AsyncSession)
     now = datetime.now()
+    organization_id = uuid.uuid4()
     competition = CompetitionModel(
         id=2,
         name="Competicao",
@@ -78,7 +100,7 @@ async def test_structure_generator_invalid_status():
     service = StructureGeneratorService(mock_session)
 
     with pytest.raises(HTTPException) as exc_info:
-        await service.generate_structure(competition.id)
+        await service.generate_structure(competition.id, organization_id)
 
     assert exc_info.value.status_code == 400
 

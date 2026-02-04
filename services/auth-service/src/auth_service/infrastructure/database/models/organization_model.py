@@ -18,6 +18,7 @@ from auth_service.infrastructure.database.models.enums import (
 )
 
 if TYPE_CHECKING:
+    from auth_service.infrastructure.database.models.team_model import Team
     from auth_service.infrastructure.database.models.user_model import User
 
 
@@ -78,6 +79,11 @@ class Organization(Base):
         cascade="all, delete-orphan",
     )
     organizers: Mapped[list["OrganizationOrganizer"]] = relationship(
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )
+    teams: Mapped[list["Team"]] = relationship(
+        "Team",
         back_populates="organization",
         cascade="all, delete-orphan",
     )

@@ -33,7 +33,7 @@ class Settings(BaseSettings):
 
     # CORS
     # Accept either a comma-separated string or a JSON array string (as used in .env.production).
-    allowed_origins: str = "http://localhost:3000,http://localhost:8000,https://athloshub.com.br"
+    allowed_origins: str = "http://localhost:3000,http://localhost:8000,http://localhost:8100,https://athloshub.com.br"
 
     # Auth Service
     auth_service_url: str = "http://localhost:8001"

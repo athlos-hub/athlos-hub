@@ -9,6 +9,7 @@ from auth_service.infrastructure.database.models.enums import MemberStatus
 
 class UserPublic(BaseModel):
     id: UUID
+    keycloak_id: str
     username: str
     email: EmailStr
     first_name: Optional[str] = None
@@ -20,6 +21,7 @@ class UserPublic(BaseModel):
 
 class UserOrgMember(UserPublic):
     email: EmailStr
+    keycloak_id: str  # Necessário para enviar notificações
 
 
 class UserAdmin(UserOrgMember):

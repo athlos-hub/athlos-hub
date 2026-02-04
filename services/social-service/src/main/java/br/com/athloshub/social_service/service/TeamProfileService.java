@@ -42,6 +42,11 @@ public class TeamProfileService {
     }
     
     @Transactional
+    public TeamProfile saveProfile(TeamProfile profile) {
+        return teamProfileRepository.save(profile);
+    }
+    
+    @Transactional
     public TeamProfile updateProfile(String teamId, Map<String, Object> updates) {
         TeamProfile profile = getProfileByTeamId(teamId);
         

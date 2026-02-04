@@ -1,5 +1,6 @@
 package br.com.athloshub.social_service.dto.auth;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,10 +18,20 @@ public class UserDTO implements Serializable {
     private static final long serialVersionUID = 1L;
     
     private UUID id;
+    
+    @JsonProperty("keycloak_id")
+    private String keycloak_id;
+    
     private String username;
     private String email;
+    
+    @JsonProperty("first_name")
     private String firstName;
+    
+    @JsonProperty("last_name")
     private String lastName;
+    
+    @JsonProperty("avatar_url")
     private String avatarUrl;
     public String getFullName() {
         if (firstName == null && lastName == null) {

@@ -27,18 +27,18 @@ public class OrganizationProfile extends BaseEntity {
     private Map<String, Object> socialLinks;
     
     @Builder.Default
-    @Column
+    @Column(name = "followers_count")
     private Integer followersCount = 0;
     
     @Builder.Default
-    @Column
+    @Column(name = "posts_count")
     private Integer postsCount = 0;
     
     @Builder.Default
-    @Column
+    @Column(name = "is_verified")
     private Boolean isVerified = false;
     
     @Builder.Default
-    @Column
+    @Column(name = "is_private")
     private Boolean isPrivate = false;
 }
