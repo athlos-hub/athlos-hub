@@ -39,7 +39,7 @@ export async function getCompetition(id: number): Promise<Competition> {
   const response = await axiosAPI<Competition>({
     endpoint: `/competitions/${id}`,
     method: "GET",
-    withAuth: true,
+    withAuth: false,
   });
 
   return response.data;

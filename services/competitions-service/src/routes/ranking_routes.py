@@ -42,9 +42,11 @@ async def get_competition_standings(
     limit: int = None,
     session: AsyncSession = Depends(get_session)
 ):
+    print(f"[Rankings API] Recebendo requisição para standings da competição {competition_id}")
     stats_service = StatsService(session)
     standings = await stats_service.get_competition_standings(
         competition_id=competition_id,
         limit=limit
     )
+    print(f"[Rankings API] Retornando {len(standings)} standings")
     return standings
