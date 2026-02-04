@@ -1,20 +1,21 @@
 "use client";
 
-import { useScoreboard, Scoreboard as ScoreboardType } from "@/hooks/use-scoreboard";
+import { useScoreboard } from "@/hooks/use-scoreboard";
+import type { Scoreboard as ScoreboardType } from "@/types/scoreboard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Trophy, Radio, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { ScoreEditor } from "./score-editor";
-import { StatsCreator } from "./stats-creator";
 
 interface ScoreboardDisplayProps {
   matchId: string;
   competitionId?: number;
   canEdit?: boolean;
+  liveId?: string;
 }
 
-export function ScoreboardDisplay({ matchId, competitionId, canEdit = false }: ScoreboardDisplayProps) {
+export function ScoreboardDisplay({ matchId, competitionId, canEdit = false, liveId }: ScoreboardDisplayProps) {
   const { scoreboard, isConnected, error } = useScoreboard(matchId);
 
   if (error) {
@@ -65,22 +66,10 @@ export function ScoreboardDisplay({ matchId, competitionId, canEdit = false }: S
       </div>
 
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Trophy className="w-5 h-5" />
-            Placar
-          </CardTitle>
-          
-          {/* Botão para registrar stats */}
-          {canEdit && competitionId && scoreboard.status === "live" && (
-            <StatsCreator
-              matchId={matchId}
-              competitionId={competitionId}
-              homeTeamId={scoreboard.home_team_id || undefined}
-              awayTeamId={scoreboard.away_team_id || undefined}
-            />
-          )}
-        </div>
+        <CardTitle className="flex items-center gap-2">
+          <Trophy className="w-5 h-5" />
+          Placar
+        </CardTitle>
       </CardHeader>
 
       <CardContent className="space-y-6">

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -27,7 +28,10 @@ import {
   getCompetitionTeamsWithPlayers,
   registerMatchScore 
 } from "@/actions/matches";
+import { publishMatchEvent } from "@/actions/lives";
+import { MatchEventType } from "@/types/livestream";
 import type { StatsRuleSet, TeamWithPlayers } from "@/types/stats";
+import type { SegmentScore } from "@/types/scoreboard";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface StatsCreatorProps {
@@ -35,6 +39,8 @@ interface StatsCreatorProps {
   competitionId: number;
   homeTeamId?: string;
   awayTeamId?: string;
+  liveId?: string;
+  segments?: SegmentScore[];
   onStatCreated?: () => void;
 }
 
@@ -43,6 +49,8 @@ export function StatsCreator({
   competitionId, 
   homeTeamId, 
   awayTeamId,
+  liveId,
+  segments = [],
   onStatCreated 
 }: StatsCreatorProps) {
   const [open, setOpen] = useState(false);
@@ -57,7 +65,10 @@ export function StatsCreator({
   const [teamSide, setTeamSide] = useState<"home" | "away" | "">("");
   const [selectedStatType, setSelectedStatType] = useState<string>("");
   const [selectedPlayerId, setSelectedPlayerId] = useState<string>("");
+  const [selectedSegmentId, setSelectedSegmentId] = useState<string>("");
   const [increment, setIncrement] = useState<number>(1);
+  const [description, setDescription] = useState<string>("");
+  const [minute, setMinute] = useState<string>("");
 
   // Carrega dados quando abre o modal
   useEffect(() => {
@@ -88,7 +99,10 @@ export function StatsCreator({
     setTeamSide("");
     setSelectedStatType("");
     setSelectedPlayerId("");
+    setSelectedSegmentId("");
     setIncrement(1);
+    setDescription("");
+    setMinute("");
   };
 
   // Filtra jogadores pelo time selecionado
@@ -109,6 +123,21 @@ export function StatsCreator({
     
     const team = teams.find(t => t.id === targetTeamId);
     return team?.name || (side === "home" ? "Casa" : "Visitante");
+  };
+
+  // Formata o nome do segmento para exibição
+  const formatSegmentLabel = (segment: SegmentScore) => {
+    const typeMap: Record<string, string> = {
+      'REGULAR': 'Tempo',
+      'OVERTIME': 'Prorrogação',
+      'PENALTY': 'Pênaltis',
+      'TIME': 'Tempo',
+      'SET': 'Set',
+      'QUARTER': 'Quarter',
+    };
+    
+    const typeName = typeMap[segment.segment_type.toUpperCase()] || segment.segment_type;
+    return `${segment.segment_number}º ${typeName}`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -134,12 +163,47 @@ export function StatsCreator({
     setIsSubmitting(true);
 
     try {
+      // 1. Registra a pontuação no backend
       await registerMatchScore(matchId, {
         team_side: teamSide as "home" | "away",
         increment,
         stats_metric_abbreviation: selectedStatType || undefined,
         player_id: selectedPlayerId || undefined,
+        segment_id: selectedSegmentId ? parseInt(selectedSegmentId) : undefined,
       });
+
+      // 2. Publica evento na timeline se tiver liveId
+      if (liveId && statsRuleSet && selectedStatType && selectedPlayerId) {
+        const selectedStat = statsRuleSet.stats_types.find(s => s.abbreviation === selectedStatType);
+        const player = getPlayersForSelectedTeam().find(p => p.id === selectedPlayerId);
+        const teamName = getTeamName(teamSide as "home" | "away");
+
+        const payload: Record<string, unknown> = {
+          statId: selectedStat?.id,
+          statName: selectedStat?.name,
+          statAbbreviation: selectedStatType,
+          playerId: selectedPlayerId,
+          playerName: player?.name || `${player?.id.slice(0, 8)} - ${teamName}`,
+          playerTeam: teamName,
+          value: increment,
+        };
+
+        if (description) payload.description = description;
+        if (minute) payload.minute = minute;
+        
+        if (selectedSegmentId) {
+          const segment = segments.find(s => s.segment_id.toString() === selectedSegmentId);
+          if (segment) {
+            payload.segmentNumber = segment.segment_number;
+            payload.segmentType = segment.segment_type;
+          }
+        }
+
+        await publishMatchEvent(liveId, {
+          type: MatchEventType.CUSTOM,
+          payload,
+        });
+      }
 
       toast.success("Estatística registrada com sucesso!");
       resetForm();
@@ -271,6 +335,51 @@ export function StatsCreator({
               <p className="text-xs text-muted-foreground">
                 Quantidade a adicionar (padrão: 1)
               </p>
+            </div>
+
+            {/* Seleção do Período/Segmento */}
+            {segments.length > 0 && (
+              <div className="space-y-2">
+                <Label>Período</Label>
+                <Select value={selectedSegmentId} onValueChange={setSelectedSegmentId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o período (opcional)..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {segments.map((segment) => (
+                      <SelectItem key={segment.segment_id} value={segment.segment_id.toString()}>
+                        {formatSegmentLabel(segment)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Descrição */}
+            <div className="space-y-2">
+              <Label htmlFor="description">Descrição</Label>
+              <Textarea
+                id="description"
+                placeholder="Descreva a estatística (opcional)"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                disabled={isSubmitting}
+                rows={2}
+              />
+            </div>
+
+            {/* Minuto */}
+            <div className="space-y-2">
+              <Label htmlFor="minute">Minuto</Label>
+              <Input
+                id="minute"
+                type="text"
+                placeholder="Ex: 45', 90+2'"
+                value={minute}
+                onChange={(e) => setMinute(e.target.value)}
+                disabled={isSubmitting}
+              />
             </div>
 
             {!hasStatsConfig && (

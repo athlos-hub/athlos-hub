@@ -17,7 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Edit, Loader2 } from "lucide-react";
 import { updateSegmentScore } from "@/actions/scoreboard";
 import { toast } from "sonner";
-import type { SegmentScore } from "@/hooks/use-scoreboard";
+import type { SegmentScore } from "@/types/scoreboard";
 
 interface ScoreEditorProps {
   matchId: string;
