@@ -37,8 +37,7 @@ export function CompetitionsSection({ organizationSlug, orgCode, isAdmin, isPend
   async function loadCompetitions() {
     try {
       setIsLoading(true);
-      const data = await listCompetitions(0, 100);
-      // TODO: Filtrar por organization_slug quando o backend suportar
+      const data = await listCompetitions(0, 100, orgCode);
       setCompetitions(data);
     } catch (error) {
       console.error("Erro ao carregar competições:", error);

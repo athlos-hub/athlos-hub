@@ -29,10 +29,8 @@ export function ModalitiesSection({ orgCode, isAdmin, isPending }: ModalitiesSec
   async function loadModalities() {
     try {
       setIsLoading(true);
-      const data = await listModalities(0, 100);
-      // Filtrar por organization_slug
-      const filteredData = data.filter(m => m.organization_slug === orgCode);
-      setModalities(filteredData);
+      const data = await listModalities(0, 100, orgCode);
+      setModalities(data);
     } catch (error) {
       console.error("Erro ao carregar modalidades:", error);
       toast.error("Erro ao carregar modalidades");
