@@ -12,6 +12,7 @@ from src.schemas.competition_schema import (
     StatsRuleSetResponse,
     TeamWithPlayersResponse,
 )
+from src.schemas.stats_ruleset_schema import StatsTypeResponse
 
 from pydantic import BaseModel, Field
 from uuid import UUID
@@ -97,6 +98,28 @@ async def get_competition_stats_ruleset(
     """
     service = CompetitionService(session)
     return await service.get_stats_ruleset(competition_id)
+
+
+@router.get(
+    "/{competition_id}/stats",
+    response_model=List[StatsTypeResponse],
+    summary="Obter tipos de estatísticas da competição"
+)
+async def get_competition_stats(
+    competition_id: int,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Retorna apenas os tipos de estatísticas (StatsTypes) da competição.
+    Retorna lista vazia se a competição não tiver stats configurados.
+    """
+    service = CompetitionService(session)
+    stats_ruleset = await service.get_stats_ruleset(competition_id)
+    
+    if not stats_ruleset:
+        return []
+    
+    return stats_ruleset.stats_types
 
 
 @router.get(
