@@ -24,10 +24,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getLiveById, finishLive, cancelLive } from "@/actions/lives";
 import { getMatchById } from "@/actions/matches";
 import { getMyOrganizations } from "@/actions/organizations";
+import { getCompetitionStats, getCompetitionTeamsWithPlayers } from "@/actions/competitions";
 import { OrgRole } from "@/types/organization";
 import { useLiveStatus } from "@/hooks/use-live-status";
+import { useScoreboard } from "@/hooks/use-scoreboard";
 import type { Live } from "@/types/livestream";
 import type { MatchDetail } from "@/types/match";
+import type { CompetitionStat, TeamWithPlayers } from "@/types/competition";
 import { toast } from "sonner";
 import { ArrowLeft, Square, X } from "lucide-react";
 import Link from "next/link";
@@ -38,6 +41,8 @@ export default function LiveDetailPage() {
   const { data: session } = useSession();
   const [initialLive, setInitialLive] = useState<Live | null>(null);
   const [matchDetails, setMatchDetails] = useState<MatchDetail | null>(null);
+  const [competitionStats, setCompetitionStats] = useState<CompetitionStat[]>([]);
+  const [teamsWithPlayers, setTeamsWithPlayers] = useState<TeamWithPlayers[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [userOrgRole, setUserOrgRole] = useState<string | null>(null);
@@ -47,6 +52,9 @@ export default function LiveDetailPage() {
   const liveId = params?.id as string;
 
   const { live, updateLive, isConnected } = useLiveStatus(liveId, initialLive);
+  
+  // Hook do scoreboard para obter os segments
+  const { scoreboard } = useScoreboard(live?.externalMatchId || null);
 
   useEffect(() => {
     async function loadLive() {
@@ -62,6 +70,24 @@ export default function LiveDetailPage() {
           try {
             const matchData = await getMatchById(data.externalMatchId);
             setMatchDetails(matchData);
+            
+            // Carrega as estatísticas da competição
+            if (matchData.competition_id) {
+              try {
+                const stats = await getCompetitionStats(matchData.competition_id);
+                setCompetitionStats(stats);
+              } catch (statsErr) {
+                console.error("Erro ao carregar estatísticas da competição:", statsErr);
+              }
+              
+              // Carrega os times com jogadores
+              try {
+                const teams = await getCompetitionTeamsWithPlayers(matchData.competition_id);
+                setTeamsWithPlayers(teams);
+              } catch (teamsErr) {
+                console.error("Erro ao carregar times com jogadores:", teamsErr);
+              }
+            }
           } catch (matchErr) {
             console.error("Erro ao carregar detalhes do match:", matchErr);
           }
@@ -195,6 +221,7 @@ export default function LiveDetailPage() {
           matchId={live.externalMatchId}
           competitionId={matchDetails?.competition_id}
           canEdit={(userOrgRole === OrgRole.OWNER) || (userOrgRole === OrgRole.ORGANIZER)}
+          liveId={liveId}
         />
       )}
 
@@ -217,6 +244,15 @@ export default function LiveDetailPage() {
       <LiveEvents 
         liveId={liveId} 
         liveStatus={live.status} 
+        matchId={live.externalMatchId || ""}
+        matchData={{
+          home_team_id: matchDetails?.home_team?.id,
+          away_team_id: matchDetails?.away_team?.id
+        }}
+        competitionId={matchDetails?.competition_id}
+        competitionStats={competitionStats}
+        teamsWithPlayers={teamsWithPlayers}
+        segments={scoreboard?.segments || []}
         canCreateEvents={(userOrgRole === OrgRole.OWNER) || (userOrgRole === OrgRole.ORGANIZER)}
       />
 
