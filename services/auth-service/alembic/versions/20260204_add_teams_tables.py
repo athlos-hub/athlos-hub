@@ -3,7 +3,6 @@
 Revision ID: 20260204_teams
 Revises: 7aa28378b8b7
 Create Date: 2026-02-04 14:00:00.000000
-
 """
 from typing import Sequence, Union
 
@@ -19,21 +18,22 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Criar enum para status do time
-    team_status = postgresql.ENUM(
-        'PENDING', 'RECRUITING', 'READY', 'APPROVED', 'REJECTED',
-        name='team_status',
-        create_type=False
-    )
-    team_status.create(op.get_bind(), checkfirst=True)
-
-    # Criar enum para status do convite de time
-    team_invite_status = postgresql.ENUM(
-        'PENDING', 'ACCEPTED', 'EXPIRED', 'REVOKED',
-        name='team_invite_status',
-        create_type=False
-    )
-    team_invite_status.create(op.get_bind(), checkfirst=True)
+    # Criar enums com tratamento de duplicação
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE team_status AS ENUM ('PENDING', 'RECRUITING', 'READY', 'APPROVED', 'REJECTED');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE team_invite_status AS ENUM ('PENDING', 'ACCEPTED', 'EXPIRED', 'REVOKED');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
 
     # Criar tabela teams
     op.create_table(
@@ -44,7 +44,7 @@ def upgrade() -> None:
         sa.Column('competition_name', sa.String(255), nullable=False),
         sa.Column('name', sa.String(100), nullable=False),
         sa.Column('abbreviation', sa.String(3), nullable=False),
-        sa.Column('status', sa.Enum('PENDING', 'RECRUITING', 'READY', 'APPROVED', 'REJECTED', name='team_status'), nullable=False),
+        sa.Column('status', postgresql.ENUM('PENDING', 'RECRUITING', 'READY', 'APPROVED', 'REJECTED', name='team_status', create_type=False), nullable=False),
         sa.Column('min_members', sa.Integer(), nullable=False, server_default='1'),
         sa.Column('max_members', sa.Integer(), nullable=False, server_default='20'),
         sa.Column('created_by', postgresql.UUID(as_uuid=True), nullable=True),
@@ -83,7 +83,7 @@ def upgrade() -> None:
         sa.Column('invite_token', sa.String(64), nullable=False),
         sa.Column('created_by', postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
-        sa.Column('status', sa.Enum('PENDING', 'ACCEPTED', 'EXPIRED', 'REVOKED', name='team_invite_status'), nullable=False),
+        sa.Column('status', postgresql.ENUM('PENDING', 'ACCEPTED', 'EXPIRED', 'REVOKED', name='team_invite_status', create_type=False), nullable=False),
         sa.Column('max_uses', sa.Integer(), nullable=True),
         sa.Column('use_count', sa.Integer(), nullable=False, server_default='0'),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
