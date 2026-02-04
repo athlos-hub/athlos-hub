@@ -20,7 +20,7 @@ class PlayerModel(Base):
     __tablename__ = "players"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     team_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("teams.id"))
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    keycloak_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
 
     team: Mapped["TeamModel"] = relationship(
         "TeamModel", 

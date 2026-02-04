@@ -1,0 +1,19 @@
+"""API module for competitions-service."""
+
+from .deps import (
+    get_current_keycloak_id,
+    get_current_user_id,  # alias para compatibilidade
+    RequireOrgPermission,
+    require_owner_or_organizer,
+    require_owner,
+    CurrentUserId,
+)
+
+__all__ = [
+    "get_current_keycloak_id",
+    "get_current_user_id",  # alias para compatibilidade
+    "RequireOrgPermission",
+    "require_owner_or_organizer",
+    "require_owner",
+    "CurrentUserId",
+]

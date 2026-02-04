@@ -1,10 +1,13 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from typing import List, Optional
+from uuid import UUID
 
 from src.routes.routes import get_session
 from src.services.competitions_service import CompetitionService
 from src.services.competition_generator.competition_generator import StructureGeneratorService
+from src.services.auth_client import AuthClient, PermissionDenied, AuthServiceUnavailable
 from src.schemas.competition_schema import (
     CompetitionCreate, 
     CompetitionResponse, 
@@ -13,14 +16,60 @@ from src.schemas.competition_schema import (
     TeamWithPlayersResponse,
 )
 from src.schemas.stats_ruleset_schema import StatsTypeResponse
+from src.models.modality import ModalityModel
+from src.api.deps import get_current_keycloak_id
 
 from pydantic import BaseModel, Field
-from uuid import UUID
+
 
 class GenerateStructureRequest(BaseModel):
     organization_id: UUID = Field(..., description="ID da organização")
 
 router = APIRouter(prefix="/competitions", tags=["Competitions"])
+
+
+async def _get_organization_slug_from_modality(session: AsyncSession, modality_id: int) -> str:
+    """
+    Busca o organization_slug a partir da modalidade.
+    Lança HTTPException 404 se a modalidade não existir.
+    """
+    result = await session.execute(
+        select(ModalityModel.organization_slug).where(ModalityModel.id == modality_id)
+    )
+    org_slug = result.scalar_one_or_none()
+    
+    if not org_slug:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Modalidade com id {modality_id} não encontrada"
+        )
+    
+    return org_slug
+
+
+async def _verify_user_permission(keycloak_id: UUID, organization_slug: str):
+    """
+    Verifica se o usuário tem permissão de OWNER ou ORGANIZER na organização.
+    Lança HTTPException se não tiver permissão.
+    """
+    try:
+        async with AuthClient() as auth_client:
+            await auth_client.check_user_permission(
+                keycloak_id=keycloak_id,
+                organization_slug=organization_slug,
+                allowed_roles=["OWNER", "ORGANIZER"]
+            )
+    except PermissionDenied as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Você não tem permissão para realizar esta ação nesta organização. Role atual: {e.role}"
+        )
+    except AuthServiceUnavailable:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Serviço de autenticação indisponível"
+        )
+
 
 @router.post(
     "/", 
@@ -30,14 +79,23 @@ router = APIRouter(prefix="/competitions", tags=["Competitions"])
 )
 async def create_competition(
     data: CompetitionCreate, 
-    session: AsyncSession = Depends(get_session)
+    session: AsyncSession = Depends(get_session),
+    current_keycloak_id: UUID = Depends(get_current_keycloak_id)
 ):
     """
     Cria uma competição.
     
     - Você pode criar um **novo ruleset** enviando o objeto `ruleset`.
     - OU pode **reutilizar um ruleset** existente enviando `sport_ruleset_id`.
+    
+    **Requer autenticação**: Apenas OWNER ou ORGANIZER da organização podem criar competições.
     """
+    # Buscar organization_slug da modalidade
+    organization_slug = await _get_organization_slug_from_modality(session, data.modality_id)
+    
+    # Verificar permissão do usuário
+    await _verify_user_permission(current_keycloak_id, organization_slug)
+    
     service = CompetitionService(session)
     return await service.create(data)
 
@@ -73,8 +131,24 @@ async def get_competition(
 async def generate_structure(
     competition_id: int,
     request: GenerateStructureRequest,
-    session: AsyncSession = Depends(get_session)
+    session: AsyncSession = Depends(get_session),
+    current_keycloak_id: UUID = Depends(get_current_keycloak_id)
 ):
+    """
+    Gera a estrutura de grupos e partidas para a competição.
+    
+    **Requer autenticação**: Apenas OWNER ou ORGANIZER da organização podem gerar estrutura.
+    """
+    # Buscar a competição para obter a modalidade
+    competition_service = CompetitionService(session)
+    competition = await competition_service.get_by_id(competition_id)
+    
+    # Buscar organization_slug da modalidade
+    organization_slug = await _get_organization_slug_from_modality(session, competition.modality_id)
+    
+    # Verificar permissão do usuário
+    await _verify_user_permission(current_keycloak_id, organization_slug)
+    
     service = StructureGeneratorService(session)
     return await service.generate_structure(
         competition_id=competition_id,

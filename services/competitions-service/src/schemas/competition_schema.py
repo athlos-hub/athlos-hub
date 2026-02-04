@@ -91,7 +91,7 @@ class CompetitionResponse(CompetitionBase):
 # Schemas para Teams com Players
 class PlayerBasicResponse(BaseModel):
     id: uuid.UUID
-    user_id: uuid.UUID
+    keycloak_id: uuid.UUID
     team_id: uuid.UUID
     # name e number podem vir do serviço de auth/users se necessário
     

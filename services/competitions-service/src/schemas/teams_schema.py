@@ -5,11 +5,12 @@ from datetime import datetime
 
 # --- Players ---
 class PlayerCreateSchema(BaseModel):
-    user_id: uuid.UUID = Field(..., description="ID do usuário (Auth) que será o jogador")
+    keycloak_id: uuid.UUID = Field(..., description="Keycloak ID do usuário que será o jogador")
 
-class PlayerResponseSchema(PlayerCreateSchema):
+class PlayerResponseSchema(BaseModel):
     id: uuid.UUID
     team_id: uuid.UUID
+    keycloak_id: uuid.UUID
     model_config = ConfigDict(from_attributes=True)
 
 class TeamBaseSchema(BaseModel):
@@ -18,7 +19,7 @@ class TeamBaseSchema(BaseModel):
     name: str = Field(..., description="Nome do time", max_length=100)
     abbreviation: str = Field(..., description="Abreviação (SIGLA)", max_length=3)
     
-    captain_user_id: uuid.UUID = Field(..., description="User ID do capitão (deve estar na lista de players)")
+    captain_keycloak_id: uuid.UUID = Field(..., description="Keycloak ID do capitão (deve estar na lista de players)")
     
     players: List[PlayerCreateSchema] = Field(..., min_length=1, description="Lista inicial de jogadores")
 

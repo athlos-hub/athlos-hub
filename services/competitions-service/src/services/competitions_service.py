@@ -59,6 +59,13 @@ class CompetitionService:
             "stats_ruleset_id"
         })
         
+        # Converter datetime com timezone para naive (sem timezone)
+        # O banco usa TIMESTAMP WITHOUT TIME ZONE
+        if comp_data.get("start_date") and comp_data["start_date"].tzinfo:
+            comp_data["start_date"] = comp_data["start_date"].replace(tzinfo=None)
+        if comp_data.get("end_date") and comp_data["end_date"].tzinfo:
+            comp_data["end_date"] = comp_data["end_date"].replace(tzinfo=None)
+        
         new_competition = CompetitionModel(
             **comp_data,
             sport_ruleset_id=final_sport_ruleset_id, 
