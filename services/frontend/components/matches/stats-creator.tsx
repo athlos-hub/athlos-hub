@@ -226,7 +226,7 @@ export function StatsCreator({
       if (!isOpen) resetForm();
     }}>
       <DialogTrigger asChild>
-        <Button variant="default" size="sm" className="gap-1.5 h-8 text-xs">
+        <Button size="sm" className="gap-1.5 h-8 text-xs bg-main hover:bg-main/90 text-white">
           <Plus className="w-3.5 h-3.5" />
           Registrar Stat
         </Button>
@@ -401,7 +401,7 @@ export function StatsCreator({
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting} className="bg-main hover:bg-main/90 text-white">
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />

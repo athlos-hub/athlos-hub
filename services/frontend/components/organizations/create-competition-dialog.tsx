@@ -508,7 +508,7 @@ export function CreateCompetitionDialog({
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isLoading || modalities.length === 0}>
+            <Button type="submit" disabled={isLoading || modalities.length === 0} className="bg-main hover:bg-main/90 text-white">
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />

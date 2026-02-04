@@ -296,10 +296,10 @@ export function EventCreator({
   const allPlayers = teamsWithPlayers.flatMap(team => 
     team.players.map(player => ({
       id: player.id,
-      label: `${player.user_id.substring(0, 8)} - ${team.name}`,
+      label: `${player.keycloak_id.substring(0, 8)} - ${team.name}`,
       teamId: team.id,
       teamName: team.name,
-      userId: player.user_id,
+      userId: player.keycloak_id,
     }))
   );
 

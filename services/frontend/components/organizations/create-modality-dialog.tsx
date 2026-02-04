@@ -90,7 +90,7 @@ export function CreateModalityDialog({
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading} className="bg-main hover:bg-main/90 text-white">
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />

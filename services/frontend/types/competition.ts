@@ -115,7 +115,7 @@ export interface CompetitionStatCreate {
 
 export interface Player {
   id: string;
-  user_id: string;
+  keycloak_id: string;
   team_id: string;
 }
 
