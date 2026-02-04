@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { TeamListItem, TeamStatus, TeamRole } from "@/types/team";
 import { Badge } from "@/components/ui/badge";
-import { Users, Shield, Clock, Trophy } from "lucide-react";
+import { Users, Shield, Clock, Trophy, UserPlus, CheckCircle, XCircle } from "lucide-react";
 
 interface TeamCardProps {
   team: TeamListItem;
@@ -11,8 +11,6 @@ interface TeamCardProps {
 }
 
 export function TeamCard({ team, showRole = true }: TeamCardProps) {
-  const isPending = team.status === TeamStatus.PENDING;
-  
   const getRoleBadge = (role: TeamRole) => {
     const roleConfig = {
       [TeamRole.CAPTAIN]: { label: "Capitão", variant: "default" as const, icon: Shield },
@@ -22,8 +20,52 @@ export function TeamCard({ team, showRole = true }: TeamCardProps) {
     return roleConfig[role] || { label: role, variant: "outline" as const, icon: Users };
   };
 
+  const getStatusBadge = (status: TeamStatus) => {
+    const statusConfig = {
+      [TeamStatus.PENDING]: { 
+        label: "Pendente", 
+        variant: "outline" as const, 
+        className: "bg-yellow-50 text-yellow-700 border-yellow-300",
+        icon: Clock 
+      },
+      [TeamStatus.RECRUITING]: { 
+        label: "Recrutando", 
+        variant: "outline" as const, 
+        className: "bg-blue-50 text-blue-700 border-blue-300",
+        icon: UserPlus 
+      },
+      [TeamStatus.READY]: { 
+        label: "Pronto", 
+        variant: "outline" as const, 
+        className: "bg-green-50 text-green-700 border-green-300",
+        icon: CheckCircle 
+      },
+      [TeamStatus.APPROVED]: { 
+        label: "Aprovado", 
+        variant: "default" as const, 
+        className: "bg-green-500 text-white border-green-500",
+        icon: CheckCircle 
+      },
+      [TeamStatus.REJECTED]: { 
+        label: "Rejeitado", 
+        variant: "destructive" as const, 
+        className: "bg-red-50 text-red-700 border-red-300",
+        icon: XCircle 
+      },
+      [TeamStatus.ACTIVE]: { 
+        label: "Ativo", 
+        variant: "default" as const, 
+        className: "bg-green-500 text-white border-green-500",
+        icon: CheckCircle 
+      },
+    };
+    return statusConfig[status] || statusConfig[TeamStatus.PENDING];
+  };
+
   const roleConfig = getRoleBadge(team.role);
+  const statusConfig = getStatusBadge(team.status);
   const RoleIcon = roleConfig.icon;
+  const StatusIcon = statusConfig.icon;
 
   return (
     <Link href={`/clubes/${team.id}`}>
@@ -40,12 +82,10 @@ export function TeamCard({ team, showRole = true }: TeamCardProps) {
                   <h3 className="text-lg font-semibold text-gray-900 group-hover:text-main transition-colors truncate">
                     {team.name}
                   </h3>
-                  {isPending && (
-                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300 shrink-0">
-                      <Clock className="w-3 h-3 mr-1" />
-                      Pendente
-                    </Badge>
-                  )}
+                  <Badge variant={statusConfig.variant} className={`${statusConfig.className} shrink-0`}>
+                    <StatusIcon className="w-3 h-3 mr-1" />
+                    {statusConfig.label}
+                  </Badge>
                 </div>
               </div>
 

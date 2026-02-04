@@ -1,58 +1,35 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { Users, Shield, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import type { Player } from "@/types/team";
-
-interface UserInfo {
-  id: string;
-  username: string;
-  first_name: string | null;
-  last_name: string | null;
-  avatar_url: string | null;
-}
+import type { TeamMember } from "@/types/team";
 
 interface TeamPlayersSectionProps {
-  players: Player[];
-  captainKeycloakId: string | null;
+  members: TeamMember[];
   isLoading?: boolean;
 }
 
 export function TeamPlayersSection({ 
-  players, 
-  captainKeycloakId,
+  members, 
   isLoading = false 
 }: TeamPlayersSectionProps) {
-  const [usersInfo, setUsersInfo] = useState<Record<string, UserInfo>>({});
-  const [loadingUsers, setLoadingUsers] = useState(false);
 
-  // TODO: Implementar busca de informações dos usuários via API
-  // Por enquanto, mostramos apenas os IDs
-
-  const getInitials = (user?: UserInfo) => {
-    if (!user) return "?";
-    if (user.first_name && user.last_name) {
-      return `${user.first_name[0]}${user.last_name[0]}`.toUpperCase();
+  const getInitials = (member: TeamMember) => {
+    const { first_name, last_name, username } = member.user;
+    if (first_name && last_name) {
+      return `${first_name[0]}${last_name[0]}`.toUpperCase();
     }
-    return user.username?.slice(0, 2).toUpperCase() || "?";
+    return username?.slice(0, 2).toUpperCase() || "?";
   };
 
-  const getDisplayName = (player: Player) => {
-    const user = usersInfo[player.keycloak_id];
-    if (user) {
-      if (user.first_name && user.last_name) {
-        return `${user.first_name} ${user.last_name}`;
-      }
-      return user.username;
+  const getDisplayName = (member: TeamMember) => {
+    const { first_name, last_name, username } = member.user;
+    if (first_name && last_name) {
+      return `${first_name} ${last_name}`;
     }
-    return `Jogador`;
-  };
-
-  const isCaptain = (player: Player) => {
-    return captainKeycloakId && player.keycloak_id === captainKeycloakId;
+    return username || "Jogador";
   };
 
   if (isLoading) {
@@ -78,38 +55,37 @@ export function TeamPlayersSection({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Users className="h-5 w-5" />
-          Elenco ({players.length} jogador{players.length !== 1 ? 'es' : ''})
+          Elenco ({members.length} jogador{members.length !== 1 ? 'es' : ''})
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {players.length === 0 ? (
+        {members.length === 0 ? (
           <p className="text-center text-gray-500 py-4">
             Nenhum jogador no time ainda.
           </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {players.map((player) => {
-              const user = usersInfo[player.keycloak_id];
-              const playerIsCaptain = isCaptain(player);
+            {members.map((member) => {
+              const playerIsCaptain = member.is_captain;
               
               return (
                 <div 
-                  key={player.id}
+                  key={member.id}
                   className={`flex items-center gap-3 p-3 rounded-lg border ${
                     playerIsCaptain ? 'border-main bg-main/5' : 'border-gray-200'
                   }`}
                 >
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={user?.avatar_url || ""} alt={getDisplayName(player)} />
+                    <AvatarImage src={member.user.avatar_url || ""} alt={getDisplayName(member)} />
                     <AvatarFallback className={playerIsCaptain ? 'bg-main text-white' : ''}>
-                      {getInitials(user)}
+                      {getInitials(member)}
                     </AvatarFallback>
                   </Avatar>
                   
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-sm truncate">
-                        {getDisplayName(player)}
+                        {getDisplayName(member)}
                       </span>
                       {playerIsCaptain && (
                         <Badge variant="default" className="gap-1 shrink-0">
@@ -118,8 +94,8 @@ export function TeamPlayersSection({
                         </Badge>
                       )}
                     </div>
-                    {user?.username && (
-                      <span className="text-xs text-gray-500">@{user.username}</span>
+                    {member.user.username && (
+                      <span className="text-xs text-gray-500">@{member.user.username}</span>
                     )}
                   </div>
                 </div>
