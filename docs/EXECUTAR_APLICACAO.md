@@ -60,7 +60,7 @@ docker compose -f docker-compose-local.yml up -d
 Após subir os containers, é necessário configurar o client no painel administrativo:
 
 1. **Acesse:** [http://localhost:8100/keycloak/admin/](https://www.google.com/search?q=http://localhost:8100/keycloak/admin/)
-2. **Navegue até:** `Realm athlos` > `Clients` > `Settings`
+2. **Navegue até:** `Realm athlos` > `Clients` > `auth-client` > `settings`
 3. **Atualize os campos conforme a tabela:**
 
 | Campo | Valor |
