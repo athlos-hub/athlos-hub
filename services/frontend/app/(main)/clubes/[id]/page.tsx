@@ -1,7 +1,5 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { getTeamById } from "@/actions/teams";
 import { TeamDetailClient } from "@/components/teams/team-detail-client";
 
@@ -14,7 +12,7 @@ interface TeamPageProps {
 export async function generateMetadata({ params }: TeamPageProps): Promise<Metadata> {
     try {
         const { id } = await params;
-        const team = await getTeamById(id, false);
+        const team = await getTeamById(id);
         return {
             title: `${team.name} - AthlosHub`,
             description: `Time ${team.name} (${team.abbreviation})`,
@@ -30,8 +28,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
     const { id } = await params;
     
     try {
-        const session = await getServerSession(authOptions);
-        const team = await getTeamById(id, !!session);
+        const team = await getTeamById(id);
         
         return <TeamDetailClient team={team} />;
     } catch (error) {

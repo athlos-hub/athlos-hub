@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Users, Loader2, Shield, Trophy } from "lucide-react";
+import { Users, Loader2, Shield, Trophy, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TeamCard } from "@/components/teams/team-card";
 import { getMyTeams } from "@/actions/teams";
+import { getMyOrganizations } from "@/actions/organizations";
 import type { TeamListItem } from "@/types/team";
+import type { OrganizationListItem } from "@/types/organization";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -15,6 +17,7 @@ export default function ClubesPainelPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [teams, setTeams] = useState<TeamListItem[]>([]);
+  const [myOrganizations, setMyOrganizations] = useState<OrganizationListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -24,23 +27,30 @@ export default function ClubesPainelPage() {
     }
     
     if (status === "authenticated") {
-      loadTeams();
+      loadData();
     }
   }, [status, router]);
 
-  const loadTeams = async () => {
+  const loadData = async () => {
     setIsLoading(true);
     try {
-      const data = await getMyTeams();
-      setTeams(data);
+      const [teamsData, orgsData] = await Promise.all([
+        getMyTeams(),
+        getMyOrganizations(),
+      ]);
+      setTeams(teamsData);
+      setMyOrganizations(orgsData);
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Erro ao carregar seus times";
+        error instanceof Error ? error.message : "Erro ao carregar dados";
       toast.error(message);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Verifica se o usuário pode criar times (é OWNER ou ORGANIZER de alguma organização)
+  const canCreateTeam = myOrganizations.length > 0;
 
   if (status === "loading") {
     return (
@@ -59,6 +69,15 @@ export default function ClubesPainelPage() {
             Gerencie os times dos quais você faz parte
           </p>
         </div>
+
+        {canCreateTeam && (
+          <Link href="/clubes/novo">
+            <Button className="bg-main hover:bg-main/90 text-white">
+              <Plus className="w-4 h-4 mr-2" />
+              Novo Time
+            </Button>
+          </Link>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
@@ -90,14 +109,27 @@ export default function ClubesPainelPage() {
               Você ainda não faz parte de nenhum time
             </p>
             <p className="text-sm text-gray-500 mb-6">
-              Entre em um time através de um link de convite ou aguarde ser adicionado por um organizador.
+              {canCreateTeam 
+                ? "Crie um novo time ou entre em um time através de um link de convite."
+                : "Entre em um time através de um link de convite ou aguarde ser adicionado por um organizador."
+              }
             </p>
-            <Link href="/organizations">
-              <Button className="bg-main hover:bg-main/90 text-white">
-                <Trophy className="w-4 h-4 mr-2" />
-                Explorar Organizações
-              </Button>
-            </Link>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              {canCreateTeam && (
+                <Link href="/clubes/novo">
+                  <Button className="bg-main hover:bg-main/90 text-white">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Criar Time
+                  </Button>
+                </Link>
+              )}
+              <Link href="/organizations">
+                <Button variant="outline">
+                  <Search className="w-4 h-4 mr-2" />
+                  Explorar Organizações
+                </Button>
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
