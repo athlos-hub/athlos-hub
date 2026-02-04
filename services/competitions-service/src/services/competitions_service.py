@@ -59,6 +59,13 @@ class CompetitionService:
             "stats_ruleset_id"
         })
         
+        # Converter datetime com timezone para naive (sem timezone)
+        # O banco usa TIMESTAMP WITHOUT TIME ZONE
+        if comp_data.get("start_date") and comp_data["start_date"].tzinfo:
+            comp_data["start_date"] = comp_data["start_date"].replace(tzinfo=None)
+        if comp_data.get("end_date") and comp_data["end_date"].tzinfo:
+            comp_data["end_date"] = comp_data["end_date"].replace(tzinfo=None)
+        
         new_competition = CompetitionModel(
             **comp_data,
             sport_ruleset_id=final_sport_ruleset_id, 
@@ -125,16 +132,29 @@ class CompetitionService:
         return result_refresh.scalar_one()
 
 
-    async def list_all(self, skip: int = 0, limit: int = 100):
+    async def list_all(self, skip: int = 0, limit: int = 100, organization_slug: Optional[str] = None, status: Optional[str] = None):
         query = (
             select(CompetitionModel)
             .options(
                 selectinload(CompetitionModel.sport_ruleset),
-                selectinload(CompetitionModel.stats_ruleset).selectinload(StatsRuleSetModel.stats_types)
+                selectinload(CompetitionModel.stats_ruleset).selectinload(StatsRuleSetModel.stats_types),
+                selectinload(CompetitionModel.modality)
             )
-            .offset(skip)
-            .limit(limit)
         )
+        
+        if organization_slug:
+            query = query.join(CompetitionModel.modality).where(
+                ModalityModel.organization_slug == organization_slug
+            )
+        
+        if status:
+            try:
+                status_enum = CompetitionStatus(status)
+                query = query.where(CompetitionModel.status == status_enum)
+            except ValueError:
+                pass  # Ignorar status inválido
+        
+        query = query.offset(skip).limit(limit)
         result = await self.session.execute(query)
         return result.scalars().all()
 

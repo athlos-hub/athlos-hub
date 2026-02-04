@@ -6,7 +6,7 @@ import axios, { AxiosError, AxiosRequestConfig } from "axios";
 
 import { APIProps, APIResponse } from "./types";
 import { APIException } from "./errors";
-import { parseErrorMessage, isAPIErrorData, getBaseURL } from "./utils";
+import { parseErrorMessage, isAPIErrorData, getBaseURL, getServiceURL } from "./utils";
 
 export async function axiosAPI<TypeResponse = unknown>({
                                                            endpoint,
@@ -16,10 +16,13 @@ export async function axiosAPI<TypeResponse = unknown>({
                                                            withAuth = true,
                                                            withAttachment = false,
                                                            bearerToken,
+                                                           service,
                                                        }: APIProps): Promise<APIResponse<TypeResponse>> {
     try {
+        const baseURL = service ? getServiceURL(service) : getBaseURL();
+        
         const config: AxiosRequestConfig = {
-            baseURL: getBaseURL(),
+            baseURL,
             method,
             url: endpoint,
             params: queryParams,

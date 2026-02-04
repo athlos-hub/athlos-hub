@@ -73,6 +73,17 @@ export function getBaseURL(): string {
     return process.env.API_BASE_URL || "http://localhost:8100/api/v1";
 }
 
+export function getServiceURL(service: "auth" | "competitions" = "auth"): string {
+    if (process.env.NODE_ENV === 'development') {
+        if (service === "auth") {
+            return process.env.AUTH_API_URL || "http://localhost:8000/api/v1";
+        }
+        return process.env.COMPETITIONS_API_URL || "http://localhost:8001/api/v1";
+    }
+    // Em produção, usa o gateway
+    return process.env.API_BASE_URL || "http://localhost:8100/api/v1";
+}
+
 export function buildQueryString(params?: Record<string, string | number | boolean>): string {
     if (!params) return "";
 

@@ -1,3 +1,5 @@
+export type ServiceType = "auth" | "competitions";
+
 export interface APIProps {
     endpoint: string;
     method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -6,6 +8,7 @@ export interface APIProps {
     withAuth?: boolean;
     withAttachment?: boolean;
     bearerToken?: string;
+    service?: ServiceType;
 }
 
 export interface APIResponse<T> {

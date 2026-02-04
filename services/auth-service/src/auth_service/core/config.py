@@ -89,6 +89,7 @@ class Settings(BaseSettings):
     LOG_FORMAT: str = "%(levelname)s:%(name)s:%(message)s"
 
     NOTIFICATIONS_SERVICE_URL: str = "http://athloshub.com.br"
+    COMPETITIONS_SERVICE_URL: str = "http://localhost:8001"
 
     # Bucket S3
     AWS_BUCKET_REGION: str

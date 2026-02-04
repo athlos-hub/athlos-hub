@@ -1,6 +1,6 @@
 "use server";
 
-import { axiosAPI } from "@/lib/api";
+import { axiosAPI } from "@/lib/api/client";
 import type {
   Competition,
   CompetitionCreate,
@@ -14,13 +14,22 @@ import type {
 
 export async function listCompetitions(
   skip = 0,
-  limit = 100
+  limit = 100,
+  organization_slug?: string,
+  status?: string
 ): Promise<Competition[]> {
+  const queryParams: Record<string, number | string> = { skip, limit };
+  if (organization_slug) {
+    queryParams.organization_slug = organization_slug;
+  }
+  if (status) {
+    queryParams.status = status;
+  }
   const response = await axiosAPI<Competition[]>({
-    endpoint: "/competitions",
+    endpoint: "/competitions/",
     method: "GET",
-    queryParams: { skip, limit },
-    withAuth: true,
+    queryParams,
+    withAuth: false,
   });
 
   return response.data;
@@ -42,7 +51,7 @@ export async function createCompetition(
   const response = await axiosAPI<Competition>({
     endpoint: "/competitions",
     method: "POST",
-    data,
+    data: data as unknown as Record<string, unknown>,
     withAuth: true,
   });
 
@@ -56,7 +65,7 @@ export async function updateCompetition(
   const response = await axiosAPI<Competition>({
     endpoint: `/competitions/${id}`,
     method: "PATCH",
-    data,
+    data: data as unknown as Record<string, unknown>,
     withAuth: true,
   });
 
@@ -70,7 +79,7 @@ export async function generateCompetitionStructure(
   const response = await axiosAPI<GenerateStructureResponse>({
     endpoint: `/competitions/${competitionId}/generate-structure`,
     method: "POST",
-    data: request,
+    data: request as unknown as Record<string, unknown>,
     withAuth: true,
   });
 
@@ -108,7 +117,7 @@ export async function createCompetitionStat(
   const response = await axiosAPI<CompetitionStat>({
     endpoint: `/competitions/${competitionId}/stats`,
     method: "POST",
-    data,
+    data: data as unknown as Record<string, unknown>,
     withAuth: true,
   });
 
