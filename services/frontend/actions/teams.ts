@@ -11,6 +11,9 @@ import {
   InviteValidationResponse,
   AcceptInviteResponse,
   TeamRole,
+  TeamCreateRequest,
+  TeamCreateResponse,
+  TeamApprovalResponse,
 } from "@/types/team";
 
 interface ActionResponse {
@@ -21,7 +24,29 @@ interface ActionResponse {
 }
 
 /**
- * Busca todos os times do usuário logado
+ * Cria um novo time (no auth-service)
+ */
+export async function createTeam(data: TeamCreateRequest): Promise<TeamCreateResponse> {
+  try {
+    const response = await axiosAPI<TeamCreateResponse>({
+      endpoint: "/teams/",
+      method: "POST",
+      data: data as unknown as Record<string, unknown>,
+      withAuth: true,
+      service: "auth",
+    });
+
+    return response.data;
+  } catch (error) {
+    if (error instanceof APIException) {
+      throw error;
+    }
+    throw new Error("Erro ao criar time");
+  }
+}
+
+/**
+ * Busca todos os times do usuário logado (do auth-service)
  */
 export async function getMyTeams(): Promise<TeamListItem[]> {
   try {
@@ -29,6 +54,7 @@ export async function getMyTeams(): Promise<TeamListItem[]> {
       endpoint: "/teams/me",
       method: "GET",
       withAuth: true,
+      service: "auth",
     });
 
     return response.data;
@@ -41,17 +67,15 @@ export async function getMyTeams(): Promise<TeamListItem[]> {
 }
 
 /**
- * Busca os detalhes de um time pelo ID
+ * Busca os detalhes de um time pelo ID (do auth-service)
  */
-export async function getTeamById(
-  teamId: string,
-  includeAuth: boolean = true
-): Promise<TeamWithRole | TeamDetail> {
+export async function getTeamById(teamId: string): Promise<TeamDetail> {
   try {
-    const response = await axiosAPI<TeamWithRole | TeamDetail>({
+    const response = await axiosAPI<TeamDetail>({
       endpoint: `/teams/${teamId}`,
       method: "GET",
-      withAuth: includeAuth,
+      withAuth: true,
+      service: "auth",
     });
 
     return response.data;
@@ -60,6 +84,36 @@ export async function getTeamById(
       throw error;
     }
     throw new Error("Erro ao buscar time");
+  }
+}
+
+/**
+ * Busca times de uma organização (do auth-service)
+ */
+export async function getOrganizationTeams(
+  organizationSlug: string,
+  status?: string
+): Promise<TeamListItem[]> {
+  try {
+    const queryParams: Record<string, string> = {};
+    if (status) {
+      queryParams.status = status;
+    }
+
+    const response = await axiosAPI<TeamListItem[]>({
+      endpoint: `/teams/organization/${organizationSlug}`,
+      method: "GET",
+      queryParams,
+      withAuth: true,
+      service: "auth",
+    });
+
+    return response.data;
+  } catch (error) {
+    if (error instanceof APIException) {
+      throw error;
+    }
+    throw new Error("Erro ao buscar times da organização");
   }
 }
 
@@ -77,6 +131,7 @@ export async function createTeamInvite(
       method: "POST",
       data: requestData,
       withAuth: true,
+      service: "auth",
     });
 
     return response.data;
@@ -97,6 +152,7 @@ export async function listTeamInvites(teamId: string): Promise<TeamInvite[]> {
       endpoint: `/teams/${teamId}/invites`,
       method: "GET",
       withAuth: true,
+      service: "auth",
     });
 
     return response.data;
@@ -120,6 +176,7 @@ export async function revokeTeamInvite(
       endpoint: `/teams/${teamId}/invites/${inviteToken}`,
       method: "DELETE",
       withAuth: true,
+      service: "auth",
     });
 
     return { success: true, message: "Convite revogado com sucesso" };
@@ -132,7 +189,7 @@ export async function revokeTeamInvite(
 }
 
 /**
- * Valida um convite (preview antes de aceitar)
+ * Valida um convite (preview antes de aceitar) - Público
  */
 export async function validateTeamInvite(
   inviteToken: string
@@ -142,6 +199,7 @@ export async function validateTeamInvite(
       endpoint: `/teams/invites/${inviteToken}/validate`,
       method: "GET",
       withAuth: false,
+      service: "auth",
     });
 
     return response.data;
@@ -154,7 +212,7 @@ export async function validateTeamInvite(
 }
 
 /**
- * Aceita um convite de time
+ * Aceita um convite de time (também adiciona usuário à organização)
  */
 export async function acceptTeamInvite(
   inviteToken: string
@@ -164,6 +222,7 @@ export async function acceptTeamInvite(
       endpoint: `/teams/invites/${inviteToken}/accept`,
       method: "POST",
       withAuth: true,
+      service: "auth",
     });
 
     return response.data;
@@ -176,11 +235,92 @@ export async function acceptTeamInvite(
 }
 
 /**
- * Verifica se o usuário é capitão do time
+ * Solicita aprovação do time (apenas capitão, requer min_members)
  */
-export async function isCaptain(team: TeamWithRole | TeamDetail): Promise<boolean> {
-  if ('role' in team) {
-    return team.role === TeamRole.CAPTAIN;
+export async function requestTeamApproval(teamId: string): Promise<TeamDetail> {
+  try {
+    const response = await axiosAPI<TeamDetail>({
+      endpoint: `/teams/${teamId}/request-approval`,
+      method: "POST",
+      withAuth: true,
+      service: "auth",
+    });
+
+    return response.data;
+  } catch (error) {
+    if (error instanceof APIException) {
+      throw error;
+    }
+    throw new Error("Erro ao solicitar aprovação do time");
   }
-  return false;
 }
+
+/**
+ * Aprova o time (apenas organizador/owner)
+ */
+export async function approveTeam(teamId: string): Promise<TeamApprovalResponse> {
+  try {
+    const response = await axiosAPI<TeamApprovalResponse>({
+      endpoint: `/teams/${teamId}/approve`,
+      method: "POST",
+      withAuth: true,
+      service: "auth",
+    });
+
+    return response.data;
+  } catch (error) {
+    if (error instanceof APIException) {
+      throw error;
+    }
+    throw new Error("Erro ao aprovar time");
+  }
+}
+
+/**
+ * Rejeita um time (apenas organizador/owner)
+ */
+export async function rejectTeam(
+  teamId: string,
+  reason?: string
+): Promise<ActionResponse> {
+  try {
+    await axiosAPI({
+      endpoint: `/teams/${teamId}/reject`,
+      method: "POST",
+      data: { reason } as unknown as Record<string, unknown>,
+      withAuth: true,
+      service: "auth",
+    });
+
+    return { success: true, message: "Time rejeitado" };
+  } catch (error) {
+    if (error instanceof APIException) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: "Erro ao rejeitar time" };
+  }
+}
+
+/**
+ * Busca times pendentes de aprovação de uma organização (apenas organizador/owner)
+ */
+export async function getPendingTeams(
+  organizationSlug: string
+): Promise<TeamDetail[]> {
+  try {
+    const response = await axiosAPI<TeamDetail[]>({
+      endpoint: `/teams/organization/${organizationSlug}/pending`,
+      method: "GET",
+      withAuth: true,
+      service: "auth",
+    });
+
+    return response.data;
+  } catch (error) {
+    if (error instanceof APIException) {
+      throw error;
+    }
+    throw new Error("Erro ao buscar times pendentes");
+  }
+}
+
