@@ -13,7 +13,7 @@
 #   --e2e               Executa apenas testes E2E (requer containers)
 #   --all               Executa todos os testes (padrão)
 #   --service <nome>    Executa testes de um serviço específico
-#                       (auth, competitions, notifications, livestream)
+#                       (auth, competitions, notifications, livestream, social)
 #   --no-containers     Não inicia/para containers (usa existentes)
 #   --coverage          Gera relatório de cobertura
 #   --verbose           Saída detalhada
@@ -249,6 +249,8 @@ start_test_containers() {
         docker exec $TEST_POSTGRES_CONTAINER psql -U postgres -c "CREATE DATABASE notifications_test;" 2>/dev/null || true
     docker exec $TEST_POSTGRES_CONTAINER psql -U postgres -c "CREATE DATABASE IF NOT EXISTS livestream_test;" 2>/dev/null || \
         docker exec $TEST_POSTGRES_CONTAINER psql -U postgres -c "CREATE DATABASE livestream_test;" 2>/dev/null || true
+    docker exec $TEST_POSTGRES_CONTAINER psql -U postgres -c "CREATE DATABASE IF NOT EXISTS social_test;" 2>/dev/null || \
+        docker exec $TEST_POSTGRES_CONTAINER psql -U postgres -c "CREATE DATABASE social_test;" 2>/dev/null || true
     
     print_success "Databases de teste criados!"
 
@@ -542,6 +544,61 @@ run_livestream_service_tests() {
     fi
 }
 
+run_social_service_tests() {
+    local test_type=$1
+    local service_dir="$ROOT_DIR/services/social-service"
+    
+    print_section "👥 Social Service - Testes $test_type"
+    
+    cd "$service_dir"
+
+    # Verifica se mvn está instalado
+    if ! command -v mvn &> /dev/null && ! [ -f "./mvnw" ]; then
+        print_error "Maven não está instalado e mvnw não foi encontrado"
+        return 1
+    fi
+
+    # Define comando Maven (usa wrapper se disponível)
+    local maven_cmd="mvn"
+    if [ -f "./mvnw" ]; then
+        maven_cmd="./mvnw"
+        chmod +x ./mvnw
+    fi
+
+    # Social Service usa Spring Boot Test, todos os testes são executados juntos
+    case $test_type in
+        "unit"|"integration"|"e2e")
+            # Spring Boot executa todos os testes com mvn test
+            print_info "Executando: $maven_cmd test"
+            
+            if [ "$COVERAGE" = true ]; then
+                # Adiciona jacoco para cobertura
+                if $maven_cmd test jacoco:report; then
+                    TEST_RESULTS+=("social-service:$test_type:PASS")
+                    print_success "Social Service - $test_type: OK"
+                    return 0
+                else
+                    TEST_RESULTS+=("social-service:$test_type:FAIL")
+                    FAILED_TESTS+=("social-service:$test_type")
+                    print_error "Social Service - $test_type: FALHOU"
+                    return 1
+                fi
+            else
+                if $maven_cmd test; then
+                    TEST_RESULTS+=("social-service:$test_type:PASS")
+                    print_success "Social Service - $test_type: OK"
+                    return 0
+                else
+                    TEST_RESULTS+=("social-service:$test_type:FAIL")
+                    FAILED_TESTS+=("social-service:$test_type")
+                    print_error "Social Service - $test_type: FALHOU"
+                    return 1
+                fi
+            fi
+            ;;
+    esac
+}
+
 # ============================================================================
 # Função principal de execução
 # ============================================================================
@@ -569,6 +626,11 @@ run_tests_for_service() {
             [ "$RUN_UNIT" = true ] && run_livestream_service_tests "unit"
             [ "$RUN_INTEGRATION" = true ] && run_livestream_service_tests "integration"
             [ "$RUN_E2E" = true ] && run_livestream_service_tests "e2e"
+            ;;
+        "social")
+            [ "$RUN_UNIT" = true ] && run_social_service_tests "unit"
+            [ "$RUN_INTEGRATION" = true ] && run_social_service_tests "integration"
+            [ "$RUN_E2E" = true ] && run_social_service_tests "e2e"
             ;;
         *)
             print_error "Serviço desconhecido: $service"
@@ -636,6 +698,7 @@ main() {
         run_tests_for_service "competitions" || true
         run_tests_for_service "notifications" || true
         run_tests_for_service "livestream" || true
+        run_tests_for_service "social" || true
     fi
 
     # Imprime resumo
