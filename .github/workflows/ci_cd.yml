@@ -459,18 +459,26 @@ jobs:
       - name: Run Tests
         if: steps.should_run.outputs.run == 'true'
         working-directory: ./services/social-service
-        run: ./mvnw test
+        run: ./mvnw clean test jacoco:report
 
       - name: Extract Test Results
         if: steps.should_run.outputs.run == 'true' && always()
         id: test-results
         working-directory: ./services/social-service
         run: |
-          if [ -f target/surefire-reports/*.xml ]; then
-            TOTAL=$(grep -oP 'tests="\K[0-9]+' target/surefire-reports/*.xml | head -1)
-            FAILURES=$(grep -oP 'failures="\K[0-9]+' target/surefire-reports/*.xml | head -1)
-            ERRORS=$(grep -oP 'errors="\K[0-9]+' target/surefire-reports/*.xml | head -1)
-            SKIPPED=$(grep -oP 'skipped="\K[0-9]+' target/surefire-reports/*.xml | head -1)
+          if ls target/surefire-reports/TEST-*.xml 1> /dev/null 2>&1; then
+            # Agregar valores de todos os XMLs
+            TOTAL=$(grep -h 'testsuite' target/surefire-reports/TEST-*.xml | grep -oP 'tests="\K[0-9]+' | awk '{s+=$1} END {print s}')
+            FAILURES=$(grep -h 'testsuite' target/surefire-reports/TEST-*.xml | grep -oP 'failures="\K[0-9]+' | awk '{s+=$1} END {print s}')
+            ERRORS=$(grep -h 'testsuite' target/surefire-reports/TEST-*.xml | grep -oP 'errors="\K[0-9]+' | awk '{s+=$1} END {print s}')
+            SKIPPED=$(grep -h 'testsuite' target/surefire-reports/TEST-*.xml | grep -oP 'skipped="\K[0-9]+' | awk '{s+=$1} END {print s}')
+            
+            # Garantir valores padrão se grep não encontrar nada
+            TOTAL=${TOTAL:-0}
+            FAILURES=${FAILURES:-0}
+            ERRORS=${ERRORS:-0}
+            SKIPPED=${SKIPPED:-0}
+            
             PASSED=$((TOTAL - FAILURES - ERRORS - SKIPPED))
             echo "total=$TOTAL" >> $GITHUB_OUTPUT
             echo "passed=$PASSED" >> $GITHUB_OUTPUT
@@ -486,16 +494,14 @@ jobs:
         id: coverage
         working-directory: ./services/social-service
         run: |
-          if [ -f target/site/jacoco/jacoco.xml ]; then
-            COVERAGE=$(grep -oP 'type="INSTRUCTION".*?missed="\K[0-9]+' target/site/jacoco/jacoco.xml | head -1)
-            COVERED=$(grep -oP 'type="INSTRUCTION".*?covered="\K[0-9]+' target/site/jacoco/jacoco.xml | head -1)
-            TOTAL=$((COVERAGE + COVERED))
-            if [ $TOTAL -gt 0 ]; then
-              PERCENT=$(awk "BEGIN {printf \"%.1f\", ($COVERED / $TOTAL) * 100}")
-              echo "coverage=$PERCENT" >> $GITHUB_OUTPUT
-            else
-              echo "coverage=0" >> $GITHUB_OUTPUT
-            fi
+          if [ -f target/site/jacoco/index.html ]; then
+            # Extrair cobertura do HTML do jacoco
+            COVERAGE=$(grep -oP 'Total[^>]*>.*?([0-9]+)%' target/site/jacoco/index.html | grep -oP '[0-9]+%' | head -1 | tr -d '%')
+            echo "coverage=${COVERAGE:-0}" >> $GITHUB_OUTPUT
+          elif [ -f target/site/jacoco/jacoco.csv ]; then
+            # Extrair do CSV se disponível
+            COVERAGE=$(awk -F',' 'NR==2 {covered=$5; missed=$4; if(covered+missed>0) print int(covered/(covered+missed)*100); else print 0}' target/site/jacoco/jacoco.csv)
+            echo "coverage=${COVERAGE:-0}" >> $GITHUB_OUTPUT
           else
             echo "coverage=0" >> $GITHUB_OUTPUT
           fi
