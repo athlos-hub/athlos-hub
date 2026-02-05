@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Users, Calendar, Trophy, Building2, Shield, ArrowLeft, CheckCircle, Loader2, UserPlus, XCircle, Clock } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,13 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TeamInviteDialog } from "./team-invite-dialog";
 import { TeamPlayersSection } from "./team-players-section";
+import { FollowTeamButton } from "./follow-team-button";
+import { TeamPostsSection } from "./team-posts-section";
 import { TeamRole, TeamStatus } from "@/types/team";
 import type { TeamDetail } from "@/types/team";
 import { requestTeamApproval } from "@/actions/teams";
 import { canApprove } from "@/lib/teams/utils";
+import { getTeamFollowersCount } from "@/actions/team-follow";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
-import Link from "next/link";
 
 interface TeamDetailClientProps {
   team: TeamDetail;
@@ -25,6 +27,22 @@ export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
   const { data: session } = useSession();
   const [team, setTeam] = useState(initialTeam);
   const [isApproving, setIsApproving] = useState(false);
+  const [followersCount, setFollowersCount] = useState<number>(0);
+
+  useEffect(() => {
+    getTeamFollowersCount(team.id).then(setFollowersCount);
+  }, [team.id]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.teamId === team.id) {
+        getTeamFollowersCount(team.id).then(setFollowersCount);
+      }
+    };
+    window.addEventListener("team:follow-changed", handler);
+    return () => window.removeEventListener("team:follow-changed", handler);
+  }, [team.id]);
   
   // Verifica se o usuário logado é capitão
   const isCaptain = team.members?.some(
@@ -143,14 +161,22 @@ export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
                     </Badge>
                   )}
                 </div>
-                {team.competition_name && (
-                  <CardDescription className="flex items-center gap-2 mt-1">
-                    <Trophy className="h-4 w-4 text-main" />
-                    {team.competition_name}
-                  </CardDescription>
-                )}
+                <div className="flex items-center gap-4 mt-2">
+                  <span className="text-sm text-muted-foreground">
+                    {followersCount} seguidor{followersCount !== 1 ? "es" : ""}
+                  </span>
+                </div>
               </div>
             </div>
+            <FollowTeamButton teamId={team.id} />
+          </div>
+          <div className="flex items-center gap-4 mt-1">
+            {team.competition_name && (
+              <CardDescription className="flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-main" />
+                {team.competition_name}
+              </CardDescription>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -232,6 +258,9 @@ export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
       <TeamPlayersSection 
         members={team.members ?? []}
       />
+
+      {/* Posts da equipe */}
+      <TeamPostsSection teamId={team.id} />
     </div>
   );
 }

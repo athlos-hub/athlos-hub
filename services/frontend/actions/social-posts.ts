@@ -105,3 +105,32 @@ export async function getOrganizationPosts(
     throw error;
   }
 }
+
+export async function getTeamPosts(
+  teamId: string,
+  page: number = 0,
+  size: number = 10
+): Promise<{ content: Post[]; totalPages: number; totalElements: number }> {
+  try {
+    const session = await getServerSession(authOptions);
+
+    const response = await axiosAPI<{ 
+      success: boolean;
+      data: { 
+        content: Post[]; 
+        totalPages: number; 
+        totalElements: number;
+      };
+    }>({
+      endpoint: `/social/teams/${teamId}/posts?page=${page}&size=${size}`,
+      method: "GET",
+      withAuth: !!session?.accessToken,
+      bearerToken: session?.accessToken,
+    });
+
+    return response.data.data;
+  } catch (error) {
+    console.error("Failed to get team posts:", error);
+    throw error;
+  }
+}
