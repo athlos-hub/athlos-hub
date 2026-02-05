@@ -115,3 +115,22 @@ export async function finishMatch(matchId: string): Promise<MatchScoreResponse> 
     requireAuth: true,
   });
 }
+
+export interface MatchUpdateData {
+  scheduled_datetime?: string;
+  local?: string;
+}
+
+/**
+ * Atualiza data e local de uma partida
+ */
+export async function updateMatch(
+  matchId: string,
+  data: MatchUpdateData
+): Promise<any> {
+  return competitionsAPI(`/matches/${matchId}`, {
+    method: "PATCH",
+    data,
+    requireAuth: true,
+  });
+}

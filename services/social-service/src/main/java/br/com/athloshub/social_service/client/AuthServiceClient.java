@@ -58,4 +58,10 @@ public interface AuthServiceClient {
     List<OrganizationDTO> getMyOrganizations(
         @RequestHeader("Authorization") String authorization
     );
+    
+    @GetMapping("/api/v1/teams/{teamId}")
+    br.com.athloshub.social_service.dto.auth.TeamDTO getTeamById(
+        @PathVariable("teamId") UUID teamId,
+        @RequestHeader("Authorization") String authorization
+    );
 }

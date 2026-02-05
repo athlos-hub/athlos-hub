@@ -48,11 +48,14 @@ import { getOrganizationBySlug } from "@/actions/organizations";
 import type { Competition, CompetitionPhase } from "@/types/competition";
 import { CompetitionStatus } from "@/types/competition";
 import type { StandingsTeam, PlayerRanking } from "@/actions/rankings";
+import { OrgRole } from "@/types/organization";
 import { toast } from "sonner";
 import Link from "next/link";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Image from "next/image";
+import { EditMatchDialog } from "@/components/matches/edit-match-dialog";
+import { Edit } from "lucide-react";
 
 export default function CompetitionDetailPage() {
   const params = useParams();
@@ -70,6 +73,8 @@ export default function CompetitionDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [activeTab, setActiveTab] = useState("standings");
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [editingMatch, setEditingMatch] = useState<any | null>(null);
   
   // Filtros de jogos
   const [matchStatusFilter, setMatchStatusFilter] = useState<string>("all");
@@ -87,6 +92,18 @@ export default function CompetitionDetailPage() {
       // Carregar dados da competição
       const compData = await getCompetition(competitionId);
       setCompetition(compData);
+
+      // Verificar role do usuário na organização
+      if (session && compData.organization_slug) {
+        try {
+          const orgData = await getOrganizationBySlug(compData.organization_slug, true);
+          if ('role' in orgData) {
+            setUserRole(orgData.role);
+          }
+        } catch (error) {
+          console.error("Erro ao verificar role do usuário:", error);
+        }
+      }
 
       // Carregar standings
       try {
@@ -211,7 +228,18 @@ export default function CompetitionDetailPage() {
 
   // Funções para controlar o status da competição
   const handleStartCompetition = async () => {
-    if (!competition || !competition.organization_slug) {
+    if (!competition) {
+      toast.error("Competição não carregada");
+      return;
+    }
+
+    // Validações antes de iniciar
+    if (!teams || teams.length < 2) {
+      toast.error("É necessário ter pelo menos 2 times inscritos para iniciar a competição");
+      return;
+    }
+
+    if (!competition.organization_slug) {
       toast.error("Informações da organização não encontradas");
       return;
     }
@@ -257,8 +285,8 @@ export default function CompetitionDetailPage() {
   };
 
   // Verificar se o usuário pode gerenciar a competição
-  // TODO: Implementar verificação de permissão via API
-  const canManageCompetition = !!session;
+  // Apenas OWNER e ORGANIZER podem gerenciar
+  const canManageCompetition = session && (userRole === OrgRole.OWNER || userRole === OrgRole.ORGANIZER);
 
   // Efeito para carregar rankings quando mudar a estatística selecionada
   useEffect(() => {
@@ -346,7 +374,7 @@ export default function CompetitionDetailPage() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-main"></div>
         </div>
       </div>
-    );
+    )
   }
 
   if (!competition) {
@@ -788,12 +816,22 @@ export default function CompetitionDetailPage() {
                           </div>
                         </div>
 
-                        <div className="pt-3 border-t">
-                          <Link href={`/jogos/${match.id}`}>
+                        <div className="pt-3 border-t flex gap-2">
+                          <Link href={`/jogos/${match.id}`} className="flex-1">
                             <Button variant="outline" size="sm" className="w-full">
                               Ver detalhes do jogo
                             </Button>
                           </Link>
+                          {canManageCompetition && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => setEditingMatch(match)}
+                              className="px-3"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </Card>
@@ -818,6 +856,16 @@ export default function CompetitionDetailPage() {
           </Tabs>
         </Card>
       </div>
+
+      {/* Modal de Edição de Jogo */}
+      {editingMatch && (
+        <EditMatchDialog
+          open={!!editingMatch}
+          onOpenChange={(open) => !open && setEditingMatch(null)}
+          match={editingMatch}
+          onSuccess={loadCompetitionData}
+        />
+      )}
     </div>
   );
 }

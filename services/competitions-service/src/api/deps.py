@@ -80,9 +80,8 @@ async def get_current_keycloak_id(
         public_key = await get_keycloak_public_key()
         
         # Remove barra final do KEYCLOAK_URL para evitar //realms
-        keycloak_url = settings.KEYCLOAK_URL.rstrip('/')
-        expected_issuer = f"{keycloak_url}/realms/{settings.KEYCLOAK_REALM}"
-        
+        expected_issuer = f"{settings.KEYCLOAK_ISSUER.rstrip('/')}/realms/{settings.KEYCLOAK_REALM}"
+     
         payload = JwtHandler.decode_token(
             token=credentials.credentials,
             public_key=public_key,
@@ -135,8 +134,7 @@ async def get_optional_keycloak_id(
     try:
         public_key = await get_keycloak_public_key()
         
-        keycloak_url = settings.KEYCLOAK_URL.rstrip('/')
-        expected_issuer = f"{keycloak_url}/realms/{settings.KEYCLOAK_REALM}"
+        expected_issuer = f"{settings.KEYCLOAK_ISSUER.rstrip('/')}/realms/{settings.KEYCLOAK_REALM}"
         
         payload = JwtHandler.decode_token(
             token=credentials.credentials,

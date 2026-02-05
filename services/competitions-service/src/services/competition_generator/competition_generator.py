@@ -69,12 +69,27 @@ class StructureGeneratorService:
                 detail="A competição já foi iniciada ou finalizada."
             )
         
-        # 3. Validar ruleset
+        # 3. Criar ruleset padrão se não existir
         if not competition.sport_ruleset:
-            raise HTTPException(
-                status_code=400, 
-                detail="A competição precisa de um Ruleset configurado."
+            logger.warning(f"Competição {competition_id} sem ruleset. Criando ruleset padrão...")
+            from src.models.sport_ruleset import SportRulesetModel
+            
+            default_ruleset = SportRulesetModel(
+                name="Regras Padrão",
+                segment_type="TIME",
+                segments_regular_number=2,
+                overtime_segments=0,
+                penalty_segments=0,
+                has_break_segments=True
             )
+            self.session.add(default_ruleset)
+            await self.session.flush()
+            
+            competition.sport_ruleset_id = default_ruleset.id
+            competition.sport_ruleset = default_ruleset
+            await self.session.flush()
+            
+            logger.info(f"Ruleset padrão {default_ruleset.id} criado para competição {competition_id}")
         
         # 4. Buscar times
         teams_query = select(TeamModel).where(TeamModel.competition_id == competition_id)

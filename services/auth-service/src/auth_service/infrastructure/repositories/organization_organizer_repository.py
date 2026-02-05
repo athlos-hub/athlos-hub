@@ -34,6 +34,15 @@ class OrganizationOrganizerRepository(IOrganizationOrganizerRepository):
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_by_org_and_user(
+        self, org_id: UUID, user_id: UUID
+    ) -> Optional[OrganizationOrganizer]:
+        """
+        Alias para get_organizer.
+        O Service já converteu o KeycloakID para UserID antes de chamar aqui.
+        """
+        return await self.get_organizer(org_id, user_id)
+
     async def get_organizers_by_org(
         self, org_id: UUID
     ) -> Sequence[OrganizationOrganizer]:

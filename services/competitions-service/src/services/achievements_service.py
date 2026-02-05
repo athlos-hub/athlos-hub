@@ -167,7 +167,7 @@ class AchievementsService:
             select(MatchModel)
             .where(
                 MatchModel.competition_id == competition_id,
-                MatchModel.status == MatchStatus.COMPLETED,
+                MatchModel.status == MatchStatus.FINISHED,
                 (MatchModel.home_team_id == team_id) | (MatchModel.away_team_id == team_id)
             )
             .order_by(desc(MatchModel.scheduled_datetime))
@@ -208,7 +208,7 @@ class AchievementsService:
         Args:
             match: Partida finalizada
         """
-        if match.status != MatchStatus.COMPLETED or not match.winner_team_id:
+        if match.status != MatchStatus.FINISHED or not match.winner_team_id:
             return
         
         # Verificar hat-trick para o time vencedor

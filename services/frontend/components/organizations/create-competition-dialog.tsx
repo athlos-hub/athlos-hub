@@ -43,7 +43,7 @@ export function CreateCompetitionDialog({
   const [modalities, setModalities] = useState<Modality[]>([]);
   const [sportRulesets, setSportRulesets] = useState<any[]>([]);
   const [statsRulesets, setStatsRulesets] = useState<any[]>([]);
-  const [rulesetOption, setRulesetOption] = useState<"existing" | "new" | "none">("none");
+  const [rulesetOption, setRulesetOption] = useState<"existing" | "new" | "none">("new"); // Padrão: criar novo ruleset
   const [statsRulesetOption, setStatsRulesetOption] = useState<"existing" | "new" | "none">("none");
   const [selectedRulesetId, setSelectedRulesetId] = useState<string>("");
   const [selectedStatsRulesetId, setSelectedStatsRulesetId] = useState<string>("");
@@ -342,7 +342,7 @@ export function CreateCompetitionDialog({
 
             {/* Seção de Sport Ruleset */}
             <div className="space-y-4 border-t pt-4 mt-4">
-              <Label>Conjunto de Regras Esportivas (Opcional)</Label>
+              <Label>Conjunto de Regras Esportivas *</Label>
               <Select
                 value={rulesetOption}
                 onValueChange={(value: any) => setRulesetOption(value)}
@@ -351,9 +351,8 @@ export function CreateCompetitionDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Nenhum</SelectItem>
-                  <SelectItem value="existing">Usar conjunto existente</SelectItem>
                   <SelectItem value="new">Criar novo conjunto</SelectItem>
+                  <SelectItem value="existing">Usar conjunto existente</SelectItem>
                 </SelectContent>
               </Select>
 

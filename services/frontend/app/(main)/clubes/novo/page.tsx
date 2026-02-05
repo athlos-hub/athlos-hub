@@ -121,6 +121,10 @@ export default function NovoTimePage() {
         abbreviation: abbreviation.toUpperCase(),
         min_members: selectedComp.min_members_per_team || 1,
         max_members: selectedComp.max_members_per_team || 20,
+        captain_keycloak_id: session?.user?.keycloakId || "",
+        players: [
+          { keycloak_id: session?.user?.keycloakId || "" } 
+        ],
       });
 
       toast.success("Time criado com sucesso! Agora você pode convidar jogadores.");
@@ -142,21 +146,11 @@ export default function NovoTimePage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="w-full max-w-2xl">
-        <div className="mb-8">
-          <Link
-            href="/clubes/painel"
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Voltar para meus clubes
-          </Link>
-
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Criar Novo Time
-          </h1>
-          <p className="text-lg text-gray-600">
+    <div className="w-full flex items-center justify-center">
+      <div className="w-full">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-900">Criar Novo Time</h1>
+            <p className="text-muted-foreground mt-1">
             Inscreva seu time em uma competição aberta.
           </p>
         </div>

@@ -15,7 +15,7 @@ export function StreamKeyDisplay({ streamKey }: StreamKeyDisplayProps) {
   const [copied, setCopied] = useState(false);
 
   // URLs do servidor RTMP usando variáveis de ambiente
-  const RTMP_SERVER_URL = process.env.NEXT_PUBLIC_RTMP_SERVER_URL || 'rtmp://localhost';
+  const RTMP_SERVER_URL = process.env.NEXT_PUBLIC_RTMP_SERVER_URL || 'rtmp://athloshub.com.br';
   const RTMP_PORT = process.env.NEXT_PUBLIC_MEDIAMTX_RTMP_PORT || '1935';
   const RTMP_FULL_URL = `${RTMP_SERVER_URL}:${RTMP_PORT}/live`;
 

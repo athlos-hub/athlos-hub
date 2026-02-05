@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = Field(default="RS256")
     KEYCLOAK_URL: str = Field(default="http://keycloak:8080")
     KEYCLOAK_REALM: str = Field(default="athlos")
+    KEYCLOAK_ISSUER: str = "https://athloshub.com.br/keycloak"
 
     COMPETITIONS_DATABASE_USER: str = Field(default="test_user")
     COMPETITIONS_DATABASE_PASSWORD: str = Field(default="test_password")

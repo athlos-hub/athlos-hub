@@ -27,6 +27,7 @@ export const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_REDIRECT_URI: z.string().url().optional(),
+  COMPETITIONS_SERVICE_URL: z.string().url().optional().default('http://localhost:8002'),
 });
 
 export type Env = z.infer<typeof envSchema>;

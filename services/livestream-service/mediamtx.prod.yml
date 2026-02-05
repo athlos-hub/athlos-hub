@@ -20,3 +20,7 @@ authHTTPExclude:
 paths:
   "~^live/.+$":
     source: publisher
+    runOnPublishDone: >
+      curl -X POST http://livestream-service:3333/api/v1/webhooks/on-publish-done
+      -H "Content-Type: application/json"
+      -d '{"path":"$MTX_PATH","protocol":"$MTX_PROTOCOL"}'

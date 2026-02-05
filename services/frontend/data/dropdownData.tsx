@@ -13,12 +13,9 @@ export const dropdownData: Record<string, DropdownData> = {
             {
                 icon: <MdOutlineSportsVolleyball size={32} />,
                 label: "Jogos",
-                description: "Acompanhe jogos e resultados",
+                description: "Acompanhe jogos e transmissões",
                 subItems: [
-                    { label: "Assistir ao Vivo", description: "Transmissões em tempo real", href: "/jogos" },
-                    { label: "Criar Live", description: "Agendar uma transmissão", href: "/jogos/new" },
-                    { label: "Próximos Jogos", description: "Calendário de partidas", href: "/jogos/proximos" },
-                    { label: "Resultados", description: "Histórico de resultados", href: "/jogos/resultados" }
+                    { label: "Lista de Jogos", description: "Veja todos os jogos", href: "/jogos" },
                 ]
             },
             {
@@ -26,10 +23,7 @@ export const dropdownData: Record<string, DropdownData> = {
                 label: "Competições",
                 description: "Acompanhe classificações e rankings",
                 subItems: [
-                    { label: "Tabelas", description: "Classificação dos times", href: "/competicoes/tabelas" },
-                    { label: "Chaveamento", description: "Estrutura das competições", href: "/competicoes/chaveamento" },
-                    { label: "Artilharia", description: "Maiores goleadores", href: "/competicoes/artilharia" },
-                    { label: "Regulamento", description: "Regras das competições", href: "/competicoes/regulamento" }
+                    { label: "Todas as Competições", description: "Explore competições disponíveis", href: "/competitions" },
                 ]
             }
         ]
@@ -42,20 +36,18 @@ export const dropdownData: Record<string, DropdownData> = {
                 label: "Organizações",
                 description: "Gerencie organizações e convites",
                 subItems: [
-                    { label: "Lista Pública", description: "Explorar organizações", href: "/organizations" },
+                    { label: "Explorar Organizações", description: "Lista pública de organizações", href: "/organizations" },
                     { label: "Criar Organização", description: "Iniciar nova organização", href: "/organizations/new" },
-                    { label: "Convites", description: "Convites recebidos", href: "/organizations/invites" },
+                    { label: "Convites Recebidos", description: "Gerencie seus convites", href: "/organizations/invites" },
                 ]
             },
             {
-                icon: <LuBox size={32} />,
-                label: "Clubes",
-                description: "Gerencie seu clube",
+                icon: <GrTrophy size={27} />,
+                label: "Times",
+                description: "Gerencie seus times",
                 subItems: [
-                    { label: "Painel do Clube", description: "Visão geral", href: "/clubes/painel" },
-                    { label: "Elenco", description: "Gerencie atletas", href: "/clubes/elenco" },
-                    { label: "Estrutura", description: "Organização do clube", href: "/clubes/estrutura" },
-                    { label: "Configurações", description: "Ajustes do clube", href: "/clubes/config" }
+                    { label: "Painel de Times", description: "Visão geral dos seus times", href: "/clubes/painel" },
+                    { label: "Criar Novo Time", description: "Iniciar um novo time", href: "/clubes/novo" },
                 ]
             },
         ]
@@ -66,23 +58,20 @@ export const dropdownData: Record<string, DropdownData> = {
             {
                 icon: <FiUsers size={32} />,
                 label: "Comunidade",
-                description: "Conecte-se com atletas",
+                description: "Conecte-se com atletas e times",
                 subItems: [
-                    { label: "Feed", description: "Publicações recentes", href: "/social" },
-                    { label: "Atletas", description: "Encontre atletas", href: "/comunidade/atletas" },
-                    { label: "Clubes", description: "Descubra clubes", href: "/comunidade/clubes" },
-                    { label: "Eventos", description: "Próximos eventos", href: "/comunidade/eventos" },
-                    { label: "Perfil", description: "Seu perfil", href: "/profile" }
+                    { label: "Feed Principal", description: "Publicações recentes", href: "/social" },
+                    { label: "Explorar", description: "Descubra novos conteúdos", href: "/social/explore" },
+                    { label: "Buscar", description: "Encontre pessoas e times", href: "/social/search" },
+                    { label: "Meu Perfil", description: "Seu perfil público", href: "/profile" }
                 ]
             },
             {
-                icon: <IoFootballOutline size={32} />,
+                icon: <BsGraphUp size={32} />,
                 label: "Interações",
-                description: "Engaje com a comunidade",
+                description: "Acompanhe suas atividades",
                 subItems: [
-                    { label: "Mensagens", description: "Conversas privadas", href: "/social/mensagens" },
-                    { label: "Notificações", description: "Atualizações", href: "/notifications" },
-                    { label: "Grupos", description: "Comunidades temáticas", href: "/social/grupos" }
+                    { label: "Notificações", description: "Todas as suas atualizações", href: "/notifications" },
                 ]
             }
         ]

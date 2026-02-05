@@ -331,6 +331,26 @@ async def set_match_score(
     return updated
 
 @router.post(
+    "/{match_id}/start",
+    response_model=MatchResponse,
+    summary="Iniciar jogo (torna status=live)"
+)
+async def start_match(
+    match_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Inicia um jogo que está agendado (scheduled):
+    - Atualiza status para 'live'.
+    - Chamado automaticamente pelo livestream-service quando a transmissão começa.
+    
+    **Sem autenticação**: Endpoint interno chamado pelo livestream-service.
+    """
+    service = ManageMatchesService(session)
+    started_match = await service.start_match(match_id)
+    return started_match
+
+@router.post(
     "/{match_id}/finish",
     response_model=MatchResponse,
     summary="Finalizar jogo"

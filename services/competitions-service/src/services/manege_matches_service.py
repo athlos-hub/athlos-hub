@@ -45,6 +45,12 @@ class ManageMatchesService:
         - Se a competição tiver um StatsRuleSet, exige "player_id" e uma métrica (via "stats_metric_abbreviation").
         - Valida se a métrica pertence ao ruleset e incrementa PlayerStats do jogador para o jogo.
         """
+        
+        # DEBUG: Log dos parâmetros recebidos
+        import logging
+        logger = logging.getLogger("app.scoreboard")
+        logger.info(f"[REGISTER_SCORE] match_id={match_id}, team_side={team_side}, increment={increment}")
+        logger.info(f"[REGISTER_SCORE] segment_id={segment_id}, stats_metric={stats_metric_abbreviation}, player_id={player_id}")
 
         if team_side not in ("home", "away"):
             raise HTTPException(status_code=400, detail="team_side deve ser 'home' ou 'away'.")
@@ -66,12 +72,8 @@ class ManageMatchesService:
         if not match:
             raise HTTPException(status_code=404, detail="Jogo não encontrado.")
 
-        # Verifica se o jogo está no status "live"
-        if match.status != MatchStatus.LIVE:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Não é possível registrar pontuação. O jogo deve estar no status 'live' (status atual: {match.status})."
-            )
+        # DEBUG: Status do jogo
+        logger.info(f"[REGISTER_SCORE] Match status: {match.status}")
 
 
         # 2) Atualiza placar
@@ -111,12 +113,18 @@ class ManageMatchesService:
         rs_q = select(StatsRuleSetModel).where(StatsRuleSetModel.competition_id == match.competition_id)
         rs_res = await self.session.execute(rs_q)
         ruleset = rs_res.scalar_one_or_none()
+        
+        # DEBUG: Stats ruleset
+        logger.info(f"[REGISTER_SCORE] Tem StatsRuleSet? {ruleset is not None}")
 
         if ruleset:
             # Ao existir ruleset, exigimos player e métrica
+            logger.info(f"[REGISTER_SCORE] Validando stats obrigatórios...")
             if not player_id:
+                logger.warning(f"[REGISTER_SCORE] player_id faltando! Recebido: {player_id}")
                 raise HTTPException(status_code=400, detail="player_id é obrigatório quando a competição possui métricas.")
             if not stats_metric_abbreviation:
+                logger.warning(f"[REGISTER_SCORE] stats_metric_abbreviation faltando! Recebido: {stats_metric_abbreviation}")
                 raise HTTPException(status_code=400, detail="stats_metric_abbreviation é obrigatório quando a competição possui métricas.")
 
             # Valida se a métrica existe no ruleset (por abreviação)
@@ -157,8 +165,11 @@ class ManageMatchesService:
         
         # 5) Envia atualização via WebSocket
         try:
+            logger.info(f"[REGISTER_SCORE] Preparando broadcast para match {match_id}")
             scoreboard_service = ScoreboardService(self.session)
             scoreboard = await scoreboard_service.get_scoreboard(match_id)
+            logger.info(f"[REGISTER_SCORE] Scoreboard obtido: home={scoreboard.home_total_score}, away={scoreboard.away_total_score}")
+            
             await scoreboard_manager.broadcast_to_match(
                 str(match_id),
                 {
@@ -166,9 +177,14 @@ class ManageMatchesService:
                     "data": scoreboard.model_dump(mode="json")
                 }
             )
+            logger.info(f"[REGISTER_SCORE] Broadcast enviado com sucesso para match {match_id}")
         except Exception as e:
             # Log mas não falha se o WebSocket der erro
-            print(f"Erro ao enviar atualização via WebSocket: {e}")
+            logger.error(f"[REGISTER_SCORE] Erro ao enviar atualização via WebSocket: {e}", exc_info=True)
+        
+        # 6) Publica evento na live (se existir)
+        # TODO: Implementar quando tiver live_id no match ou endpoint para buscar live por match_id
+        # Atualmente, o frontend já faz isso via publishMatchEvent ao criar estatística
         
         return match
 
@@ -296,6 +312,43 @@ class ManageMatchesService:
         await self.session.refresh(match)
         return match
 
+    async def start_match(self, match_id: uuid.UUID) -> MatchModel:
+        """
+        Inicia uma partida, mudando seu status para LIVE.
+        Usado quando o livestream-service detecta que a transmissão começou.
+        """
+        q_match = (
+            select(MatchModel)
+            .where(MatchModel.id == match_id)
+            .options(
+                selectinload(MatchModel.home_team),
+                selectinload(MatchModel.away_team),
+                selectinload(MatchModel.round)
+            )
+        )
+        result = await self.session.execute(q_match)
+        match: Optional[MatchModel] = result.scalar_one_or_none()
+
+        if not match:
+            raise HTTPException(status_code=404, detail="Jogo não encontrado.")
+
+        # Permite iniciar apenas se estiver SCHEDULED
+        if match.status != MatchStatus.SCHEDULED:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Não é possível iniciar jogo. Deve estar 'scheduled' (status atual: {match.status})."
+            )
+
+        # Muda status para LIVE
+        match.status = MatchStatus.LIVE
+        self.session.add(match)
+        await self.session.commit()
+        await self.session.refresh(match)
+
+        logger.info(f"Partida {match_id} iniciada via livestream-service")
+        
+        return match
+
     async def finalize_match(self, match_id: uuid.UUID) -> MatchModel:
         q_match = (
             select(MatchModel)
@@ -375,7 +428,19 @@ class ManageMatchesService:
         await self._update_standings_after_match(competition, match, total_home, total_away, winner_team_id, assign_points)
 
         await self.session.commit()
-        await self.session.refresh(match)
+        
+        # Recarrega a partida com todos os relacionamentos necessários
+        q_refresh = (
+            select(MatchModel)
+            .where(MatchModel.id == match_id)
+            .options(
+                selectinload(MatchModel.home_team),
+                selectinload(MatchModel.away_team),
+                selectinload(MatchModel.round)
+            )
+        )
+        refresh_result = await self.session.execute(q_refresh)
+        match = refresh_result.scalar_one()
         
         # Verificar conquistas após finalizar a partida
         try:

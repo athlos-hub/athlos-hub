@@ -212,7 +212,7 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
                             ? `/profile/${post.profileId}` 
                             : post.profileType === ProfileType.ORGANIZATION
                             ? `/organizations/${post.profileId}`
-                            : `/teams/${post.profileId}`
+                            : `/clubes/${post.profileId}`
                     }
                     className="shrink-0"
                 >
