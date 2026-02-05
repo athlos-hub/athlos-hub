@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     allowed_origins: str = "http://localhost:3000,http://localhost:8000,http://localhost:8100,https://athloshub.com.br"
 
     # Auth Service
-    auth_service_url: str = "http://localhost:8001"
+    auth_service_url: str = "http://auth-service:8000"
 
     @property
     def cors_origins(self) -> List[str]:

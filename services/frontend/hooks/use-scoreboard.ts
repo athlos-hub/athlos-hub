@@ -25,8 +25,14 @@ export function useScoreboard(matchId: string | null): UseScoreboardReturn {
     if (!matchId) return;
 
     try {
-      // URL do WebSocket (ajuste conforme sua configuração)
-      const wsUrl = `ws://localhost:8001/api/v1/scoreboard/ws/${matchId}`;
+      // URL do WebSocket - usa variável de ambiente
+      const getScoreboardWsUrl = () => {
+        const baseUrl = process.env.NEXT_PUBLIC_SCOREBOARD_WS_URL || 'ws://localhost:8001/api/v1';
+        // Converte http/https para ws/wss
+        return baseUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
+      };
+      
+      const wsUrl = `${getScoreboardWsUrl()}/scoreboard/ws/${matchId}`;
       
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;

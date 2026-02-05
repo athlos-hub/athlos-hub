@@ -14,6 +14,11 @@ export function StreamKeyDisplay({ streamKey }: StreamKeyDisplayProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // URLs do servidor RTMP usando variáveis de ambiente
+  const RTMP_SERVER_URL = process.env.NEXT_PUBLIC_RTMP_SERVER_URL || 'rtmp://localhost';
+  const RTMP_PORT = process.env.NEXT_PUBLIC_MEDIAMTX_RTMP_PORT || '1935';
+  const RTMP_FULL_URL = `${RTMP_SERVER_URL}:${RTMP_PORT}/live`;
+
   const streamKeyDisplay = streamKey;
 
   const handleCopy = async () => {
@@ -73,14 +78,14 @@ export function StreamKeyDisplay({ streamKey }: StreamKeyDisplayProps) {
           </label>
           <div className="flex items-center gap-2">
             <div className="flex-1 bg-muted rounded-md px-3 py-2 font-mono text-sm">
-              rtmp://localhost:1935/live
+              {RTMP_FULL_URL}
             </div>
             <Button
               variant="outline"
               size="icon"
               onClick={async () => {
                 try {
-                  await navigator.clipboard.writeText("rtmp://localhost:1935/live");
+                  await navigator.clipboard.writeText(RTMP_FULL_URL);
                   toast.success("URL copiada!");
                 } catch (error) {
                   toast.error("Erro ao copiar URL");
@@ -100,7 +105,7 @@ export function StreamKeyDisplay({ streamKey }: StreamKeyDisplayProps) {
           <ol className="list-decimal list-inside space-y-1 text-blue-800 dark:text-blue-200">
             <li>Vá em <strong>Configurações → Transmissão</strong></li>
             <li>Serviço: <strong>Personalizado</strong></li>
-            <li>Servidor: <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">rtmp://localhost:1935/live</code></li>
+            <li>Servidor: <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">{RTMP_FULL_URL}</code></li>
             <li>Chave de Transmissão: <em>Cole a stream key acima</em></li>
             <li>Clique em <strong>Iniciar Transmissão</strong></li>
           </ol>

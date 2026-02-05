@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     SECRET_KEY: str = Field(default="test-secret-key-for-development") 
     ALGORITHM: str = Field(default="RS256")
-    KEYCLOAK_URL: str = Field(default="http://localhost:8080")
+    KEYCLOAK_URL: str = Field(default="http://keycloak:8080")
     KEYCLOAK_REALM: str = Field(default="athlos")
 
     COMPETITIONS_DATABASE_USER: str = Field(default="test_user")
@@ -33,16 +33,16 @@ class Settings(BaseSettings):
     COMPETITIONS_DATABASE_URL: str = Field(default="sqlite+aiosqlite:///:memory:")
     COMPETITIONS_DATABASE_SCHEMA: str = Field(default="public")
 
-    LIVESTREAM_SERVICE_URL: str = Field(default="http://localhost:3333")
+    LIVESTREAM_SERVICE_URL: str = Field(default="http://livestream-service:3333")
     LIVESTREAM_SERVICE_TIMEOUT: int = Field(default=10)
     
-    SOCIAL_SERVICE_URL: str = Field(default="http://localhost:8083")
+    SOCIAL_SERVICE_URL: str = Field(default="http://social-service:8083")
     SOCIAL_SERVICE_TIMEOUT: int = Field(default=10)
 
-    AUTH_SERVICE_URL: str = Field(default="http://localhost:8000")
+    AUTH_SERVICE_URL: str = Field(default="http://auth-service:8000")
     AUTH_SERVICE_TIMEOUT: int = Field(default=10)
     
-    FRONTEND_URL: str = Field(default="http://localhost:3000")
+    FRONTEND_URL: str = Field(default="https://athloshub.com.br")
 
     DB_POOL_MIN_SIZE: int = Field(default=2)
     DB_POOL_MAX_SIZE: int = Field(default=10)
