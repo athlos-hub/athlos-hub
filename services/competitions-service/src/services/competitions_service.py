@@ -147,6 +147,7 @@ class CompetitionService:
         query_refresh = (
             select(CompetitionModel)
             .options(
+                selectinload(CompetitionModel.modality),  # Carrega modalidade para organization_slug
                 selectinload(CompetitionModel.sport_ruleset),
                 selectinload(CompetitionModel.stats_ruleset).selectinload(StatsRuleSetModel.stats_types)
             )
@@ -187,6 +188,7 @@ class CompetitionService:
         query = (
             select(CompetitionModel)
             .options(
+                selectinload(CompetitionModel.modality),  # Carrega modalidade para pegar organization_slug
                 selectinload(CompetitionModel.sport_ruleset),
                 selectinload(CompetitionModel.stats_ruleset).selectinload(StatsRuleSetModel.stats_types)
             )

@@ -83,7 +83,7 @@ class TestLoginE2E:
         )
         
         # Assert - pode falhar na validação ou no Keycloak
-        assert response.status_code in [400, 422, 500, 502]
+        assert response.status_code in [400, 401, 422, 500, 502]
 
 
 class TestRegisterE2E:

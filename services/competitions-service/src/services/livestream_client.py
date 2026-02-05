@@ -139,3 +139,53 @@ class LivestreamClient:
         except Exception as e:
             logger.warning(f"Health check falhou: {e}")
             return False
+    
+    async def publish_match_event(
+        self,
+        live_id: str,
+        event_type: str,
+        payload: Dict[str, Any],
+        auth_token: Optional[str] = None
+    ) -> bool:
+        """
+        Publica um evento de partida na timeline da live
+        
+        Args:
+            live_id: ID da live
+            event_type: Tipo do evento (SCORE, FOUL, etc)
+            payload: Dados do evento
+            auth_token: Token JWT para autenticação (opcional)
+            
+        Returns:
+            True se o evento foi publicado com sucesso, False caso contrário
+        """
+        if not self._client:
+            raise RuntimeError("Cliente não inicializado. Use async with LivestreamClient()")
+        
+        try:
+            headers = {}
+            if auth_token:
+                headers["Authorization"] = f"Bearer {auth_token}"
+            
+            logger.info(f"Publicando evento {event_type} para live {live_id}")
+            
+            response = await self._client.post(
+                f"/api/v1/lives/{live_id}/events",
+                json={"type": event_type, "payload": payload},
+                headers=headers
+            )
+            
+            response.raise_for_status()
+            logger.info(f"Evento {event_type} publicado com sucesso na live {live_id}")
+            return True
+            
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                f"Erro HTTP ao publicar evento na live {live_id}: "
+                f"Status {e.response.status_code} - {e.response.text}"
+            )
+            return False
+            
+        except Exception as e:
+            logger.error(f"Erro ao publicar evento na live {live_id}: {e}")
+            return False

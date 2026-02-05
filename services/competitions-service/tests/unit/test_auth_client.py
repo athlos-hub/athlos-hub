@@ -47,7 +47,7 @@ class TestAuthClient:
             async with AuthClient(base_url="http://localhost:8000") as client:
                 result = await client.validate_organization_members(
                     organization_slug="test-org",
-                    user_ids=[user_id_1, user_id_2]
+                    keycloak_ids=[user_id_1, user_id_2]
                 )
             
             assert result["all_valid"] is True
@@ -82,7 +82,7 @@ class TestAuthClient:
                 with pytest.raises(MemberValidationFailed) as exc_info:
                     await client.validate_organization_members(
                         organization_slug="test-org",
-                        user_ids=[user_id_1, user_id_2]
+                        keycloak_ids=[user_id_1, user_id_2]
                     )
             
             assert len(exc_info.value.invalid_users) == 1
@@ -113,7 +113,7 @@ class TestAuthClient:
                 with pytest.raises(OrganizationNotFound):
                     await client.validate_organization_members(
                         organization_slug="nonexistent",
-                        user_ids=[user_id]
+                        keycloak_ids=[user_id]
                     )
 
     @pytest.mark.asyncio
@@ -128,7 +128,7 @@ class TestAuthClient:
                 with pytest.raises(AuthServiceUnavailable):
                     await client.validate_organization_members(
                         organization_slug="test-org",
-                        user_ids=[user_id]
+                        keycloak_ids=[user_id]
                     )
 
     @pytest.mark.asyncio
@@ -143,7 +143,7 @@ class TestAuthClient:
                 with pytest.raises(AuthServiceUnavailable):
                     await client.validate_organization_members(
                         organization_slug="test-org",
-                        user_ids=[user_id]
+                        keycloak_ids=[user_id]
                     )
 
     @pytest.mark.asyncio
@@ -200,7 +200,7 @@ class TestAuthClient:
         with pytest.raises(RuntimeError, match="Cliente não inicializado"):
             await client.validate_organization_members(
                 organization_slug="test-org",
-                user_ids=[uuid4()]
+                keycloak_ids=[uuid4()]
             )
 
     def test_get_auth_client_factory(self):

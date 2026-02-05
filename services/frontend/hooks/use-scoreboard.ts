@@ -27,7 +27,7 @@ export function useScoreboard(matchId: string | null): UseScoreboardReturn {
     try {
       // URL do WebSocket - usa variável de ambiente
       const getScoreboardWsUrl = () => {
-        const baseUrl = process.env.NEXT_PUBLIC_SCOREBOARD_WS_URL || 'ws://localhost:8001/api/v1';
+        const baseUrl = process.env.NEXT_PUBLIC_SCOREBOARD_WS_URL || 'wss://athloshub.com.br/api/v1';
         // Converte http/https para ws/wss
         return baseUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
       };
@@ -46,18 +46,24 @@ export function useScoreboard(matchId: string | null): UseScoreboardReturn {
 
       ws.onmessage = (event) => {
         try {
+          console.log('[Scoreboard] Mensagem recebida:', event.data);
           const message = JSON.parse(event.data);
+          console.log('[Scoreboard] Mensagem parseada:', message.type, message);
           
           if (message.type === 'initial_scoreboard' || message.type === 'scoreboard_update') {
+            console.log('[Scoreboard] Atualizando scoreboard:', message.data);
             setScoreboard(message.data);
           } else if (message.type === 'error') {
             console.error('[Scoreboard] Erro do servidor:', message.message);
             setError(message.message);
           } else if (message.type === 'pong') {
+            console.log('[Scoreboard] Pong recebido');
             // Resposta ao ping - conexão está ativa
+          } else {
+            console.warn('[Scoreboard] Tipo de mensagem desconhecido:', message.type);
           }
         } catch (err) {
-          console.error('[Scoreboard] Erro ao processar mensagem:', err);
+          console.error('[Scoreboard] Erro ao processar mensagem:', err, event.data);
         }
       };
 

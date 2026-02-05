@@ -15,8 +15,8 @@ from src.models.matches import RoundModel, MatchModel
 pytestmark = pytest.mark.asyncio
 
 
-async def _create_modality(session: AsyncSession, org_code: str = "ORG1") -> ModalityModel:
-    modality = ModalityModel(name="Futebol", org_code=org_code)
+async def _create_modality(session: AsyncSession, organization_slug: str = "ORG1") -> ModalityModel:
+    modality = ModalityModel(name="Futebol", organization_slug=organization_slug)
     session.add(modality)
     await session.commit()
     await session.refresh(modality)
@@ -94,7 +94,7 @@ async def test_create_list_get_competitions(client: AsyncClient, session: AsyncS
 
 
 async def test_generate_structure_endpoint(client: AsyncClient, session: AsyncSession):
-    modality = await _create_modality(session, org_code="ORG2")
+    modality = await _create_modality(session, organization_slug="ORG2")
     ruleset = await _create_ruleset(session)
     organization_id = str(uuid.uuid4())
 
@@ -114,8 +114,8 @@ async def test_generate_structure_endpoint(client: AsyncClient, session: AsyncSe
     await session.commit()
     await session.refresh(competition)
 
-    team_a = TeamModel(org_code="ORG2", competition_id=competition.id, name="Time A", abbreviation="TA")
-    team_b = TeamModel(org_code="ORG2", competition_id=competition.id, name="Time B", abbreviation="TB")
+    team_a = TeamModel(organization_slug="ORG2", competition_id=competition.id, name="Time A", abbreviation="TA")
+    team_b = TeamModel(organization_slug="ORG2", competition_id=competition.id, name="Time B", abbreviation="TB")
     session.add_all([team_a, team_b])
     await session.commit()
 

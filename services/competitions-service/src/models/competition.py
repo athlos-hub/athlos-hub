@@ -67,3 +67,8 @@ class CompetitionModel(Base):
         back_populates="competition",
         uselist=False
     )
+    
+    @property
+    def organization_slug(self) -> Optional[str]:
+        """Retorna o organization_slug da modalidade associada."""
+        return self.modality.organization_slug if self.modality else None

@@ -13,7 +13,7 @@ export async function listModalities(
     queryParams.organization_slug = organization_slug;
   }
   const response = await axiosAPI<Modality[]>({
-    endpoint: "/modalities",
+    endpoint: "/modalities/",
     method: "GET",
     queryParams,
     withAuth: false,
@@ -27,7 +27,7 @@ export async function createModality(
   data: ModalityCreate
 ): Promise<Modality> {
   const response = await axiosAPI<Modality>({
-    endpoint: "/modalities",
+    endpoint: "/modalities/",
     method: "POST",
     data: data as unknown as Record<string, unknown>,
     withAuth: true,

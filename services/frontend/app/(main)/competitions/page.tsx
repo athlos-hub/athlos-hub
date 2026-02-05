@@ -149,15 +149,12 @@ export default function CompetitionsPage() {
 
   return (
     <div className="min-h-screen">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container">
         <div className="space-y-6">
           {/* Cabeçalho */}
           <div>
-            <div className="flex items-center gap-3 mb-2">
-              <Trophy className="w-8 h-8 text-main" />
-              <h1 className="text-3xl font-bold text-gray-900">Competições</h1>
-            </div>
-            <p className="text-gray-600">
+            <h1 className="text-3xl font-bold text-gray-900">Competições</h1>
+            <p className="text-muted-foreground mt-1">
               Explore todas as competições das organizações públicas
             </p>
           </div>

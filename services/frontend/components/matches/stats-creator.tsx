@@ -173,21 +173,33 @@ export function StatsCreator({
       });
 
       // 2. Publica evento na timeline se tiver liveId
-      if (liveId && statsRuleSet && selectedStatType && selectedPlayerId) {
-        const selectedStat = statsRuleSet.stats_types.find(s => s.abbreviation === selectedStatType);
-        const player = getPlayersForSelectedTeam().find(p => p.id === selectedPlayerId);
+      if (liveId) {
+        console.log('[STATS] Publicando evento na live:', liveId);
+        
         const teamName = getTeamName(teamSide as "home" | "away");
-
         const payload: Record<string, unknown> = {
-          statId: selectedStat?.id,
-          statName: selectedStat?.name,
-          statAbbreviation: selectedStatType,
-          playerId: selectedPlayerId,
-          playerName: player?.name || `${player?.id.slice(0, 8)} - ${teamName}`,
-          playerTeam: teamName,
+          team: teamName,
+          teamSide,
           value: increment,
         };
 
+        let eventType = MatchEventType.SCORE; // Padrão: evento de placar
+
+        // Se tem stats completas (statsRuleSet, stat type e player), usa CUSTOM
+        if (statsRuleSet && selectedStatType && selectedPlayerId) {
+          const selectedStat = statsRuleSet.stats_types.find(s => s.abbreviation === selectedStatType);
+          const player = getPlayersForSelectedTeam().find(p => p.id === selectedPlayerId);
+          
+          payload.statId = selectedStat?.id;
+          payload.statName = selectedStat?.name;
+          payload.statAbbreviation = selectedStatType;
+          payload.playerId = selectedPlayerId;
+          payload.playerName = player?.name || `${player?.id.slice(0, 8)} - ${teamName}`;
+          
+          eventType = MatchEventType.CUSTOM; // Evento customizado com stats
+        }
+
+        // Informações opcionais
         if (description) payload.description = description;
         if (minute) payload.minute = minute;
         
@@ -199,10 +211,19 @@ export function StatsCreator({
           }
         }
 
-        await publishMatchEvent(liveId, {
-          type: MatchEventType.CUSTOM,
-          payload,
-        });
+        try {
+          console.log('[STATS] Enviando evento:', { type: eventType, payload });
+          await publishMatchEvent(liveId, {
+            type: eventType,
+            payload,
+          });
+          console.log('[STATS] Evento publicado com sucesso na live');
+        } catch (error) {
+          console.error('[STATS] Erro ao publicar evento na live:', error);
+          // Não quebra o fluxo se falhar
+        }
+      } else {
+        console.log('[STATS] Sem liveId, evento não será publicado na timeline');
       }
 
       toast.success("Estatística registrada com sucesso!");
@@ -228,7 +249,7 @@ export function StatsCreator({
       <DialogTrigger asChild>
         <Button size="sm" className="gap-1.5 h-8 text-xs bg-main hover:bg-main/90 text-white">
           <Plus className="w-3.5 h-3.5" />
-          Registrar Stat
+          Registrar Estatística
         </Button>
       </DialogTrigger>
       

@@ -147,6 +147,8 @@ export interface TeamCreateRequest {
   abbreviation: string;
   min_members?: number;
   max_members?: number;
+  captain_keycloak_id: string;
+  players: { keycloak_id: string }[];
 }
 
 export interface TeamCreateResponse extends TeamResponse {}

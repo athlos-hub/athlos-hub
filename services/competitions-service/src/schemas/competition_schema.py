@@ -79,6 +79,7 @@ class CompetitionUpdate(BaseModel):
 class CompetitionResponse(CompetitionBase):
     id: int
     status: CompetitionStatus
+    organization_slug: Optional[str] = None  # Adicionado para facilitar verificações de permissão
     
     # Retorna o ID da regra vinculada (opcional)
     sport_ruleset_id: Optional[int] = None

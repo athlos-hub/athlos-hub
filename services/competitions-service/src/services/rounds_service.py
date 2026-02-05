@@ -103,7 +103,7 @@ class RoundsService:
             select(RoundModel)
             .join(RoundModel.competition)    # Join com Competition
             .join(CompetitionModel.modality) # Join com Modality
-            .where(ModalityModel.org_code == org_code)
+            .where(ModalityModel.organization_slug == organization_slug)
             .order_by(CompetitionModel.id, RoundModel.id) # Ordena por competição e depois por rodada
             .options(
                 # Carregamento profundo para montar a resposta completa

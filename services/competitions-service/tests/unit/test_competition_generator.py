@@ -33,8 +33,8 @@ async def test_structure_generator_points_calls_league():
     competition.sport_ruleset = MagicMock()
 
     teams = [
-        TeamModel(id=uuid.uuid4(), competition_id=1, org_code="ORG", name="Team A", abbreviation="A"),
-        TeamModel(id=uuid.uuid4(), competition_id=1, org_code="ORG", name="Team B", abbreviation="B")
+        TeamModel(id=uuid.uuid4(), competition_id=1, organization_slug="ORG", name="Team A", abbreviation="A"),
+        TeamModel(id=uuid.uuid4(), competition_id=1, organization_slug="ORG", name="Team B", abbreviation="B")
     ]
 
     mock_result_competition = MagicMock()
@@ -123,10 +123,10 @@ async def test_end_group_phase_success_updates_matches():
     group_a = GroupModel(id=1, competition_id=1, name="Grupo A")
     group_b = GroupModel(id=2, competition_id=1, name="Grupo B")
 
-    team_a1 = TeamModel(id=uuid.uuid4(), competition_id=1, org_code="ORG", name="A1", abbreviation="A1")
-    team_a2 = TeamModel(id=uuid.uuid4(), competition_id=1, org_code="ORG", name="A2", abbreviation="A2")
-    team_b1 = TeamModel(id=uuid.uuid4(), competition_id=1, org_code="ORG", name="B1", abbreviation="B1")
-    team_b2 = TeamModel(id=uuid.uuid4(), competition_id=1, org_code="ORG", name="B2", abbreviation="B2")
+    team_a1 = TeamModel(id=uuid.uuid4(), competition_id=1, organization_slug="ORG", name="A1", abbreviation="A1")
+    team_a2 = TeamModel(id=uuid.uuid4(), competition_id=1, organization_slug="ORG", name="A2", abbreviation="A2")
+    team_b1 = TeamModel(id=uuid.uuid4(), competition_id=1, organization_slug="ORG", name="B1", abbreviation="B1")
+    team_b2 = TeamModel(id=uuid.uuid4(), competition_id=1, organization_slug="ORG", name="B2", abbreviation="B2")
 
     class_a1 = ClassificationModel(group_id=group_a.id)
     class_a1.team = team_a1
@@ -213,10 +213,10 @@ async def test_generate_league_system_creates_rounds_matches():
     competition.sport_ruleset = MagicMock()
 
     teams = [
-        TeamModel(id=uuid.uuid4(), competition_id=1, org_code="ORG", name="A", abbreviation="A"),
-        TeamModel(id=uuid.uuid4(), competition_id=1, org_code="ORG", name="B", abbreviation="B"),
-        TeamModel(id=uuid.uuid4(), competition_id=1, org_code="ORG", name="C", abbreviation="C"),
-        TeamModel(id=uuid.uuid4(), competition_id=1, org_code="ORG", name="D", abbreviation="D")
+        TeamModel(id=uuid.uuid4(), competition_id=1, organization_slug="ORG", name="A", abbreviation="A"),
+        TeamModel(id=uuid.uuid4(), competition_id=1, organization_slug="ORG", name="B", abbreviation="B"),
+        TeamModel(id=uuid.uuid4(), competition_id=1, organization_slug="ORG", name="C", abbreviation="C"),
+        TeamModel(id=uuid.uuid4(), competition_id=1, organization_slug="ORG", name="D", abbreviation="D")
     ]
 
     with patch("src.services.competition_generator.generate_league.util.create_segments_for_match", return_value=[], create=True):

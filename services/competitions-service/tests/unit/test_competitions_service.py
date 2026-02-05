@@ -19,7 +19,7 @@ async def test_create_competition_with_new_ruleset():
     service = CompetitionService(mock_session)
 
     # Mock da modalidade existente
-    mock_modality = ModalityModel(id=1, name="Futebol", org_code="ORG1")
+    mock_modality = ModalityModel(id=1, name="Futebol", organization_slug="ORG1")
 
     # Dados de entrada
     ruleset_data = SportRulesetCreate(
@@ -84,7 +84,7 @@ async def test_create_competition_with_existing_ruleset():
     service = CompetitionService(mock_session)
 
     # Mocks
-    mock_modality = ModalityModel(id=1, name="Futebol", org_code="ORG1")
+    mock_modality = ModalityModel(id=1, name="Futebol", organization_slug="ORG1")
     mock_existing_ruleset = SportRulesetModel(
         id=5,
         name="Regras FIFA",
@@ -169,7 +169,7 @@ async def test_create_competition_invalid_ruleset_id():
     mock_session = AsyncMock(spec=AsyncSession)
     service = CompetitionService(mock_session)
 
-    mock_modality = ModalityModel(id=1, name="Futebol", org_code="ORG1")
+    mock_modality = ModalityModel(id=1, name="Futebol", organization_slug="ORG1")
     
     competition_data = CompetitionCreate(
         name="Campeonato Test",

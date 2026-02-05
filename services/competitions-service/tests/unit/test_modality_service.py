@@ -12,9 +12,16 @@ pytestmark = pytest.mark.asyncio
 async def test_create_modality_success():
     """Testa criação de modalidade com sucesso"""
     mock_session = AsyncMock(spec=AsyncSession)
-    service = ModalityService(mock_session)
+    mock_auth_client = AsyncMock()
+    mock_auth_client.__aenter__ = AsyncMock(return_value=mock_auth_client)
+    mock_auth_client.__aexit__ = AsyncMock(return_value=None)
+    mock_auth_client.check_organization_exists = AsyncMock(
+        return_value={"exists": True}
+    )
+    
+    service = ModalityService(mock_session, auth_client=mock_auth_client)
 
-    modality_in = ModalityCreateSchema(name="Tênis", org_code="ATP")
+    modality_in = ModalityCreateSchema(name="Tênis", organization_slug="ATP")
 
     # Execução
     result = await service.create_modality(modality_in)
@@ -25,15 +32,22 @@ async def test_create_modality_success():
     
     assert isinstance(result, ModalityModel)
     assert result.name == "Tênis"
-    assert result.org_code == "ATP"
+    assert result.organization_slug == "ATP"
 
 
 async def test_create_modality_football():
     """Testa criação de modalidade Futebol"""
     mock_session = AsyncMock(spec=AsyncSession)
-    service = ModalityService(mock_session)
+    mock_auth_client = AsyncMock()
+    mock_auth_client.__aenter__ = AsyncMock(return_value=mock_auth_client)
+    mock_auth_client.__aexit__ = AsyncMock(return_value=None)
+    mock_auth_client.check_organization_exists = AsyncMock(
+        return_value={"exists": True}
+    )
+    
+    service = ModalityService(mock_session, auth_client=mock_auth_client)
 
-    modality_in = ModalityCreateSchema(name="Futebol", org_code="CBF")
+    modality_in = ModalityCreateSchema(name="Futebol", organization_slug="CBF")
 
     # Execução
     result = await service.create_modality(modality_in)
@@ -43,7 +57,7 @@ async def test_create_modality_football():
     mock_session.flush.assert_called_once()
     
     assert result.name == "Futebol"
-    assert result.org_code == "CBF"
+    assert result.organization_slug == "CBF"
 
 
 async def test_get_all_modalities():
@@ -53,9 +67,9 @@ async def test_get_all_modalities():
 
     # Mock de modalidades
     mock_modalities = [
-        ModalityModel(id=1, name="Futebol", org_code="ORG1"),
-        ModalityModel(id=2, name="Basquete", org_code="ORG1"),
-        ModalityModel(id=3, name="Vôlei", org_code="ORG2"),
+        ModalityModel(id=1, name="Futebol", organization_slug="ORG1"),
+        ModalityModel(id=2, name="Basquete", organization_slug="ORG1"),
+        ModalityModel(id=3, name="Vôlei", organization_slug="ORG2"),
     ]
 
     # Configurar mock corretamente para chamadas encadeadas assíncronas
@@ -70,7 +84,7 @@ async def test_get_all_modalities():
     assert len(result) == 3
     assert result[0].name == "Futebol"
     assert result[1].name == "Basquete"
-    assert result[2].org_code == "ORG2"
+    assert result[2].organization_slug == "ORG2"
     mock_session.execute.assert_called_once()
 
 
@@ -80,8 +94,8 @@ async def test_get_all_modalities_with_pagination():
     service = ModalityService(mock_session)
 
     mock_modalities = [
-        ModalityModel(id=11, name="Natação", org_code="ORG1"),
-        ModalityModel(id=12, name="Atletismo", org_code="ORG1"),
+        ModalityModel(id=11, name="Natação", organization_slug="ORG1"),
+        ModalityModel(id=12, name="Atletismo", organization_slug="ORG1"),
     ]
 
     mock_result = MagicMock()
@@ -121,7 +135,7 @@ async def test_get_all_modalities_default_params():
     service = ModalityService(mock_session)
 
     mock_modalities = [
-        ModalityModel(id=1, name="Futebol", org_code="ORG1"),
+        ModalityModel(id=1, name="Futebol", organization_slug="ORG1"),
     ]
 
     mock_result = MagicMock()

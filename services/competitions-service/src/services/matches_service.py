@@ -260,7 +260,8 @@ class MatchesService:
                     detail="Não é possível agendar um jogo para uma data no passado."
                 )
             
-            match.scheduled_datetime = update_data.scheduled_datetime
+            # IMPORTANTE: Salvar sem timezone (naive) pois o banco é TIMESTAMP WITHOUT TIME ZONE
+            match.scheduled_datetime = new_date
             
             # Se o jogo estava PENDENTE (sem data), agora está AGENDADO
             if match.status == MatchStatus.PENDING:

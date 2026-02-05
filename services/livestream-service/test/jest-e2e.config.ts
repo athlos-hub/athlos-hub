@@ -1,6 +1,4 @@
-import type { Config } from 'jest';
-
-const config: Config = {
+module.exports = {
   preset: 'ts-jest',
   moduleFileExtensions: ['js', 'json', 'ts'],
   rootDir: '..',
@@ -20,5 +18,3 @@ const config: Config = {
   testTimeout: 30000,
   maxWorkers: 1, // Run tests sequentially to avoid DB conflicts
 };
-
-export default config;

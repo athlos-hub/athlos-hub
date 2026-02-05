@@ -14,6 +14,9 @@ describe('ValidateStreamKeyService', () => {
     findById: jest.Mock;
     save: jest.Mock;
   };
+  let competitionsClient: {
+    startMatch: jest.Mock;
+  };
 
   beforeEach(async () => {
     streamKeyRepo = {
@@ -24,12 +27,16 @@ describe('ValidateStreamKeyService', () => {
       findById: jest.fn(),
       save: jest.fn(),
     };
+    competitionsClient = {
+      startMatch: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ValidateStreamKeyService,
         { provide: 'IStreamKeyRepository', useValue: streamKeyRepo },
         { provide: 'ILiveRepository', useValue: liveRepo },
+        { provide: 'CompetitionsClientService', useValue: competitionsClient },
       ],
     }).compile();
 
@@ -66,6 +73,7 @@ describe('ValidateStreamKeyService', () => {
 
     expect(streamKeyRepo.markAsActive).toHaveBeenCalledWith('key-1');
     expect(liveRepo.save).toHaveBeenCalledWith(live);
+    expect(competitionsClient.startMatch).toHaveBeenCalledWith('match-1');
     expect(result).toBe('live-1');
   });
 

@@ -9,7 +9,9 @@ interface HLSPlayerProps {
   autoPlay?: boolean;
 }
 
-const HLS_BASE_URL = process.env.NEXT_PUBLIC_HLS_URL || "http://localhost:8888";
+const HLS_BASE_URL = process.env.NEXT_PUBLIC_HLS_URL || "https://athloshub.com.br";
+const baseUrl = HLS_BASE_URL.endsWith('/live') ? HLS_BASE_URL : `${HLS_BASE_URL}/live`;
+
 
 export function HLSPlayer({ streamKey, isLive, autoPlay = true }: HLSPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -44,7 +46,12 @@ export function HLSPlayer({ streamKey, isLive, autoPlay = true }: HLSPlayerProps
     if (!videoRef.current || !isLive) return;
 
     const video = videoRef.current;
-    const streamUrl = `${HLS_BASE_URL}/live/${streamKey}/index.m3u8`;
+    const streamUrl = `${baseUrl}/${streamKey}/index.m3u8`;
+    
+    console.log('=== DEBUG HLS ===');
+    console.log('HLS_BASE_URL:', HLS_BASE_URL);
+    console.log('Stream Key:', streamKey);
+    console.log('URL completa:', streamUrl);
 
     const loadStream = (attempt: number = 0) => {
       if (retryTimeoutRef.current) {
@@ -105,6 +112,13 @@ export function HLSPlayer({ streamKey, isLive, autoPlay = true }: HLSPlayerProps
         });
 
         hls.on(Hls.Events.ERROR, (event, data) => {
+          console.error('=== ERRO HLS ===');
+          console.error('Fatal?', data.fatal);
+          console.error('Type:', data.type);
+          console.error('Details:', data.details);
+          console.error('Error:', data.error);
+          console.error('Response:', data.response);
+          
           if (!data.fatal) {
             return;
           }

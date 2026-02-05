@@ -147,6 +147,8 @@ services:
       - "8889:8889"
       - "8890:8890/udp"
       - "8189:8189/udp"
+    volumes:
+      - ./services/livestream-service/mediamtx.prod.yml:/mediamtx.yml:ro
     networks:
       - athlos-network
     restart: unless-stopped
@@ -299,6 +301,7 @@ services:
       - GOOGLE_CLIENT_SECRET=${LIVESTREAM_GOOGLE_CLIENT_SECRET}
       - GOOGLE_REDIRECT_URI=${LIVESTREAM_GOOGLE_REDIRECT_URI}
       - AUTH_SERVICE_URL=http://auth-service:8000
+      - COMPETITIONS_SERVICE_URL=http://competitions-service:8001
     depends_on:
       postgres:
         condition: service_healthy

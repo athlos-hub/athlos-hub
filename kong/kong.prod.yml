@@ -8,12 +8,22 @@ services:
       - name: auth-routes
         paths: ["/api/v1/auth", "/api/v1/users", "/api/v1/organizations", "/api/v1/admin", "/api/v1/health"]
         strip_path: false
+      
+      # Rotas de teams - auth-service gerencia criação e aprovação
+      - name: auth-teams-routes
+        paths: ["/api/v1/teams"]
+        strip_path: false
 
   - name: competitions-service
     url: http://competitions-service:8001
     routes:
       - name: competitions-routes
-        paths: ["/api/v1/competitions", "/api/v1/matches", "/api/v1/teams", "/api/v1/modalities"]
+        paths: ["/api/v1/competitions", "/api/v1/matches", "/api/v1/modalities"]
+        strip_path: false
+      
+      # Rota interna - recebe times aprovados do auth-service
+      - name: competitions-internal-routes
+        paths: ["/api/v1/internal"]
         strip_path: false
 
   - name: mediamtx-hls
@@ -27,6 +37,8 @@ services:
           - https
         strip_path: false
         preserve_host: true
+        request_buffering: false
+        response_buffering: false
 
   - name: livestream-service
     url: http://livestream-service:3333
@@ -92,7 +104,7 @@ services:
 plugins:
   - name: cors
     config:
-      origins: ["http://athloshub.com.br"]
+      origins: ["http://athloshub.com.br", "https://athloshub.com.br"]
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"]
       headers: 
         - "Accept"

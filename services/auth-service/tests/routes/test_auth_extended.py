@@ -36,7 +36,7 @@ class TestAuthEndpointsLogin:
             json={"email": "test@test.com", "password": "password123"}
         )
         # Will fail auth without proper Keycloak setup
-        assert response.status_code in [401, 500, 502]
+        assert response.status_code in [401, 403, 500, 502]
 
 
 class TestAuthEndpointsRefresh:

@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import type { IStreamKeyRepository } from '../../lives/domain/repositories/stream-key.interface.js';
 import type { ILiveRepository } from '../../lives/domain/repositories/livestream.interface.js';
+import { CompetitionsClientService } from './competitions-client.service.js';
 
 @Injectable()
 export class ValidateStreamKeyService {
@@ -17,6 +18,7 @@ export class ValidateStreamKeyService {
     private streamKeyRepo: IStreamKeyRepository,
     @Inject('ILiveRepository')
     private liveRepo: ILiveRepository,
+    private competitionsClient: CompetitionsClientService,
   ) {}
 
   async execute(streamKey: string): Promise<string> {
@@ -47,6 +49,9 @@ export class ValidateStreamKeyService {
       live.start();
       await this.liveRepo.save(live);
       this.logger.log(`Live ${live.id} iniciada automaticamente`);
+      
+      // Notifica competitions-service para iniciar a partida
+      await this.competitionsClient.startMatch(live.externalMatchId);
     }
 
     return live.id;

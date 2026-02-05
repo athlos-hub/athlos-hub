@@ -1,5 +1,29 @@
 """Pytest configuration and shared fixtures for auth-service tests."""
 
+import os
+
+# Configurar variáveis de ambiente necessárias antes de qualquer importação
+os.environ.setdefault("ALGORITHM", "HS256")
+os.environ.setdefault("GOOGLE_CLIENT_ID", "test-google-client-id")
+os.environ.setdefault("GOOGLE_CLIENT_SECRET", "test-google-client-secret")
+os.environ.setdefault("GOOGLE_REDIRECT_URI", "http://localhost:3000/auth/callback")
+os.environ.setdefault("SECRET_KEY", "test-secret-key-for-testing-only")
+os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
+os.environ.setdefault("DATABASE_HOST", "localhost")
+os.environ.setdefault("DATABASE_PORT", "5432")
+os.environ.setdefault("DATABASE_NAME", "test_db")
+os.environ.setdefault("KEYCLOAK_DATABASE_URL", "postgresql://test:test@localhost:5432/keycloak")
+os.environ.setdefault("KEYCLOAK_DATABASE_USER", "test")
+os.environ.setdefault("KEYCLOAK_DATABASE_PASSWORD", "test")
+os.environ.setdefault("AUTH_DATABASE_USER", "test")
+os.environ.setdefault("AUTH_DATABASE_PASSWORD", "test")
+os.environ.setdefault("EMAIL_TOKEN_SECRET", "test-email-token-secret")
+os.environ.setdefault("RESEND_API_KEY", "test-resend-api-key")
+os.environ.setdefault("AWS_BUCKET_REGION", "us-east-1")
+os.environ.setdefault("AWS_BUCKET_NAME", "test-bucket")
+os.environ.setdefault("AWS_BUCKET_ACCESS_KEY_ID", "test-access-key")
+os.environ.setdefault("AWS_BUCKET_SECRET_ACCESS_KEY", "test-secret-key")
+
 import asyncio
 from datetime import datetime
 from typing import AsyncGenerator

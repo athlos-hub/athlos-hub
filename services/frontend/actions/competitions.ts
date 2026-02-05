@@ -52,7 +52,7 @@ export async function createCompetition(
   
   try {
     const response = await axiosAPI<Competition>({
-      endpoint: "/competitions",
+      endpoint: "/competitions/",
       method: "POST",
       data: data as unknown as Record<string, unknown>,
       withAuth: true,

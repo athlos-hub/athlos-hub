@@ -13,8 +13,8 @@ from src.models.matches import RoundModel, MatchModel, MatchStatus, GroupModel
 pytestmark = pytest.mark.asyncio
 
 
-async def _seed_match_data(session: AsyncSession, org_code: str = "ORG1"):
-    modality = ModalityModel(name="Futebol", org_code=org_code)
+async def _seed_match_data(session: AsyncSession, organization_slug: str = "ORG1"):
+    modality = ModalityModel(name="Futebol", organization_slug=organization_slug)
     ruleset = SportRulesetModel(
         name="Regras Básicas",
         segment_type="TIME",
@@ -39,8 +39,8 @@ async def _seed_match_data(session: AsyncSession, org_code: str = "ORG1"):
     await session.commit()
     await session.refresh(competition)
 
-    team_home = TeamModel(org_code=org_code, competition_id=competition.id, name="Time A", abbreviation="TA")
-    team_away = TeamModel(org_code=org_code, competition_id=competition.id, name="Time B", abbreviation="TB")
+    team_home = TeamModel(organization_slug=organization_slug, competition_id=competition.id, name="Time A", abbreviation="TA")
+    team_away = TeamModel(organization_slug=organization_slug, competition_id=competition.id, name="Time B", abbreviation="TB")
     session.add_all([team_home, team_away])
     await session.commit()
     await session.refresh(team_home)
@@ -77,14 +77,14 @@ async def _seed_match_data(session: AsyncSession, org_code: str = "ORG1"):
         "group": group,
         "round": round_obj,
         "match": match,
-        "org_code": org_code
+        "organization_slug": organization_slug
     }
 
 
 async def test_list_organization_matches(client: AsyncClient, session: AsyncSession):
-    data = await _seed_match_data(session, org_code="ORG3")
+    data = await _seed_match_data(session, organization_slug="ORG3")
 
-    response = await client.get(f"/api/v1/matches/organization/{data['org_code']}")
+    response = await client.get(f"/api/v1/matches/organization/{data['organization_slug']}")
     assert response.status_code == 200
     body = response.json()
     assert len(body) == 1
@@ -92,7 +92,7 @@ async def test_list_organization_matches(client: AsyncClient, session: AsyncSess
 
 
 async def test_list_competition_matches(client: AsyncClient, session: AsyncSession):
-    data = await _seed_match_data(session, org_code="ORG4")
+    data = await _seed_match_data(session, organization_slug="ORG4")
 
     response = await client.get(f"/api/v1/matches/competition/{data['competition'].id}")
     assert response.status_code == 200
@@ -102,7 +102,7 @@ async def test_list_competition_matches(client: AsyncClient, session: AsyncSessi
 
 
 async def test_list_team_matches(client: AsyncClient, session: AsyncSession):
-    data = await _seed_match_data(session, org_code="ORG5")
+    data = await _seed_match_data(session, organization_slug="ORG5")
     team_id = data["team_home"].id
 
     response = await client.get(f"/api/v1/matches/team/{team_id}/")
@@ -113,7 +113,7 @@ async def test_list_team_matches(client: AsyncClient, session: AsyncSession):
 
 
 async def test_list_competition_rounds(client: AsyncClient, session: AsyncSession):
-    data = await _seed_match_data(session, org_code="ORG6")
+    data = await _seed_match_data(session, organization_slug="ORG6")
 
     response = await client.get(f"/api/v1/matches/competition/{data['competition'].id}/rounds")
     assert response.status_code == 200
@@ -123,7 +123,7 @@ async def test_list_competition_rounds(client: AsyncClient, session: AsyncSessio
 
 
 async def test_list_group_rounds(client: AsyncClient, session: AsyncSession):
-    data = await _seed_match_data(session, org_code="ORG7")
+    data = await _seed_match_data(session, organization_slug="ORG7")
 
     response = await client.get(f"/api/v1/matches/group/{data['group'].id}/rounds")
     assert response.status_code == 200
@@ -133,9 +133,9 @@ async def test_list_group_rounds(client: AsyncClient, session: AsyncSession):
 
 
 async def test_list_organization_rounds(client: AsyncClient, session: AsyncSession):
-    data = await _seed_match_data(session, org_code="ORG8")
+    data = await _seed_match_data(session, organization_slug="ORG8")
 
-    response = await client.get(f"/api/v1/matches/organization/{data['org_code']}/rounds")
+    response = await client.get(f"/api/v1/matches/organization/{data['organization_slug']}/rounds")
     assert response.status_code == 200
     body = response.json()
     assert len(body) == 1
@@ -143,7 +143,7 @@ async def test_list_organization_rounds(client: AsyncClient, session: AsyncSessi
 
 
 async def test_update_match(client: AsyncClient, session: AsyncSession):
-    data = await _seed_match_data(session, org_code="ORG9")
+    data = await _seed_match_data(session, organization_slug="ORG9")
 
     new_datetime = (datetime.now().replace(microsecond=0) + timedelta(days=3)).isoformat()
     payload = {

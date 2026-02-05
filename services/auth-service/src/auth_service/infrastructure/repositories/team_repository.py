@@ -78,7 +78,7 @@ class TeamRepository:
         stmt = (
             select(Team)
             .options(
-                selectinload(Team.members),
+                selectinload(Team.members).selectinload(TeamMember.user),
                 selectinload(Team.organization),
             )
             .where(Team.organization_id == organization_id)

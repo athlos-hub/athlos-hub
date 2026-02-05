@@ -1,5 +1,4 @@
-from http.client import HTTPException
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
@@ -330,6 +329,26 @@ async def set_match_score(
         stats_events=[{"player_id": e.player_id, "abbreviation": e.abbreviation, "value": e.value} for e in (payload.stats_events or [])],
     )
     return updated
+
+@router.post(
+    "/{match_id}/start",
+    response_model=MatchResponse,
+    summary="Iniciar jogo (torna status=live)"
+)
+async def start_match(
+    match_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Inicia um jogo que está agendado (scheduled):
+    - Atualiza status para 'live'.
+    - Chamado automaticamente pelo livestream-service quando a transmissão começa.
+    
+    **Sem autenticação**: Endpoint interno chamado pelo livestream-service.
+    """
+    service = ManageMatchesService(session)
+    started_match = await service.start_match(match_id)
+    return started_match
 
 @router.post(
     "/{match_id}/finish",
