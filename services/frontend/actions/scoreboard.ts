@@ -28,7 +28,7 @@ export async function updateSegmentScore(
   const response = await axiosAPI({
     endpoint: `/scoreboard/${matchId}/update`,
     method: "POST",
-    data,
+    data: data as unknown as Record<string, unknown>,
     withAuth: true,
   });
   return response.data;

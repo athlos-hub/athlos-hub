@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { MatchEventType } from "@/types/livestream";
 import { CompetitionStat, TeamWithPlayers, Player } from "@/types/competition";
-import { SegmentScore } from "@/hooks/use-scoreboard";
+import { SegmentScore } from "@/types/scoreboard";
 import { RegisterScoreRequest } from "@/types/stats";
 import { publishMatchEvent } from "@/actions/lives";
 import { registerMatchScore } from "@/actions/matches";

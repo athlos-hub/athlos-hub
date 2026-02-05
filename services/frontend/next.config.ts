@@ -17,7 +17,7 @@ const nextConfig: NextConfig = {
     },
     experimental: {
         serverActions: {
-            allowedOrigins: ['localhost:8100', 'localhost:3000'],
+            allowedOrigins: process.env.NEXT_ALLOWED_ORIGINS?.split(',') || ['localhost:8100', 'localhost:3000'],
         },
     },
     async rewrites() {
@@ -27,11 +27,11 @@ const nextConfig: NextConfig = {
             return [
                 {
                     source: '/api/v1/auth/:path*',
-                    destination: 'http://localhost:8000/api/v1/auth/:path*',
+                    destination: `${process.env.AUTH_API_URL || 'http://localhost:8000'}/api/v1/auth/:path*`,
                 },
                 {
                     source: '/api/social/:path*',
-                    destination: 'http://localhost:8083/api/social/:path*',
+                    destination: `${process.env.SOCIAL_SERVICE_URL || 'http://localhost:8083'}/api/social/:path*`,
                 },
             ];
         }
