@@ -418,11 +418,110 @@ jobs:
           comment_mode: off
 
   # ------------------------------------------------------------------
-  # JOB 5: SUMÁRIO E COMENTÁRIO NO PR
+  # JOB 5: TESTES DO SOCIAL-SERVICE
+  # ------------------------------------------------------------------
+  test-social-service:
+    runs-on: ubuntu-latest
+    outputs:
+      tests_run: ${{ steps.should_run.outputs.run }}
+      total_tests: ${{ steps.test-results.outputs.total }}
+      passed_tests: ${{ steps.test-results.outputs.passed }}
+      failed_tests: ${{ steps.test-results.outputs.failed }}
+      coverage: ${{ steps.coverage.outputs.coverage }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            src:
+              - 'services/social-service/**'
+              - '.github/workflows/ci_cd.yml'
+
+      - name: Determine if tests should run
+        id: should_run
+        run: |
+          if [ "${{ github.event_name }}" == "push" ] || [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "run=true" >> $GITHUB_OUTPUT
+          else
+            echo "run=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Java
+        if: steps.should_run.outputs.run == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'maven'
+
+      - name: Run Tests
+        if: steps.should_run.outputs.run == 'true'
+        working-directory: ./services/social-service
+        run: ./mvnw test
+
+      - name: Extract Test Results
+        if: steps.should_run.outputs.run == 'true' && always()
+        id: test-results
+        working-directory: ./services/social-service
+        run: |
+          if [ -f target/surefire-reports/*.xml ]; then
+            TOTAL=$(grep -oP 'tests="\K[0-9]+' target/surefire-reports/*.xml | head -1)
+            FAILURES=$(grep -oP 'failures="\K[0-9]+' target/surefire-reports/*.xml | head -1)
+            ERRORS=$(grep -oP 'errors="\K[0-9]+' target/surefire-reports/*.xml | head -1)
+            SKIPPED=$(grep -oP 'skipped="\K[0-9]+' target/surefire-reports/*.xml | head -1)
+            PASSED=$((TOTAL - FAILURES - ERRORS - SKIPPED))
+            echo "total=$TOTAL" >> $GITHUB_OUTPUT
+            echo "passed=$PASSED" >> $GITHUB_OUTPUT
+            echo "failed=$((FAILURES + ERRORS))" >> $GITHUB_OUTPUT
+          else
+            echo "total=0" >> $GITHUB_OUTPUT
+            echo "passed=0" >> $GITHUB_OUTPUT
+            echo "failed=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Extract Coverage
+        if: steps.should_run.outputs.run == 'true' && always()
+        id: coverage
+        working-directory: ./services/social-service
+        run: |
+          if [ -f target/site/jacoco/jacoco.xml ]; then
+            COVERAGE=$(grep -oP 'type="INSTRUCTION".*?missed="\K[0-9]+' target/site/jacoco/jacoco.xml | head -1)
+            COVERED=$(grep -oP 'type="INSTRUCTION".*?covered="\K[0-9]+' target/site/jacoco/jacoco.xml | head -1)
+            TOTAL=$((COVERAGE + COVERED))
+            if [ $TOTAL -gt 0 ]; then
+              PERCENT=$(awk "BEGIN {printf \"%.1f\", ($COVERED / $TOTAL) * 100}")
+              echo "coverage=$PERCENT" >> $GITHUB_OUTPUT
+            else
+              echo "coverage=0" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "coverage=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload Coverage Artifact
+        if: steps.should_run.outputs.run == 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: social-service-coverage
+          path: services/social-service/target/site/jacoco/
+          retention-days: 7
+
+      - name: Publish Test Results
+        if: steps.should_run.outputs.run == 'true' && always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: 'services/social-service/target/surefire-reports/*.xml'
+          check_name: 'Social Service Test Results'
+          comment_mode: off
+
+  # ------------------------------------------------------------------
+  # JOB 6: SUMÁRIO E COMENTÁRIO NO PR
   # Consolida resultados de todos os serviços e comenta no PR
   # ------------------------------------------------------------------
   test-summary:
-    needs: [test-auth-service, test-competitions-service, test-livestream-service, test-notifications-service]
+    needs: [test-auth-service, test-competitions-service, test-livestream-service, test-notifications-service, test-social-service]
     runs-on: ubuntu-latest
     if: always() && github.event_name == 'pull_request'
     steps:
@@ -517,6 +616,20 @@ jobs:
           NOTIF_COV=${NOTIF_COV:-0}
           NOTIF_STATUS=$(get_status_badge "$NOTIF_RUN" "$NOTIF_FAILED")
 
+          # Social Service - com valores padrão
+          SOCIAL_RUN="${{ needs.test-social-service.outputs.tests_run }}"
+          SOCIAL_TOTAL="${{ needs.test-social-service.outputs.total_tests }}"
+          SOCIAL_PASSED="${{ needs.test-social-service.outputs.passed_tests }}"
+          SOCIAL_FAILED="${{ needs.test-social-service.outputs.failed_tests }}"
+          SOCIAL_COV="${{ needs.test-social-service.outputs.coverage }}"
+          
+          SOCIAL_RUN=${SOCIAL_RUN:-false}
+          SOCIAL_TOTAL=${SOCIAL_TOTAL:-0}
+          SOCIAL_PASSED=${SOCIAL_PASSED:-0}
+          SOCIAL_FAILED=${SOCIAL_FAILED:-0}
+          SOCIAL_COV=${SOCIAL_COV:-0}
+          SOCIAL_STATUS=$(get_status_badge "$SOCIAL_RUN" "$SOCIAL_FAILED")
+
           # Calcular totais (apenas dos que rodaram)
           TOTAL_TESTS=0
           TOTAL_PASSED=0
@@ -526,6 +639,7 @@ jobs:
           [ "$COMP_RUN" == "true" ] && TOTAL_TESTS=$((TOTAL_TESTS + COMP_TOTAL)) && TOTAL_PASSED=$((TOTAL_PASSED + COMP_PASSED)) && TOTAL_FAILED=$((TOTAL_FAILED + COMP_FAILED))
           [ "$LIVE_RUN" == "true" ] && TOTAL_TESTS=$((TOTAL_TESTS + LIVE_TOTAL)) && TOTAL_PASSED=$((TOTAL_PASSED + LIVE_PASSED)) && TOTAL_FAILED=$((TOTAL_FAILED + LIVE_FAILED))
           [ "$NOTIF_RUN" == "true" ] && TOTAL_TESTS=$((TOTAL_TESTS + NOTIF_TOTAL)) && TOTAL_PASSED=$((TOTAL_PASSED + NOTIF_PASSED)) && TOTAL_FAILED=$((TOTAL_FAILED + NOTIF_FAILED))
+          [ "$SOCIAL_RUN" == "true" ] && TOTAL_TESTS=$((TOTAL_TESTS + SOCIAL_TOTAL)) && TOTAL_PASSED=$((TOTAL_PASSED + SOCIAL_PASSED)) && TOTAL_FAILED=$((TOTAL_FAILED + SOCIAL_FAILED))
 
           # Status geral
           if [ "$TOTAL_FAILED" -gt 0 ]; then
@@ -562,6 +676,10 @@ jobs:
           NOTIF_TOTAL_DISPLAY=$(format_value "$NOTIF_RUN" "$NOTIF_TOTAL")
           NOTIF_PASSED_DISPLAY=$(format_value "$NOTIF_RUN" "$NOTIF_PASSED")
           NOTIF_FAILED_DISPLAY=$(format_value "$NOTIF_RUN" "$NOTIF_FAILED")
+          
+          SOCIAL_TOTAL_DISPLAY=$(format_value "$SOCIAL_RUN" "$SOCIAL_TOTAL")
+          SOCIAL_PASSED_DISPLAY=$(format_value "$SOCIAL_RUN" "$SOCIAL_PASSED")
+          SOCIAL_FAILED_DISPLAY=$(format_value "$SOCIAL_RUN" "$SOCIAL_FAILED")
 
           # Gerar comentário
           cat << EOF > comment.md
@@ -577,6 +695,7 @@ jobs:
           | 🏆 Competitions Service | $COMP_STATUS | $COMP_TOTAL_DISPLAY | $COMP_PASSED_DISPLAY | $COMP_FAILED_DISPLAY | $(get_coverage_badge "$COMP_COV") |
           | 📺 Livestream Service | $LIVE_STATUS | $LIVE_TOTAL_DISPLAY | $LIVE_PASSED_DISPLAY | $LIVE_FAILED_DISPLAY | $(get_coverage_badge "$LIVE_COV") |
           | 🔔 Notifications Service | $NOTIF_STATUS | $NOTIF_TOTAL_DISPLAY | $NOTIF_PASSED_DISPLAY | $NOTIF_FAILED_DISPLAY | $(get_coverage_badge "$NOTIF_COV") |
+          | 👥 Social Service | $SOCIAL_STATUS | $SOCIAL_TOTAL_DISPLAY | $SOCIAL_PASSED_DISPLAY | $SOCIAL_FAILED_DISPLAY | $(get_coverage_badge "$SOCIAL_COV") |
 
           ### 📈 Totais
 
@@ -614,11 +733,11 @@ jobs:
         run: cat comment.md >> $GITHUB_STEP_SUMMARY
 
   # ------------------------------------------------------------------
-  # JOB 6: GATEKEEPER (DEPLOY)
+  # JOB 7: GATEKEEPER (DEPLOY)
   # Este job só roda se os anteriores forem bem sucedidos
   # ------------------------------------------------------------------
   gatekeeper:
-    needs: [test-auth-service, test-competitions-service, test-livestream-service, test-notifications-service]
+    needs: [test-auth-service, test-competitions-service, test-livestream-service, test-notifications-service, test-social-service]
     runs-on: ubuntu-latest
     if: success()
     steps:
@@ -629,6 +748,9 @@ jobs:
           echo "✅ All tests passed successfully!"
           echo "Auth Service: PASSED"
           echo "Competitions Service: PASSED"
+          echo "Livestream Service: PASSED"
+          echo "Notifications Service: PASSED"
+          echo "Social Service: PASSED"
           echo "Livestream Service: PASSED"
           echo "Notifications Service: PASSED"
 
