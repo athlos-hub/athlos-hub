@@ -31,7 +31,7 @@ public class OrganizationProfile extends BaseEntity {
     private Integer followersCount = 0;
     
     @Builder.Default
-    @Column(name = "posts_count") 
+    @Column(name = "posts_count")
     private Integer postsCount = 0;
     
     @Builder.Default

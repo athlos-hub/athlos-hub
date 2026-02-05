@@ -7,7 +7,7 @@ spring:
   flyway:
     enabled: true
     clean-disabled: false
-  
+
   devtools:
     restart:
       enabled: true
