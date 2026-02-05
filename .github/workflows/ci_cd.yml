@@ -433,8 +433,10 @@ jobs:
         run: |
           # Função para gerar badge de status
           get_status_badge() {
-            if [ "$1" == "true" ]; then
-              if [ "$2" == "0" ] || [ -z "$2" ]; then
+            local run=$1
+            local failed=$2
+            if [ "$run" == "true" ]; then
+              if [ "$failed" == "0" ] || [ -z "$failed" ]; then
                 echo "✅"
               else
                 echo "❌"
@@ -447,7 +449,7 @@ jobs:
           # Função para gerar badge de cobertura
           get_coverage_badge() {
             local cov=$1
-            if [ -z "$cov" ] || [ "$cov" == "0" ]; then
+            if [ -z "$cov" ] || [ "$cov" == "0" ] || [ "$cov" == "N/A" ]; then
               echo "N/A"
             elif (( $(echo "$cov >= 80" | bc -l) )); then
               echo "🟢 ${cov}%"
@@ -458,49 +460,108 @@ jobs:
             fi
           }
 
-          # Auth Service
+          # Auth Service - com valores padrão
           AUTH_RUN="${{ needs.test-auth-service.outputs.tests_run }}"
           AUTH_TOTAL="${{ needs.test-auth-service.outputs.total_tests }}"
           AUTH_PASSED="${{ needs.test-auth-service.outputs.passed_tests }}"
           AUTH_FAILED="${{ needs.test-auth-service.outputs.failed_tests }}"
           AUTH_COV="${{ needs.test-auth-service.outputs.coverage }}"
+          
+          # Se os valores estiverem vazios, usar padrões
+          AUTH_RUN=${AUTH_RUN:-false}
+          AUTH_TOTAL=${AUTH_TOTAL:-0}
+          AUTH_PASSED=${AUTH_PASSED:-0}
+          AUTH_FAILED=${AUTH_FAILED:-0}
+          AUTH_COV=${AUTH_COV:-0}
           AUTH_STATUS=$(get_status_badge "$AUTH_RUN" "$AUTH_FAILED")
 
-          # Competitions Service
+          # Competitions Service - com valores padrão
           COMP_RUN="${{ needs.test-competitions-service.outputs.tests_run }}"
           COMP_TOTAL="${{ needs.test-competitions-service.outputs.total_tests }}"
           COMP_PASSED="${{ needs.test-competitions-service.outputs.passed_tests }}"
           COMP_FAILED="${{ needs.test-competitions-service.outputs.failed_tests }}"
           COMP_COV="${{ needs.test-competitions-service.outputs.coverage }}"
+          
+          COMP_RUN=${COMP_RUN:-false}
+          COMP_TOTAL=${COMP_TOTAL:-0}
+          COMP_PASSED=${COMP_PASSED:-0}
+          COMP_FAILED=${COMP_FAILED:-0}
+          COMP_COV=${COMP_COV:-0}
           COMP_STATUS=$(get_status_badge "$COMP_RUN" "$COMP_FAILED")
 
-          # Livestream Service
+          # Livestream Service - com valores padrão
           LIVE_RUN="${{ needs.test-livestream-service.outputs.tests_run }}"
           LIVE_TOTAL="${{ needs.test-livestream-service.outputs.total_tests }}"
           LIVE_PASSED="${{ needs.test-livestream-service.outputs.passed_tests }}"
           LIVE_FAILED="${{ needs.test-livestream-service.outputs.failed_tests }}"
           LIVE_COV="${{ needs.test-livestream-service.outputs.coverage }}"
+          
+          LIVE_RUN=${LIVE_RUN:-false}
+          LIVE_TOTAL=${LIVE_TOTAL:-0}
+          LIVE_PASSED=${LIVE_PASSED:-0}
+          LIVE_FAILED=${LIVE_FAILED:-0}
+          LIVE_COV=${LIVE_COV:-0}
           LIVE_STATUS=$(get_status_badge "$LIVE_RUN" "$LIVE_FAILED")
 
-          # Notifications Service
+          # Notifications Service - com valores padrão
           NOTIF_RUN="${{ needs.test-notifications-service.outputs.tests_run }}"
           NOTIF_TOTAL="${{ needs.test-notifications-service.outputs.total_tests }}"
           NOTIF_PASSED="${{ needs.test-notifications-service.outputs.passed_tests }}"
           NOTIF_FAILED="${{ needs.test-notifications-service.outputs.failed_tests }}"
           NOTIF_COV="${{ needs.test-notifications-service.outputs.coverage }}"
+          
+          NOTIF_RUN=${NOTIF_RUN:-false}
+          NOTIF_TOTAL=${NOTIF_TOTAL:-0}
+          NOTIF_PASSED=${NOTIF_PASSED:-0}
+          NOTIF_FAILED=${NOTIF_FAILED:-0}
+          NOTIF_COV=${NOTIF_COV:-0}
           NOTIF_STATUS=$(get_status_badge "$NOTIF_RUN" "$NOTIF_FAILED")
 
-          # Calcular totais
-          TOTAL_TESTS=$((${AUTH_TOTAL:-0} + ${COMP_TOTAL:-0} + ${LIVE_TOTAL:-0} + ${NOTIF_TOTAL:-0}))
-          TOTAL_PASSED=$((${AUTH_PASSED:-0} + ${COMP_PASSED:-0} + ${LIVE_PASSED:-0} + ${NOTIF_PASSED:-0}))
-          TOTAL_FAILED=$((${AUTH_FAILED:-0} + ${COMP_FAILED:-0} + ${LIVE_FAILED:-0} + ${NOTIF_FAILED:-0}))
+          # Calcular totais (apenas dos que rodaram)
+          TOTAL_TESTS=0
+          TOTAL_PASSED=0
+          TOTAL_FAILED=0
+          
+          [ "$AUTH_RUN" == "true" ] && TOTAL_TESTS=$((TOTAL_TESTS + AUTH_TOTAL)) && TOTAL_PASSED=$((TOTAL_PASSED + AUTH_PASSED)) && TOTAL_FAILED=$((TOTAL_FAILED + AUTH_FAILED))
+          [ "$COMP_RUN" == "true" ] && TOTAL_TESTS=$((TOTAL_TESTS + COMP_TOTAL)) && TOTAL_PASSED=$((TOTAL_PASSED + COMP_PASSED)) && TOTAL_FAILED=$((TOTAL_FAILED + COMP_FAILED))
+          [ "$LIVE_RUN" == "true" ] && TOTAL_TESTS=$((TOTAL_TESTS + LIVE_TOTAL)) && TOTAL_PASSED=$((TOTAL_PASSED + LIVE_PASSED)) && TOTAL_FAILED=$((TOTAL_FAILED + LIVE_FAILED))
+          [ "$NOTIF_RUN" == "true" ] && TOTAL_TESTS=$((TOTAL_TESTS + NOTIF_TOTAL)) && TOTAL_PASSED=$((TOTAL_PASSED + NOTIF_PASSED)) && TOTAL_FAILED=$((TOTAL_FAILED + NOTIF_FAILED))
 
           # Status geral
           if [ "$TOTAL_FAILED" -gt 0 ]; then
             OVERALL_STATUS="❌ Alguns testes falharam"
+          elif [ "$TOTAL_TESTS" -eq 0 ]; then
+            OVERALL_STATUS="⏭️ Nenhum teste executado"
           else
             OVERALL_STATUS="✅ Todos os testes passaram"
           fi
+
+          # Formatar valores para exibição (substituir 0 por N/A quando não rodou)
+          format_value() {
+            local run=$1
+            local value=$2
+            if [ "$run" == "true" ]; then
+              echo "$value"
+            else
+              echo "N/A"
+            fi
+          }
+
+          AUTH_TOTAL_DISPLAY=$(format_value "$AUTH_RUN" "$AUTH_TOTAL")
+          AUTH_PASSED_DISPLAY=$(format_value "$AUTH_RUN" "$AUTH_PASSED")
+          AUTH_FAILED_DISPLAY=$(format_value "$AUTH_RUN" "$AUTH_FAILED")
+          
+          COMP_TOTAL_DISPLAY=$(format_value "$COMP_RUN" "$COMP_TOTAL")
+          COMP_PASSED_DISPLAY=$(format_value "$COMP_RUN" "$COMP_PASSED")
+          COMP_FAILED_DISPLAY=$(format_value "$COMP_RUN" "$COMP_FAILED")
+          
+          LIVE_TOTAL_DISPLAY=$(format_value "$LIVE_RUN" "$LIVE_TOTAL")
+          LIVE_PASSED_DISPLAY=$(format_value "$LIVE_RUN" "$LIVE_PASSED")
+          LIVE_FAILED_DISPLAY=$(format_value "$LIVE_RUN" "$LIVE_FAILED")
+          
+          NOTIF_TOTAL_DISPLAY=$(format_value "$NOTIF_RUN" "$NOTIF_TOTAL")
+          NOTIF_PASSED_DISPLAY=$(format_value "$NOTIF_RUN" "$NOTIF_PASSED")
+          NOTIF_FAILED_DISPLAY=$(format_value "$NOTIF_RUN" "$NOTIF_FAILED")
 
           # Gerar comentário
           cat << EOF > comment.md
@@ -512,10 +573,10 @@ jobs:
 
           | Serviço | Status | Total | ✅ Passou | ❌ Falhou | 📈 Cobertura |
           |---------|--------|-------|-----------|-----------|--------------|
-          | 🔐 Auth Service | $AUTH_STATUS | ${AUTH_TOTAL:-N/A} | ${AUTH_PASSED:-N/A} | ${AUTH_FAILED:-N/A} | $(get_coverage_badge "$AUTH_COV") |
-          | 🏆 Competitions Service | $COMP_STATUS | ${COMP_TOTAL:-N/A} | ${COMP_PASSED:-N/A} | ${COMP_FAILED:-N/A} | $(get_coverage_badge "$COMP_COV") |
-          | 📺 Livestream Service | $LIVE_STATUS | ${LIVE_TOTAL:-N/A} | ${LIVE_PASSED:-N/A} | ${LIVE_FAILED:-N/A} | $(get_coverage_badge "$LIVE_COV") |
-          | 🔔 Notifications Service | $NOTIF_STATUS | ${NOTIF_TOTAL:-N/A} | ${NOTIF_PASSED:-N/A} | ${NOTIF_FAILED:-N/A} | $(get_coverage_badge "$NOTIF_COV") |
+          | 🔐 Auth Service | $AUTH_STATUS | $AUTH_TOTAL_DISPLAY | $AUTH_PASSED_DISPLAY | $AUTH_FAILED_DISPLAY | $(get_coverage_badge "$AUTH_COV") |
+          | 🏆 Competitions Service | $COMP_STATUS | $COMP_TOTAL_DISPLAY | $COMP_PASSED_DISPLAY | $COMP_FAILED_DISPLAY | $(get_coverage_badge "$COMP_COV") |
+          | 📺 Livestream Service | $LIVE_STATUS | $LIVE_TOTAL_DISPLAY | $LIVE_PASSED_DISPLAY | $LIVE_FAILED_DISPLAY | $(get_coverage_badge "$LIVE_COV") |
+          | 🔔 Notifications Service | $NOTIF_STATUS | $NOTIF_TOTAL_DISPLAY | $NOTIF_PASSED_DISPLAY | $NOTIF_FAILED_DISPLAY | $(get_coverage_badge "$NOTIF_COV") |
 
           ### 📈 Totais
 
