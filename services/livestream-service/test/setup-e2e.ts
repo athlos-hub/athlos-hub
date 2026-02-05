@@ -1,6 +1,12 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 import { Redis } from 'ioredis';
+import { webcrypto } from 'node:crypto';
+
+// Polyfill para crypto no ambiente de teste
+if (!global.crypto) {
+  global.crypto = webcrypto as any;
+}
 
 let prisma: PrismaClient;
 let redis: Redis;

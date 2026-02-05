@@ -28,11 +28,11 @@ def sample_match():
         end_date=now + timedelta(days=10),
         system=CompetitionSystem.POINTS
     )
-    modality = ModalityModel(id=1, name="Futebol", org_code="ORG1")
+    modality = ModalityModel(id=1, name="Futebol", organization_slug="ORG1")
     competition.modality = modality
     
-    home_team = TeamModel(id=uuid.uuid4(), org_code="ORG1", competition_id=1, name="Time A", abbreviation="TMA")
-    away_team = TeamModel(id=uuid.uuid4(), org_code="ORG1", competition_id=1, name="Time B", abbreviation="TMB")
+    home_team = TeamModel(id=uuid.uuid4(), organization_slug="ORG1", competition_id=1, name="Time A", abbreviation="TMA")
+    away_team = TeamModel(id=uuid.uuid4(), organization_slug="ORG1", competition_id=1, name="Time B", abbreviation="TMB")
     
     match = MatchModel(
         id=uuid.uuid4(),
@@ -271,7 +271,7 @@ async def test_format_response_with_null_teams():
         end_date=now + timedelta(days=10),
         system=CompetitionSystem.POINTS
     )
-    modality = ModalityModel(id=1, name="Futebol", org_code="ORG1")
+    modality = ModalityModel(id=1, name="Futebol", organization_slug="ORG1")
     competition.modality = modality
 
     match_tbd = MatchModel(

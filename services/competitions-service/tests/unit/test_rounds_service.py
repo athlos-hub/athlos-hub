@@ -26,13 +26,13 @@ def sample_round_with_matches():
         end_date=now + timedelta(days=10),
         system=CompetitionSystem.POINTS
     )
-    modality = ModalityModel(id=1, name="Futebol", org_code="ORG1")
+    modality = ModalityModel(id=1, name="Futebol", organization_slug="ORG1")
     competition.modality = modality
     
     round_obj = RoundModel(id=1, competition_id=1, name="Rodada 1")
     
-    home_team = TeamModel(id=uuid.uuid4(), org_code="ORG1", competition_id=1, name="Time A", abbreviation="TMA")
-    away_team = TeamModel(id=uuid.uuid4(), org_code="ORG1", competition_id=1, name="Time B", abbreviation="TMB")
+    home_team = TeamModel(id=uuid.uuid4(), organization_slug="ORG1", competition_id=1, name="Time A", abbreviation="TMA")
+    away_team = TeamModel(id=uuid.uuid4(), organization_slug="ORG1", competition_id=1, name="Time B", abbreviation="TMB")
     
     match1 = MatchModel(
         id=uuid.uuid4(),
@@ -67,8 +67,8 @@ def sample_round_with_matches():
     )
     match2.round_match_number = match2.round_number_match
     match2.competition = competition
-    match2.home_team = TeamModel(id=uuid.uuid4(), org_code="ORG1", competition_id=1, name="Time C", abbreviation="TMC")
-    match2.away_team = TeamModel(id=uuid.uuid4(), org_code="ORG1", competition_id=1, name="Time D", abbreviation="TMD")
+    match2.home_team = TeamModel(id=uuid.uuid4(), organization_slug="ORG1", competition_id=1, name="Time C", abbreviation="TMC")
+    match2.away_team = TeamModel(id=uuid.uuid4(), organization_slug="ORG1", competition_id=1, name="Time D", abbreviation="TMD")
     
     round_obj.matches = [match1, match2]
     
@@ -180,7 +180,7 @@ async def test_format_response_multiple_rounds():
         end_date=now + timedelta(days=10),
         system=CompetitionSystem.POINTS
     )
-    modality = ModalityModel(id=1, name="Futebol", org_code="ORG1")
+    modality = ModalityModel(id=1, name="Futebol", organization_slug="ORG1")
     competition.modality = modality
 
     # Rodada 1 com 2 matches
@@ -196,8 +196,8 @@ async def test_format_response_multiple_rounds():
     )
     match1.round_match_number = match1.round_number_match
     match1.competition = competition
-    match1.home_team = TeamModel(id=uuid.uuid4(), org_code="ORG1", competition_id=1, name="Team A", abbreviation="TMA")
-    match1.away_team = TeamModel(id=uuid.uuid4(), org_code="ORG1", competition_id=1, name="Team B", abbreviation="TMB")
+    match1.home_team = TeamModel(id=uuid.uuid4(), organization_slug="ORG1", competition_id=1, name="Team A", abbreviation="TMA")
+    match1.away_team = TeamModel(id=uuid.uuid4(), organization_slug="ORG1", competition_id=1, name="Team B", abbreviation="TMB")
     round1.matches = [match1]
 
     # Rodada 2 com 1 match
@@ -213,8 +213,8 @@ async def test_format_response_multiple_rounds():
     )
     match2.round_match_number = match2.round_number_match
     match2.competition = competition
-    match2.home_team = TeamModel(id=uuid.uuid4(), org_code="ORG1", competition_id=1, name="Team C", abbreviation="TMC")
-    match2.away_team = TeamModel(id=uuid.uuid4(), org_code="ORG1", competition_id=1, name="Team D", abbreviation="TMD")
+    match2.home_team = TeamModel(id=uuid.uuid4(), organization_slug="ORG1", competition_id=1, name="Team C", abbreviation="TMC")
+    match2.away_team = TeamModel(id=uuid.uuid4(), organization_slug="ORG1", competition_id=1, name="Team D", abbreviation="TMD")
     round2.matches = [match2]
 
     mock_result = MagicMock()
@@ -250,7 +250,7 @@ async def test_format_response_with_none_teams():
         end_date=now + timedelta(days=10),
         system=CompetitionSystem.POINTS
     )
-    modality = ModalityModel(id=1, name="Futebol", org_code="ORG1")
+    modality = ModalityModel(id=1, name="Futebol", organization_slug="ORG1")
     competition.modality = modality
 
     round_obj = RoundModel(id=1, competition_id=1, name="Final")

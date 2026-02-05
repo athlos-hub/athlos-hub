@@ -10,7 +10,7 @@ from sqlalchemy.pool import StaticPool
 from fastapi import HTTPException
 
 from src.models.base import Base
-from src.models.competition import CompetitionModel, CompetitionStatus, CompetitionType
+from src.models.competition import CompetitionModel, CompetitionStatus
 from src.models.modality import ModalityModel
 from src.models.teams import TeamModel, PlayerModel, TeamStatus
 from src.schemas.teams_schema import TeamCreateSchema, PlayerCreateSchema
@@ -53,7 +53,6 @@ async def modality(db_session: AsyncSession):
     modality = ModalityModel(
         id=1,
         name="Futebol",
-        description="Futebol de campo",
         organization_slug="test-org"
     )
     db_session.add(modality)
@@ -65,15 +64,15 @@ async def modality(db_session: AsyncSession):
 @pytest_asyncio.fixture
 async def competition(db_session: AsyncSession, modality: ModalityModel):
     """Cria uma competição de teste."""
+    from datetime import datetime, timedelta
     competition = CompetitionModel(
         id=1,
         name="Campeonato Teste",
-        organization_slug="test-org",
         modality_id=modality.id,
         status=CompetitionStatus.PENDING,
-        competition_type=CompetitionType.LEAGUE,
-        min_teams=2,
-        max_teams=16,
+        start_date=datetime.now(),
+        end_date=datetime.now() + timedelta(days=30),
+        system="POINTS",
         min_members_per_team=1,
         max_members_per_team=11,
     )
@@ -116,10 +115,10 @@ class TestTeamServiceMemberValidation:
             competition_id=competition.id,
             name="Time Teste",
             abbreviation="TST",
-            captain_user_id=user_id_1,
+            captain_keycloak_id=user_id_1,
             players=[
-                PlayerCreateSchema(user_id=user_id_1),
-                PlayerCreateSchema(user_id=user_id_2),
+                PlayerCreateSchema(keycloak_id=user_id_1),
+                PlayerCreateSchema(keycloak_id=user_id_2),
             ]
         )
         
@@ -132,7 +131,7 @@ class TestTeamServiceMemberValidation:
         # Verifica que a validação foi chamada
         mock_auth_client.validate_organization_members.assert_called_once_with(
             organization_slug="test-org",
-            user_ids=[user_id_1, user_id_2]
+            keycloak_ids=[user_id_1, user_id_2]
         )
 
     @pytest.mark.asyncio
@@ -161,10 +160,10 @@ class TestTeamServiceMemberValidation:
             competition_id=competition.id,
             name="Time Teste",
             abbreviation="TST",
-            captain_user_id=user_id_1,
+            captain_keycloak_id=user_id_1,
             players=[
-                PlayerCreateSchema(user_id=user_id_1),
-                PlayerCreateSchema(user_id=user_id_2),
+                PlayerCreateSchema(keycloak_id=user_id_1),
+                PlayerCreateSchema(keycloak_id=user_id_2),
             ]
         )
         
@@ -194,8 +193,8 @@ class TestTeamServiceMemberValidation:
             competition_id=competition.id,
             name="Time Teste",
             abbreviation="TST",
-            captain_user_id=user_id,
-            players=[PlayerCreateSchema(user_id=user_id)]
+            captain_keycloak_id=user_id,
+            players=[PlayerCreateSchema(keycloak_id=user_id)]
         )
         
         with pytest.raises(HTTPException) as exc_info:
@@ -224,8 +223,8 @@ class TestTeamServiceMemberValidation:
             competition_id=competition.id,
             name="Time Teste",
             abbreviation="TST",
-            captain_user_id=user_id,
-            players=[PlayerCreateSchema(user_id=user_id)]
+            captain_keycloak_id=user_id,
+            players=[PlayerCreateSchema(keycloak_id=user_id)]
         )
         
         with pytest.raises(HTTPException) as exc_info:
@@ -257,8 +256,8 @@ class TestTeamServiceMemberValidation:
             competition_id=competition.id,
             name="Time Que Nao Deve Existir",
             abbreviation="NDE",
-            captain_user_id=user_id,
-            players=[PlayerCreateSchema(user_id=user_id)]
+            captain_keycloak_id=user_id,
+            players=[PlayerCreateSchema(keycloak_id=user_id)]
         )
         
         with pytest.raises(HTTPException):
