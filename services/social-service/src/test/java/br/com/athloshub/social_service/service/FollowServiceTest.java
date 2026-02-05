@@ -5,6 +5,7 @@ import br.com.athloshub.social_service.entity.Follow;
 import br.com.athloshub.social_service.repository.AthleteProfileRepository;
 import br.com.athloshub.social_service.repository.FollowRepository;
 import br.com.athloshub.social_service.security.JwtTokenProvider;
+import br.com.athloshub.social_service.client.AuthServiceClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +28,9 @@ class FollowServiceTest {
     @Mock FollowRepository followRepository;
     @Mock AthleteProfileRepository athleteProfileRepository;
     @Mock JwtTokenProvider jwtTokenProvider;
+
+    @Mock NotificationService notificationService;
+    @Mock AuthServiceClient authServiceClient;
 
     @InjectMocks FollowService service;
 
@@ -53,6 +57,8 @@ class FollowServiceTest {
 
         verifyNoInteractions(followRepository);
         verifyNoInteractions(athleteProfileRepository);
+        verifyNoInteractions(notificationService);
+        verifyNoInteractions(authServiceClient);
     }
 
     @Test
@@ -66,6 +72,8 @@ class FollowServiceTest {
 
         verifyNoInteractions(followRepository);
         verifyNoInteractions(athleteProfileRepository);
+        verifyNoInteractions(notificationService);
+        verifyNoInteractions(authServiceClient);
     }
 
     @Test
@@ -108,6 +116,9 @@ class FollowServiceTest {
 
         assertThat(saved1.getFollowingCount()).isEqualTo(0);
         assertThat(saved2.getFollowersCount()).isEqualTo(0);
+
+        verifyNoInteractions(notificationService);
+        verifyNoInteractions(authServiceClient);
     }
 
     @Test
@@ -132,6 +143,9 @@ class FollowServiceTest {
         when(athleteProfileRepository.findByKeycloakId(target)).thenReturn(Optional.of(targetProfile));
         when(athleteProfileRepository.save(any(AthleteProfile.class))).thenAnswer(inv -> inv.getArgument(0));
 
+
+        when(jwtTokenProvider.getCurrentToken()).thenReturn(null);
+
         boolean isFollowing = service.toggleFollow(target);
 
         assertThat(isFollowing).isTrue();
@@ -144,6 +158,8 @@ class FollowServiceTest {
         verify(athleteProfileRepository, times(2)).save(profileCaptor.capture());
         assertThat(profileCaptor.getAllValues().get(0).getFollowingCount()).isEqualTo(3);
         assertThat(profileCaptor.getAllValues().get(1).getFollowersCount()).isEqualTo(6);
+
+        verifyNoInteractions(authServiceClient);
     }
 
     @Test
@@ -156,12 +172,17 @@ class FollowServiceTest {
         when(athleteProfileRepository.findByKeycloakId(me)).thenReturn(Optional.empty());
         when(athleteProfileRepository.findByKeycloakId(target)).thenReturn(Optional.empty());
 
+
+        when(jwtTokenProvider.getCurrentToken()).thenReturn(null);
+
         boolean isFollowing = service.toggleFollow(target);
 
         assertThat(isFollowing).isTrue();
 
         verify(followRepository).save(any(Follow.class));
         verify(athleteProfileRepository, never()).save(any());
+
+        verifyNoInteractions(authServiceClient);
     }
 
     @Test
@@ -172,6 +193,9 @@ class FollowServiceTest {
 
         assertThat(result).isFalse();
         verifyNoInteractions(followRepository);
+
+        verifyNoInteractions(notificationService);
+        verifyNoInteractions(authServiceClient);
     }
 
     @Test
@@ -183,6 +207,9 @@ class FollowServiceTest {
 
         assertThat(result).isTrue();
         verify(followRepository).existsByFollowerKeycloakIdAndFollowingKeycloakId(me, target);
+
+        verifyNoInteractions(notificationService);
+        verifyNoInteractions(authServiceClient);
     }
 
     @Test
@@ -195,6 +222,9 @@ class FollowServiceTest {
 
         assertThat(result).isSameAs(repoPage);
         verify(followRepository).findByFollowingKeycloakId(target, pageable);
+
+        verifyNoInteractions(notificationService);
+        verifyNoInteractions(authServiceClient);
     }
 
     @Test
@@ -207,5 +237,8 @@ class FollowServiceTest {
 
         assertThat(result).isSameAs(repoPage);
         verify(followRepository).findByFollowerKeycloakId(me, pageable);
+
+        verifyNoInteractions(notificationService);
+        verifyNoInteractions(authServiceClient);
     }
 }

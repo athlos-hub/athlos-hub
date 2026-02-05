@@ -1,7 +1,10 @@
 package br.com.athloshub.social_service.service;
 
+import br.com.athloshub.social_service.client.AuthServiceClient;
+import br.com.athloshub.social_service.dto.auth.UserDTO;
 import br.com.athloshub.social_service.entity.Comment;
 import br.com.athloshub.social_service.entity.Post;
+import br.com.athloshub.social_service.enums.NotificationType;
 import br.com.athloshub.social_service.moderation.ModerationService;
 import br.com.athloshub.social_service.repository.CommentRepository;
 import br.com.athloshub.social_service.repository.PostRepository;
@@ -13,6 +16,7 @@ import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -28,6 +32,9 @@ class CommentServiceTest {
     @Mock PostRepository postRepository;
     @Mock JwtTokenProvider jwtTokenProvider;
     @Mock ModerationService moderationService;
+
+    @Mock NotificationService notificationService;
+    @Mock AuthServiceClient authServiceClient;
 
     @InjectMocks CommentService service;
 
@@ -62,9 +69,7 @@ class CommentServiceTest {
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode())
                 .isEqualTo(UNAUTHORIZED);
 
-        verifyNoInteractions(moderationService);
-        verifyNoInteractions(postRepository);
-        verifyNoInteractions(commentRepository);
+        verifyNoInteractions(moderationService, postRepository, commentRepository, notificationService, authServiceClient);
     }
 
     @Test
@@ -81,10 +86,11 @@ class CommentServiceTest {
         verify(moderationService).assertAllowed("oi");
         verify(commentRepository, never()).save(any());
         verify(postRepository, never()).save(any(Post.class));
+        verifyNoInteractions(notificationService, authServiceClient);
     }
 
     @Test
-    void createComment_shouldModerateSave_andIncrementCommentsCount() {
+    void createComment_shouldModerateSave_andIncrementCommentsCount_andCreateNotification() {
         when(jwtTokenProvider.getCurrentKeycloakId()).thenReturn("kc-actor");
         doNothing().when(moderationService).assertAllowed("comment text");
         when(postRepository.findById(postId)).thenReturn(Optional.of(post));
@@ -96,6 +102,8 @@ class CommentServiceTest {
         });
 
         when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        when(jwtTokenProvider.getCurrentToken()).thenReturn(null);
 
         Comment saved = service.createComment(postId, "comment text");
 
@@ -111,6 +119,27 @@ class CommentServiceTest {
         assertThat(postCaptor.getValue().getCommentsCount()).isEqualTo(1);
 
         verify(moderationService).assertAllowed("comment text");
+
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> dataCaptor = ArgumentCaptor.forClass(Map.class);
+
+        verify(notificationService).createNotification(
+                eq("kc-owner-post"),
+                eq("kc-actor"),
+                eq(NotificationType.POST_COMMENT),
+                eq(postId),
+                eq("post"),
+                eq("comentou no seu post"),
+                dataCaptor.capture()
+        );
+
+        Map<String, Object> sentData = dataCaptor.getValue();
+        assertThat(sentData.get("actorName")).isEqualTo("Usuário");
+        assertThat(sentData.get("commentContent")).isEqualTo("comment text");
+        assertThat(sentData.get("postContent")).isEqualTo("post content");
+
+        verifyNoInteractions(authServiceClient);
     }
 
     @Test
@@ -122,8 +151,7 @@ class CommentServiceTest {
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode())
                 .isEqualTo(UNAUTHORIZED);
 
-        verifyNoInteractions(commentRepository);
-        verifyNoInteractions(moderationService);
+        verifyNoInteractions(commentRepository, moderationService, notificationService, authServiceClient);
     }
 
     @Test
@@ -220,8 +248,7 @@ class CommentServiceTest {
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode())
                 .isEqualTo(UNAUTHORIZED);
 
-        verifyNoInteractions(commentRepository);
-        verifyNoInteractions(postRepository);
+        verifyNoInteractions(commentRepository, postRepository, notificationService, authServiceClient);
     }
 
     @Test

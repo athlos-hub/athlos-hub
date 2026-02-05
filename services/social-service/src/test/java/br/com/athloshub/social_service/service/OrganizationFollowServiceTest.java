@@ -1,5 +1,6 @@
 package br.com.athloshub.social_service.service;
 
+import br.com.athloshub.social_service.client.AuthServiceClient;
 import br.com.athloshub.social_service.entity.OrganizationFollow;
 import br.com.athloshub.social_service.repository.OrganizationFollowRepository;
 import br.com.athloshub.social_service.security.JwtTokenProvider;
@@ -23,7 +24,10 @@ import static org.springframework.http.HttpStatus.*;
 class OrganizationFollowServiceTest {
 
     @Mock OrganizationFollowRepository organizationFollowRepository;
+    @Mock OrganizationProfileService organizationProfileService;
     @Mock JwtTokenProvider jwtTokenProvider;
+    @Mock AuthServiceClient authServiceClient;
+    @Mock NotificationService notificationService;
 
     @InjectMocks OrganizationFollowService service;
 
@@ -48,6 +52,7 @@ class OrganizationFollowServiceTest {
                 .isEqualTo(UNAUTHORIZED);
 
         verifyNoInteractions(organizationFollowRepository);
+        verifyNoInteractions(organizationProfileService);
     }
 
     @Test
@@ -68,11 +73,14 @@ class OrganizationFollowServiceTest {
         assertThat(result).isFalse();
         verify(organizationFollowRepository).delete(existing);
         verify(organizationFollowRepository, never()).save(any());
+        verify(organizationProfileService).decrementFollowersCount(orgSlug);
+        verify(organizationProfileService, never()).incrementFollowersCount(anyString());
     }
 
     @Test
     void toggleFollowOrganization_whenNotFollowing_shouldSaveAndReturnTrue() {
         when(jwtTokenProvider.getCurrentKeycloakId()).thenReturn(me);
+        when(jwtTokenProvider.getCurrentToken()).thenReturn(null);
 
         when(organizationFollowRepository.findByFollowerKeycloakIdAndOrganizationSlug(me, orgSlug))
                 .thenReturn(Optional.empty());
@@ -88,6 +96,8 @@ class OrganizationFollowServiceTest {
         assertThat(created.getOrganizationSlug()).isEqualTo(orgSlug);
 
         verify(organizationFollowRepository, never()).delete(any());
+        verify(organizationProfileService).incrementFollowersCount(orgSlug);
+        verify(organizationProfileService, never()).decrementFollowersCount(anyString());
     }
 
     @Test

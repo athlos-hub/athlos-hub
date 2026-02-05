@@ -136,7 +136,6 @@ class OrganizationProfileServiceTest {
     @Test
     void updateProfile_whenProfileNotFound_shouldCreateThenUpdateAndSave() {
         when(organizationProfileRepository.findByOrganizationSlug(slug)).thenReturn(Optional.empty());
-
         when(organizationProfileRepository.save(any(OrganizationProfile.class))).thenAnswer(inv -> inv.getArgument(0));
 
         Map<String, Object> updates = new HashMap<>();
@@ -148,5 +147,37 @@ class OrganizationProfileServiceTest {
         assertThat(updated.getDescription()).isEqualTo("desc");
 
         verify(organizationProfileRepository, times(2)).save(any(OrganizationProfile.class));
+    }
+
+    @Test
+    void incrementFollowersCount_shouldIncreaseCount_andSave() {
+        OrganizationProfile existing = OrganizationProfile.builder()
+                .organizationSlug(slug)
+                .followersCount(2)
+                .build();
+
+        when(organizationProfileRepository.findByOrganizationSlug(slug)).thenReturn(Optional.of(existing));
+        when(organizationProfileRepository.save(any(OrganizationProfile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.incrementFollowersCount(slug);
+
+        assertThat(existing.getFollowersCount()).isEqualTo(3);
+        verify(organizationProfileRepository).save(existing);
+    }
+
+    @Test
+    void decrementFollowersCount_shouldNotGoBelowZero_andSave() {
+        OrganizationProfile existing = OrganizationProfile.builder()
+                .organizationSlug(slug)
+                .followersCount(0)
+                .build();
+
+        when(organizationProfileRepository.findByOrganizationSlug(slug)).thenReturn(Optional.of(existing));
+        when(organizationProfileRepository.save(any(OrganizationProfile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.decrementFollowersCount(slug);
+
+        assertThat(existing.getFollowersCount()).isEqualTo(0);
+        verify(organizationProfileRepository).save(existing);
     }
 }

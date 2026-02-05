@@ -26,6 +26,7 @@ class LikeServiceTest {
     @Mock LikeRepository likeRepository;
     @Mock PostRepository postRepository;
     @Mock JwtTokenProvider jwtTokenProvider;
+    @Mock NotificationService notificationService;
 
     @InjectMocks LikeService service;
 
@@ -60,6 +61,7 @@ class LikeServiceTest {
 
         verifyNoInteractions(postRepository);
         verifyNoInteractions(likeRepository);
+        verifyNoInteractions(notificationService);
     }
 
     @Test
@@ -76,6 +78,8 @@ class LikeServiceTest {
         verify(likeRepository, never()).save(any());
         verify(likeRepository, never()).delete(any());
         verify(postRepository, never()).save(any());
+
+        verifyNoInteractions(notificationService);
     }
 
     @Test
@@ -83,7 +87,7 @@ class LikeServiceTest {
         when(jwtTokenProvider.getCurrentKeycloakId()).thenReturn("kc-1");
         when(postRepository.findById(postId)).thenReturn(Optional.of(post));
 
-        // começar com 0 pra testar Math.max(0, count - 1)
+
         post.setLikesCount(0);
 
         Like existingLike = Like.builder()
@@ -106,6 +110,8 @@ class LikeServiceTest {
         verify(postRepository).save(postCaptor.capture());
         assertThat(postCaptor.getValue().getLikesCount()).isEqualTo(0); // não fica negativo
         verify(likeRepository, never()).save(any());
+
+        verifyNoInteractions(notificationService);
     }
 
     @Test
@@ -137,9 +143,9 @@ class LikeServiceTest {
         assertThat(postCaptor.getValue().getLikesCount()).isEqualTo(1);
 
         verify(likeRepository, never()).delete(any());
+
     }
 
-    // -------------------- isLikedByCurrentUser --------------------
 
     @Test
     void isLikedByCurrentUser_whenNotAuthenticated_shouldReturnFalse_andNotHitRepo() {
@@ -149,6 +155,7 @@ class LikeServiceTest {
 
         assertThat(result).isFalse();
         verifyNoInteractions(likeRepository);
+        verifyNoInteractions(notificationService);
     }
 
     @Test
@@ -160,9 +167,10 @@ class LikeServiceTest {
 
         assertThat(result).isTrue();
         verify(likeRepository).existsByKeycloakIdAndPostId("kc-1", postId);
+
+        verifyNoInteractions(notificationService);
     }
 
-    // -------------------- getLikesCount --------------------
 
     @Test
     void getLikesCount_shouldReturnCountByPostId() {
@@ -172,5 +180,7 @@ class LikeServiceTest {
 
         assertThat(count).isEqualTo(7L);
         verify(likeRepository).countByPostId(postId);
+
+        verifyNoInteractions(notificationService);
     }
 }

@@ -89,7 +89,7 @@ class ProfileContextServiceTest {
     void canCreatePostAsTeam_whenNotAuthenticated_shouldThrow401() {
         when(jwtTokenProvider.getCurrentKeycloakId()).thenReturn(null);
 
-        assertThatThrownBy(() -> service.canCreatePostAsTeam("team-1"))
+        assertThatThrownBy(() -> service.canCreatePostAsTeam(UUID.randomUUID().toString()))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode())
                 .isEqualTo(UNAUTHORIZED);
@@ -158,7 +158,6 @@ class ProfileContextServiceTest {
         when(jwtTokenProvider.getFullJwt()).thenReturn(Optional.of(jwt));
 
         UUID teamUUID = UUID.randomUUID();
-
         when(competitionsServiceClient.getTeamById(eq(teamUUID), eq("Bearer tok")))
                 .thenThrow(new RuntimeException("boom"));
 
