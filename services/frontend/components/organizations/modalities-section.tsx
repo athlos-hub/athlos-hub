@@ -77,7 +77,7 @@ export function ModalitiesSection({ orgCode, isAdmin, isPending }: ModalitiesSec
               </CardDescription>
             </div>
             {isAdmin && (
-              <Button onClick={() => setIsCreateDialogOpen(true)} size="sm">
+              <Button onClick={() => setIsCreateDialogOpen(true)} size="sm" className="bg-main hover:bg-main/90 text-white">
                 <Plus className="w-4 h-4 mr-2" />
                 Nova Modalidade
               </Button>

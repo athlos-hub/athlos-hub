@@ -39,7 +39,7 @@ export async function getCompetition(id: number): Promise<Competition> {
   const response = await axiosAPI<Competition>({
     endpoint: `/competitions/${id}`,
     method: "GET",
-    withAuth: true,
+    withAuth: false,
   });
 
   return response.data;
@@ -48,14 +48,23 @@ export async function getCompetition(id: number): Promise<Competition> {
 export async function createCompetition(
   data: CompetitionCreate
 ): Promise<Competition> {
-  const response = await axiosAPI<Competition>({
-    endpoint: "/competitions",
-    method: "POST",
-    data: data as unknown as Record<string, unknown>,
-    withAuth: true,
-  });
-
-  return response.data;
+  console.log("[ACTION createCompetition] Dados recebidos:", JSON.stringify(data, null, 2));
+  
+  try {
+    const response = await axiosAPI<Competition>({
+      endpoint: "/competitions",
+      method: "POST",
+      data: data as unknown as Record<string, unknown>,
+      withAuth: true,
+      service: "competitions",
+    });
+    
+    console.log("[ACTION createCompetition] Resposta:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("[ACTION createCompetition] Erro:", error);
+    throw error;
+  }
 }
 
 export async function updateCompetition(
@@ -81,6 +90,20 @@ export async function generateCompetitionStructure(
     method: "POST",
     data: request as unknown as Record<string, unknown>,
     withAuth: true,
+    service: "competitions",
+  });
+
+  return response.data;
+}
+
+export async function finalizeCompetition(
+  competitionId: number
+): Promise<Competition> {
+  const response = await axiosAPI<Competition>({
+    endpoint: `/competitions/${competitionId}/finalize`,
+    method: "POST",
+    withAuth: true,
+    service: "competitions",
   });
 
   return response.data;
@@ -109,7 +132,37 @@ export async function getCompetitionTeamsWithPlayers(
 
   return response.data;
 }
+export async function listSportRulesets(
+  skip = 0,
+  limit = 100
+): Promise<any[]> {
+  console.log("[ACTION] Chamando listSportRulesets com endpoint: /sport-rulesets/");
+  const response = await axiosAPI<any[]>({
+    endpoint: "/sport-rulesets/",
+    method: "GET",
+    queryParams: { skip, limit },
+    withAuth: false,
+    service: "competitions",
+  });
+  console.log("[ACTION] Resposta listSportRulesets:", response.data);
+  return response.data;
+}
 
+export async function listStatsRulesets(
+  skip = 0,
+  limit = 100
+): Promise<any[]> {
+  console.log("[ACTION] Chamando listStatsRulesets com endpoint: /stats-rulesets/");
+  const response = await axiosAPI<any[]>({
+    endpoint: "/stats-rulesets/",
+    method: "GET",
+    queryParams: { skip, limit },
+    withAuth: false,
+    service: "competitions",
+  });
+  console.log("[ACTION] Resposta listStatsRulesets:", response.data);
+  return response.data;
+}
 export async function createCompetitionStat(
   competitionId: number,
   data: CompetitionStatCreate

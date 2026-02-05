@@ -17,10 +17,10 @@ class StatsRuleSetModel(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    competition_id: Mapped[int] = mapped_column(ForeignKey("competitions.id"), unique=True)
+    competition_id: Mapped[Optional[int]] = mapped_column(ForeignKey("competitions.id"), nullable=True)
 
     # Relacionamentos
-    competition: Mapped["CompetitionModel"] = relationship("CompetitionModel")
+    competition: Mapped[Optional["CompetitionModel"]] = relationship("CompetitionModel")
     stats_types: Mapped[List["StatsTypeModel"]] = relationship(
         "StatsTypeModel", back_populates="stats_ruleset", cascade="all, delete-orphan"
     )

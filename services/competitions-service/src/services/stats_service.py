@@ -65,14 +65,20 @@ class StatsService:
         competition_id: int,
         limit: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
+        print(f"[StatsService] Buscando standings para competição {competition_id}")
+        
         comp_res = await self.session.execute(
             select(CompetitionModel).where(CompetitionModel.id == competition_id)
         )
         competition = comp_res.scalar_one_or_none()
         if not competition:
+            print(f"[StatsService] Competição {competition_id} não encontrada")
             return []
+        
+        print(f"[StatsService] Competição encontrada: {competition.name}, sistema: {competition.system}")
 
         if competition.system == CompetitionSystem.POINTS:
+            print(f"[StatsService] Sistema de pontos corridos, buscando classificação única")
             q = (
                 select(
                     ClassificationModel.team_id,
@@ -102,17 +108,20 @@ class StatsService:
                 q = q.limit(limit)
             res = await self.session.execute(q)
             rows = res.all()
+            print(f"[StatsService] Encontrados {len(rows)} times na classificação")
             return [
                 {
-                    "team_id": r.team_id,
+                    "team_id": str(r.team_id),
                     "team_name": r.name,
+                    "team_abbreviation": "",
                     "points": r.points,
+                    "matches_played": r.wins + r.draws + r.losses,
                     "wins": r.wins,
                     "draws": r.draws,
                     "losses": r.losses,
-                    "score_pro": r.score_pro,
-                    "score_against": r.score_against,
-                    "score_balance": r.score_balance,
+                    "goals_for": r.score_pro,
+                    "goals_against": r.score_against,
+                    "goal_difference": r.score_balance,
                 }
                 for r in rows
             ]

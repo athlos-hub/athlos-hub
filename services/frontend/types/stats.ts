@@ -11,7 +11,7 @@ export interface StatsRuleSet {
   id: number;
   name: string;
   description?: string;
-  competition_id: number;
+  competition_id?: number;
   stats_types: StatsType[];
 }
 

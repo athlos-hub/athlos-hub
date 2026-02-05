@@ -22,7 +22,7 @@ import { StreamKeyDisplay } from "@/components/livestream/stream-key-display";
 import { ScoreboardDisplay } from "@/components/matches/scoreboard-display";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getLiveById, finishLive, cancelLive } from "@/actions/lives";
-import { getMatchById } from "@/actions/matches";
+import { getMatchById, finishMatch } from "@/actions/matches";
 import { getMyOrganizations } from "@/actions/organizations";
 import { getCompetitionStats, getCompetitionTeamsWithPlayers } from "@/actions/competitions";
 import { OrgRole } from "@/types/organization";
@@ -48,6 +48,7 @@ export default function LiveDetailPage() {
   const [userOrgRole, setUserOrgRole] = useState<string | null>(null);
   const [showFinishDialog, setShowFinishDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showFinishMatchDialog, setShowFinishMatchDialog] = useState(false);
 
   const liveId = params?.id as string;
 
@@ -145,6 +146,27 @@ export default function LiveDetailPage() {
     }
   };
 
+  const handleFinishMatch = async () => {
+    if (!live?.externalMatchId || isUpdating) return;
+
+    setIsUpdating(true);
+    try {
+      await finishMatch(live.externalMatchId);
+      toast.success("Jogo finalizado com sucesso!");
+      // Recarregar dados do jogo
+      if (live.externalMatchId) {
+        const matchData = await getMatchById(live.externalMatchId);
+        setMatchDetails(matchData);
+      }
+    } catch (error) {
+      console.error("Erro ao finalizar jogo:", error);
+      toast.error("Erro ao finalizar jogo");
+    } finally {
+      setIsUpdating(false);
+      setShowFinishMatchDialog(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="py-8 space-y-6">
@@ -192,15 +214,27 @@ export default function LiveDetailPage() {
           )}
 
           {((userOrgRole === OrgRole.OWNER) || (userOrgRole === OrgRole.ORGANIZER)) && live.status === "live" && (
-            <Button
-              onClick={() => setShowFinishDialog(true)}
-              disabled={isUpdating}
-              variant="destructive"
-              className="gap-2"
-            >
-              <Square className="w-4 h-4" />
-              Encerrar Live
-            </Button>
+            <>
+              <Button
+                onClick={() => setShowFinishDialog(true)}
+                disabled={isUpdating}
+                variant="destructive"
+                className="gap-2"
+              >
+                <Square className="w-4 h-4" />
+                Encerrar Live
+              </Button>
+              {live.externalMatchId && matchDetails?.status === "live" && (
+                <Button
+                  onClick={() => setShowFinishMatchDialog(true)}
+                  disabled={isUpdating}
+                  className="gap-2 bg-main hover:bg-main/90 text-white"
+                >
+                  <Square className="w-4 h-4" />
+                  Finalizar Jogo
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -306,6 +340,38 @@ export default function LiveDetailPage() {
               className="bg-destructive hover:bg-destructive/90"
             >
               {isUpdating ? "Cancelando..." : "Cancelar Live"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showFinishMatchDialog} onOpenChange={setShowFinishMatchDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Finalizar Jogo</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="text-sm text-muted-foreground space-y-3">
+                <p>Tem certeza que deseja <strong>finalizar</strong> este jogo?</p>
+                <div>
+                  <span>Isso irá:</span>
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>Atualizar o status para &quot;Finalizado&quot;</li>
+                    <li>Garantir que o placar final esteja definido</li>
+                    <li>Disparar atualizações relacionadas (classificações, estatísticas, etc.)</li>
+                  </ul>
+                </div>
+                <p className="font-semibold">O jogo não poderá mais ser editado após a finalização.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isUpdating}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleFinishMatch}
+              disabled={isUpdating}
+              className="bg-main hover:bg-main/90"
+            >
+              {isUpdating ? "Finalizando..." : "Finalizar Jogo"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

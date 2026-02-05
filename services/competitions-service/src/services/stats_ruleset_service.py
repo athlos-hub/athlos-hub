@@ -21,7 +21,7 @@ class StatsRuleSetService:
     async def create(self, competition_id: int, data: StatsRuleSetCreate) -> StatsRuleSetModel:
         """
         Cria um novo StatsRuleSet para uma competição específica.
-        A competição não pode ter outro stats ruleset já vinculado.
+        Agora uma competição pode ter múltiplos stats rulesets.
         """
         # Verificar se a competição existe
         comp_query = select(CompetitionModel).where(CompetitionModel.id == competition_id)
@@ -32,17 +32,6 @@ class StatsRuleSetService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Competição com ID {competition_id} não encontrada"
-            )
-
-        # Verificar se já existe um stats ruleset para esta competição
-        existing_query = select(StatsRuleSetModel).where(
-            StatsRuleSetModel.competition_id == competition_id
-        )
-        existing_result = await self.session.execute(existing_query)
-        if existing_result.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Competição {competition_id} já possui um stats ruleset vinculado"
             )
 
         # Criar o ruleset

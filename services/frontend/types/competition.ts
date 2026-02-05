@@ -29,10 +29,16 @@ export interface SportRulesetCreate {
   has_break_segments: boolean;
 }
 
+export enum CompetitionPhase {
+  GROUPS = 'groups',
+  ELIMINATION = 'elimination',
+}
+
 export interface Competition {
   id: number;
   name: string;
   modality_id: number;
+  organization_slug?: string;
   start_date: string;
   end_date: string;
   status: CompetitionStatus;
@@ -42,8 +48,9 @@ export interface Competition {
   image?: string;
   teams_qualified_per_group?: number;
   teams_per_group?: number;
-  sport_ruleset_id: number;
+  sport_ruleset_id?: number;
   sport_ruleset?: SportRuleset;
+  current_phase?: CompetitionPhase;
 }
 
 export interface CompetitionCreate {
@@ -59,6 +66,12 @@ export interface CompetitionCreate {
   teams_per_group?: number;
   ruleset?: SportRulesetCreate;
   sport_ruleset_id?: number;
+  stats_ruleset?: {
+    name: string;
+    description?: string;
+    stats_types: any[];
+  };
+  stats_ruleset_id?: number;
 }
 
 export interface CompetitionUpdate {
@@ -102,7 +115,7 @@ export interface CompetitionStatCreate {
 
 export interface Player {
   id: string;
-  user_id: string;
+  keycloak_id: string;
   team_id: string;
 }
 
