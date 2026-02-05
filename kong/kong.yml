@@ -13,7 +13,7 @@ services:
     url: http://host.docker.internal:8001
     routes:
       - name: competitions-routes
-        paths: ["/api/v1/competitions", "/api/v1/matches", "/api/v1/teams", "/api/v1/modalities"]
+        paths: ["/api/v1/competitions", "/api/v1/matches", "/api/v1/teams", "/api/v1/modalities", "/api/v1/scoreboard"]
         strip_path: false
 
   - name: mediamtx-hls
@@ -63,6 +63,15 @@ services:
         preserve_host: true
         request_buffering: false
         response_buffering: false
+
+  - name: social-service
+    url: http://host.docker.internal:8083/api/social
+    routes:
+      - name: social-routes
+        paths: 
+          - /api/social
+          - /api/v1/social
+        strip_path: true
 
   - name: keycloak-service
     url: http://keycloak-local:8080/keycloak

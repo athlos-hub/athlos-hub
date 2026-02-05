@@ -27,6 +27,7 @@ import static org.springframework.http.HttpStatus.*;
 public class OrganizationFollowService {
     
     private final OrganizationFollowRepository organizationFollowRepository;
+    private final OrganizationProfileService organizationProfileService;
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthServiceClient authServiceClient;
     private final NotificationService notificationService;
@@ -41,6 +42,8 @@ public class OrganizationFollowService {
         return organizationFollowRepository.findByFollowerKeycloakIdAndOrganizationSlug(keycloakId, organizationSlug)
             .map(existingFollow -> {
                 organizationFollowRepository.delete(existingFollow);
+                organizationProfileService.decrementFollowersCount(organizationSlug);
+                log.info("Usuário {} deixou de seguir organização {}", keycloakId, organizationSlug);
                 return false;
             })
             .orElseGet(() -> {
@@ -50,6 +53,8 @@ public class OrganizationFollowService {
                     .build();
                 
                 organizationFollowRepository.save(newFollow);
+                organizationProfileService.incrementFollowersCount(organizationSlug);
+                log.info("Usuário {} começou a seguir organização {}", keycloakId, organizationSlug);
                 
                 try {
                     String token = jwtTokenProvider.getCurrentToken();

@@ -27,16 +27,23 @@ class DatabaseClient:
             return
 
         try:
-            self._engine = create_async_engine(
-                url,
-                pool_size=pool_min,
-                max_overflow=pool_max - pool_min,
-                pool_timeout=timeout,
-                connect_args=connect_args or {},
-                echo=False,
-                pool_pre_ping=True,
-                pool_recycle=1800
-            )
+            engine_kwargs: Dict[str, Any] = {
+                "connect_args": connect_args or {},
+                "echo": False,
+                "pool_pre_ping": True,
+                "pool_recycle": 1800,
+            }
+
+            if not url.startswith("sqlite"):
+                engine_kwargs.update(
+                    {
+                        "pool_size": pool_min,
+                        "max_overflow": pool_max - pool_min,
+                        "pool_timeout": timeout,
+                    }
+                )
+
+            self._engine = create_async_engine(url, **engine_kwargs)
 
             self._session_maker = sessionmaker(
                 bind=self._engine,

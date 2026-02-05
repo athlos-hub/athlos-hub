@@ -19,12 +19,18 @@ import { LiveChat } from "@/components/livestream/live-chat";
 import { LiveEvents } from "@/components/livestream/live-events";
 import { LiveStatusDisplay } from "@/components/livestream/live-status-display";
 import { StreamKeyDisplay } from "@/components/livestream/stream-key-display";
+import { ScoreboardDisplay } from "@/components/matches/scoreboard-display";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getLiveById, finishLive, cancelLive } from "@/actions/lives";
+import { getMatchById, finishMatch } from "@/actions/matches";
 import { getMyOrganizations } from "@/actions/organizations";
+import { getCompetitionStats, getCompetitionTeamsWithPlayers } from "@/actions/competitions";
 import { OrgRole } from "@/types/organization";
 import { useLiveStatus } from "@/hooks/use-live-status";
+import { useScoreboard } from "@/hooks/use-scoreboard";
 import type { Live } from "@/types/livestream";
+import type { MatchDetail } from "@/types/match";
+import type { CompetitionStat, TeamWithPlayers } from "@/types/competition";
 import { toast } from "sonner";
 import { ArrowLeft, Square, X } from "lucide-react";
 import Link from "next/link";
@@ -34,15 +40,22 @@ export default function LiveDetailPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const [initialLive, setInitialLive] = useState<Live | null>(null);
+  const [matchDetails, setMatchDetails] = useState<MatchDetail | null>(null);
+  const [competitionStats, setCompetitionStats] = useState<CompetitionStat[]>([]);
+  const [teamsWithPlayers, setTeamsWithPlayers] = useState<TeamWithPlayers[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [userOrgRole, setUserOrgRole] = useState<string | null>(null);
   const [showFinishDialog, setShowFinishDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showFinishMatchDialog, setShowFinishMatchDialog] = useState(false);
 
   const liveId = params?.id as string;
 
   const { live, updateLive, isConnected } = useLiveStatus(liveId, initialLive);
+  
+  // Hook do scoreboard para obter os segments
+  const { scoreboard } = useScoreboard(live?.externalMatchId || null);
 
   useEffect(() => {
     async function loadLive() {
@@ -52,6 +65,35 @@ export default function LiveDetailPage() {
         const data = await getLiveById(liveId);
         setInitialLive(data);
         updateLive(data);
+        
+        // Carrega detalhes do match para obter competition_id
+        if (data.externalMatchId) {
+          try {
+            const matchData = await getMatchById(data.externalMatchId);
+            setMatchDetails(matchData);
+            
+            // Carrega as estatísticas da competição
+            if (matchData.competition_id) {
+              try {
+                const stats = await getCompetitionStats(matchData.competition_id);
+                setCompetitionStats(stats);
+              } catch (statsErr) {
+                console.error("Erro ao carregar estatísticas da competição:", statsErr);
+              }
+              
+              // Carrega os times com jogadores
+              try {
+                const teams = await getCompetitionTeamsWithPlayers(matchData.competition_id);
+                setTeamsWithPlayers(teams);
+              } catch (teamsErr) {
+                console.error("Erro ao carregar times com jogadores:", teamsErr);
+              }
+            }
+          } catch (matchErr) {
+            console.error("Erro ao carregar detalhes do match:", matchErr);
+          }
+        }
+        
         try {
           const myOrgs = await getMyOrganizations();
           const match = myOrgs.find((o: any) => o.id === data.organizationId);
@@ -104,6 +146,27 @@ export default function LiveDetailPage() {
     }
   };
 
+  const handleFinishMatch = async () => {
+    if (!live?.externalMatchId || isUpdating) return;
+
+    setIsUpdating(true);
+    try {
+      await finishMatch(live.externalMatchId);
+      toast.success("Jogo finalizado com sucesso!");
+      // Recarregar dados do jogo
+      if (live.externalMatchId) {
+        const matchData = await getMatchById(live.externalMatchId);
+        setMatchDetails(matchData);
+      }
+    } catch (error) {
+      console.error("Erro ao finalizar jogo:", error);
+      toast.error("Erro ao finalizar jogo");
+    } finally {
+      setIsUpdating(false);
+      setShowFinishMatchDialog(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="py-8 space-y-6">
@@ -151,15 +214,27 @@ export default function LiveDetailPage() {
           )}
 
           {((userOrgRole === OrgRole.OWNER) || (userOrgRole === OrgRole.ORGANIZER)) && live.status === "live" && (
-            <Button
-              onClick={() => setShowFinishDialog(true)}
-              disabled={isUpdating}
-              variant="destructive"
-              className="gap-2"
-            >
-              <Square className="w-4 h-4" />
-              Encerrar Live
-            </Button>
+            <>
+              <Button
+                onClick={() => setShowFinishDialog(true)}
+                disabled={isUpdating}
+                variant="destructive"
+                className="gap-2"
+              >
+                <Square className="w-4 h-4" />
+                Encerrar Live
+              </Button>
+              {live.externalMatchId && matchDetails?.status === "live" && (
+                <Button
+                  onClick={() => setShowFinishMatchDialog(true)}
+                  disabled={isUpdating}
+                  className="gap-2 bg-main hover:bg-main/90 text-white"
+                >
+                  <Square className="w-4 h-4" />
+                  Finalizar Jogo
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -172,6 +247,16 @@ export default function LiveDetailPage() {
 
       {((userOrgRole === OrgRole.OWNER) || (userOrgRole === OrgRole.ORGANIZER)) && (live.status === "scheduled" || live.status === "live") && (
         <StreamKeyDisplay streamKey={live.streamKey} />
+      )}
+
+      {/* Placar em Tempo Real */}
+      {live.externalMatchId && (
+        <ScoreboardDisplay 
+          matchId={live.externalMatchId}
+          competitionId={matchDetails?.competition_id}
+          canEdit={(userOrgRole === OrgRole.OWNER) || (userOrgRole === OrgRole.ORGANIZER)}
+          liveId={liveId}
+        />
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -193,6 +278,15 @@ export default function LiveDetailPage() {
       <LiveEvents 
         liveId={liveId} 
         liveStatus={live.status} 
+        matchId={live.externalMatchId || ""}
+        matchData={{
+          home_team_id: matchDetails?.home_team?.id,
+          away_team_id: matchDetails?.away_team?.id
+        }}
+        competitionId={matchDetails?.competition_id}
+        competitionStats={competitionStats}
+        teamsWithPlayers={teamsWithPlayers}
+        segments={scoreboard?.segments || []}
         canCreateEvents={(userOrgRole === OrgRole.OWNER) || (userOrgRole === OrgRole.ORGANIZER)}
       />
 
@@ -246,6 +340,38 @@ export default function LiveDetailPage() {
               className="bg-destructive hover:bg-destructive/90"
             >
               {isUpdating ? "Cancelando..." : "Cancelar Live"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showFinishMatchDialog} onOpenChange={setShowFinishMatchDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Finalizar Jogo</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="text-sm text-muted-foreground space-y-3">
+                <p>Tem certeza que deseja <strong>finalizar</strong> este jogo?</p>
+                <div>
+                  <span>Isso irá:</span>
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>Atualizar o status para &quot;Finalizado&quot;</li>
+                    <li>Garantir que o placar final esteja definido</li>
+                    <li>Disparar atualizações relacionadas (classificações, estatísticas, etc.)</li>
+                  </ul>
+                </div>
+                <p className="font-semibold">O jogo não poderá mais ser editado após a finalização.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isUpdating}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleFinishMatch}
+              disabled={isUpdating}
+              className="bg-main hover:bg-main/90"
+            >
+              {isUpdating ? "Finalizando..." : "Finalizar Jogo"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

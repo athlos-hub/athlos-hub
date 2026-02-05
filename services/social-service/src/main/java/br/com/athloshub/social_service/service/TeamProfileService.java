@@ -42,9 +42,14 @@ public class TeamProfileService {
     }
     
     @Transactional
+    public TeamProfile saveProfile(TeamProfile profile) {
+        return teamProfileRepository.save(profile);
+    }
+    
+    @Transactional
     public TeamProfile updateProfile(String teamId, Map<String, Object> updates) {
         TeamProfile profile = getProfileByTeamId(teamId);
-        
+
         if (updates.containsKey("description")) {
             profile.setDescription((String) updates.get("description"));
         }
@@ -56,7 +61,7 @@ public class TeamProfileService {
         if (updates.containsKey("isPrivate")) {
             profile.setIsPrivate((Boolean) updates.get("isPrivate"));
         }
-        
+
         return teamProfileRepository.save(profile);
     }
 }

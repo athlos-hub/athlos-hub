@@ -9,6 +9,7 @@ from src.models.base import Base
 if TYPE_CHECKING:
     from modality import ModalityModel
     from sport_ruleset import SportRulesetModel
+    from stats import StatsRuleSetModel
 
 
 class CompetitionStatus(str, enum.Enum):
@@ -21,6 +22,10 @@ class CompetitionSystem(str, enum.Enum):
     ELIMINATION = "elimination"
     MIXED = "mixed"
 
+class CompetitionPhase(str, enum.Enum):
+    GROUPS = "groups"
+    ELIMINATION = "elimination"
+
 class CompetitionModel(Base):
     __tablename__ = "competitions"
 
@@ -29,7 +34,7 @@ class CompetitionModel(Base):
     
     name: Mapped[str] = mapped_column(String(100))
     status: Mapped[CompetitionStatus] = mapped_column(String, default="PENDING")
-    sport_ruleset_id: Mapped[int] = mapped_column(ForeignKey("sport_rulesets.id"))
+    sport_ruleset_id: Mapped[Optional[int]] = mapped_column(ForeignKey("sport_rulesets.id"), nullable=True)
 
     start_date: Mapped[datetime]
     end_date: Mapped[datetime]
@@ -43,6 +48,7 @@ class CompetitionModel(Base):
     teams_qualified_per_group: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     image: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    current_phase: Mapped[Optional[CompetitionPhase]] = mapped_column(String, nullable=True)
     
     # Relacionamentos
     # Note que importamos classes dentro de strings ou TYPE_CHECKING para evitar ciclo
@@ -51,7 +57,13 @@ class CompetitionModel(Base):
         back_populates="competitions"
     )
     
-    sport_ruleset: Mapped["SportRulesetModel"] = relationship(
+    sport_ruleset: Mapped[Optional["SportRulesetModel"]] = relationship(
         "SportRulesetModel", 
         back_populates="competitions"
+    )
+    
+    stats_ruleset: Mapped[Optional["StatsRuleSetModel"]] = relationship(
+        "StatsRuleSetModel",
+        back_populates="competition",
+        uselist=False
     )

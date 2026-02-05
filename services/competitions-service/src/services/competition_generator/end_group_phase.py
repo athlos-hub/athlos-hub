@@ -3,7 +3,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy import desc
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.models.competition import CompetitionModel
+from src.models.competition import CompetitionModel, CompetitionPhase
 from src.models.matches import GroupModel, RoundModel, MatchModel, MatchStatus
 from src.models.standings import ClassificationModel
 from .generate_competitions_utils import CompetitionGeneratorUtils as util
@@ -115,6 +115,8 @@ class EndGroupPhaseService:
             else:
                 print(f"ERRO: Não encontrei times para o confronto {home_placeholder} x {away_placeholder}")
 
+        competition.current_phase = CompetitionPhase.ELIMINATION
+        self.session.add(competition)
         await self.session.commit()
         return {
             "message": "Fase de grupos finalizada com sucesso.",

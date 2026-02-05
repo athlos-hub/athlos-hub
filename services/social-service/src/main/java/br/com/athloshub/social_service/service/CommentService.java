@@ -1,5 +1,7 @@
 package br.com.athloshub.social_service.service;
 
+import br.com.athloshub.social_service.client.AuthServiceClient;
+import br.com.athloshub.social_service.dto.auth.UserDTO;
 import br.com.athloshub.social_service.entity.Comment;
 import br.com.athloshub.social_service.enums.NotificationType;
 import br.com.athloshub.social_service.entity.Post;
@@ -11,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -30,6 +31,7 @@ public class CommentService {
     private final JwtTokenProvider jwtTokenProvider;
     private final NotificationService notificationService;
     private final ModerationService moderationService;
+    private final AuthServiceClient authServiceClient;
 
     @Transactional
     public Comment createComment(UUID postId, String content) {
@@ -55,8 +57,22 @@ public class CommentService {
         postRepository.save(post);
         
         try {
+            String actorName = "Usuário";
+            
+            try {
+                String token = jwtTokenProvider.getCurrentToken();
+                if (token != null) {
+                    UserDTO actor = authServiceClient.getUserByKeycloakId(keycloakId, "Bearer " + token);
+                    if (actor != null) {
+                        actorName = actor.getFullName();
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Não foi possível buscar nome do usuário {}: {}", keycloakId, e.getMessage());
+            }
+            
             java.util.Map<String, Object> notificationData = new java.util.HashMap<>();
-            notificationData.put("actorName", "Usuário");
+            notificationData.put("actorName", actorName);
             notificationData.put("commentContent", content);
             notificationData.put("postContent", post.getContent());
             notificationData.put("postUrl", "https://athlos-hub.com/social/post/" + post.getId());
