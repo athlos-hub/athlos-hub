@@ -18,7 +18,7 @@ jobs:
   test-auth-service:
     runs-on: ubuntu-latest
     outputs:
-      tests_run: ${{ steps.filter.outputs.src }}
+      tests_run: ${{ steps.should_run.outputs.run }}
       total_tests: ${{ steps.test-results.outputs.total }}
       passed_tests: ${{ steps.test-results.outputs.passed }}
       failed_tests: ${{ steps.test-results.outputs.failed }}
@@ -32,24 +32,36 @@ jobs:
           filters: |
             src:
               - 'services/auth-service/**'
+              - 'libs/common/**'
+              - 'libs/database/**'
+              - '.github/workflows/ci_cd.yml'
+
+      - name: Determine if tests should run
+        id: should_run
+        run: |
+          if [ "${{ github.event_name }}" == "push" ] || [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "run=true" >> $GITHUB_OUTPUT
+          else
+            echo "run=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set up Python
-        if: steps.filter.outputs.src == 'true'
+        if: steps.should_run.outputs.run == 'true'
         uses: actions/setup-python@v4
         with:
           python-version: '3.12.12'
 
       - name: Install Poetry
-        if: steps.filter.outputs.src == 'true'
+        if: steps.should_run.outputs.run == 'true'
         run: pip install poetry
         
       - name: Install Deps
-        if: steps.filter.outputs.src == 'true'
+        if: steps.should_run.outputs.run == 'true'
         working-directory: ./services/auth-service
         run: poetry install
 
       - name: Run Tests
-        if: steps.filter.outputs.src == 'true'
+        if: steps.should_run.outputs.run == 'true'
         working-directory: ./services/auth-service
         env:
           CI: 'true'
@@ -60,7 +72,7 @@ jobs:
         run: poetry run pytest tests/unit --junitxml=test-results.xml --cov=src/auth_service --cov-report=term --cov-report=xml --cov-report=json -v
 
       - name: Extract Test Results
-        if: steps.filter.outputs.src == 'true' && always()
+        if: steps.should_run.outputs.run == 'true' && always()
         id: test-results
         working-directory: ./services/auth-service
         run: |
@@ -79,7 +91,7 @@ jobs:
           fi
 
       - name: Extract Coverage
-        if: steps.filter.outputs.src == 'true' && always()
+        if: steps.should_run.outputs.run == 'true' && always()
         id: coverage
         working-directory: ./services/auth-service
         run: |
@@ -91,7 +103,7 @@ jobs:
           fi
 
       - name: Upload Coverage Artifact
-        if: steps.filter.outputs.src == 'true' && always()
+        if: steps.should_run.outputs.run == 'true' && always()
         uses: actions/upload-artifact@v4
         with:
           name: auth-service-coverage
@@ -99,7 +111,7 @@ jobs:
           retention-days: 7
 
       - name: Publish Test Results
-        if: steps.filter.outputs.src == 'true' && always()
+        if: steps.should_run.outputs.run == 'true' && always()
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           files: 'services/auth-service/test-results.xml'
@@ -112,7 +124,7 @@ jobs:
   test-competitions-service:
     runs-on: ubuntu-latest
     outputs:
-      tests_run: ${{ steps.filter.outputs.src }}
+      tests_run: ${{ steps.should_run.outputs.run }}
       total_tests: ${{ steps.test-results.outputs.total }}
       passed_tests: ${{ steps.test-results.outputs.passed }}
       failed_tests: ${{ steps.test-results.outputs.failed }}
@@ -126,29 +138,41 @@ jobs:
           filters: |
             src:
               - 'services/competitions-service/**'
+              - 'libs/common/**'
+              - 'libs/database/**'
+              - '.github/workflows/ci_cd.yml'
+
+      - name: Determine if tests should run
+        id: should_run
+        run: |
+          if [ "${{ github.event_name }}" == "push" ] || [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "run=true" >> $GITHUB_OUTPUT
+          else
+            echo "run=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set up Python
-        if: steps.filter.outputs.src == 'true'
+        if: steps.should_run.outputs.run == 'true'
         uses: actions/setup-python@v4
         with:
           python-version: '3.12.12'
 
       - name: Install Poetry
-        if: steps.filter.outputs.src == 'true'
+        if: steps.should_run.outputs.run == 'true'
         run: pip install poetry
 
       - name: Install Deps
-        if: steps.filter.outputs.src == 'true'
+        if: steps.should_run.outputs.run == 'true'
         working-directory: ./services/competitions-service
         run: poetry install
 
       - name: Run Tests
-        if: steps.filter.outputs.src == 'true'
+        if: steps.should_run.outputs.run == 'true'
         working-directory: ./services/competitions-service
         run: poetry run pytest --junitxml=test-results.xml --cov=src --cov-report=term --cov-report=xml --cov-report=json -v
 
       - name: Extract Test Results
-        if: steps.filter.outputs.src == 'true' && always()
+        if: steps.should_run.outputs.run == 'true' && always()
         id: test-results
         working-directory: ./services/competitions-service
         run: |
@@ -167,7 +191,7 @@ jobs:
           fi
 
       - name: Extract Coverage
-        if: steps.filter.outputs.src == 'true' && always()
+        if: steps.should_run.outputs.run == 'true' && always()
         id: coverage
         working-directory: ./services/competitions-service
         run: |
@@ -179,7 +203,7 @@ jobs:
           fi
 
       - name: Upload Coverage Artifact
-        if: steps.filter.outputs.src == 'true' && always()
+        if: steps.should_run.outputs.run == 'true' && always()
         uses: actions/upload-artifact@v4
         with:
           name: competitions-service-coverage
@@ -187,7 +211,7 @@ jobs:
           retention-days: 7
 
       - name: Publish Test Results
-        if: steps.filter.outputs.src == 'true' && always()
+        if: steps.should_run.outputs.run == 'true' && always()
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           files: 'services/competitions-service/test-results.xml'
@@ -200,7 +224,7 @@ jobs:
   test-livestream-service:
     runs-on: ubuntu-latest
     outputs:
-      tests_run: ${{ steps.filter.outputs.src }}
+      tests_run: ${{ steps.should_run.outputs.run }}
       total_tests: ${{ steps.test-results.outputs.total }}
       passed_tests: ${{ steps.test-results.outputs.passed }}
       failed_tests: ${{ steps.test-results.outputs.failed }}
@@ -214,29 +238,39 @@ jobs:
           filters: |
             src:
               - 'services/livestream-service/**'
+              - '.github/workflows/ci_cd.yml'
+
+      - name: Determine if tests should run
+        id: should_run
+        run: |
+          if [ "${{ github.event_name }}" == "push" ] || [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "run=true" >> $GITHUB_OUTPUT
+          else
+            echo "run=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set up Node.js
-        if: steps.filter.outputs.src == 'true'
+        if: steps.should_run.outputs.run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20.x'
 
       - name: Install pnpm
-        if: steps.filter.outputs.src == 'true'
+        if: steps.should_run.outputs.run == 'true'
         run: npm install -g pnpm
 
       - name: Install Dependencies
-        if: steps.filter.outputs.src == 'true'
+        if: steps.should_run.outputs.run == 'true'
         working-directory: ./services/livestream-service
         run: pnpm install
 
       - name: Run Tests
-        if: steps.filter.outputs.src == 'true'
+        if: steps.should_run.outputs.run == 'true'
         working-directory: ./services/livestream-service
         run: pnpm test:cov
 
       - name: Extract Test Results
-        if: steps.filter.outputs.src == 'true' && always()
+        if: steps.should_run.outputs.run == 'true' && always()
         id: test-results
         working-directory: ./services/livestream-service
         run: |
@@ -250,7 +284,7 @@ jobs:
           echo "failed=$FAILED" >> $GITHUB_OUTPUT
 
       - name: Extract Coverage
-        if: steps.filter.outputs.src == 'true' && always()
+        if: steps.should_run.outputs.run == 'true' && always()
         id: coverage
         working-directory: ./services/livestream-service
         run: |
@@ -277,7 +311,7 @@ jobs:
           fi
 
       - name: Upload Coverage Artifact
-        if: steps.filter.outputs.src == 'true' && always()
+        if: steps.should_run.outputs.run == 'true' && always()
         uses: actions/upload-artifact@v4
         with:
           name: livestream-service-coverage
@@ -290,7 +324,7 @@ jobs:
   test-notifications-service:
     runs-on: ubuntu-latest
     outputs:
-      tests_run: ${{ steps.filter.outputs.src }}
+      tests_run: ${{ steps.should_run.outputs.run }}
       total_tests: ${{ steps.test-results.outputs.total }}
       passed_tests: ${{ steps.test-results.outputs.passed }}
       failed_tests: ${{ steps.test-results.outputs.failed }}
@@ -304,29 +338,40 @@ jobs:
           filters: |
             src:
               - 'services/notifications-service/**'
+              - 'libs/common/**'
+              - '.github/workflows/ci_cd.yml'
+
+      - name: Determine if tests should run
+        id: should_run
+        run: |
+          if [ "${{ github.event_name }}" == "push" ] || [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "run=true" >> $GITHUB_OUTPUT
+          else
+            echo "run=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set up Python
-        if: steps.filter.outputs.src == 'true'
+        if: steps.should_run.outputs.run == 'true'
         uses: actions/setup-python@v4
         with:
           python-version: '3.12.12'
 
       - name: Install Poetry
-        if: steps.filter.outputs.src == 'true'
+        if: steps.should_run.outputs.run == 'true'
         run: pip install poetry
 
       - name: Install Deps
-        if: steps.filter.outputs.src == 'true'
+        if: steps.should_run.outputs.run == 'true'
         working-directory: ./services/notifications-service
         run: poetry install
 
       - name: Run Tests
-        if: steps.filter.outputs.src == 'true'
+        if: steps.should_run.outputs.run == 'true'
         working-directory: ./services/notifications-service
         run: poetry run pytest tests/unit --junitxml=test-results.xml --cov=src --cov-report=term --cov-report=xml --cov-report=json -v
 
       - name: Extract Test Results
-        if: steps.filter.outputs.src == 'true' && always()
+        if: steps.should_run.outputs.run == 'true' && always()
         id: test-results
         working-directory: ./services/notifications-service
         run: |
@@ -345,7 +390,7 @@ jobs:
           fi
 
       - name: Extract Coverage
-        if: steps.filter.outputs.src == 'true' && always()
+        if: steps.should_run.outputs.run == 'true' && always()
         id: coverage
         working-directory: ./services/notifications-service
         run: |
@@ -357,7 +402,7 @@ jobs:
           fi
 
       - name: Upload Coverage Artifact
-        if: steps.filter.outputs.src == 'true' && always()
+        if: steps.should_run.outputs.run == 'true' && always()
         uses: actions/upload-artifact@v4
         with:
           name: notifications-service-coverage
@@ -365,7 +410,7 @@ jobs:
           retention-days: 7
 
       - name: Publish Test Results
-        if: steps.filter.outputs.src == 'true' && always()
+        if: steps.should_run.outputs.run == 'true' && always()
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           files: 'services/notifications-service/test-results.xml'

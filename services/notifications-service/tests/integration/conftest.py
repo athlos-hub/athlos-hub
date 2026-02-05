@@ -18,6 +18,7 @@ from sqlalchemy.pool import StaticPool
 os.environ.setdefault("NOVU_API_KEY", "test-api-key")
 os.environ.setdefault("NOVU_APP_ID", "test-app-id")
 os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost:5432/test")
+os.environ.setdefault("NOTIFICATIONS_DATABASE_SCHEMA", "")  # Sem schema para testes
 
 from database.base import Base
 from database.dependencies import get_session

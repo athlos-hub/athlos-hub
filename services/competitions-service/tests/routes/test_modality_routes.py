@@ -11,7 +11,7 @@ async def test_create_modality(client: AsyncClient):
     
     payload = {
         "name": "Vôlei",
-        "org_code": "IFCE"
+        "organization_slug": "IFCE"
     }
 
     response = await client.post("/api/v1/modalities/", json=payload)
@@ -27,8 +27,8 @@ async def test_list_modalities(client: AsyncClient):
     Teste de listagem de modalidades via endpoint GET /modalities/
     """
 
-    await client.post("/api/v1/modalities/", json={"name": "Futsal", "org_code": "IFCE"})
-    await client.post("/api/v1/modalities/", json={"name": "Basquete", "org_code": "IFCE"})
+    await client.post("/api/v1/modalities/", json={"name": "Futsal", "organization_slug": "IFCE"})
+    await client.post("/api/v1/modalities/", json={"name": "Basquete", "organization_slug": "IFCE"})
 
     response = await client.get("/api/v1/modalities/")
 

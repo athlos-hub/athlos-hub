@@ -510,10 +510,13 @@ run_livestream_service_tests() {
             export REDIS_HOST="localhost"
             export REDIS_PORT=$TEST_REDIS_PORT
             
-            # Executa migrações do Prisma
-            print_info "Executando migrações do Prisma..."
-            DATABASE_URL="postgresql://postgres:postgres@localhost:${TEST_POSTGRES_PORT}/livestream_test?schema=public" \
-                pnpm prisma migrate deploy 2>/dev/null || true
+            # Cria tabelas usando script customizado (evita problemas de ESM com Prisma CLI)
+            print_info "Criando tabelas do banco de dados..."
+            DATABASE_URL="postgresql://postgres:postgres@localhost:${TEST_POSTGRES_PORT}/livestream_test" \
+                node scripts/setup-test-db.mjs || {
+                print_error "Falha ao criar tabelas do banco de dados"
+                return 1
+            }
             ;;
     esac
 

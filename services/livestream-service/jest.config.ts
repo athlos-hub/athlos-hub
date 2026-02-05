@@ -1,6 +1,4 @@
-import type { Config } from 'jest';
-
-const config: Config = {
+module.exports = {
   preset: 'ts-jest',
   moduleFileExtensions: ['js', 'json', 'ts'],
   rootDir: 'src',
@@ -25,5 +23,3 @@ const config: Config = {
   },
   setupFiles: ['<rootDir>/../jest.setup.ts'],
 };
-
-export default config;

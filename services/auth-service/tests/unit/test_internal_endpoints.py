@@ -62,13 +62,13 @@ class TestValidateMembersEndpoint:
             invalid_count=0,
             results=[
                 UserValidationResult(
-                    user_id=user_id_1,
+                    keycloak_id=user_id_1,
                     exists=True,
                     is_member=True,
                     username="user1"
                 ),
                 UserValidationResult(
-                    user_id=user_id_2,
+                    keycloak_id=user_id_2,
                     exists=True,
                     is_member=True,
                     username="user2"
@@ -80,7 +80,7 @@ class TestValidateMembersEndpoint:
             "/api/v1/internal/validate-members",
             json={
                 "organization_slug": "test-org",
-                "user_ids": [str(user_id_1), str(user_id_2)]
+                "keycloak_ids": [str(user_id_1), str(user_id_2)]
             }
         )
         
@@ -105,13 +105,13 @@ class TestValidateMembersEndpoint:
             invalid_count=1,
             results=[
                 UserValidationResult(
-                    user_id=user_id_1,
+                    keycloak_id=user_id_1,
                     exists=True,
                     is_member=True,
                     username="user1"
                 ),
                 UserValidationResult(
-                    user_id=user_id_2,
+                    keycloak_id=user_id_2,
                     exists=True,
                     is_member=False,
                     username="user2",
@@ -124,7 +124,7 @@ class TestValidateMembersEndpoint:
             "/api/v1/internal/validate-members",
             json={
                 "organization_slug": "test-org",
-                "user_ids": [str(user_id_1), str(user_id_2)]
+                "keycloak_ids": [str(user_id_1), str(user_id_2)]
             }
         )
         
@@ -148,7 +148,7 @@ class TestValidateMembersEndpoint:
             invalid_count=1,
             results=[
                 UserValidationResult(
-                    user_id=user_id,
+                    keycloak_id=user_id,
                     exists=False,
                     is_member=False,
                     error="Organização não encontrada"
@@ -160,7 +160,7 @@ class TestValidateMembersEndpoint:
             "/api/v1/internal/validate-members",
             json={
                 "organization_slug": "nonexistent-org",
-                "user_ids": [str(user_id)]
+                "keycloak_ids": [str(user_id)]
             }
         )
         
@@ -182,7 +182,7 @@ class TestValidateMembersEndpoint:
             invalid_count=1,
             results=[
                 UserValidationResult(
-                    user_id=user_id,
+                    keycloak_id=user_id,
                     exists=False,
                     is_member=False,
                     error="Usuário não encontrado"
@@ -194,7 +194,7 @@ class TestValidateMembersEndpoint:
             "/api/v1/internal/validate-members",
             json={
                 "organization_slug": "test-org",
-                "user_ids": [str(user_id)]
+                "keycloak_ids": [str(user_id)]
             }
         )
         
