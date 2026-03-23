@@ -7,7 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Body, File, Form, UploadFile, st
 from auth_service.api.deps import AuthenticationServiceDep
 from auth_service.core.config import settings
 from auth_service.core.exceptions import KeycloakCommunicationError
-from auth_service.domain.services.authentication_service import AuthenticationService
+from auth_service.services.authentication_service import AuthenticationService
 from auth_service.infrastructure.external.email_service import MailService
 from auth_service.schemas.auth import (
     LoginRequest,
@@ -232,3 +232,4 @@ async def get_google_auth_url():
     except Exception as e:
         logger.error(f"Erro ao gerar URL do Google: {e}", exc_info=True)
         raise KeycloakCommunicationError("Erro ao gerar URL de autenticação")
+

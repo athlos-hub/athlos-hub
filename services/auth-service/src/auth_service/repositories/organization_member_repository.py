@@ -1,6 +1,6 @@
-"""Implementação PostgreSQL do repositório de Membro de Organização."""
+"""Repositório de membro de organização com contrato no próprio arquivo."""
 
-import logging
+from abc import abstractmethod
 from typing import Optional, Sequence
 from uuid import UUID
 
@@ -8,40 +8,36 @@ from sqlalchemy import and_, case, exists, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from auth_service.domain.interfaces.repositories import IOrganizationMemberRepository
 from auth_service.infrastructure.database.models.enums import MemberStatus, OrganizationStatus
 from auth_service.infrastructure.database.models.organization_model import (
     Organization,
     OrganizationMember,
     OrganizationOrganizer,
 )
-
-logger = logging.getLogger(__name__)
+from auth_service.repositories.base import BaseRepositoryContract
 
 
 class OrgRole:
-    """Constantes de função de organização."""
-
     OWNER = "OWNER"
     ORGANIZER = "ORGANIZER"
     MEMBER = "MEMBER"
     NONE = "NONE"
 
 
-class OrganizationMemberRepository(IOrganizationMemberRepository):
-    """Implementação PostgreSQL do repositório de Membro de Organização."""
+class OrganizationMemberRepositoryContract(BaseRepositoryContract):
+    @abstractmethod
+    async def get_by_id(self, membership_id: UUID) -> Optional[OrganizationMember]:
+        ...
 
+
+class OrganizationMemberRepository(OrganizationMemberRepositoryContract):
     def __init__(self, session: AsyncSession):
         self._session = session
 
     async def get_by_id(self, membership_id: UUID) -> Optional[OrganizationMember]:
-        """Obtém associação por ID."""
         return await self._session.get(OrganizationMember, membership_id)
 
-    async def get_membership(
-        self, org_id: UUID, user_id: UUID
-    ) -> Optional[OrganizationMember]:
-        """Obtém associação de um usuário em uma organização."""
+    async def get_membership(self, org_id: UUID, user_id: UUID) -> Optional[OrganizationMember]:
         stmt = select(OrganizationMember).where(
             OrganizationMember.organization_id == org_id,
             OrganizationMember.user_id == user_id,
@@ -52,7 +48,6 @@ class OrganizationMemberRepository(IOrganizationMemberRepository):
     async def get_membership_by_status(
         self, org_id: UUID, user_id: UUID, status: MemberStatus
     ) -> Optional[OrganizationMember]:
-        """Obtém associação com status específico."""
         stmt = select(OrganizationMember).where(
             OrganizationMember.organization_id == org_id,
             OrganizationMember.user_id == user_id,
@@ -64,7 +59,6 @@ class OrganizationMemberRepository(IOrganizationMemberRepository):
     async def get_membership_by_slug_and_status(
         self, org_slug: str, user_id: UUID, status: MemberStatus
     ) -> Optional[OrganizationMember]:
-        """Obtém associação por slug da organização e status."""
         stmt = (
             select(OrganizationMember)
             .join(Organization, OrganizationMember.organization_id == Organization.id)
@@ -80,22 +74,18 @@ class OrganizationMemberRepository(IOrganizationMemberRepository):
     async def get_members_by_org(
         self, org_id: UUID, status: Optional[MemberStatus] = None
     ) -> Sequence[OrganizationMember]:
-        """Obtém todos os membros de uma organização com filtro de status opcional."""
         stmt = (
             select(OrganizationMember)
             .options(joinedload(OrganizationMember.user))
             .where(OrganizationMember.organization_id == org_id)
         )
-
         if status:
             stmt = stmt.where(OrganizationMember.status == status)
-
         stmt = stmt.order_by(OrganizationMember.created_at.asc())
         result = await self._session.execute(stmt)
         return result.scalars().all()
 
     async def get_pending_requests(self, org_id: UUID) -> Sequence[OrganizationMember]:
-        """Obtém solicitações de adesão pendentes de uma organização."""
         stmt = (
             select(OrganizationMember)
             .options(joinedload(OrganizationMember.user))
@@ -109,7 +99,6 @@ class OrganizationMemberRepository(IOrganizationMemberRepository):
         return result.scalars().all()
 
     async def get_sent_invites(self, org_id: UUID) -> Sequence[OrganizationMember]:
-        """Obtém convites enviados de uma organização."""
         stmt = (
             select(OrganizationMember)
             .options(joinedload(OrganizationMember.user))
@@ -125,18 +114,15 @@ class OrganizationMemberRepository(IOrganizationMemberRepository):
     async def get_user_organizations_with_role(
         self, user_id: UUID, roles: set[str]
     ) -> Sequence[tuple[Organization, str]]:
-        """Obtém organizações onde o usuário tem as funções especificadas."""
         is_owner = Organization.owner_id == user_id
         is_organizer = OrganizationOrganizer.id.is_not(None)
         is_member = OrganizationMember.id.is_not(None)
-
         role_case = case(
             (is_owner, literal(OrgRole.OWNER)),
             (is_organizer, literal(OrgRole.ORGANIZER)),
             (is_member, literal(OrgRole.MEMBER)),
             else_=literal(OrgRole.NONE),
         ).label("role")
-
         stmt = (
             select(Organization, role_case)
             .outerjoin(
@@ -155,7 +141,6 @@ class OrganizationMemberRepository(IOrganizationMemberRepository):
                 ),
             )
         )
-
         filters = []
         if OrgRole.OWNER in roles:
             filters.append(is_owner)
@@ -163,88 +148,55 @@ class OrganizationMemberRepository(IOrganizationMemberRepository):
             filters.append(is_organizer)
         if OrgRole.MEMBER in roles:
             filters.append(is_member)
-
         if not filters:
             return []
-
-        stmt = stmt.where(or_(*filters))
-        
-        stmt = stmt.where(
+        stmt = stmt.where(or_(*filters)).where(
             or_(
                 and_(
                     Organization.owner_id == user_id,
-                    Organization.status.in_([OrganizationStatus.ACTIVE, OrganizationStatus.PENDING])
+                    Organization.status.in_([OrganizationStatus.ACTIVE, OrganizationStatus.PENDING]),
                 ),
                 and_(
                     Organization.owner_id != user_id,
-                    Organization.status == OrganizationStatus.ACTIVE
-                )
+                    Organization.status == OrganizationStatus.ACTIVE,
+                ),
             )
         )
         stmt = stmt.order_by(Organization.created_at.desc())
-
         result = await self._session.execute(stmt)
         return result.all()  # type: ignore
 
     async def get_pending_membership_for_approval(
         self, membership_id: UUID, org_slug: str, approver_id: UUID
     ) -> Optional[OrganizationMember]:
-        """Obtém associação pendente se o aprovador tiver permissão."""
-        
-        # First, let's check if the membership exists
-        check_stmt = select(OrganizationMember).where(
-            OrganizationMember.id == membership_id
-        )
+        check_stmt = select(OrganizationMember).where(OrganizationMember.id == membership_id)
         check_result = await self._session.execute(check_stmt)
         membership = check_result.scalar_one_or_none()
-        
         if not membership:
-            logger.warning(f"Membership {membership_id} not found")
             return None
-            
-        logger.info(f"Membership found: id={membership.id}, status={membership.status}, org_id={membership.organization_id}")
-        
-        # Check if org slug matches
+
         org_stmt = select(Organization).where(
             Organization.id == membership.organization_id,
-            Organization.slug == org_slug
+            Organization.slug == org_slug,
         )
         org_result = await self._session.execute(org_stmt)
         org = org_result.scalar_one_or_none()
-        
         if not org:
-            logger.warning(f"Organization with slug {org_slug} not found or doesn't match membership org_id")
             return None
-            
-        logger.info(f"Organization found: id={org.id}, slug={org.slug}, owner_id={org.owner_id}")
-        
-        # Check if status is PENDING
         if membership.status != MemberStatus.PENDING:
-            logger.warning(f"Membership status is {membership.status}, not PENDING")
             return None
-        
-        # Check if approver is owner
         if org.owner_id == approver_id:
-            logger.info(f"Approver {approver_id} is the owner")
             return membership
-            
-        # Check if approver is organizer
+
         organizer_stmt = select(OrganizationOrganizer).where(
             OrganizationOrganizer.organization_id == org.id,
-            OrganizationOrganizer.user_id == approver_id
+            OrganizationOrganizer.user_id == approver_id,
         )
         organizer_result = await self._session.execute(organizer_stmt)
         organizer = organizer_result.scalar_one_or_none()
-        
-        if organizer:
-            logger.info(f"Approver {approver_id} is an organizer")
-            return membership
-            
-        logger.warning(f"Approver {approver_id} is neither owner nor organizer")
-        return None
+        return membership if organizer else None
 
     async def get_user_invites(self, user_id: UUID) -> Sequence[OrganizationMember]:
-        """Obtém todos os convites recebidos por um usuário (status INVITED)."""
         stmt = (
             select(OrganizationMember)
             .options(
@@ -263,7 +215,6 @@ class OrganizationMemberRepository(IOrganizationMemberRepository):
         return result.scalars().all()
 
     async def get_user_requests(self, user_id: UUID) -> Sequence[OrganizationMember]:
-        """Obtém todas as solicitações enviadas por um usuário (status PENDING)."""
         stmt = (
             select(OrganizationMember)
             .options(
@@ -284,7 +235,6 @@ class OrganizationMemberRepository(IOrganizationMemberRepository):
     async def exists_membership(
         self, org_id: UUID, user_id: UUID, statuses: list[MemberStatus]
     ) -> bool:
-        """Verifica se associação existe com os status informados."""
         stmt = select(OrganizationMember).where(
             OrganizationMember.organization_id == org_id,
             OrganizationMember.user_id == user_id,
@@ -294,7 +244,6 @@ class OrganizationMemberRepository(IOrganizationMemberRepository):
         return result is not None
 
     async def create(self, membership: OrganizationMember) -> OrganizationMember:
-        """Cria uma nova associação."""
         self._session.add(membership)
         await self._session.flush()
         await self._session.refresh(membership)
@@ -303,22 +252,19 @@ class OrganizationMemberRepository(IOrganizationMemberRepository):
     async def update_status(
         self, membership: OrganizationMember, status: MemberStatus
     ) -> OrganizationMember:
-        """Atualiza status da associação."""
         membership.status = status
         await self._session.flush()
         await self._session.refresh(membership)
         return membership
 
     async def delete(self, membership: OrganizationMember) -> bool:
-        """Deleta uma associação."""
         await self._session.delete(membership)
         await self._session.flush()
         return True
 
     async def commit(self) -> None:
-        """Confirma a transação atual."""
         await self._session.commit()
 
     async def rollback(self) -> None:
-        """Reverte a transação atual."""
         await self._session.rollback()
+

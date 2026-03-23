@@ -8,7 +8,7 @@ from auth_service.core.exceptions import (
     UserNotFoundError,
     UsernameAlreadyInUseError,
 )
-from auth_service.domain.services.user_service import UserService
+from auth_service.services.user_service import UserService
 from auth_service.infrastructure.database.models.user_model import User
 
 
@@ -185,7 +185,7 @@ class TestUserServiceUpdateUserProfile:
             keycloak_service=mock_keycloak_service,
         )
 
-        with patch("auth_service.domain.services.user_service.upload_image") as mock_upload:
+        with patch("auth_service.services.user_service.upload_image") as mock_upload:
             mock_upload.return_value = {"url": "https://s3.example.com/avatar.jpg"}
 
             result = await service.update_user_profile(
@@ -322,7 +322,7 @@ class TestUserServiceGetAllUsersWithRoles:
         service = UserService(user_repository=mock_user_repository)
 
         with patch(
-            "auth_service.domain.services.user_service.AuthenticationService.get_role_from_user"
+            "auth_service.services.user_service.AuthenticationService.get_role_from_user"
         ) as mock_get_roles:
             mock_get_roles.return_value = ["player", "admin"]
 
@@ -342,7 +342,7 @@ class TestUserServiceGetAllUsersWithRoles:
         service = UserService(user_repository=mock_user_repository)
 
         with patch(
-            "auth_service.domain.services.user_service.AuthenticationService.get_role_from_user"
+            "auth_service.services.user_service.AuthenticationService.get_role_from_user"
         ) as mock_get_roles:
             mock_get_roles.side_effect = Exception("Keycloak error")
 
@@ -360,7 +360,7 @@ class TestUserServiceGetAllUsersWithRoles:
         service = UserService(user_repository=mock_user_repository)
 
         with patch(
-            "auth_service.domain.services.user_service.AuthenticationService.get_role_from_user"
+            "auth_service.services.user_service.AuthenticationService.get_role_from_user"
         ) as mock_get_roles:
             mock_get_roles.return_value = ["player"]
 

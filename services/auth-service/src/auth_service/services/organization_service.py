@@ -1,7 +1,6 @@
 """Serviço de organização com lógica de negócio."""
 
 import logging
-import os
 from typing import Optional, Sequence
 from uuid import UUID
 
@@ -36,12 +35,17 @@ from auth_service.core.exceptions import (
     OwnerNotNeedOrganizerError,
     UserNotFoundError,
 )
-from auth_service.domain.interfaces.repositories import (
-    IOrganizationMemberRepository,
-    IOrganizationOrganizerRepository,
-    IOrganizationRepository,
-    IUserRepository,
+from auth_service.repositories.organization_member_repository import (
+    OrgRole,
+    OrganizationMemberRepositoryContract,
 )
+from auth_service.repositories.organization_organizer_repository import (
+    OrganizationOrganizerRepositoryContract,
+)
+from auth_service.repositories.organization_repository import (
+    OrganizationRepositoryContract,
+)
+from auth_service.repositories.user_repository import UserRepositoryContract
 from auth_service.infrastructure.database.models.enums import (
     MemberStatus,
     OrganizationJoinPolicy,
@@ -54,9 +58,6 @@ from auth_service.infrastructure.database.models.organization_model import (
     OrganizationOrganizer,
 )
 from auth_service.infrastructure.database.models.user_model import User
-from auth_service.infrastructure.repositories.organization_member_repository import (
-    OrgRole,
-)
 from auth_service.utils.upload_image import upload_image
 
 logger = logging.getLogger(__name__)
@@ -67,10 +68,10 @@ class OrganizationService:
 
     def __init__(
         self,
-        org_repository: IOrganizationRepository,
-        member_repository: IOrganizationMemberRepository,
-        organizer_repository: IOrganizationOrganizerRepository,
-        user_repository: IUserRepository,
+        org_repository: OrganizationRepositoryContract,
+        member_repository: OrganizationMemberRepositoryContract,
+        organizer_repository: OrganizationOrganizerRepositoryContract,
+        user_repository: UserRepositoryContract,
     ):
         self._org_repo = org_repository
         self._member_repo = member_repository
@@ -168,7 +169,7 @@ class OrganizationService:
 
         await self._org_repo.commit()
         
-        await self._org_repo._session.refresh(created_org)
+        await self._org_repo.refresh(created_org)
 
         logger.info(f"Organização criada: {created_org.slug} por usuário {owner.id}")
         return created_org
@@ -1269,7 +1270,7 @@ class OrganizationService:
 
         org.status = OrganizationStatus.ACTIVE
         await self._org_repo.commit()
-        await self._org_repo._session.refresh(org)
+        await self._org_repo.refresh(org)
 
         logger.info(f"Organização {slug} aceita por admin")
         
@@ -1662,7 +1663,7 @@ class OrganizationService:
             CheckPermissionResponse com o resultado da verificação
         """
         from auth_service.schemas.internal import CheckPermissionResponse
-        from auth_service.infrastructure.repositories.organization_member_repository import OrgRole
+        from auth_service.repositories.organization_member_repository import OrgRole
         
         # Verificar se a organização existe
         org = await self._org_repo.get_by_slug(organization_slug)

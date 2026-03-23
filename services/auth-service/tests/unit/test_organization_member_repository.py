@@ -5,7 +5,7 @@ from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
-from auth_service.infrastructure.repositories.organization_member_repository import (
+from auth_service.repositories.organization_member_repository import (
     OrganizationMemberRepository,
     OrgRole,
 )
@@ -233,7 +233,7 @@ class TestOrganizationMemberRepository:
     async def test_get_user_organizations_with_role_owner(self, repository, mock_session):
         """Test get_user_organizations_with_role with owner role."""
         from uuid import uuid4
-        from auth_service.infrastructure.repositories.organization_member_repository import OrgRole
+        from auth_service.repositories.organization_member_repository import OrgRole
 
         mock_result = MagicMock()
         mock_result.all.return_value = []

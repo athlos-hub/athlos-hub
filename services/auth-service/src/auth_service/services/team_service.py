@@ -18,7 +18,6 @@ from auth_service.core.exceptions import (
     TeamAlreadyExistsError,
     TeamFullError,
     TeamInviteExpiredError,
-    TeamInviteMaxUsesReachedError,
     TeamInviteNotFoundError,
     TeamNotFoundError,
     TeamNotReadyError,
@@ -30,27 +29,19 @@ from auth_service.infrastructure.database.models.enums import (
     TeamInviteStatus,
     TeamStatus,
 )
-from auth_service.infrastructure.database.models.organization_model import (
-    Organization,
-    OrganizationMember,
-)
+from auth_service.infrastructure.database.models.organization_model import OrganizationMember
 from auth_service.infrastructure.database.models.team_model import Team, TeamInvite, TeamMember
-from auth_service.infrastructure.database.models.user_model import User
-from auth_service.infrastructure.repositories.organization_member_repository import (
-    OrganizationMemberRepository,
-)
-from auth_service.infrastructure.repositories.organization_organizer_repository import (
+from auth_service.repositories.organization_member_repository import OrganizationMemberRepository
+from auth_service.repositories.organization_organizer_repository import (
     OrganizationOrganizerRepository,
 )
-from auth_service.infrastructure.repositories.organization_repository import (
-    OrganizationRepository,
-)
-from auth_service.infrastructure.repositories.team_repository import (
+from auth_service.repositories.organization_repository import OrganizationRepository
+from auth_service.repositories.team_repository import (
     TeamInviteRepository,
     TeamMemberRepository,
     TeamRepository,
 )
-from auth_service.infrastructure.repositories.user_repository import UserRepository
+from auth_service.repositories.user_repository import UserRepository
 from auth_service.schemas.team import (
     CreateInviteRequest,
     PlayerPayload,
@@ -91,7 +82,7 @@ class TeamService:
     ) -> Team:
         """
         Cria um novo time.
-        
+
         O criador deve ser membro da organização.
         O time é criado com status RECRUITING.
         """
@@ -150,7 +141,9 @@ class TeamService:
         )
         await self._member_repo.create(captain)
 
-        logger.info(f"Time '{team.name}' criado por {creator.email} na competição {data.competition_id}")
+        logger.info(
+            f"Time '{team.name}' criado por {creator.email} na competição {data.competition_id}"
+        )
 
         # Recarregar time com membros
         return await self._team_repo.get_by_id_with_members(team.id)
@@ -303,9 +296,9 @@ class TeamService:
     ) -> tuple[Team, bool]:
         """
         Aceita um convite para entrar no time.
-        
+
         Se o usuário não for membro da organização, será adicionado automaticamente.
-        
+
         Returns:
             Tuple[Team, bool]: Time e flag indicando se usuário foi adicionado à organização
         """
@@ -349,7 +342,7 @@ class TeamService:
         )
         is_member = membership is not None
         is_owner = team.organization.owner_id == user.id if team.organization else False
-        
+
         if not is_member and not is_owner:
             # Adicionar à organização automaticamente
             org_member = OrganizationMember(
@@ -520,7 +513,7 @@ class TeamService:
         # Verificar se já foi aprovado ou rejeitado
         if team.status == TeamStatus.APPROVED:
             raise TeamAlreadyApprovedError()
-        
+
         if team.status == TeamStatus.REJECTED:
             raise TeamStatusError(
                 team.status.value,
@@ -559,9 +552,9 @@ class TeamService:
     ) -> tuple[Team, UUID]:
         """
         Aprova o time e envia para o competitions-service.
-        
+
         Apenas admin/organizer da organização pode aprovar.
-        
+
         Returns:
             Tuple[Team, UUID]: Time atualizado e ID externo no competitions-service
         """
@@ -589,7 +582,7 @@ class TeamService:
             raise UserNotFoundError(approver_keycloak_id)
 
         is_owner = team.organization.owner_id == user.id if team.organization else False
-        
+
         # Verificar se é organizer
         is_organizer = await self._org_organizer_repo.is_organizer(team.organization_id, user.id)
 
@@ -608,10 +601,7 @@ class TeamService:
             name=team.name,
             abbreviation=team.abbreviation,
             captain_keycloak_id=captain.user.keycloak_id,
-            players=[
-                PlayerPayload(keycloak_id=m.user.keycloak_id)
-                for m in team.members
-            ],
+            players=[PlayerPayload(keycloak_id=m.user.keycloak_id) for m in team.members],
         )
 
         # Enviar para competitions-service
@@ -622,7 +612,10 @@ class TeamService:
         team.external_team_id = external_team_id
         await self._team_repo.update(team)
 
-        logger.info(f"Time '{team.name}' aprovado e enviado para competitions-service. External ID: {external_team_id}")
+        logger.info(
+            f"Time '{team.name}' aprovado e enviado para competitions-service. "
+            f"External ID: {external_team_id}"
+        )
 
         return team, external_team_id
 
@@ -714,7 +707,9 @@ class TeamService:
     async def _send_to_competitions_service(self, payload: TeamApprovalPayload) -> UUID:
         """Envia time aprovado para o competitions-service."""
         # URL do competitions-service (usar variável de ambiente)
-        competitions_url = getattr(settings, 'COMPETITIONS_SERVICE_URL', 'http://localhost:8001')
+        competitions_url = getattr(
+            settings, "COMPETITIONS_SERVICE_URL", "http://localhost:8001"
+        )
         url = f"{competitions_url}/api/v1/internal/teams"
 
         try:
@@ -727,7 +722,9 @@ class TeamService:
 
                 if response.status_code != 201:
                     detail = response.text
-                    logger.error(f"Erro ao enviar time para competitions: {response.status_code} - {detail}")
+                    logger.error(
+                        f"Erro ao enviar time para competitions: {response.status_code} - {detail}"
+                    )
                     raise CompetitionServiceError(detail)
 
                 data = response.json()
@@ -736,3 +733,4 @@ class TeamService:
         except httpx.RequestError as e:
             logger.error(f"Erro de conexão com competitions-service: {e}")
             raise CompetitionServiceError(str(e))
+

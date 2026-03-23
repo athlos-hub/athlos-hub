@@ -9,28 +9,25 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_service.core.config import settings
-from auth_service.domain.interfaces.external_services import IKeycloakService
-from auth_service.domain.interfaces.repositories import (
-    IOrganizationMemberRepository,
-    IOrganizationOrganizerRepository,
-    IOrganizationRepository,
-    IUserRepository,
-)
-from auth_service.domain.services.authentication_service import AuthenticationService
-from auth_service.domain.services.organization_service import OrganizationService
-from auth_service.domain.services.user_service import UserService
+from auth_service.core.adapters.keycloak_admin_adapter import KeycloakAdminAdapter
+from auth_service.core.ports.keycloak_service import IKeycloakService
 from auth_service.infrastructure.database.models.user_model import User
-from auth_service.infrastructure.external.keycloak_service import KeycloakAdminService
-from auth_service.infrastructure.repositories.organization_member_repository import (
+from auth_service.repositories.organization_member_repository import (
     OrganizationMemberRepository,
+    OrganizationMemberRepositoryContract,
 )
-from auth_service.infrastructure.repositories.organization_organizer_repository import (
+from auth_service.repositories.organization_organizer_repository import (
     OrganizationOrganizerRepository,
+    OrganizationOrganizerRepositoryContract,
 )
-from auth_service.infrastructure.repositories.organization_repository import (
+from auth_service.repositories.organization_repository import (
     OrganizationRepository,
+    OrganizationRepositoryContract,
 )
-from auth_service.infrastructure.repositories.user_repository import UserRepository
+from auth_service.repositories.user_repository import UserRepository, UserRepositoryContract
+from auth_service.services.authentication_service import AuthenticationService
+from auth_service.services.organization_service import OrganizationService
+from auth_service.services.user_service import UserService
 
 bearer_scheme = HTTPBearer()
 
@@ -46,7 +43,7 @@ class OrgRole:
 
 def get_user_repository(
     session: AsyncSession = Depends(get_session),
-) -> IUserRepository:
+) -> UserRepositoryContract:
     """Factory para UserRepository."""
 
     return UserRepository(session)
@@ -54,7 +51,7 @@ def get_user_repository(
 
 def get_organization_repository(
     session: AsyncSession = Depends(get_session),
-) -> IOrganizationRepository:
+) -> OrganizationRepositoryContract:
     """Factory para OrganizationRepository."""
 
     return OrganizationRepository(session)
@@ -62,7 +59,7 @@ def get_organization_repository(
 
 def get_organization_member_repository(
     session: AsyncSession = Depends(get_session),
-) -> IOrganizationMemberRepository:
+) -> OrganizationMemberRepositoryContract:
     """Factory para OrganizationMemberRepository."""
 
     return OrganizationMemberRepository(session)
@@ -70,20 +67,20 @@ def get_organization_member_repository(
 
 def get_organization_organizer_repository(
     session: AsyncSession = Depends(get_session),
-) -> IOrganizationOrganizerRepository:
+) -> OrganizationOrganizerRepositoryContract:
     """Factory para OrganizationOrganizerRepository."""
 
     return OrganizationOrganizerRepository(session)
 
 
 def get_keycloak_service() -> IKeycloakService:
-    """Factory para KeycloakAdminService."""
+    """Factory para adapter de Keycloak."""
 
-    return KeycloakAdminService()
+    return KeycloakAdminAdapter()
 
 
 def get_user_service(
-    user_repo: IUserRepository = Depends(get_user_repository),
+    user_repo: UserRepositoryContract = Depends(get_user_repository),
     keycloak_service: IKeycloakService = Depends(get_keycloak_service),
 ) -> UserService:
     """Factory para UserService."""
@@ -92,14 +89,14 @@ def get_user_service(
 
 
 def get_organization_service(
-    org_repo: IOrganizationRepository = Depends(get_organization_repository),
-    member_repo: IOrganizationMemberRepository = Depends(
+    org_repo: OrganizationRepositoryContract = Depends(get_organization_repository),
+    member_repo: OrganizationMemberRepositoryContract = Depends(
         get_organization_member_repository
     ),
-    organizer_repo: IOrganizationOrganizerRepository = Depends(
+    organizer_repo: OrganizationOrganizerRepositoryContract = Depends(
         get_organization_organizer_repository
     ),
-    user_repo: IUserRepository = Depends(get_user_repository),
+    user_repo: UserRepositoryContract = Depends(get_user_repository),
 ) -> OrganizationService:
     """Factory para OrganizationService."""
 
@@ -107,7 +104,7 @@ def get_organization_service(
 
 
 def get_authentication_service(
-    user_repo: IUserRepository = Depends(get_user_repository),
+    user_repo: UserRepositoryContract = Depends(get_user_repository),
 ) -> AuthenticationService:
     """Factory para AuthenticationService."""
 
@@ -163,15 +160,15 @@ async def get_current_user_optional(
         return None
 
 
-UserRepositoryDep = Annotated[IUserRepository, Depends(get_user_repository)]
+UserRepositoryDep = Annotated[UserRepositoryContract, Depends(get_user_repository)]
 OrganizationRepositoryDep = Annotated[
-    IOrganizationRepository, Depends(get_organization_repository)
+    OrganizationRepositoryContract, Depends(get_organization_repository)
 ]
 MemberRepositoryDep = Annotated[
-    IOrganizationMemberRepository, Depends(get_organization_member_repository)
+    OrganizationMemberRepositoryContract, Depends(get_organization_member_repository)
 ]
 OrganizerRepositoryDep = Annotated[
-    IOrganizationOrganizerRepository, Depends(get_organization_organizer_repository)
+    OrganizationOrganizerRepositoryContract, Depends(get_organization_organizer_repository)
 ]
 
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]

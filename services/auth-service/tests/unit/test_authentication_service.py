@@ -10,7 +10,7 @@ from auth_service.core.exceptions import (
     TokenExpiredError,
     UserNotFoundError,
 )
-from auth_service.domain.services.authentication_service import AuthenticationService
+from auth_service.services.authentication_service import AuthenticationService
 from auth_service.infrastructure.database.models.user_model import User
 
 
@@ -145,8 +145,8 @@ class TestAuthenticationServicePasswordReset:
         new_password = "new_secure_password"
         service = AuthenticationService(user_repository=mock_user_repository)
 
-        with patch("auth_service.domain.services.authentication_service.get_keycloak_admin_client") as mock_keycloak:
-            with patch("auth_service.domain.services.authentication_service.run_in_threadpool") as mock_threadpool:
+        with patch("auth_service.services.authentication_service.get_keycloak_admin_client") as mock_keycloak:
+            with patch("auth_service.services.authentication_service.run_in_threadpool") as mock_threadpool:
                 mock_keycloak_admin = MagicMock()
                 mock_keycloak.return_value = mock_keycloak_admin
                 mock_threadpool.return_value = None
@@ -162,8 +162,8 @@ class TestAuthenticationServicePasswordReset:
         new_password = "new_password"
         service = AuthenticationService(user_repository=mock_user_repository)
 
-        with patch("auth_service.domain.services.authentication_service.get_keycloak_admin_client") as mock_keycloak:
-            with patch("auth_service.domain.services.authentication_service.run_in_threadpool") as mock_threadpool:
+        with patch("auth_service.services.authentication_service.get_keycloak_admin_client") as mock_keycloak:
+            with patch("auth_service.services.authentication_service.run_in_threadpool") as mock_threadpool:
                 mock_keycloak.return_value = MagicMock()
                 mock_threadpool.side_effect = Exception("Keycloak error")
 
@@ -186,8 +186,8 @@ class TestAuthenticationServicePublicKeyCache:
         # Reset cache first
         AuthenticationService._public_key_cache = None
 
-        with patch("auth_service.domain.services.authentication_service.keycloak_openid") as mock_keycloak_openid:
-            with patch("auth_service.domain.services.authentication_service.run_in_threadpool") as mock_threadpool:
+        with patch("auth_service.services.authentication_service.keycloak_openid") as mock_keycloak_openid:
+            with patch("auth_service.services.authentication_service.run_in_threadpool") as mock_threadpool:
                 mock_threadpool.return_value = "test-key-content"
 
                 # First call

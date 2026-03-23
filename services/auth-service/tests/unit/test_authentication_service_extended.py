@@ -17,7 +17,7 @@ from auth_service.core.exceptions import (
     RegistrationError,
     UserNotFoundError,
 )
-from auth_service.domain.services.authentication_service import AuthenticationService
+from auth_service.services.authentication_service import AuthenticationService
 from auth_service.infrastructure.database.models.user_model import User
 
 
@@ -30,13 +30,13 @@ class TestAuthenticationServiceLogin:
         service = AuthenticationService(user_repository=mock_user_repository)
 
         with patch(
-            "auth_service.domain.services.authentication_service.run_in_threadpool"
+            "auth_service.services.authentication_service.run_in_threadpool"
         ) as mock_threadpool:
             with patch.object(
                 AuthenticationService, "get_public_key", new_callable=AsyncMock
             ) as mock_get_key:
                 with patch(
-                    "auth_service.domain.services.authentication_service.JwtHandler.decode_token"
+                    "auth_service.services.authentication_service.JwtHandler.decode_token"
                 ) as mock_decode:
                     with patch.object(
                         service, "get_or_create_user_from_keycloak_token", new_callable=AsyncMock
@@ -64,7 +64,7 @@ class TestAuthenticationServiceLogin:
         service = AuthenticationService(user_repository=mock_user_repository)
 
         with patch(
-            "auth_service.domain.services.authentication_service.run_in_threadpool"
+            "auth_service.services.authentication_service.run_in_threadpool"
         ) as mock_threadpool:
             mock_threadpool.side_effect = KeycloakAuthenticationError(
                 response_body=b'{"error_description": "Invalid user credentials"}'
@@ -81,7 +81,7 @@ class TestAuthenticationServiceLogin:
         service = AuthenticationService(user_repository=mock_user_repository)
 
         with patch(
-            "auth_service.domain.services.authentication_service.run_in_threadpool"
+            "auth_service.services.authentication_service.run_in_threadpool"
         ) as mock_threadpool:
             error = KeycloakAuthenticationError()
             error.response_body = b'{"error_description": "Account is not fully set up"}'
@@ -98,7 +98,7 @@ class TestAuthenticationServiceLogin:
         service = AuthenticationService(user_repository=mock_user_repository)
 
         with patch(
-            "auth_service.domain.services.authentication_service.run_in_threadpool"
+            "auth_service.services.authentication_service.run_in_threadpool"
         ) as mock_threadpool:
             error = KeycloakAuthenticationError()
             error.response_body = b'{"error_description": "Account disabled"}'
@@ -117,7 +117,7 @@ class TestAuthenticationServiceRefreshToken:
         service = AuthenticationService(user_repository=mock_user_repository)
 
         with patch(
-            "auth_service.domain.services.authentication_service.run_in_threadpool"
+            "auth_service.services.authentication_service.run_in_threadpool"
         ) as mock_threadpool:
             mock_threadpool.return_value = {
                 "access_token": "new_access_token",
@@ -136,7 +136,7 @@ class TestAuthenticationServiceRefreshToken:
         service = AuthenticationService(user_repository=mock_user_repository)
 
         with patch(
-            "auth_service.domain.services.authentication_service.run_in_threadpool"
+            "auth_service.services.authentication_service.run_in_threadpool"
         ) as mock_threadpool:
             mock_threadpool.return_value = {"invalid": "response"}
 
@@ -169,13 +169,13 @@ class TestAuthenticationServiceHandleKeycloakCallback:
         service = AuthenticationService(user_repository=mock_user_repository)
 
         with patch(
-            "auth_service.domain.services.authentication_service.run_in_threadpool"
+            "auth_service.services.authentication_service.run_in_threadpool"
         ) as mock_threadpool:
             with patch.object(
                 AuthenticationService, "get_public_key", new_callable=AsyncMock
             ) as mock_get_key:
                 with patch(
-                    "auth_service.domain.services.authentication_service.JwtHandler.decode_token"
+                    "auth_service.services.authentication_service.JwtHandler.decode_token"
                 ) as mock_decode:
                     with patch.object(
                         service, "get_or_create_user_from_keycloak_token", new_callable=AsyncMock
@@ -205,7 +205,7 @@ class TestAuthenticationServiceHandleKeycloakCallback:
         service = AuthenticationService(user_repository=mock_user_repository)
 
         with patch(
-            "auth_service.domain.services.authentication_service.run_in_threadpool"
+            "auth_service.services.authentication_service.run_in_threadpool"
         ) as mock_threadpool:
             mock_threadpool.return_value = {"refresh_token": "only_refresh"}
 
@@ -253,7 +253,7 @@ class TestAuthenticationServiceGetPublicKeyError:
         AuthenticationService._public_key_cache = None
 
         with patch(
-            "auth_service.domain.services.authentication_service.run_in_threadpool"
+            "auth_service.services.authentication_service.run_in_threadpool"
         ) as mock_threadpool:
             mock_threadpool.side_effect = Exception("Connection error")
 
@@ -293,7 +293,7 @@ class TestAuthenticationServiceLogout:
         service = AuthenticationService(user_repository=mock_user_repository)
 
         with patch(
-            "auth_service.domain.services.authentication_service.run_in_threadpool"
+            "auth_service.services.authentication_service.run_in_threadpool"
         ) as mock_threadpool:
             mock_threadpool.return_value = None
 
@@ -309,7 +309,7 @@ class TestAuthenticationServiceLogout:
         service = AuthenticationService(user_repository=mock_user_repository)
 
         with patch(
-            "auth_service.domain.services.authentication_service.run_in_threadpool"
+            "auth_service.services.authentication_service.run_in_threadpool"
         ) as mock_threadpool:
             error = KeycloakPostError()
             error.response_code = 400
@@ -327,7 +327,7 @@ class TestAuthenticationServiceLogout:
         service = AuthenticationService(user_repository=mock_user_repository)
 
         with patch(
-            "auth_service.domain.services.authentication_service.run_in_threadpool"
+            "auth_service.services.authentication_service.run_in_threadpool"
         ) as mock_threadpool:
             error = KeycloakPostError()
             error.response_code = 500
@@ -342,7 +342,7 @@ class TestAuthenticationServiceLogout:
         service = AuthenticationService(user_repository=mock_user_repository)
 
         with patch(
-            "auth_service.domain.services.authentication_service.run_in_threadpool"
+            "auth_service.services.authentication_service.run_in_threadpool"
         ) as mock_threadpool:
             mock_threadpool.side_effect = Exception("Connection refused")
 
@@ -359,10 +359,10 @@ class TestAuthenticationServiceRegisterUser:
         service = AuthenticationService(user_repository=mock_user_repository)
 
         with patch(
-            "auth_service.domain.services.authentication_service.get_keycloak_admin_client"
+            "auth_service.services.authentication_service.get_keycloak_admin_client"
         ) as mock_keycloak:
             with patch(
-                "auth_service.domain.services.authentication_service.run_in_threadpool"
+                "auth_service.services.authentication_service.run_in_threadpool"
             ) as mock_threadpool:
                 mock_keycloak_admin = MagicMock()
                 mock_keycloak.return_value = mock_keycloak_admin
@@ -384,10 +384,10 @@ class TestAuthenticationServiceRegisterUser:
         service = AuthenticationService(user_repository=mock_user_repository)
 
         with patch(
-            "auth_service.domain.services.authentication_service.get_keycloak_admin_client"
+            "auth_service.services.authentication_service.get_keycloak_admin_client"
         ) as mock_keycloak:
             with patch(
-                "auth_service.domain.services.authentication_service.run_in_threadpool"
+                "auth_service.services.authentication_service.run_in_threadpool"
             ) as mock_threadpool:
                 mock_keycloak_admin = MagicMock()
                 mock_keycloak.return_value = mock_keycloak_admin
@@ -439,7 +439,7 @@ class TestAuthenticationServiceRefreshTokenError:
         service = AuthenticationService(user_repository=mock_user_repository)
 
         with patch(
-            "auth_service.domain.services.authentication_service.run_in_threadpool"
+            "auth_service.services.authentication_service.run_in_threadpool"
         ) as mock_threadpool:
             mock_threadpool.side_effect = Exception("Unexpected error")
 
@@ -551,7 +551,7 @@ class TestAuthenticationServiceLogoutSecond:
         service = AuthenticationService(user_repository=mock_user_repository)
 
         with patch(
-            "auth_service.domain.services.authentication_service.run_in_threadpool"
+            "auth_service.services.authentication_service.run_in_threadpool"
         ) as mock_threadpool:
             mock_threadpool.return_value = None
 
@@ -565,7 +565,7 @@ class TestAuthenticationServiceLogoutSecond:
         service = AuthenticationService(user_repository=mock_user_repository)
 
         with patch(
-            "auth_service.domain.services.authentication_service.run_in_threadpool"
+            "auth_service.services.authentication_service.run_in_threadpool"
         ) as mock_threadpool:
             mock_threadpool.side_effect = Exception("Connection refused")
 
@@ -633,10 +633,10 @@ class TestAuthenticationServiceResetPassword:
         service = AuthenticationService(user_repository=mock_user_repository)
 
         with patch(
-            "auth_service.domain.services.authentication_service.get_keycloak_admin_client"
+            "auth_service.services.authentication_service.get_keycloak_admin_client"
         ) as mock_keycloak:
             with patch(
-                "auth_service.domain.services.authentication_service.run_in_threadpool"
+                "auth_service.services.authentication_service.run_in_threadpool"
             ) as mock_threadpool:
                 mock_threadpool.return_value = None
 
@@ -648,10 +648,10 @@ class TestAuthenticationServiceResetPassword:
         service = AuthenticationService(user_repository=mock_user_repository)
 
         with patch(
-            "auth_service.domain.services.authentication_service.get_keycloak_admin_client"
+            "auth_service.services.authentication_service.get_keycloak_admin_client"
         ):
             with patch(
-                "auth_service.domain.services.authentication_service.run_in_threadpool"
+                "auth_service.services.authentication_service.run_in_threadpool"
             ) as mock_threadpool:
                 mock_threadpool.side_effect = Exception("Password reset failed")
 
@@ -689,7 +689,7 @@ class TestAuthenticationServiceGoogleAuth:
     def test_get_google_auth_url(self):
         """Test Google auth URL generation."""
         with patch(
-            "auth_service.domain.services.authentication_service.keycloak_openid"
+            "auth_service.services.authentication_service.keycloak_openid"
         ) as mock_keycloak:
             mock_keycloak.auth_url.return_value = "https://keycloak/auth?redirect_uri=..."
 

@@ -1,0 +1,2 @@
+"""Portas de serviços externos."""
+

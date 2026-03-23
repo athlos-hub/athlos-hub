@@ -9,7 +9,7 @@ from auth_service.core.exceptions import (
     NotOwnerError,
     MembershipNotFoundError,
 )
-from auth_service.domain.services.organization_service import OrganizationService
+from auth_service.services.organization_service import OrganizationService
 from auth_service.infrastructure.database.models.enums import (
     OrganizationStatus,
     OrganizationPrivacy,

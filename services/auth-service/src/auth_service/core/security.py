@@ -1,7 +1,7 @@
 from common.security.roles import RoleChecker
 
 from auth_service.core.config import settings
-from auth_service.domain.services.authentication_service import AuthenticationService
+from auth_service.services.authentication_service import AuthenticationService
 
 
 def require_role(roles: list[str]) -> RoleChecker:

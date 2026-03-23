@@ -268,7 +268,7 @@ async def test_organization(async_session, test_user):
 @pytest_asyncio.fixture
 async def authenticated_client(client, test_user):
     """Create an authenticated HTTP client with Bearer token."""
-    from auth_service.domain.services.authentication_service import AuthenticationService
+    from auth_service.services.authentication_service import AuthenticationService
     
     # Generate a valid test token
     token = AuthenticationService.generate_email_token(str(test_user.keycloak_id))

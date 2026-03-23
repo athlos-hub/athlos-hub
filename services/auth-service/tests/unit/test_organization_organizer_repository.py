@@ -5,7 +5,7 @@ from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
-from auth_service.infrastructure.repositories.organization_organizer_repository import (
+from auth_service.repositories.organization_organizer_repository import (
     OrganizationOrganizerRepository,
 )
 from auth_service.infrastructure.database.models.organization_model import (

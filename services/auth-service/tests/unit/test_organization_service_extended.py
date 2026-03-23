@@ -27,7 +27,7 @@ from auth_service.core.exceptions import (
     OrganizationInactiveError,
     UserNotFoundError,
 )
-from auth_service.domain.services.organization_service import OrganizationService
+from auth_service.services.organization_service import OrganizationService
 from auth_service.infrastructure.database.models.enums import (
     OrganizationStatus,
     OrganizationPrivacy,
@@ -1025,7 +1025,7 @@ class TestOrganizationServiceSendNotification:
             user_repository=mock_user_repository,
         )
 
-        with patch("auth_service.domain.services.organization_service.httpx.AsyncClient") as mock_client_class:
+        with patch("auth_service.services.organization_service.httpx.AsyncClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_response = MagicMock()
             mock_response.raise_for_status = MagicMock()
@@ -1064,7 +1064,7 @@ class TestOrganizationServiceSendNotification:
             user_repository=mock_user_repository,
         )
 
-        with patch("auth_service.domain.services.organization_service.httpx.AsyncClient") as mock_client_class:
+        with patch("auth_service.services.organization_service.httpx.AsyncClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_response = MagicMock()
             mock_response.text = "Error"
@@ -1101,7 +1101,7 @@ class TestOrganizationServiceSendNotification:
             user_repository=mock_user_repository,
         )
 
-        with patch("auth_service.domain.services.organization_service.httpx.AsyncClient") as mock_client_class:
+        with patch("auth_service.services.organization_service.httpx.AsyncClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_client.post.side_effect = Exception("Connection error")
             mock_client.__aenter__.return_value = mock_client

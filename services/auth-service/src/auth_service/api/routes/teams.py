@@ -26,24 +26,24 @@ from auth_service.core.exceptions import (
     TeamStatusError,
     UserNotFoundError,
 )
-from auth_service.domain.services.team_service import TeamService
+from auth_service.services.team_service import TeamService
 from auth_service.infrastructure.database.models.enums import TeamStatus
 from auth_service.infrastructure.database.models.user_model import User
-from auth_service.infrastructure.repositories.organization_member_repository import (
+from auth_service.repositories.organization_member_repository import (
     OrganizationMemberRepository,
 )
-from auth_service.infrastructure.repositories.organization_organizer_repository import (
+from auth_service.repositories.organization_organizer_repository import (
     OrganizationOrganizerRepository,
 )
-from auth_service.infrastructure.repositories.organization_repository import (
+from auth_service.repositories.organization_repository import (
     OrganizationRepository,
 )
-from auth_service.infrastructure.repositories.team_repository import (
+from auth_service.repositories.team_repository import (
     TeamInviteRepository,
     TeamMemberRepository,
     TeamRepository,
 )
-from auth_service.infrastructure.repositories.user_repository import UserRepository
+from auth_service.repositories.user_repository import UserRepository
 from auth_service.schemas.team import (
     AcceptInviteResponse,
     CreateInviteRequest,
@@ -535,3 +535,4 @@ async def delete_team(
         raise HTTPException(status_code=400, detail=str(e))
     except NotTeamCaptainError as e:
         raise HTTPException(status_code=403, detail=str(e))
+

@@ -8,12 +8,12 @@ from fastapi import UploadFile
 
 from auth_service.core.config import settings
 from auth_service.core.exceptions import UsernameAlreadyInUseError, UserNotFoundError
-from auth_service.domain.interfaces.external_services import IKeycloakService
-from auth_service.domain.interfaces.repositories import IUserRepository
+from auth_service.core.ports.keycloak_service import IKeycloakService
 from auth_service.infrastructure.database.models.user_model import User
-from auth_service.utils.upload_image import upload_image
-from auth_service.domain.services.authentication_service import AuthenticationService
+from auth_service.repositories.user_repository import UserRepositoryContract
 from auth_service.schemas.user import UserAdmin
+from auth_service.services.authentication_service import AuthenticationService
+from auth_service.utils.upload_image import upload_image
 
 logger = logging.getLogger(__name__)
 
@@ -23,73 +23,50 @@ class UserService:
 
     def __init__(
         self,
-        user_repository: IUserRepository,
+        user_repository: UserRepositoryContract,
         keycloak_service: Optional[IKeycloakService] = None,
     ):
         self._user_repo = user_repository
         self._keycloak_service = keycloak_service
 
     async def get_user_by_id(self, user_id: UUID) -> User:
-        """Obtém usuário por ID."""
-
         user = await self._user_repo.get_by_id(user_id)
-
         if not user or not user.enabled:
             raise UserNotFoundError(str(user_id))
-
         return user
 
     async def get_user_by_id_optional(self, user_id: UUID) -> Optional[User]:
-        """Obtém usuário por ID, retorna None se não encontrado."""
-
         return await self._user_repo.get_by_id(user_id)
 
     async def get_user_by_email(self, email: str) -> Optional[User]:
-        """Obtém usuário por email."""
-
         return await self._user_repo.get_by_email(email)
 
     async def get_user_by_keycloak_id(self, keycloak_id: str) -> Optional[User]:
-        """Obtém usuário por ID do Keycloak."""
-
         return await self._user_repo.get_by_keycloak_id(keycloak_id)
 
     async def get_all_enabled_users(self) -> Sequence[User]:
-        """Obtém todos os usuários habilitados (listagem pública)."""
-
         return await self._user_repo.get_all_enabled()
 
     async def get_all_users(self) -> Sequence[User]:
-        """Obtém todos os usuários (admin)."""
-
         return await self._user_repo.get_all()
 
     async def get_all_users_with_roles(self) -> Sequence[UserAdmin]:
-        """Obtém todos os usuários e enriquece com roles do Keycloak (admin).
-
-        Retorna uma lista de objetos `UserAdmin` (pydantic) com campos adicionais
-        `roles` e `is_admin` para uso no frontend/admin endpoints.
-        """
-
         users = await self._user_repo.get_all()
         results: list[UserAdmin] = []
-        for u in users:
-            roles = []
+        for user in users:
+            roles: list[str] = []
             try:
-                roles = AuthenticationService.get_role_from_user(u.keycloak_id) or []
+                roles = AuthenticationService.get_role_from_user(user.keycloak_id) or []
             except Exception:
                 roles = []
 
-            is_admin_flag = any(r.lower() == "admin" for r in roles)
-
+            is_admin_flag = any(role.lower() == "admin" for role in roles)
             user_dict = {
-                **{k: getattr(u, k) for k in u.__dict__ if not k.startswith('_')},
+                **{k: getattr(user, k) for k in user.__dict__ if not k.startswith("_")},
                 "roles": roles,
                 "is_admin": is_admin_flag,
             }
-            user_data = UserAdmin.model_validate(user_dict)
-            results.append(user_data)
-
+            results.append(UserAdmin.model_validate(user_dict))
         return results
 
     async def update_user(
@@ -99,8 +76,6 @@ class UserService:
         check_username: Optional[str] = None,
         existing_username_keycloak_id: Optional[str] = None,
     ) -> User:
-        """Atualiza informações do usuário."""
-
         if (
             check_username
             and existing_username_keycloak_id
@@ -109,40 +84,20 @@ class UserService:
             raise UsernameAlreadyInUseError(check_username)
 
         user = await self._user_repo.update(user_id, data)
-
         if not user:
             raise UserNotFoundError(str(user_id))
 
         await self._user_repo.commit()
-        logger.info(f"Usuário {user_id} atualizado: {list(data.keys())}")
-
+        logger.info("Usuário %s atualizado: %s", user_id, list(data.keys()))
         return user
 
     async def create_user(self, user: User) -> User:
-        """Cria um novo usuário."""
-
         created_user = await self._user_repo.create(user)
         await self._user_repo.commit()
-        logger.info(f"Novo usuário criado: {created_user.email}")
+        logger.info("Novo usuário criado: %s", created_user.email)
         return created_user
 
-    async def suspend_user(self, user_id: UUID) -> None:
-        """Suspende um usuário por ID."""
-
-        try:
-            user = await self._user_repo.suspend(user_id)
-            if user is None:
-                raise UserNotFoundError(str(user_id))
-
-            await self._user_repo.commit()
-
-        except Exception:
-            await self._user_repo.rollback()
-            raise
-
     async def is_user_active(self, user_id: UUID) -> bool:
-        """Verifica se o usuário está ativo."""
-
         user = await self._user_repo.get_by_id(user_id)
         return bool(user and user.enabled)
 
@@ -154,15 +109,12 @@ class UserService:
         username: Optional[str] = None,
         avatar: Optional[UploadFile] = None,
     ) -> User:
-        """Atualiza perfil do usuário no Keycloak e banco de dados local."""
-
         if not self._keycloak_service:
             raise ValueError("KeycloakService é necessário para atualizações de perfil")
 
         db_user = await self._user_repo.get_by_id(user.id)
         if not db_user:
             db_user = await self._user_repo.get_by_keycloak_id(user.keycloak_id)
-
         if not db_user:
             raise UserNotFoundError(str(user.id))
 
@@ -172,7 +124,6 @@ class UserService:
         if first_name is not None:
             updates_keycloak["firstName"] = first_name
             updates_db["first_name"] = first_name
-
         if last_name is not None:
             updates_keycloak["lastName"] = last_name
             updates_db["last_name"] = last_name
@@ -183,7 +134,6 @@ class UserService:
             )
             if username_exists:
                 raise UsernameAlreadyInUseError(username)
-
             updates_keycloak["username"] = username
             updates_db["username"] = username
 
@@ -197,11 +147,9 @@ class UserService:
                 aws_bucket=settings.AWS_BUCKET_NAME,
                 prefix="avatars",
             )
-
             avatar_url = result["url"]
             updates_db["avatar_url"] = avatar_url
-            if "attributes" not in updates_keycloak:
-                updates_keycloak["attributes"] = {}
+            updates_keycloak.setdefault("attributes", {})
             updates_keycloak["attributes"]["avatar_url"] = avatar_url
 
         if updates_keycloak:
@@ -212,32 +160,27 @@ class UserService:
             await self._user_repo.commit()
             if updated_user:
                 logger.info(
-                    f"Usuário {updated_user.id} atualizado: {list(updates_db.keys())}"
+                    "Usuário %s atualizado: %s",
+                    updated_user.id,
+                    list(updates_db.keys()),
                 )
                 return updated_user
 
         return db_user
 
-
     async def suspend_user(self, user_id: UUID) -> None:
-        """Suspende um usuário (admin)."""
-
         user = await self._user_repo.get_by_id(user_id)
         if not user:
             raise UserNotFoundError(str(user_id))
-
         await self._user_repo.update(user_id, {"enabled": False})
         await self._user_repo.commit()
-        logger.info(f"Usuário {user_id} suspenso")
-
+        logger.info("Usuário %s suspenso", user_id)
 
     async def unsuspend_user(self, user_id: UUID) -> None:
-        """Reativa um usuário suspenso (admin)."""
-
         user = await self._user_repo.get_by_id(user_id)
         if not user:
             raise UserNotFoundError(str(user_id))
-
         await self._user_repo.update(user_id, {"enabled": True})
         await self._user_repo.commit()
-        logger.info(f"Usuário {user_id} reativado")
+        logger.info("Usuário %s reativado", user_id)
+

@@ -11,7 +11,7 @@ from auth_service.core.security import require_role
 from auth_service.infrastructure.database.models.enums import OrganizationStatus
 from auth_service.schemas.organization import OrganizationResponse
 from auth_service.schemas.user import UserAdmin
-from auth_service.domain.services.authentication_service import AuthenticationService
+from auth_service.services.authentication_service import AuthenticationService
 
 logger = logging.getLogger(__name__)
 

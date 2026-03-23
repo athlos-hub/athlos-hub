@@ -11,7 +11,7 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp
 
 from auth_service.core.config import settings
-from auth_service.domain.services.authentication_service import AuthenticationService
+from auth_service.services.authentication_service import AuthenticationService
 
 logger = logging.getLogger(__name__)
 

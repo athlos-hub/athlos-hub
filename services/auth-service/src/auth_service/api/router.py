@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from auth_service.api.endpoints import admin, auth, health, internal, organizations, teams, users
+from auth_service.api.routes import admin, auth, health, internal, organizations, teams, users
 
 api_router = APIRouter()
 

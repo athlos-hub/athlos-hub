@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 from uuid import uuid4
 
 from auth_service.core.exceptions import UserNotFoundError
-from auth_service.domain.services.user_service import UserService
+from auth_service.services.user_service import UserService
 from auth_service.infrastructure.database.models.user_model import User
 
 

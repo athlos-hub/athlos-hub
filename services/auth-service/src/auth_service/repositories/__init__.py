@@ -1,0 +1,2 @@
+"""Repositórios e contratos simplificados."""
+
