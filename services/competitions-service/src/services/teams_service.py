@@ -514,7 +514,8 @@ class TeamService:
             select(TeamInviteModel)
             .options(
                 selectinload(TeamInviteModel.team).selectinload(TeamModel.competition),
-                selectinload(TeamInviteModel.team).selectinload(TeamModel.players)
+                selectinload(TeamInviteModel.team).selectinload(TeamModel.players),
+                selectinload(TeamInviteModel.team).selectinload(TeamModel.captain),
             )
             .where(TeamInviteModel.invite_token == invite_token)
         )
@@ -672,7 +673,9 @@ class TeamService:
             f"Usuário {keycloak_id} entrou no time {team.id} ({team.name}) "
             f"via convite {invite.invite_token[:8]}..."
         )
-        
+
+        await self._notify_captain_new_member(team, competition, keycloak_id)
+
         return {
             "message": "Você entrou no time com sucesso!",
             "team_id": team.id,
@@ -680,6 +683,50 @@ class TeamService:
             "player_id": new_player.id,
             "competition_id": competition.id
         }
+
+    async def _notify_captain_new_member(
+        self,
+        team: TeamModel,
+        competition: CompetitionModel,
+        new_member_keycloak_id: uuid.UUID,
+    ) -> None:
+        if not team.team_captain or not team.captain:
+            return
+        captain = team.captain
+        if captain.keycloak_id == new_member_keycloak_id:
+            return
+        try:
+            auth_client = await self._get_auth_client()
+            async with auth_client:
+                captain_user_id = await auth_client.get_user_internal_id_by_keycloak(
+                    captain.keycloak_id
+                )
+            if captain_user_id is None:
+                return
+            from src.services.notifications_client import send_competition_notification
+
+            slug = team.organization_slug
+            action = f"/organizations/{slug}/competitions/{competition.id}" if slug else None
+            await send_competition_notification(
+                user_id=captain_user_id,
+                notification_type="competition_team_member_joined",
+                title="Novo membro no time",
+                message=(
+                    f"Um jogador entrou no time {team.name} "
+                    f"na competição {competition.name}."
+                ),
+                extra_data={
+                    "team_id": str(team.id),
+                    "team_name": team.name,
+                    "competition_id": competition.id,
+                    "competition_name": competition.name,
+                    "organization_slug": team.organization_slug,
+                    "new_member_keycloak_id": str(new_member_keycloak_id),
+                },
+                action_url=action,
+            )
+        except Exception as e:
+            logger.warning("Notificação ao capitão não enviada: %s", e)
 
     async def revoke_invite(
         self,

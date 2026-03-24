@@ -318,6 +318,22 @@ class AuthClient:
                 f"Erro ao verificar permissão: {e.response.text}"
             ) from e
 
+    async def get_user_internal_id_by_keycloak(self, keycloak_id: UUID) -> UUID | None:
+        """Resolve o UUID interno (auth.users.id) a partir do Keycloak ID (rota pública)."""
+        if not self._client:
+            raise RuntimeError("Cliente não inicializado. Use async with AuthClient()")
+
+        try:
+            response = await self._client.get(f"/api/v1/users/public/{keycloak_id}")
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            data = response.json()
+            return UUID(str(data["id"]))
+        except Exception as e:
+            logger.warning("Falha ao resolver user id para keycloak %s: %s", keycloak_id, e)
+            return None
+
 
 def get_auth_client(base_url: str, timeout: int = 10) -> AuthClient:
     """

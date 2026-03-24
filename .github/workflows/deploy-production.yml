@@ -76,10 +76,12 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             NEXT_PUBLIC_API_BASE_URL=https://athloshub.com.br/api/v1
-            NEXT_PUBLIC_API_GATEWAY_URL=https://athloshub.com.br/api/v1
+            NEXT_PUBLIC_APP_URL=https://athloshub.com.br
             NEXT_PUBLIC_LIVESTREAM_WS_URL=wss://athloshub.com.br
-            NEXT_PUBLIC_HLS_URL=https://athloshub.com.br/live
-            NEXT_PUBLIC_NOTIFICATIONS_SSE_URL=https://athloshub.com.br/api/v1/notifications/stream
+            NEXT_PUBLIC_HLS_URL=https://athloshub.com.br
+            NEXT_PUBLIC_SCOREBOARD_WS_URL=wss://athloshub.com.br/api/v1
+            NEXT_PUBLIC_RTMP_SERVER_URL=rtmp://athloshub.com.br
+            NEXT_PUBLIC_MEDIAMTX_RTMP_PORT=1935
 
   deploy:
     name: Deploy to VPS

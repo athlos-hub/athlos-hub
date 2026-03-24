@@ -1,7 +1,7 @@
 [project]
 name = "notifications-service"
 version = "0.1.0"
-description = "Serviço de notificações usando Novu"
+description = "Serviço de notificações in-app (REST + SSE)"
 authors = [
     {name = "Gustavo Emanuel Silva Queiroz", email = "gustavoe.dev@gmail.com"}
 ]
@@ -24,7 +24,6 @@ psycopg2-binary = ">=2.9.0"
 asyncpg = ">=0.29.0"
 database-lib = {path = "../../libs/database", develop = true}
 common-lib = {path = "../../libs/common", develop = true}
-novu = "^1.7.0"
 httpx = "^0.28.1"
 setuptools = "^80.9.0"
 

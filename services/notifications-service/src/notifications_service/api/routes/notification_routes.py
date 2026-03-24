@@ -1,48 +1,42 @@
-"""Rotas de notificações."""
-
-import asyncio
-import json
-from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from fastapi.responses import StreamingResponse
 
-from notifications_service.api.dependencies import (
-    get_notification_service,
-    get_current_user_id,
+from notifications_service.api.deps import (
+    CurrentUserIdDep,
+    NotificationServiceDep,
+    verify_internal_key,
 )
-from notifications_service.domain.services import NotificationService
-from notifications_service.infrastructure.sse import sse_manager
-from notifications_service.utils import resolve_user_id
-
-from notifications_service.schemas import (
-    NotificationResponse,
+from notifications_service.infrastructure.realtime import get_broadcaster, sse_event
+from notifications_service.schemas.notification import (
+    MessageOut,
+    NotificationCreateInternal,
     NotificationListResponse,
+    NotificationResponse,
     UnreadCountResponse,
-    SendNotificationRequest,
-    NotificationCreate,
 )
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 
+def _schedule_unread_publish(background_tasks: BackgroundTasks, user_id: UUID, count: int) -> None:
+    async def _push() -> None:
+        await get_broadcaster().publish(user_id, count)
+
+    background_tasks.add_task(_push)
+
+
 @router.get("", response_model=NotificationListResponse)
 async def list_notifications(
-    service: Annotated[NotificationService, Depends(get_notification_service)],
-    user_id: str = Query(..., description="ID do usuário (aceita user.id ou keycloak_id)"),
-    page: int = Query(1, ge=1, description="Número da página"),
-    page_size: int = Query(50, ge=1, le=100, description="Tamanho da página"),
-    unread_only: bool = Query(False, description="Listar apenas não lidas"),
+    user_id: CurrentUserIdDep,
+    service: NotificationServiceDep,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    unread_only: bool = Query(False),
 ):
-    """Lista notificações do usuário com paginação."""
-    resolved_user_id = await resolve_user_id(user_id)
-    if resolved_user_id is None:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=400, detail="ID de usuário inválido")
-    
-    return await service.list_user_notifications(
-        user_id=resolved_user_id,
+    return await service.list_notifications(
+        user_id=user_id,
         page=page,
         page_size=page_size,
         unread_only=unread_only,
@@ -50,131 +44,103 @@ async def list_notifications(
 
 
 @router.get("/unread-count", response_model=UnreadCountResponse)
-async def get_unread_count(
-    service: Annotated[NotificationService, Depends(get_notification_service)],
-    user_id: str = Query(..., description="ID do usuário (aceita user.id ou keycloak_id)"),
-):
-    """Retorna a contagem de notificações não lidas."""
-    resolved_user_id = await resolve_user_id(user_id)
-    if resolved_user_id is None:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=400, detail="ID de usuário inválido")
-    
-    count = await service.count_unread(resolved_user_id)
-    return UnreadCountResponse(count=count)
+async def unread_count_endpoint(user_id: CurrentUserIdDep, service: NotificationServiceDep):
+    c = await service.count_unread(user_id)
+    return UnreadCountResponse(count=c)
 
 
-@router.get("/stream")
-async def stream_notifications(
-    user_id: str = Query(..., description="ID do usuário (aceita user.id ou keycloak_id)"),
-):
-    """
-    Stream de notificações em tempo real usando Server-Sent Events (SSE).
-    
-    O cliente mantém uma conexão aberta e recebe notificações em tempo real.
-    """
-    resolved_user_id = await resolve_user_id(user_id)
-    if resolved_user_id is None:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=400, detail="ID de usuário inválido")
-    
-    async def event_generator():
-        queue = await sse_manager.connect(resolved_user_id)
-        
-        try:
-            yield f"data: {json.dumps({'type': 'connected', 'data': {'message': 'Conectado ao stream de notificações'}})}\n\n"
-            
-            while True:
-                try:
-                    event_data = await asyncio.wait_for(queue.get(), timeout=30.0)
-                    yield f"data: {event_data}\n\n"
-                except asyncio.TimeoutError:
-                    yield f": heartbeat\n\n"
-        except asyncio.CancelledError:
-            pass
-        finally:
-            await sse_manager.disconnect(resolved_user_id, queue)
-    
+@router.get("/unread-count/stream")
+async def unread_count_stream(user_id: CurrentUserIdDep, service: NotificationServiceDep):
+    initial = await service.count_unread(user_id)
+    broadcaster = get_broadcaster()
+
+    async def gen():
+        async for count in broadcaster.stream_counts(user_id, initial):
+            yield sse_event(count)
+
     return StreamingResponse(
-        event_generator(),
+        gen(),
         media_type="text/event-stream",
         headers={
-            "Cache-Control": "no-cache",
+            "Cache-Control": "no-cache, no-transform",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Credentials": "true",
-        }
+        },
     )
 
 
-@router.get("/{notification_id}", response_model=NotificationResponse)
-async def get_notification(
-    notification_id: UUID,
-    service: Annotated[NotificationService, Depends(get_notification_service)],
-    user_id: Annotated[UUID, Depends(get_current_user_id)],
+@router.post(
+    "/internal",
+    response_model=NotificationResponse,
+    dependencies=[Depends(verify_internal_key)],
+)
+async def create_internal_notification(
+    body: NotificationCreateInternal,
+    service: NotificationServiceDep,
+    background_tasks: BackgroundTasks,
 ):
-    """Obtém uma notificação específica."""
+    """Criação apenas para outros microsserviços (X-Internal-API-Key)."""
+    n = await service.create_internal(body)
+    c = await service.count_unread(body.user_id)
+
+    async def _push() -> None:
+        await get_broadcaster().publish(body.user_id, c)
+
+    background_tasks.add_task(_push)
+    return NotificationResponse.model_validate(n)
+
+
+@router.get("/{notification_id}", response_model=NotificationResponse)
+async def get_one(
+    notification_id: UUID,
+    user_id: CurrentUserIdDep,
+    service: NotificationServiceDep,
+):
     return await service.get_notification(notification_id, user_id)
 
 
 @router.post("/{notification_id}/mark-read", response_model=NotificationResponse)
-async def mark_notification_as_read(
+async def mark_read(
     notification_id: UUID,
-    service: Annotated[NotificationService, Depends(get_notification_service)],
-    user_id: Annotated[UUID, Depends(get_current_user_id)],
+    user_id: CurrentUserIdDep,
+    service: NotificationServiceDep,
+    background_tasks: BackgroundTasks,
 ):
-    """Marca uma notificação como lida."""
-    return await service.mark_as_read(notification_id, user_id)
+    out = await service.mark_as_read(notification_id, user_id)
+    c = await service.count_unread(user_id)
+    _schedule_unread_publish(background_tasks, user_id, c)
+    return out
 
 
-@router.post("/mark-all-read", status_code=status.HTTP_200_OK)
-async def mark_all_as_read(
-    service: Annotated[NotificationService, Depends(get_notification_service)],
-    user_id: Annotated[UUID, Depends(get_current_user_id)],
+@router.post("/mark-all-read", response_model=MessageOut)
+async def mark_all_read(
+    user_id: CurrentUserIdDep,
+    service: NotificationServiceDep,
+    background_tasks: BackgroundTasks,
 ):
-    """Marca todas as notificações como lidas."""
-    count = await service.mark_all_as_read(user_id)
-    return {"message": f"{count} notificações marcadas como lidas"}
+    n = await service.mark_all_as_read(user_id)
+    _schedule_unread_publish(background_tasks, user_id, 0)
+    return MessageOut(message=f"{n} notificação(ões) marcada(s) como lida(s).")
 
 
-@router.delete("/clear-all", status_code=status.HTTP_200_OK)
-async def clear_all_notifications(
-    service: Annotated[NotificationService, Depends(get_notification_service)],
-    user_id: Annotated[UUID, Depends(get_current_user_id)],
+@router.delete("/clear-all", response_model=MessageOut)
+async def clear_all(
+    user_id: CurrentUserIdDep,
+    service: NotificationServiceDep,
+    background_tasks: BackgroundTasks,
 ):
-    """Deleta todas as notificações do usuário."""
-    count = await service.clear_all_notifications(user_id)
-    return {"message": f"{count} notificações deletadas"}
+    removed = await service.clear_all(user_id)
+    _schedule_unread_publish(background_tasks, user_id, 0)
+    return MessageOut(message=f"{removed} notificação(ões) removida(s).")
 
 
 @router.delete("/{notification_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_notification(
+async def delete_one(
     notification_id: UUID,
-    service: Annotated[NotificationService, Depends(get_notification_service)],
-    user_id: Annotated[UUID, Depends(get_current_user_id)],
+    user_id: CurrentUserIdDep,
+    service: NotificationServiceDep,
+    background_tasks: BackgroundTasks,
 ):
-    """Deleta uma notificação específica."""
     await service.delete_notification(notification_id, user_id)
-
-
-@router.post("/send", response_model=NotificationResponse, status_code=status.HTTP_201_CREATED)
-async def send_notification(
-    request: SendNotificationRequest,
-    service: Annotated[NotificationService, Depends(get_notification_service)],
-):
-    """
-    Envia uma notificação para um usuário.
-    
-    Esta rota deve ser protegida e usada apenas internamente pelos outros serviços.
-    """
-    notification_data = NotificationCreate(
-        user_id=request.user_id,
-        type=request.type,
-        title=request.title,
-        message=request.message,
-        extra_data=request.extra_data,
-        action_url=request.action_url,
-    )
-    
-    return await service.create_notification(notification_data)
+    c = await service.count_unread(user_id)
+    _schedule_unread_publish(background_tasks, user_id, c)

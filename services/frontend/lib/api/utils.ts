@@ -67,21 +67,23 @@ export function parseErrorMessage(errorData: unknown): string {
 }
 
 export function getBaseURL(): string {
-    if (process.env.NODE_ENV === 'development') {
-        return process.env.API_BASE_URL || "http://localhost:8000";
-    }
-    return process.env.API_BASE_URL || "http://localhost:8100/api/v1";
+    const base = process.env.API_BASE_URL || "http://localhost:8100/api/v1";
+    return base.replace(/\/$/, "");
 }
 
 export function getServiceURL(service: "auth" | "competitions" = "auth"): string {
-    if (process.env.NODE_ENV === 'development') {
-        if (service === "auth") {
-            return process.env.AUTH_API_URL || "http://localhost:8000/api/v1";
+    const gateway = (process.env.API_BASE_URL || "http://localhost:8100/api/v1").replace(/\/$/, "");
+    if (process.env.NODE_ENV === "development") {
+        if (service === "competitions") {
+            return (process.env.COMPETITIONS_API_URL || "http://localhost:8001/api/v1").replace(/\/$/, "");
         }
-        return process.env.COMPETITIONS_API_URL || "http://localhost:8001/api/v1";
+        const authHost = process.env.AUTH_API_URL;
+        if (authHost) {
+            return `${authHost.replace(/\/$/, "")}/api/v1`;
+        }
+        return "http://localhost:8000/api/v1";
     }
-    // Em produção, usa o gateway
-    return process.env.API_BASE_URL || "http://localhost:8100/api/v1";
+    return gateway;
 }
 
 export function buildQueryString(params?: Record<string, string | number | boolean>): string {

@@ -26,8 +26,11 @@ export enum NotificationType {
   POST_LIKE = 'post_like',
   POST_COMMENT = 'post_comment',
   POST_SHARE = 'post_share',
+  COMMENT_REPLY = 'comment_reply',
   ORGANIZATION_FOLLOW = 'organization_follow',
-  
+
+  COMPETITION_TEAM_MEMBER_JOINED = 'competition_team_member_joined',
+
   GENERAL = 'general',
 }
 
@@ -49,7 +52,7 @@ export interface NotificationMetadata {
 export interface Notification {
   id: string;
   user_id: string;
-  type: NotificationType;
+  type: NotificationType | string;
   title: string;
   message: string;
   metadata?: NotificationMetadata;

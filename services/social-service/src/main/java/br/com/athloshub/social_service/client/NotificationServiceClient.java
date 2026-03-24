@@ -17,10 +17,13 @@ public class NotificationServiceClient {
     
     private final RestTemplate restTemplate;
     
-    @Value("${notification.service.url:http://localhost:8000}")
+    @Value("${services.notification.service.url:http://localhost:8003}")
     private String notificationServiceUrl;
-    
-    @Value("${notification.service.enabled:true}")
+
+    @Value("${services.notification.service.internal-api-key:}")
+    private String notificationInternalApiKey;
+
+    @Value("${services.notification.service.enabled:true}")
     private boolean notificationServiceEnabled;
     
     public void sendNotification(
@@ -37,7 +40,7 @@ public class NotificationServiceClient {
         }
         
         try {
-            String url = notificationServiceUrl + "/api/v1/notifications/send";
+            String url = notificationServiceUrl + "/api/v1/notifications/internal";
             
             Map<String, Object> payload = new HashMap<>();
             payload.put("user_id", recipientKeycloakId);
@@ -71,6 +74,9 @@ public class NotificationServiceClient {
             
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
+            if (notificationInternalApiKey != null && !notificationInternalApiKey.isBlank()) {
+                headers.set("X-Internal-API-Key", notificationInternalApiKey);
+            }
             
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
             

@@ -63,8 +63,8 @@ services:
         paths: ["/api/v1/notifications"]
         strip_path: false
       
-      - name: notifications-sse-stream
-        paths: ["/api/v1/notifications/stream"]
+      - name: notifications-sse-unread-stream
+        paths: ["/api/v1/notifications/unread-count/stream"]
         strip_path: false
         protocols:
           - http
@@ -77,12 +77,12 @@ services:
         request_buffering: false
         response_buffering: false
 
-      - name: social-service
-        url: http://social-service:8083
-        routes:
-          - name: social-routes
-            paths: ["/api/social"]
-            strip_path: false
+  - name: social-service
+    url: http://social-service:8083
+    routes:
+      - name: social-routes
+        paths: ["/api/social"]
+        strip_path: false
 
   - name: keycloak-service
     url: http://keycloak:8080

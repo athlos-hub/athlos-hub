@@ -9,14 +9,11 @@ CURRENT_DIR = Path(__file__).resolve().parent
 AUTH_SERVICE_ROOT = CURRENT_DIR.parent
 SRC_ROOT = AUTH_SERVICE_ROOT.parent
 SERVICE_ROOT = SRC_ROOT.parent
-MONOREPO_ROOT = SERVICE_ROOT.parent.parent
-
-
 class Settings(BaseSettings):
     """Configurações da aplicação."""
 
     model_config = SettingsConfigDict(
-        env_file=[MONOREPO_ROOT / ".env", SERVICE_ROOT / ".env"],
+        env_file=[SERVICE_ROOT / ".env"],
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -89,6 +86,7 @@ class Settings(BaseSettings):
     LOG_FORMAT: str = "%(levelname)s:%(name)s:%(message)s"
 
     NOTIFICATIONS_SERVICE_URL: str = "http://notifications-service:8003"
+    NOTIFICATIONS_INTERNAL_API_KEY: str = "dev-notifications-internal-key"
     COMPETITIONS_SERVICE_URL: str = "http://competitions-service:8001"
 
     # Bucket S3

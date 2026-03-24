@@ -4,19 +4,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 import json
 
-CURRENT_DIR = Path(__file__).resolve().parent 
+CURRENT_DIR = Path(__file__).resolve().parent
 SERVICE_ROOT = CURRENT_DIR.parent.parent
-MONOREPO_ROOT = SERVICE_ROOT.parent.parent
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=[
-            MONOREPO_ROOT / ".env",
-            MONOREPO_ROOT / ".env.production",
-            SERVICE_ROOT / ".env",
-        ],
-        env_file_encoding='utf-8',
-        extra="ignore"
+        env_file=[SERVICE_ROOT / ".env"],
+        env_file_encoding="utf-8",
+        extra="ignore",
     )
 
     ENV: str = Field(default="prod", alias="env")
@@ -42,6 +38,9 @@ class Settings(BaseSettings):
 
     AUTH_SERVICE_URL: str = Field(default="http://auth-service:8000")
     AUTH_SERVICE_TIMEOUT: int = Field(default=10)
+
+    NOTIFICATIONS_SERVICE_URL: str = Field(default="http://notifications-service:8003")
+    NOTIFICATIONS_INTERNAL_API_KEY: str = Field(default="")
     
     FRONTEND_URL: str = Field(default="https://athloshub.com.br")
 

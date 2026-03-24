@@ -1,45 +1,38 @@
 """Schemas de notificação."""
 
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class NotificationBase(BaseModel):
-    """Schema base de notificação."""
-
+class NotificationCreateInternal(BaseModel):
+    user_id: UUID
     type: str
     title: str
     message: str
-    action_url: Optional[str] = None
+    extra_data: dict[str, Any] | None = None
+    action_url: str | None = None
 
 
-class NotificationCreate(NotificationBase):
-    """Schema para criação de notificação."""
-
-    user_id: UUID
-    extra_data: Optional[Dict[str, Any]] = None
-
-
-class NotificationResponse(NotificationBase):
-    """Schema de resposta de notificação."""
-
+class NotificationResponse(BaseModel):
     id: UUID
     user_id: UUID
+    type: str
+    title: str
+    message: str
+    action_url: str | None = None
     is_read: bool
-    read_at: Optional[datetime] = None
+    read_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
-    extra_data: Optional[Dict[str, Any]] = Field(None, serialization_alias="metadata")
+    extra_data: dict[str, Any] | None = Field(None, serialization_alias="metadata")
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class NotificationListResponse(BaseModel):
-    """Schema de resposta de lista de notificações."""
-
     items: list[NotificationResponse]
     total: int
     page: int
@@ -48,29 +41,8 @@ class NotificationListResponse(BaseModel):
 
 
 class UnreadCountResponse(BaseModel):
-    """Schema de resposta de contagem de não lidas."""
-
     count: int
 
 
-class MarkReadRequest(BaseModel):
-    """Schema para marcar como lida."""
-
-    pass
-
-
-class MarkAllReadRequest(BaseModel):
-    """Schema para marcar todas como lidas."""
-
-    pass
-
-
-class SendNotificationRequest(BaseModel):
-    """Schema para enviar notificação."""
-
-    user_id: UUID
-    type: str
-    title: str
+class MessageOut(BaseModel):
     message: str
-    extra_data: Optional[Dict[str, Any]] = None
-    action_url: Optional[str] = None

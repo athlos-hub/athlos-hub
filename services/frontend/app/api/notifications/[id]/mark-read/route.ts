@@ -1,39 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import axios from 'axios';
-
-const API_GATEWAY_URL = process.env.API_BASE_URL || 'http://localhost:8100/api/v1';
+import { notificationsUpstreamAuth, getNotificationsGatewayUrl } from '@/lib/server/notifications-upstream';
 
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
-    }
+  const auth = await notificationsUpstreamAuth();
+  if (!auth.ok) {
+    return auth.response;
+  }
 
+  try {
     const { id } = await params;
 
     const response = await axios.post(
-      `${API_GATEWAY_URL}/notifications/${id}/mark-read`,
+      `${getNotificationsGatewayUrl()}/notifications/${id}/mark-read`,
       {},
-      {
-        headers: {
-          'x-user-id': session.user.id,
-        },
-      }
+      { headers: auth.headers }
     );
 
     return NextResponse.json(response.data);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { message?: string; response?: { status?: number } };
     console.error('Erro ao marcar notificação como lida:', error);
     return NextResponse.json(
-      { error: error.message || 'Erro ao marcar notificação' },
-      { status: error.response?.status || 500 }
+      { error: err.message || 'Erro ao marcar notificação' },
+      { status: err.response?.status || 500 }
     );
   }
 }

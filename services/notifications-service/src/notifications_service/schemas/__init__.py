@@ -1,23 +1,15 @@
-"""Inicialização dos schemas."""
-
 from notifications_service.schemas.notification import (
-    NotificationBase,
-    NotificationCreate,
-    NotificationResponse,
+    MessageOut,
+    NotificationCreateInternal,
     NotificationListResponse,
+    NotificationResponse,
     UnreadCountResponse,
-    MarkReadRequest,
-    MarkAllReadRequest,
-    SendNotificationRequest,
 )
 
 __all__ = [
-    "NotificationBase",
-    "NotificationCreate",
-    "NotificationResponse",
+    "MessageOut",
+    "NotificationCreateInternal",
     "NotificationListResponse",
+    "NotificationResponse",
     "UnreadCountResponse",
-    "MarkReadRequest",
-    "MarkAllReadRequest",
-    "SendNotificationRequest",
 ]

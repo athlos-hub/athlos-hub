@@ -1,15 +1,19 @@
-"use client"
+"use client";
 
 import { useEffect, useCallback, useRef } from 'react';
 import { notificationsApi } from '@/lib/api/notifications';
-import { useNotificationsSSE } from './use-notifications-sse';
+import { useUnreadCountSse } from '@/hooks/use-unread-count-sse';
 import type { Notification, NotificationListResponse } from '@/types/notification';
 import { useNotificationsStore } from '@/store/notifications';
 
 let backgroundFetchTimeout: NodeJS.Timeout | null = null;
 const BACKGROUND_FETCH_DEBOUNCE = 1000;
 
-export function useNotifications(unreadOnlyInitial: boolean = false, autoRefresh: boolean = false, refreshInterval: number = 30000) {
+export function useNotifications(
+  unreadOnlyInitial: boolean = false,
+  autoRefresh: boolean = false,
+  refreshInterval: number = 30000
+) {
   const {
     notifications,
     unreadCount,
@@ -29,39 +33,39 @@ export function useNotifications(unreadOnlyInitial: boolean = false, autoRefresh
     unreadOnlyRef.current = showUnreadOnly;
   }, [showUnreadOnly]);
 
-  const fetchNotifications = async (
-    unreadOnly: boolean = false,
-    setGlobalFilter: boolean = true,
-    background: boolean = false
-  ) => {
-    try {
-      if (!background) {
-        setLoading(true);
-        setError(null);
+  const fetchNotifications = useCallback(
+    async (unreadOnly: boolean = false, setGlobalFilter: boolean = true, background: boolean = false) => {
+      try {
+        if (!background) {
+          setLoading(true);
+          setError(null);
+        }
+        const response: NotificationListResponse = await notificationsApi.getNotifications(1, 50, unreadOnly);
+        setNotifications(response.items || []);
+        if (setGlobalFilter) {
+          setShowUnreadOnly(unreadOnly);
+        }
+      } catch (err: unknown) {
+        if (!background) {
+          const errorMessage = err instanceof Error ? err.message : 'Erro ao buscar notificações';
+          setError(errorMessage);
+          setNotifications([]);
+        }
+      } finally {
+        if (!background) {
+          setLoading(false);
+        }
       }
-      const response: NotificationListResponse = await notificationsApi.getNotifications(1, 50, unreadOnly);
-      setNotifications(response.items || []);
-      if (setGlobalFilter) {
-        setShowUnreadOnly(unreadOnly);
-      }
-    } catch (err: any) {
-      if (!background) {
-        const errorMessage = err.message || 'Erro ao buscar notificações';
-        setError(errorMessage);
-        setNotifications([]);
-      }
-    } finally {
-      if (!background) {
-        setLoading(false);
-      }
-    }
-  };
+    },
+    [setError, setLoading, setNotifications, setShowUnreadOnly]
+  );
 
   const fetchUnreadCount = async () => {
     try {
       const count = await notificationsApi.getUnreadCount();
       setUnreadCount(count);
-    } catch (err: any) {
+    } catch {
+      /* silencioso */
     }
   };
 
@@ -74,11 +78,11 @@ export function useNotifications(unreadOnlyInitial: boolean = false, autoRefresh
         return {
           notifications: state.showUnreadOnly ? updated.filter((n) => !n.is_read) : updated,
           unreadCount: Math.max(0, state.unreadCount - 1),
-        } as any;
+        };
       });
 
       await notificationsApi.markAsRead(notificationId);
-    } catch (err: any) {
+    } catch {
       await fetchNotifications(unreadOnlyInitial);
       await fetchUnreadCount();
     }
@@ -87,12 +91,14 @@ export function useNotifications(unreadOnlyInitial: boolean = false, autoRefresh
   const markAllAsRead = async () => {
     try {
       useNotificationsStore.setState((state) => ({
-        notifications: state.showUnreadOnly ? [] : state.notifications.map((n) => ({ ...n, is_read: true, read_at: new Date().toISOString() })),
+        notifications: state.showUnreadOnly
+          ? []
+          : state.notifications.map((n) => ({ ...n, is_read: true, read_at: new Date().toISOString() })),
         unreadCount: 0,
-      } as any));
+      }));
 
       await notificationsApi.markAllAsRead();
-    } catch (err: any) {
+    } catch {
       await fetchNotifications(unreadOnlyInitial);
       await fetchUnreadCount();
     }
@@ -101,9 +107,11 @@ export function useNotifications(unreadOnlyInitial: boolean = false, autoRefresh
   const deleteNotification = async (notificationId: string) => {
     try {
       await notificationsApi.deleteNotification(notificationId);
-      useNotificationsStore.setState((state) => ({ notifications: state.notifications.filter((n) => n.id !== notificationId) } as any));
+      useNotificationsStore.setState((state) => ({
+        notifications: state.notifications.filter((n) => n.id !== notificationId),
+      }));
       await fetchUnreadCount();
-    } catch (err: any) {
+    } catch (err) {
       throw err;
     }
   };
@@ -111,8 +119,8 @@ export function useNotifications(unreadOnlyInitial: boolean = false, autoRefresh
   const clearAllNotifications = async () => {
     try {
       await notificationsApi.clearAllNotifications();
-      useNotificationsStore.setState({ notifications: [], unreadCount: 0 } as any);
-    } catch (err: any) {
+      useNotificationsStore.setState({ notifications: [], unreadCount: 0 });
+    } catch (err) {
       throw err;
     }
   };
@@ -122,46 +130,27 @@ export function useNotifications(unreadOnlyInitial: boolean = false, autoRefresh
     await fetchUnreadCount();
   };
 
-  const handleNewNotification = useCallback((notification: Notification) => {
-    useNotificationsStore.setState((state) => {
-      const currentUnreadOnly = state.showUnreadOnly;
-      const exists = state.notifications.some(n => n.id === notification.id);
+  const handleUnreadCountUpdate = useCallback(
+    (count: number) => {
+      setUnreadCount(count);
 
-      if (exists) {
-        const updated = state.notifications.map(n => n.id === notification.id ? notification : n);
-        return { notifications: currentUnreadOnly && notification.is_read ? updated.filter(n => !n.is_read) : updated, unreadCount: state.unreadCount } as any;
+      if (backgroundFetchTimeout) {
+        clearTimeout(backgroundFetchTimeout);
       }
 
-      if (currentUnreadOnly && notification.is_read) {
-        return { notifications: state.notifications, unreadCount: state.unreadCount } as any;
-      }
-
-      return { notifications: [notification, ...state.notifications], unreadCount: state.unreadCount + (notification.is_read ? 0 : 1) } as any;
-    });
-  }, []);
-
-  const handleUnreadCountUpdate = useCallback((count: number) => {
-    setUnreadCount(count);
-    
-    if (backgroundFetchTimeout) {
-      clearTimeout(backgroundFetchTimeout);
-    }
-    
-    backgroundFetchTimeout = setTimeout(() => {
-      if (typeof document !== 'undefined' && document.hidden) {
-        return;
-      }
-      
-      void fetchNotifications(true, false, true);
-    }, BACKGROUND_FETCH_DEBOUNCE);
-  }, []);
-
-  useNotificationsSSE({
-    onNotification: handleNewNotification,
-    onUnreadCountUpdate: handleUnreadCountUpdate,
-    onError: (err) => {
-      setError(err.message);
+      backgroundFetchTimeout = setTimeout(() => {
+        if (typeof document !== 'undefined' && document.hidden) {
+          return;
+        }
+        void fetchNotifications(unreadOnlyRef.current, false, true);
+      }, BACKGROUND_FETCH_DEBOUNCE);
     },
+    [setUnreadCount, fetchNotifications]
+  );
+
+  useUnreadCountSse({
+    onCount: handleUnreadCountUpdate,
+    onError: (err) => setError(err.message),
   });
 
   useEffect(() => {
@@ -175,14 +164,14 @@ export function useNotifications(unreadOnlyInitial: boolean = false, autoRefresh
         if (isMounted) {
           await fetchUnreadCount();
         }
-      } catch (err) {
+      } catch {
         if (isMounted) {
           setLoading(false);
         }
       }
     };
 
-    loadInitialData();
+    void loadInitialData();
 
     return () => {
       isMounted = false;
@@ -198,10 +187,10 @@ export function useNotifications(unreadOnlyInitial: boolean = false, autoRefresh
         if (typeof document !== 'undefined' && document.hidden) {
           return;
         }
-        
-        fetchUnreadCount();
+
+        void fetchUnreadCount();
         if (showUnreadOnly) {
-          fetchNotifications(true, false, true);
+          void fetchNotifications(true, false, true);
         }
       }, refreshInterval);
 

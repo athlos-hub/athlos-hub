@@ -98,8 +98,12 @@ export default function NotificationsPage() {
         return '💬';
       case 'post_share':
         return '🔄';
+      case 'comment_reply':
+        return '↩️';
       case 'organization_follow':
         return '🏢';
+      case 'competition_team_member_joined':
+        return '🏆';
       case 'general':
         return '🔔';
       default:

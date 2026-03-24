@@ -1,68 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import axios from 'axios';
-
-const API_GATEWAY_URL = process.env.API_BASE_URL || 'http://localhost:8100/api/v1';
+import { notificationsUpstreamAuth, getNotificationsGatewayUrl } from '@/lib/server/notifications-upstream';
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
-    }
+  const auth = await notificationsUpstreamAuth();
+  if (!auth.ok) {
+    return auth.response;
+  }
 
+  try {
     const { id } = await params;
 
-    const response = await axios.get(
-      `${API_GATEWAY_URL}/notifications/${id}`,
-      {
-        headers: {
-          'x-user-id': session.user.id,
-        },
-      }
-    );
+    const response = await axios.get(`${getNotificationsGatewayUrl()}/notifications/${id}`, {
+      headers: auth.headers,
+    });
 
     return NextResponse.json(response.data);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { message?: string; response?: { status?: number } };
     return NextResponse.json(
-      { error: error.message || 'Erro ao buscar notificação' },
-      { status: error.response?.status || 500 }
+      { error: err.message || 'Erro ao buscar notificação' },
+      { status: err.response?.status || 500 }
     );
   }
 }
 
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
-    }
+  const auth = await notificationsUpstreamAuth();
+  if (!auth.ok) {
+    return auth.response;
+  }
 
+  try {
     const { id } = await params;
 
-    await axios.delete(
-      `${API_GATEWAY_URL}/notifications/${id}`,
-      {
-        headers: {
-          'x-user-id': session.user.id,
-        },
-      }
-    );
+    await axios.delete(`${getNotificationsGatewayUrl()}/notifications/${id}`, {
+      headers: auth.headers,
+    });
 
     return new Response(null, { status: 204 });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { message?: string; response?: { status?: number } };
     return NextResponse.json(
-      { error: error.message || 'Erro ao deletar notificação' },
-      { status: error.response?.status || 500 }
+      { error: err.message || 'Erro ao deletar notificação' },
+      { status: err.response?.status || 500 }
     );
   }
 }

@@ -6,15 +6,43 @@ services:
     url: http://host.docker.internal:8000
     routes:
       - name: auth-routes
-        paths: ["/api/v1/auth", "/api/v1/users", "/api/v1/organizations", "/api/v1/admin", "/api/v1/health"]
+        paths:
+          - /api/v1/auth
+          - /api/v1/users
+          - /api/v1/organizations
+          - /api/v1/admin
+          - /api/v1/health
+          - /api/v1/teams
         strip_path: false
+      # /api/v1/internal/* do auth (validate-members, check-permission, organizations/.../exists)
+      # Prioridade menor que as rotas específicas do competitions no mesmo prefixo.
+      - name: auth-internal-routes
+        paths: ["/api/v1/internal"]
+        strip_path: false
+        priority: 10
 
   - name: competitions-service
     url: http://host.docker.internal:8001
     routes:
+      # Nota: /api/v1/teams fica no auth-service (aprovação de times da org).
+      # Rotas de times da competição (convites, jogadores) usem a porta direta do
+      # competitions-service (ex.: http://localhost:8001) ou um gateway dedicado.
       - name: competitions-routes
-        paths: ["/api/v1/competitions", "/api/v1/matches", "/api/v1/teams", "/api/v1/modalities", "/api/v1/scoreboard"]
+        paths:
+          - /api/v1/competitions
+          - /api/v1/matches
+          - /api/v1/modalities
+          - /api/v1/scoreboard
         strip_path: false
+      # Rotas internas do competitions (prioridade acima do prefixo /api/v1/internal do auth)
+      - name: competitions-internal-teams
+        paths: ["/api/v1/internal/teams"]
+        strip_path: false
+        priority: 100
+      - name: competitions-internal-health
+        paths: ["/api/v1/internal/health"]
+        strip_path: false
+        priority: 100
 
   - name: mediamtx-hls
     url: http://mediamtx:8888
@@ -50,12 +78,12 @@ services:
       - name: notifications-combined-routes
         paths: ["/api/v1/notifications"]
         strip_path: false
-        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"]
         request_buffering: false
         response_buffering: false
       
-      - name: notifications-sse-stream
-        paths: ["/api/v1/notifications/stream"]
+      - name: notifications-sse-unread-stream
+        paths: ["/api/v1/notifications/unread-count/stream"]
         strip_path: false
         protocols:
           - http

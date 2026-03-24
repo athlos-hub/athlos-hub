@@ -89,6 +89,7 @@ class OrganizationService:
         action_url: str = None
     ):
         """Helper para enviar notificações de forma consistente."""
+        endpoint = f"{settings.NOTIFICATIONS_SERVICE_URL.rstrip('/')}/api/v1/notifications/internal"
         try:
             base_extra_data = {
                 "organization_id": str(organization.id),
@@ -99,20 +100,22 @@ class OrganizationService:
             if extra_data:
                 base_extra_data.update(extra_data)
 
-            endpoint = f"{settings.NOTIFICATIONS_SERVICE_URL.rstrip('/')}/api/v1/notifications/send"
-            
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     endpoint,
+                    headers={
+                        "X-Internal-API-Key": settings.NOTIFICATIONS_INTERNAL_API_KEY,
+                        "Content-Type": "application/json",
+                    },
                     json={
                         "user_id": str(user_id),
                         "type": notification_type,
                         "title": title,
                         "message": message,
                         "extra_data": base_extra_data,
-                        "action_url": action_url or f"/organizations/{organization.slug}"
+                        "action_url": action_url or f"/organizations/{organization.slug}",
                     },
-                    timeout=5.0
+                    timeout=5.0,
                 )
 
                 # Agora a variável existe e o raise_for_status vai funcionar

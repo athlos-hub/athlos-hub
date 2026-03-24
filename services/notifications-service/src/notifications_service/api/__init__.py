@@ -1,5 +1,5 @@
-"""Inicialização da API."""
+"""API do serviço de notificações."""
 
-from notifications_service.api.routes import notification_router, health_router
+from notifications_service.api.router import api_router
 
-__all__ = ["notification_router", "health_router"]
+__all__ = ["api_router"]
