@@ -26,7 +26,7 @@ if service_env.exists():
 from notifications_service.core.config import settings
 
 # Importa os modelos
-from database.base import Base
+from notifications_service.infrastructure.database.base import Base
 from notifications_service.infrastructure.database.models.notification import Notification
 
 # this is the Alembic Config object

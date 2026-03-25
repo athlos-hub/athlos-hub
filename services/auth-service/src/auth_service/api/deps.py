@@ -2,8 +2,8 @@
 
 from typing import Annotated
 
-from common.security.jwt_handler import JwtHandler
-from database.dependencies import get_session
+from auth_service.common.security.jwt_handler import JwtHandler
+from auth_service.infrastructure.database.dependencies import get_session
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession

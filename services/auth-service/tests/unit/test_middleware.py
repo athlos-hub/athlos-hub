@@ -135,7 +135,7 @@ class TestKeycloakAuthMiddleware:
     @pytest.mark.asyncio
     async def test_dispatch_expired_token(self, middleware):
         """Test request with expired token returns 401."""
-        from common.exceptions import TokenExpiredError
+        from auth_service.common.exceptions import TokenExpiredError
 
         request = MagicMock(spec=Request)
         request.method = "GET"
@@ -163,7 +163,7 @@ class TestKeycloakAuthMiddleware:
     @pytest.mark.asyncio
     async def test_dispatch_invalid_credentials(self, middleware):
         """Test request with invalid credentials returns 401."""
-        from common.exceptions import InvalidCredentialsError
+        from auth_service.common.exceptions import InvalidCredentialsError
 
         request = MagicMock(spec=Request)
         request.method = "GET"

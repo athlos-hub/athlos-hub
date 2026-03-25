@@ -1,1 +1,0 @@
-README do Banco de Dados

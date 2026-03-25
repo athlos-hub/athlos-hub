@@ -20,8 +20,8 @@ os.environ.setdefault("NOVU_APP_ID", "test-app-id")
 os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost:5432/test")
 os.environ.setdefault("NOTIFICATIONS_DATABASE_SCHEMA", "")  # Sem schema para testes
 
-from database.base import Base
-from database.dependencies import get_session
+from notifications_service.infrastructure.database.base import Base
+from notifications_service.infrastructure.database.dependencies import get_session
 from notifications_service.infrastructure.database.models import Notification, NotificationType
 from notifications_service.main import app
 

@@ -272,7 +272,7 @@ class TestAuthenticationServiceEmailTokenEdgeCases:
 
     def test_decode_email_token_none_sub(self, mock_user_repository):
         """Test decode_email_token with missing sub claim."""
-        from common.security.jwt_handler import JwtHandler
+        from auth_service.common.security.jwt_handler import JwtHandler
 
         service = AuthenticationService(user_repository=mock_user_repository)
 

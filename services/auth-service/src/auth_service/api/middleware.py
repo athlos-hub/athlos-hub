@@ -3,8 +3,8 @@
 import logging
 from typing import Callable
 
-from common.exceptions import InvalidCredentialsError, TokenExpiredError
-from common.security.jwt_handler import JwtHandler
+from auth_service.common.exceptions import InvalidCredentialsError, TokenExpiredError
+from auth_service.common.security.jwt_handler import JwtHandler
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse

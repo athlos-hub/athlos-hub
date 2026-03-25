@@ -36,7 +36,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from database.dependencies import get_session
+from auth_service.infrastructure.database.dependencies import get_session
 from auth_service.core.app import create_app
 from auth_service.infrastructure.database.base import Base
 from auth_service.infrastructure.database.models.user_model import User

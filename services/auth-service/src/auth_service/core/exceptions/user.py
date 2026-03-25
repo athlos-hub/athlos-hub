@@ -1,6 +1,6 @@
 """Exceções relacionadas a usuários"""
 
-from common.exceptions import AppException
+from auth_service.common.exceptions import AppException
 from fastapi import status
 
 

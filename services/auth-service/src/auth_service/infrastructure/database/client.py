@@ -1,11 +1,13 @@
-from typing import Optional, AsyncGenerator, Dict, Any
-from contextlib import asynccontextmanager
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import text
-import logging
+from typing import Any, AsyncGenerator, Dict, Optional
 
-from .exceptions import DatabaseError
+import logging
+from contextlib import asynccontextmanager
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+
+from auth_service.infrastructure.database.exceptions import DatabaseError
 
 logger = logging.getLogger(__name__)
 
@@ -16,12 +18,12 @@ class DatabaseClient:
         self._session_maker: Optional[sessionmaker] = None
 
     def init(
-            self,
-            url: str,
-            pool_min: int = 5,
-            pool_max: int = 10,
-            timeout: int = 30,
-            connect_args: Dict[str, Any] = None
+        self,
+        url: str,
+        pool_min: int = 5,
+        pool_max: int = 10,
+        timeout: int = 30,
+        connect_args: Dict[str, Any] = None,
     ):
         if self._engine is not None:
             return
@@ -48,13 +50,13 @@ class DatabaseClient:
             self._session_maker = sessionmaker(
                 bind=self._engine,
                 class_=AsyncSession,
-                expire_on_commit=False
+                expire_on_commit=False,
             )
 
             logger.info("DatabaseClient inicializado com sucesso.")
 
         except Exception as e:
-            logger.exception(f"Falha ao inicializar DatabaseClient: {e}")
+            logger.exception("Falha ao inicializar DatabaseClient: %s", e)
             raise DatabaseError(f"Falha ao inicializar banco de dados: {e}")
 
     async def check_health(self):

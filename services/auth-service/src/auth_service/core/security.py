@@ -1,4 +1,4 @@
-from common.security.roles import RoleChecker
+from auth_service.common.security.roles import RoleChecker
 
 from auth_service.core.config import settings
 from auth_service.services.authentication_service import AuthenticationService

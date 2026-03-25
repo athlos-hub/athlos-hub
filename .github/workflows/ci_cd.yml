@@ -32,8 +32,6 @@ jobs:
           filters: |
             src:
               - 'services/auth-service/**'
-              - 'libs/common/**'
-              - 'libs/database/**'
               - '.github/workflows/ci_cd.yml'
 
       - name: Determine if tests should run
@@ -138,8 +136,6 @@ jobs:
           filters: |
             src:
               - 'services/competitions-service/**'
-              - 'libs/common/**'
-              - 'libs/database/**'
               - '.github/workflows/ci_cd.yml'
 
       - name: Determine if tests should run
@@ -338,7 +334,6 @@ jobs:
           filters: |
             src:
               - 'services/notifications-service/**'
-              - 'libs/common/**'
               - '.github/workflows/ci_cd.yml'
 
       - name: Determine if tests should run

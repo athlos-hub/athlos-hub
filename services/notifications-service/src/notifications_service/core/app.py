@@ -1,9 +1,9 @@
 import logging
 from contextlib import asynccontextmanager
 
-from common.api.handlers import register_exception_handlers
-from common.logging import RequestLoggerMiddleware, setup_logging
-from database.client import db
+from notifications_service.common.api.handlers import register_exception_handlers
+from notifications_service.common.logging import RequestLoggerMiddleware, setup_logging
+from notifications_service.infrastructure.database.client import db
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 

@@ -7,8 +7,8 @@ from uuid import UUID
 import httpx
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from common.security.jwt_handler import JwtHandler
-from common.exceptions import InvalidCredentialsError, TokenExpiredError
+from shared.exceptions import InvalidCredentialsError, TokenExpiredError
+from shared.security.jwt_handler import JwtHandler
 
 from src.config.settings import settings
 from src.services.auth_client import (

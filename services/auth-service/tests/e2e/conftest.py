@@ -44,7 +44,7 @@ E2E_DATABASE_URL = (
     "postgresql+asyncpg://postgres:postgres@localhost:5432/auth_test"
 )
 
-from database.dependencies import get_session
+from auth_service.infrastructure.database.dependencies import get_session
 from auth_service.infrastructure.database.base import Base
 from auth_service.infrastructure.database.models.user_model import User
 from auth_service.infrastructure.database.models.organization_model import (

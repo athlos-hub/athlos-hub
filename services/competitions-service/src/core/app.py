@@ -5,13 +5,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Configurações e Banco
 from src.config.settings import settings
-from database.client import db 
-# Rotas
 from src.routes import routes
-
-# Middlewares e Common (Descomente quando tiver as libs compartilhadas)
-from common.logging import setup_logging, RequestLoggerMiddleware
-from common.api.handlers import register_exception_handlers
+from shared.database.client import db
+from shared.api.handlers import register_exception_handlers
+from shared.logging import RequestLoggerMiddleware, setup_logging
 
 logger = logging.getLogger(__name__)
 

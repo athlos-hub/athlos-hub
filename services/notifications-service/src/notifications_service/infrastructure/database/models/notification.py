@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import Boolean, DateTime, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from database.base import Base
+from notifications_service.infrastructure.database.base import Base
 from notifications_service.core.config import settings
 
 

@@ -7,10 +7,10 @@ from datetime import timedelta
 from typing import Any, Optional
 from urllib.parse import urlencode
 
-from common.exceptions import AppException
-from common.exceptions import InvalidCredentialsError as CommonInvalidCredentialsError
-from common.exceptions import TokenExpiredError as CommonTokenExpiredError
-from common.security.jwt_handler import JwtHandler
+from auth_service.common.exceptions import AppException
+from auth_service.common.exceptions import InvalidCredentialsError as CommonInvalidCredentialsError
+from auth_service.common.exceptions import TokenExpiredError as CommonTokenExpiredError
+from auth_service.common.security.jwt_handler import JwtHandler
 from fastapi import UploadFile
 from fastapi.concurrency import run_in_threadpool
 from jose import jwt

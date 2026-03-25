@@ -41,8 +41,8 @@ E2E_DATABASE_URL = (
     "postgresql+asyncpg://postgres:postgres@localhost:5432/notifications_test"
 )
 
-from database.base import Base
-from database.dependencies import get_session
+from notifications_service.infrastructure.database.base import Base
+from notifications_service.infrastructure.database.dependencies import get_session
 from notifications_service.infrastructure.database.models import Notification, NotificationType
 from notifications_service.main import app
 

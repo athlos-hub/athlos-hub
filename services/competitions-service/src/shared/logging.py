@@ -1,16 +1,10 @@
 import logging
-import sys
 import os
+import sys
 from logging.handlers import RotatingFileHandler
 
 
 def setup_logging(log_level_str: str, env: str, log_dir: str = "logs"):
-    """
-    Configura o sistema de logs.
-    Args:
-        log_level_str: Ex: "INFO", "DEBUG"
-        env: Ex: "dev", "prod"
-    """
     try:
         os.makedirs(log_dir, exist_ok=True)
     except Exception:
@@ -19,8 +13,8 @@ def setup_logging(log_level_str: str, env: str, log_dir: str = "logs"):
     log_level = getattr(logging, log_level_str.upper(), logging.INFO)
 
     log_format = logging.Formatter(
-        fmt='[%(asctime)s] [%(levelname)s] %(name)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+        fmt="[%(asctime)s] [%(levelname)s] %(name)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
 
     console_handler = logging.StreamHandler(sys.stdout)
@@ -31,7 +25,7 @@ def setup_logging(log_level_str: str, env: str, log_dir: str = "logs"):
         filename=f"{log_dir}/app.log",
         maxBytes=5 * 1024 * 1024,
         backupCount=3,
-        encoding='utf-8'
+        encoding="utf-8",
     )
     file_handler.setLevel(log_level)
     file_handler.setFormatter(log_format)
@@ -40,7 +34,7 @@ def setup_logging(log_level_str: str, env: str, log_dir: str = "logs"):
         filename=f"{log_dir}/errors.log",
         maxBytes=2 * 1024 * 1024,
         backupCount=2,
-        encoding='utf-8'
+        encoding="utf-8",
     )
     error_handler.setLevel(logging.ERROR)
     error_handler.setFormatter(log_format)
@@ -57,7 +51,7 @@ def setup_logging(log_level_str: str, env: str, log_dir: str = "logs"):
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
     logger = logging.getLogger("app.startup")
-    logger.info(f"Logging configurado. Ambiente: {env}")
+    logger.info("Logging configurado. Ambiente: %s", env)
 
 
 class RequestLoggerMiddleware:
@@ -78,14 +72,19 @@ class RequestLoggerMiddleware:
             if message["type"] == "http.response.start":
                 status_code = message["status"]
 
-                should_log = (
-                        status_code >= 400 or
-                        any(path.startswith(p) for p in self.always_log_paths)
+                should_log = status_code >= 400 or any(
+                    path.startswith(p) for p in self.always_log_paths
                 )
 
                 if should_log:
-                    level = logging.ERROR if status_code >= 500 else logging.WARNING if status_code >= 400 else logging.INFO
-                    self.logger.log(level, f"AUDIT: {method} {path} -> {status_code}")
+                    level = (
+                        logging.ERROR
+                        if status_code >= 500
+                        else logging.WARNING
+                        if status_code >= 400
+                        else logging.INFO
+                    )
+                    self.logger.log(level, "AUDIT: %s %s -> %s", method, path, status_code)
 
             await send(message)
 

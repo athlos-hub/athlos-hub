@@ -2,7 +2,7 @@ from typing import Optional
 
 import boto3
 from fastapi import UploadFile
-from upload_s3.main import upload_file
+from auth_service.utils.s3_upload import upload_file
 
 from auth_service.core.exceptions.user import AvatarUploadError
 

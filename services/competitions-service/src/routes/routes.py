@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from database.client import db
+from shared.database.client import db
 from sqlalchemy.ext.asyncio import AsyncSession
 import json
 import base64

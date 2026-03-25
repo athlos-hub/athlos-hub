@@ -6,7 +6,7 @@ from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.dependencies import get_session
+from notifications_service.infrastructure.database.dependencies import get_session
 from notifications_service.core.config import settings
 from notifications_service.repositories.notification_repository import NotificationRepository
 from notifications_service.services.notification_service import NotificationService

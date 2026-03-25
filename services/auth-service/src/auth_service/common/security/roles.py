@@ -1,10 +1,13 @@
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import List, Union, Callable, Awaitable, Optional
-from .jwt_handler import JwtHandler
 import inspect
+from typing import Awaitable, Callable, List, Optional, Union
+
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from auth_service.common.security.jwt_handler import JwtHandler
 
 security = HTTPBearer()
+
 
 class RoleChecker:
     def __init__(
@@ -12,7 +15,7 @@ class RoleChecker:
         allowed_roles: List[str],
         public_key: Union[str, Callable[[], Awaitable[str]]],
         issuer: str,
-        audience: Optional[str] = None
+        audience: Optional[str] = None,
     ):
         self.allowed_roles = allowed_roles
         self.public_key = public_key
@@ -46,7 +49,7 @@ class RoleChecker:
         if not has_role:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Acesso negado. Requer permissão: {self.allowed_roles}"
+                detail=f"Acesso negado. Requer permissão: {self.allowed_roles}",
             )
 
         return payload

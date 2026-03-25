@@ -26,12 +26,11 @@ python-jose = "==3.5.0"
 python-keycloak = "==5.8.1"
 email-validator = "^2.1.0"
 python-slugify = "==8.0.4"
-database-lib = {path = "../../libs/database", develop = true}
-common-lib = {path = "../../libs/common", develop = true}
+sqlalchemy = ">=2.0.44,<3.0.0"
+boto3 = ">=1.34.0"
 resend = "^2.19.0"
 jinja2 = "^3.1.6"
 httpx = "^0.27.0"
-upload-s3 = {path = "../../libs/upload_s3", develop = true}
 
 [dependency-groups]
 dev = [
