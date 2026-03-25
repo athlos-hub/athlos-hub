@@ -15,11 +15,10 @@ services:
           - /api/v1/teams
         strip_path: false
       # /api/v1/internal/* do auth (validate-members, check-permission, organizations/.../exists)
-      # Prioridade menor que as rotas específicas do competitions no mesmo prefixo.
+      # Rotas mais específicas (/internal/teams, /internal/health) no competitions-service prevalecem pelo path.
       - name: auth-internal-routes
         paths: ["/api/v1/internal"]
         strip_path: false
-        priority: 10
 
   - name: competitions-service
     url: http://host.docker.internal:8001
@@ -34,15 +33,13 @@ services:
           - /api/v1/modalities
           - /api/v1/scoreboard
         strip_path: false
-      # Rotas internas do competitions (prioridade acima do prefixo /api/v1/internal do auth)
+      # Rotas internas do competitions (paths mais longos que o prefixo /api/v1/internal do auth)
       - name: competitions-internal-teams
         paths: ["/api/v1/internal/teams"]
         strip_path: false
-        priority: 100
       - name: competitions-internal-health
         paths: ["/api/v1/internal/health"]
         strip_path: false
-        priority: 100
 
   - name: mediamtx-hls
     url: http://mediamtx:8888
@@ -102,7 +99,7 @@ services:
         strip_path: true
 
   - name: keycloak-service
-    url: http://keycloak-local:8080/keycloak
+    url: http://keycloak:8080/keycloak
     routes:
       - name: keycloak-routes
         paths:

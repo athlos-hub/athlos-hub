@@ -1,0 +1,22 @@
+{
+  "realm" : "athlos",
+  "users" : [ {
+    "id" : "8b61bfd5-7020-4f95-beb7-e5119d31361b",
+    "createdTimestamp" : 1769224778416,
+    "username" : "service-account-auth-client",
+    "enabled" : true,
+    "totp" : false,
+    "emailVerified" : false,
+    "serviceAccountClientId" : "auth-client",
+    "credentials" : [ ],
+    "disableableCredentialTypes" : [ ],
+    "requiredActions" : [ ],
+    "realmRoles" : [ "default-roles-athlos" ],
+    "clientRoles" : {
+      "auth-client" : [ "uma_protection" ],
+      "realm-management" : [ "realm-admin" ]
+    },
+    "notBefore" : 0,
+    "groups" : [ ]
+  } ]
+}
