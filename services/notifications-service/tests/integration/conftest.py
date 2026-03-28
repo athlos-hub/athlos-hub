@@ -15,10 +15,14 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 # Configurar variáveis de ambiente antes de importar as dependências
+os.environ.setdefault("ENV", "dev")
 os.environ.setdefault("NOVU_API_KEY", "test-api-key")
 os.environ.setdefault("NOVU_APP_ID", "test-app-id")
-os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost:5432/test")
-os.environ.setdefault("NOTIFICATIONS_DATABASE_SCHEMA", "")  # Sem schema para testes
+os.environ.setdefault("DATABASE_HOST", "localhost")
+os.environ.setdefault("DATABASE_PORT", "5432")
+os.environ.setdefault("DATABASE_NAME", "test")
+os.environ.setdefault("DATABASE_USER", "test")
+os.environ.setdefault("DATABASE_PASSWORD", "test")
 
 from notifications_service.infrastructure.database.base import Base
 from notifications_service.infrastructure.database.dependencies import get_session

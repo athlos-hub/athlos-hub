@@ -22,7 +22,7 @@ async def send_competition_notification(
 ) -> None:
     if not settings.NOTIFICATIONS_INTERNAL_API_KEY:
         return
-    url = f"{settings.NOTIFICATIONS_SERVICE_URL.rstrip('/')}/api/v1/notifications/internal"
+    url = f"{settings.NOTIFICATIONS_SERVICE_URL.rstrip('/')}/api/notifications/internal"
     payload = {
         "user_id": str(user_id),
         "type": notification_type,

@@ -13,7 +13,7 @@ export async function POST(request: Request) {
         if (email) {
             res.cookies.set('pending_verification_email', String(email), {
                 httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
+                secure: process.env.ENV === 'prod',
                 maxAge: 60 * 60 * 24,
                 path: '/',
                 sameSite: 'lax',

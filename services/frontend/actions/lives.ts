@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import axios, { AxiosError } from "axios";
 import type { Live, CreateLiveDto, ListLivesParams, ChatMessage, MatchEvent, MatchEventType } from "@/types/livestream";
 
-const API_GATEWAY_URL = process.env.API_BASE_URL || "http://localhost:8100/api/v1";
+const API_GATEWAY_URL = process.env.API_BASE_URL || "http://localhost:8100/api";
 
 async function livestreamAPI<T>(
   endpoint: string,

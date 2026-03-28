@@ -9,7 +9,7 @@ class TestHealthEndpoint:
     @pytest.mark.asyncio
     async def test_health_check(self, client):
         """Test health check endpoint returns ok status."""
-        response = await client.get("/api/v1/health")
+        response = await client.get("/api/health")
         
         assert response.status_code == 200
         data = response.json()

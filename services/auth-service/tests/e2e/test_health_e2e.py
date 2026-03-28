@@ -19,7 +19,7 @@ class TestHealthEndpointsE2E:
         E2E: Testa endpoint de health check básico.
         """
         # Act
-        response = await test_client.get("/api/v1/health")
+        response = await test_client.get("/api/health")
         
         # Assert
         assert response.status_code == 200
@@ -36,7 +36,7 @@ class TestHealthEndpointsE2E:
         
         # Act
         start = time.time()
-        response = await test_client.get("/api/v1/health")
+        response = await test_client.get("/api/health")
         elapsed = time.time() - start
         
         # Assert

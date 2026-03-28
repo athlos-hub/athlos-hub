@@ -27,7 +27,7 @@ class TestListUsersE2E:
         Endpoint pode ser público, requerer auth, ou fazer redirect.
         """
         # Act
-        response = await test_client.get("/api/v1/users")
+        response = await test_client.get("/api/users")
         
         # Assert - endpoint pode ser público (200), requerer auth (401/403), ou redirect (307)
         assert response.status_code in [200, 307, 401, 403]
@@ -42,7 +42,7 @@ class TestListUsersE2E:
         """
         # Act
         response = await test_client.get(
-            "/api/v1/users",
+            "/api/users",
             headers={"Authorization": "Bearer invalid-token"}
         )
         
@@ -64,7 +64,7 @@ class TestGetUserByIdE2E:
         Endpoint pode ser público ou requerer autenticação.
         """
         # Act
-        response = await test_client.get(f"/api/v1/users/{test_user.id}")
+        response = await test_client.get(f"/api/users/{test_user.id}")
         
         # Assert - endpoint pode ser público (200) ou requerer auth (401/403)
         assert response.status_code in [200, 401, 403]
@@ -81,7 +81,7 @@ class TestGetUserByIdE2E:
         fake_id = uuid4()
         
         # Act
-        response = await test_client.get(f"/api/v1/users/{fake_id}")
+        response = await test_client.get(f"/api/users/{fake_id}")
         
         # Assert - 404 se público, 401/403 se requer auth
         assert response.status_code in [401, 403, 404]
@@ -99,7 +99,7 @@ class TestGetCurrentUserE2E:
         E2E: Testa que /users/me requer autenticação.
         """
         # Act
-        response = await test_client.get("/api/v1/users/me")
+        response = await test_client.get("/api/users/me")
         
         # Assert
         assert response.status_code in [401, 403]
@@ -114,7 +114,7 @@ class TestGetCurrentUserE2E:
         """
         # Act
         response = await test_client.get(
-            "/api/v1/users/me",
+            "/api/users/me",
             headers={"Authorization": "Bearer invalid-token"}
         )
         

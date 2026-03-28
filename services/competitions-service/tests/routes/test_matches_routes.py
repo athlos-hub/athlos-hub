@@ -84,7 +84,7 @@ async def _seed_match_data(session: AsyncSession, organization_slug: str = "ORG1
 async def test_list_organization_matches(client: AsyncClient, session: AsyncSession):
     data = await _seed_match_data(session, organization_slug="ORG3")
 
-    response = await client.get(f"/api/v1/matches/organization/{data['organization_slug']}")
+    response = await client.get(f"/api/matches/organization/{data['organization_slug']}")
     assert response.status_code == 200
     body = response.json()
     assert len(body) == 1
@@ -94,7 +94,7 @@ async def test_list_organization_matches(client: AsyncClient, session: AsyncSess
 async def test_list_competition_matches(client: AsyncClient, session: AsyncSession):
     data = await _seed_match_data(session, organization_slug="ORG4")
 
-    response = await client.get(f"/api/v1/matches/competition/{data['competition'].id}")
+    response = await client.get(f"/api/matches/competition/{data['competition'].id}")
     assert response.status_code == 200
     body = response.json()
     assert len(body) == 1
@@ -105,7 +105,7 @@ async def test_list_team_matches(client: AsyncClient, session: AsyncSession):
     data = await _seed_match_data(session, organization_slug="ORG5")
     team_id = data["team_home"].id
 
-    response = await client.get(f"/api/v1/matches/team/{team_id}/")
+    response = await client.get(f"/api/matches/team/{team_id}/")
     assert response.status_code == 200
     body = response.json()
     assert len(body) == 1
@@ -115,7 +115,7 @@ async def test_list_team_matches(client: AsyncClient, session: AsyncSession):
 async def test_list_competition_rounds(client: AsyncClient, session: AsyncSession):
     data = await _seed_match_data(session, organization_slug="ORG6")
 
-    response = await client.get(f"/api/v1/matches/competition/{data['competition'].id}/rounds")
+    response = await client.get(f"/api/matches/competition/{data['competition'].id}/rounds")
     assert response.status_code == 200
     body = response.json()
     assert len(body) == 1
@@ -125,7 +125,7 @@ async def test_list_competition_rounds(client: AsyncClient, session: AsyncSessio
 async def test_list_group_rounds(client: AsyncClient, session: AsyncSession):
     data = await _seed_match_data(session, organization_slug="ORG7")
 
-    response = await client.get(f"/api/v1/matches/group/{data['group'].id}/rounds")
+    response = await client.get(f"/api/matches/group/{data['group'].id}/rounds")
     assert response.status_code == 200
     body = response.json()
     assert len(body) == 1
@@ -135,7 +135,7 @@ async def test_list_group_rounds(client: AsyncClient, session: AsyncSession):
 async def test_list_organization_rounds(client: AsyncClient, session: AsyncSession):
     data = await _seed_match_data(session, organization_slug="ORG8")
 
-    response = await client.get(f"/api/v1/matches/organization/{data['organization_slug']}/rounds")
+    response = await client.get(f"/api/matches/organization/{data['organization_slug']}/rounds")
     assert response.status_code == 200
     body = response.json()
     assert len(body) == 1
@@ -151,7 +151,7 @@ async def test_update_match(client: AsyncClient, session: AsyncSession):
         "local": "Arena 2"
     }
 
-    response = await client.patch(f"/api/v1/matches/{data['match'].id}", json=payload)
+    response = await client.patch(f"/api/matches/{data['match'].id}", json=payload)
     assert response.status_code == 200
     body = response.json()
     assert body["local"] == "Arena 2"

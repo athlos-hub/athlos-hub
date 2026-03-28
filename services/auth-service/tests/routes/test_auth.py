@@ -11,7 +11,7 @@ class TestLogin:
     @pytest.mark.asyncio
     async def test_login_missing_credentials(self, client):
         """Test login fails without credentials."""
-        response = await client.post("/api/v1/auth/login", json={})
+        response = await client.post("/api/auth/login", json={})
         
         # Should return validation error
         assert response.status_code == 422
@@ -20,7 +20,7 @@ class TestLogin:
     async def test_login_invalid_credentials(self, client):
         """Test login with invalid credentials."""
         response = await client.post(
-            "/api/v1/auth/login",
+            "/api/auth/login",
             json={"email": "test@example.com", "password": "wrongpass"}
         )
         
@@ -34,7 +34,7 @@ class TestRegister:
     @pytest.mark.asyncio
     async def test_register_missing_fields(self, client):
         """Test registration fails without required fields."""
-        response = await client.post("/api/v1/auth/register", json={})
+        response = await client.post("/api/auth/register", json={})
         
         # Should return validation error
         assert response.status_code == 422
@@ -43,7 +43,7 @@ class TestRegister:
     async def test_register_invalid_email(self, client):
         """Test registration with invalid email."""
         response = await client.post(
-            "/api/v1/auth/register",
+            "/api/auth/register",
             json={
                 "email": "not-an-email",
                 "password": "Pass123!",
@@ -62,7 +62,7 @@ class TestKeycloakCallback:
     @pytest.mark.asyncio
     async def test_keycloak_callback_missing_code(self, client):
         """Test callback fails without authorization code."""
-        response = await client.post("/api/v1/auth/keycloak/callback", json={})
+        response = await client.post("/api/auth/keycloak/callback", json={})
         
         # Should return error
         assert response.status_code in [400, 422]
@@ -74,7 +74,7 @@ class TestVerifyEmail:
     @pytest.mark.asyncio
     async def test_verify_email_invalid_token(self, client):
         """Test email verification with invalid token."""
-        response = await client.post("/api/v1/auth/verify/invalid-token")
+        response = await client.post("/api/auth/verify/invalid-token")
         
         # Should fail
         assert response.status_code in [400, 401]
@@ -86,7 +86,7 @@ class TestResendVerification:
     @pytest.mark.asyncio
     async def test_resend_verification_missing_email(self, client):
         """Test resend verification without email."""
-        response = await client.post("/api/v1/auth/resend-verification", json={})
+        response = await client.post("/api/auth/resend-verification", json={})
         
         # Should return validation error
         assert response.status_code == 422
@@ -95,7 +95,7 @@ class TestResendVerification:
     async def test_resend_verification_invalid_email(self, client):
         """Test resend verification with invalid email."""
         response = await client.post(
-            "/api/v1/auth/resend-verification",
+            "/api/auth/resend-verification",
             json={"email": "not-an-email"}
         )
         
@@ -109,7 +109,7 @@ class TestRequestPasswordReset:
     @pytest.mark.asyncio
     async def test_request_password_reset_missing_email(self, client):
         """Test password reset request without email."""
-        response = await client.post("/api/v1/auth/request-reset-password", json={})
+        response = await client.post("/api/auth/request-reset-password", json={})
         
         # Should return validation error
         assert response.status_code == 422
@@ -118,7 +118,7 @@ class TestRequestPasswordReset:
     async def test_request_password_reset_invalid_email(self, client):
         """Test password reset request with invalid email format."""
         response = await client.post(
-            "/api/v1/auth/request-reset-password",
+            "/api/auth/request-reset-password",
             json={"email": "not-an-email"}
         )
         
@@ -133,7 +133,7 @@ class TestResetPassword:
     async def test_reset_password_invalid_token(self, client):
         """Test password reset with invalid token."""
         response = await client.post(
-            "/api/v1/auth/reset-password/invalid-token",
+            "/api/auth/reset-password/invalid-token",
             json={"new_password": "NewPassword123!"}
         )
         
@@ -144,7 +144,7 @@ class TestResetPassword:
     async def test_reset_password_missing_password(self, client):
         """Test password reset without new password."""
         response = await client.post(
-            "/api/v1/auth/reset-password/some-token",
+            "/api/auth/reset-password/some-token",
             json={}
         )
         
@@ -158,7 +158,7 @@ class TestGoogleUrl:
     @pytest.mark.asyncio
     async def test_get_google_url(self, client):
         """Test getting Google OAuth URL."""
-        response = await client.get("/api/v1/auth/google/url")
+        response = await client.get("/api/auth/google/url")
         
         # Should return URL or error
         assert response.status_code in [200, 500]
@@ -170,7 +170,7 @@ class TestRefreshToken:
     @pytest.mark.asyncio
     async def test_refresh_token_missing_token(self, client):
         """Test refresh without token."""
-        response = await client.post("/api/v1/auth/refresh", json={})
+        response = await client.post("/api/auth/refresh", json={})
         
         # Should return validation error
         assert response.status_code == 422
@@ -179,7 +179,7 @@ class TestRefreshToken:
     async def test_refresh_token_invalid_token(self, client):
         """Test refresh with invalid token."""
         response = await client.post(
-            "/api/v1/auth/refresh",
+            "/api/auth/refresh",
             json={"refresh_token": "invalid-token"}
         )
         
@@ -193,7 +193,7 @@ class TestLogout:
     @pytest.mark.asyncio
     async def test_logout_without_auth(self, client):
         """Test logout fails without authentication."""
-        response = await client.post("/api/v1/auth/logout")
+        response = await client.post("/api/auth/logout")
         
         # Should require authentication or validation error
         assert response.status_code in [401, 403, 422]
@@ -202,7 +202,7 @@ class TestLogout:
     async def test_logout_with_invalid_token(self, client):
         """Test logout with invalid token."""
         response = await client.post(
-            "/api/v1/auth/logout",
+            "/api/auth/logout",
             headers={"Authorization": "Bearer invalid-token"}
         )
         

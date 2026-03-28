@@ -19,6 +19,7 @@ Para rodar localmente:
 import os
 from datetime import datetime, UTC
 from typing import AsyncGenerator
+from urllib.parse import unquote, urlparse
 from uuid import UUID, uuid4
 
 import pytest
@@ -28,18 +29,32 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 # Configurar variáveis de ambiente ANTES de importar as dependências da aplicação
+os.environ.setdefault("ENV", "dev")
 os.environ.setdefault("NOVU_API_KEY", "test-api-key")
 os.environ.setdefault("NOVU_APP_ID", "test-app-id")
-os.environ.setdefault("NOTIFICATIONS_DATABASE_SCHEMA", "")  # Sem schema para testes
 
 # URL do banco de dados real para testes E2E
-# Aceita TEST_DATABASE_URL, E2E_DATABASE_URL ou DATABASE_URL (nessa ordem de prioridade)
 E2E_DATABASE_URL = (
-    os.environ.get("TEST_DATABASE_URL") or
-    os.environ.get("E2E_DATABASE_URL") or
-    os.environ.get("DATABASE_URL") or
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/notifications_test"
+    os.environ.get("TEST_DATABASE_URL")
+    or os.environ.get("E2E_DATABASE_URL")
+    or "postgresql+asyncpg://postgres:postgres@localhost:5432/notifications_test"
 )
+
+
+def _apply_database_env_from_async_url(url: str) -> None:
+    normalized = url.replace("postgresql+asyncpg://", "postgresql://", 1)
+    parsed = urlparse(normalized)
+    os.environ["DATABASE_HOST"] = parsed.hostname or "localhost"
+    os.environ["DATABASE_PORT"] = str(parsed.port or 5432)
+    path = (parsed.path or "/").lstrip("/").split("?")[0]
+    os.environ["DATABASE_NAME"] = path or "postgres"
+    if parsed.username:
+        os.environ["DATABASE_USER"] = unquote(parsed.username)
+    if parsed.password is not None:
+        os.environ["DATABASE_PASSWORD"] = unquote(parsed.password)
+
+
+_apply_database_env_from_async_url(E2E_DATABASE_URL)
 
 from notifications_service.infrastructure.database.base import Base
 from notifications_service.infrastructure.database.dependencies import get_session

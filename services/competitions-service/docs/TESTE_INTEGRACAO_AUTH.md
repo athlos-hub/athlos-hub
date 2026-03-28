@@ -14,7 +14,7 @@
 
 ## 1. Criar Competição de Liga (1 membro por time)
 
-**POST** `/api/v1/competitions/teste`
+**POST** `/api/competitions/teste`
 
 > **NOTA**: O sistema `LEAGUE` não existe. Use `points` para pontos corridos (liga).
 > Valores aceitos: `points`, `elimination`, `mixed`
@@ -43,7 +43,7 @@
 
 ## 2. Criar Time 1 (com usuário válido)
 
-**POST** `/api/v1/teams/`
+**POST** `/api/teams/`
 
 ```json
 {
@@ -64,7 +64,7 @@
 
 ## 3. Criar Time 2 (com usuário INVÁLIDO - para testar erro)
 
-**POST** `/api/v1/teams/`
+**POST** `/api/teams/`
 
 ```json
 {
@@ -87,7 +87,7 @@
 
 ## 4. Criar Time com Organização INVÁLIDA (para testar erro)
 
-**POST** `/api/v1/teams/`
+**POST** `/api/teams/`
 
 ```json
 {
@@ -112,7 +112,7 @@
 
 ### Criar Competição
 ```bash
-curl -X POST "http://localhost:8001/api/v1/competitions/teste" \
+curl -X POST "http://localhost:8001/api/competitions/teste" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Liga Teste Integração",
@@ -135,7 +135,7 @@ curl -X POST "http://localhost:8001/api/v1/competitions/teste" \
 
 ### Criar Time Válido
 ```bash
-curl -X POST "http://localhost:8001/api/v1/teams/" \
+curl -X POST "http://localhost:8001/api/teams/" \
   -H "Content-Type: application/json" \
   -d '{
     "organization_slug": "teste",
@@ -151,7 +151,7 @@ curl -X POST "http://localhost:8001/api/v1/teams/" \
 
 ### Criar Time com Usuário Inválido (deve falhar)
 ```bash
-curl -X POST "http://localhost:8001/api/v1/teams/" \
+curl -X POST "http://localhost:8001/api/teams/" \
   -H "Content-Type: application/json" \
   -d '{
     "organization_slug": "teste",

@@ -15,7 +15,7 @@ export class CompetitionsClientService {
    */
   async startMatch(matchId: string): Promise<void> {
     try {
-      const url = `${this.competitionsServiceUrl}/api/v1/matches/${matchId}/start`;
+      const url = `${this.competitionsServiceUrl}/api/matches/${matchId}/start`;
       
       this.logger.log(`Iniciando partida ${matchId} no competitions-service: ${url}`);
 

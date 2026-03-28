@@ -112,7 +112,7 @@ class AuthClient:
             )
             
             response = await self._client.post(
-                "/api/v1/internal/validate-members",
+                "/api/internal/validate-members",
                 json=payload
             )
             
@@ -201,7 +201,7 @@ class AuthClient:
             logger.info(f"Verificando existência da organização {organization_slug}")
             
             response = await self._client.get(
-                f"/api/v1/internal/organizations/{organization_slug}/exists"
+                f"/api/internal/organizations/{organization_slug}/exists"
             )
             
             response.raise_for_status()
@@ -274,7 +274,7 @@ class AuthClient:
             )
             
             response = await self._client.post(
-                "/api/v1/internal/check-permission",
+                "/api/internal/check-permission",
                 json=payload
             )
             
@@ -324,7 +324,7 @@ class AuthClient:
             raise RuntimeError("Cliente não inicializado. Use async with AuthClient()")
 
         try:
-            response = await self._client.get(f"/api/v1/users/public/{keycloak_id}")
+            response = await self._client.get(f"/api/users/public/{keycloak_id}")
             if response.status_code == 404:
                 return None
             response.raise_for_status()

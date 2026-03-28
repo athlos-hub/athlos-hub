@@ -31,7 +31,7 @@ async def get_current_user_id(
 ) -> UUID:
     if credentials is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token ausente")
-    url = f"{settings.AUTH_SERVICE_URL.rstrip('/')}/api/v1/users/me"
+    url = f"{settings.AUTH_SERVICE_URL.rstrip('/')}/api/users/me"
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(

@@ -87,7 +87,7 @@ class LivestreamClient:
             )
             
             response = await self._client.post(
-                "/api/v1/lives",
+                "/api/lives",
                 json=payload
             )
             
@@ -134,7 +134,7 @@ class LivestreamClient:
             raise RuntimeError("Cliente não inicializado. Use async with LivestreamClient()")
         
         try:
-            response = await self._client.get("/api/v1/health", timeout=3)
+            response = await self._client.get("/api/health", timeout=3)
             return response.status_code == 200
         except Exception as e:
             logger.warning(f"Health check falhou: {e}")
@@ -170,7 +170,7 @@ class LivestreamClient:
             logger.info(f"Publicando evento {event_type} para live {live_id}")
             
             response = await self._client.post(
-                f"/api/v1/lives/{live_id}/events",
+                f"/api/lives/{live_id}/events",
                 json={"type": event_type, "payload": payload},
                 headers=headers
             )

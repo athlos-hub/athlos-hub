@@ -2,12 +2,13 @@ spring:
   application:
     name: social-service
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE:dev}
+    # ENV tem precedência; fallback SPRING_PROFILES_ACTIVE para compatibilidade. Valores: dev | prod
+    active: ${ENV:${SPRING_PROFILES_ACTIVE:dev}}
 
   datasource:
     url: jdbc:postgresql://${DATABASE_HOST:localhost}:${DATABASE_PORT:5432}/${DATABASE_NAME:social_db}
-    username: ${DATABASE_USER:${SOCIAL_DB_USER:social_user}}
-    password: ${DATABASE_PASSWORD:${SOCIAL_DB_PASSWORD:sOPA5ySJAZcSlHT60NOFEqEhRBMMnAfI}}
+    username: ${DATABASE_USER:social_user}}
+    password: ${DATABASE_PASSWORD:sOPA5ySJAZcSlHT60NOFEqEhRBMMnAfI}}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: ${DB_POOL_MAX_SIZE:10}

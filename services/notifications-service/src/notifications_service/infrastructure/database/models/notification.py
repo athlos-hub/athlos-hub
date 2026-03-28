@@ -8,7 +8,6 @@ from sqlalchemy import Boolean, DateTime, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from notifications_service.infrastructure.database.base import Base
-from notifications_service.core.config import settings
 
 
 class NotificationType(str, Enum):
@@ -43,10 +42,6 @@ class NotificationType(str, Enum):
 
 class Notification(Base):
     __tablename__ = "notifications"
-    if settings.notifications_database_schema:
-        __table_args__ = {"schema": settings.notifications_database_schema}
-    else:
-        __table_args__ = {}
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(nullable=False, index=True)

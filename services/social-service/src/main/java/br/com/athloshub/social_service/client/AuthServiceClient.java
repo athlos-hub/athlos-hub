@@ -19,47 +19,47 @@ import java.util.UUID;
 )
 public interface AuthServiceClient {
     
-    @GetMapping("/api/v1/users/{userId}")
+    @GetMapping("/api/users/{userId}")
     UserDTO getUserById(
         @PathVariable("userId") UUID userId,
         @RequestHeader("Authorization") String authorization
     );
     
-    @GetMapping("/api/v1/users/by-keycloak-id/{keycloakId}")
+    @GetMapping("/api/users/by-keycloak-id/{keycloakId}")
     UserDTO getUserByKeycloakId(
         @PathVariable("keycloakId") String keycloakId,
         @RequestHeader("Authorization") String authorization
     );
     
-    @GetMapping("/api/v1/users")
+    @GetMapping("/api/users")
     List<UserDTO> getAllUsers(
         @RequestHeader("Authorization") String authorization
     );
     
-    @GetMapping("/api/v1/organizations/{orgSlug}")
+    @GetMapping("/api/organizations/{orgSlug}")
     OrganizationDTO getOrganizationBySlug(
         @PathVariable("orgSlug") String orgSlug,
         @RequestHeader("Authorization") String authorization
     );
     
-    @GetMapping("/api/v1/organizations/{orgSlug}/organizers")
+    @GetMapping("/api/organizations/{orgSlug}/organizers")
     OrganizersListResponse getOrganizationOrganizers(
         @PathVariable("orgSlug") String orgSlug,
         @RequestHeader("Authorization") String authorization
     );
     
-    @GetMapping("/api/v1/organizations/{orgSlug}/team")
+    @GetMapping("/api/organizations/{orgSlug}/team")
     TeamOverviewResponse getOrganizationTeam(
         @PathVariable("orgSlug") String orgSlug,
         @RequestHeader("Authorization") String authorization
     );
     
-    @GetMapping("/api/v1/organizations/me")
+    @GetMapping("/api/organizations/me")
     List<OrganizationDTO> getMyOrganizations(
         @RequestHeader("Authorization") String authorization
     );
     
-    @GetMapping("/api/v1/teams/{teamId}")
+    @GetMapping("/api/teams/{teamId}")
     br.com.athloshub.social_service.dto.auth.TeamDTO getTeamById(
         @PathVariable("teamId") UUID teamId,
         @RequestHeader("Authorization") String authorization

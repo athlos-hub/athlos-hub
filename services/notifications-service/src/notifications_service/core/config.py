@@ -3,8 +3,9 @@
 import json
 from pathlib import Path
 from typing import List
+from urllib.parse import quote_plus
 
-from pydantic import AliasChoices, Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -20,13 +21,13 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    ENV: str = Field(default="dev", alias="env")
+    ENV: str = Field(default="dev")
 
-    database_url: str = Field(
-        default="postgresql+asyncpg://postgres:postgres@localhost:5432/athlos_notifications",
-        validation_alias=AliasChoices("NOTIFICATIONS_DATABASE_URL", "DATABASE_URL"),
-    )
-    notifications_database_schema: str = Field(default="", alias="NOTIFICATIONS_DATABASE_SCHEMA")
+    DATABASE_HOST: str = Field(default="localhost")
+    DATABASE_PORT: int = Field(default=5432)
+    DATABASE_NAME: str = Field(default="athlos_notifications")
+    DATABASE_USER: str = Field(default="postgres")
+    DATABASE_PASSWORD: str = Field(default="postgres")
 
     AUTH_SERVICE_URL: str = Field(default="http://localhost:8000")
 
@@ -46,6 +47,29 @@ class Settings(BaseSettings):
     )
 
     LOG_LEVEL: str = Field(default="INFO", alias="LOG_LEVEL")
+
+    @field_validator("ENV", mode="before")
+    @classmethod
+    def _normalize_env(cls, v):
+        if v is None or (isinstance(v, str) and v.strip() == ""):
+            return "dev"
+        val = str(v).lower().strip()
+        if val in ("production", "prod"):
+            return "prod"
+        if val in ("development", "dev"):
+            return "dev"
+        raise ValueError(
+            "ENV must be 'dev' or 'prod' (aliases: development, production)"
+        )
+
+    @property
+    def database_url(self) -> str:
+        user = quote_plus(self.DATABASE_USER)
+        password = quote_plus(self.DATABASE_PASSWORD)
+        return (
+            f"postgresql+asyncpg://{user}:{password}@"
+            f"{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
+        )
 
     @property
     def cors_origins(self) -> List[str]:

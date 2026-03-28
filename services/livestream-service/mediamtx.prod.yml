@@ -12,7 +12,7 @@ hlsSegmentDuration: 1s
 hlsPartDuration: 200ms
 
 authMethod: http
-authHTTPAddress: http://livestream-service:3333/api/v1/webhooks/mediamtx-auth
+authHTTPAddress: http://livestream-service:3333/api/webhooks/mediamtx-auth
 authHTTPExclude:
   - action: api
   - action: metrics
@@ -21,6 +21,6 @@ paths:
   "~^live/.+$":
     source: publisher
     runOnPublishDone: >
-      curl -X POST http://livestream-service:3333/api/v1/webhooks/on-publish-done
+      curl -X POST http://livestream-service:3333/api/webhooks/on-publish-done
       -H "Content-Type: application/json"
       -d '{"path":"$MTX_PATH","protocol":"$MTX_PROTOCOL"}'

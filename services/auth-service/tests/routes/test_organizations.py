@@ -14,7 +14,7 @@ class TestCreateOrganization:
     async def test_create_organization_without_auth(self, client):
         """Test organization creation fails without authentication."""
         response = await client.post(
-            "/api/v1/organizations",
+            "/api/organizations",
             data={
                 "name": "New Organization",
                 "description": "A new test organization",
@@ -30,7 +30,7 @@ class TestCreateOrganization:
         """Test organization creation requires authentication."""
         # Try with invalid token
         response = await client.post(
-            "/api/v1/organizations",
+            "/api/organizations",
             headers={"Authorization": "Bearer invalid-token"},
             data={
                 "name": "New Organization",
@@ -49,7 +49,7 @@ class TestGetOrganizations:
     @pytest.mark.asyncio
     async def test_get_organizations_returns_list(self, client, test_organization):
         """Test that get organizations returns list of organizations."""
-        response = await client.get("/api/v1/organizations")
+        response = await client.get("/api/organizations")
         
         assert response.status_code == 200
         data = response.json()
@@ -63,7 +63,7 @@ class TestGetOrganizations:
     @pytest.mark.asyncio
     async def test_get_organizations_with_privacy_filter(self, client, test_organization):
         """Test filtering organizations by privacy."""
-        response = await client.get("/api/v1/organizations?privacy=PUBLIC")
+        response = await client.get("/api/organizations?privacy=PUBLIC")
         
         assert response.status_code == 200
         data = response.json()
@@ -110,7 +110,7 @@ class TestGetOrganizations:
             async_session.add(org)
         await async_session.commit()
         
-        response = await client.get("/api/v1/organizations?limit=3")
+        response = await client.get("/api/organizations?limit=3")
         
         assert response.status_code == 200
         data = response.json()
@@ -119,8 +119,8 @@ class TestGetOrganizations:
     @pytest.mark.asyncio
     async def test_get_organizations_with_offset(self, client):
         """Test pagination with offset parameter."""
-        response_page1 = await client.get("/api/v1/organizations?limit=2&offset=0")
-        response_page2 = await client.get("/api/v1/organizations?limit=2&offset=2")
+        response_page1 = await client.get("/api/organizations?limit=2&offset=0")
+        response_page2 = await client.get("/api/organizations?limit=2&offset=2")
         
         assert response_page1.status_code == 200
         assert response_page2.status_code == 200
@@ -141,7 +141,7 @@ class TestGetOrganizationBySlug:
     @pytest.mark.asyncio
     async def test_get_organization_by_slug_success(self, client, test_organization):
         """Test successful retrieval of organization by slug."""
-        response = await client.get(f"/api/v1/organizations/{test_organization.slug}")
+        response = await client.get(f"/api/organizations/{test_organization.slug}")
         
         assert response.status_code == 200
         data = response.json()
@@ -152,7 +152,7 @@ class TestGetOrganizationBySlug:
     @pytest.mark.asyncio
     async def test_get_organization_by_slug_not_found(self, client):
         """Test 404 when organization doesn't exist."""
-        response = await client.get("/api/v1/organizations/nonexistent-slug")
+        response = await client.get("/api/organizations/nonexistent-slug")
         
         assert response.status_code == 404
 
@@ -175,7 +175,7 @@ class TestGetOrganizationBySlug:
         async_session.add(private_org)
         await async_session.commit()
         
-        response = await client.get(f"/api/v1/organizations/{private_org.slug}")
+        response = await client.get(f"/api/organizations/{private_org.slug}")
         
         # Should return 403 or 404 for private org
         assert response.status_code in [403, 404]
@@ -187,7 +187,7 @@ class TestGetOrganizationMembers:
     @pytest.mark.asyncio
     async def test_get_organization_members_success(self, client, test_organization, test_user):
         """Test retrieval of organization members."""
-        response = await client.get(f"/api/v1/organizations/{test_organization.slug}/members")
+        response = await client.get(f"/api/organizations/{test_organization.slug}/members")
         
         # Should return 403 (requires authentication) or 200 with data
         assert response.status_code in [200, 403]
@@ -195,7 +195,7 @@ class TestGetOrganizationMembers:
     @pytest.mark.asyncio
     async def test_get_organization_members_not_found(self, client):
         """Test 404 when organization doesn't exist."""
-        response = await client.get("/api/v1/organizations/nonexistent/members")
+        response = await client.get("/api/organizations/nonexistent/members")
         
         # Should return 403 or 404 depending on auth check order
         assert response.status_code in [403, 404]
@@ -207,7 +207,7 @@ class TestOrganizationTeams:
     @pytest.mark.asyncio
     async def test_get_organization_teams(self, client, test_organization):
         """Test retrieval of organization teams."""
-        response = await client.get(f"/api/v1/organizations/{test_organization.slug}/teams")
+        response = await client.get(f"/api/organizations/{test_organization.slug}/teams")
         
         # Should return 200 with empty or populated list
         assert response.status_code in [200, 404]  # 404 if endpoint doesn't exist

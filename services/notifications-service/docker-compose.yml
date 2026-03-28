@@ -1,0 +1,15 @@
+services:
+  notifications-pg:
+    image: bitnami/postgresql:latest
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    volumes:
+      - ./docker:/docker-entrypoint-initdb.d:ro
+      - notifications_pg_data:/bitnami/postgresql
+
+volumes:
+  notifications_pg_data:

@@ -1,8 +1,10 @@
-from pathlib import Path
-from typing import List, Optional, Union
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
 import json
+from pathlib import Path
+from typing import List
+from urllib.parse import quote_plus
+
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 CURRENT_DIR = Path(__file__).resolve().parent
 SERVICE_ROOT = CURRENT_DIR.parent.parent
@@ -15,7 +17,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    ENV: str = Field(default="prod", alias="env")
+    ENV: str = Field(default="dev")
     API_HOST: str = Field(default="0.0.0.0")
     API_PORT: int = Field(default=8001)
 
@@ -25,10 +27,11 @@ class Settings(BaseSettings):
     KEYCLOAK_REALM: str = Field(default="athlos")
     KEYCLOAK_ISSUER: str = "https://athloshub.com.br/keycloak"
 
-    COMPETITIONS_DATABASE_USER: str = Field(default="test_user")
-    COMPETITIONS_DATABASE_PASSWORD: str = Field(default="test_password")
-    COMPETITIONS_DATABASE_URL: str = Field(default="sqlite+aiosqlite:///:memory:")
-    COMPETITIONS_DATABASE_SCHEMA: str = Field(default="public")
+    DATABASE_HOST: str = Field(default="localhost")
+    DATABASE_PORT: int = Field(default=5432)
+    DATABASE_NAME: str = Field(default="competitions_db")
+    DATABASE_USER: str = Field(default="test_user")
+    DATABASE_PASSWORD: str = Field(default="test_password")
 
     LIVESTREAM_SERVICE_URL: str = Field(default="http://livestream-service:3333")
     LIVESTREAM_SERVICE_TIMEOUT: int = Field(default=10)
@@ -67,22 +70,28 @@ class Settings(BaseSettings):
         # Handle comma-separated format
         return [origin.strip() for origin in v.split(',') if origin.strip()]
 
-    @property
-    def DATABASE_URL(self) -> str:
-        """
-        Retorna a URL de conexão. Se a URL completa existir, usa ela.
-        Caso contrário, monta uma nova.
-        """
-        if self.COMPETITIONS_DATABASE_URL:
-            url = self.COMPETITIONS_DATABASE_URL
-            if url.startswith("postgresql://"):
-                url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-            return url
-            
-        return (
-            f"postgresql+asyncpg://{self.COMPETITIONS_DATABASE_USER}:"
-            f"{self.COMPETITIONS_DATABASE_PASSWORD}@{self.API_HOST}:5432/"
-            f"competitions_db?schema={self.COMPETITIONS_DATABASE_SCHEMA}"
+    @field_validator("ENV", mode="before")
+    @classmethod
+    def _normalize_env(cls, v):
+        if v is None or (isinstance(v, str) and v.strip() == ""):
+            return "dev"
+        val = str(v).lower().strip()
+        if val in ("production", "prod"):
+            return "prod"
+        if val in ("development", "dev"):
+            return "dev"
+        raise ValueError(
+            "ENV must be 'dev' or 'prod' (aliases: development, production)"
         )
+
+    @property
+    def database_url(self) -> str:
+        user = quote_plus(self.DATABASE_USER)
+        password = quote_plus(self.DATABASE_PASSWORD)
+        return (
+            f"postgresql+asyncpg://{user}:{password}@"
+            f"{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
+        )
+
 
 settings = Settings()

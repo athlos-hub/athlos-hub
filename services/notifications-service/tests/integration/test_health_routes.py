@@ -11,7 +11,7 @@ class TestHealthEndpoints:
     async def test_health_check(self, test_client: AsyncClient):
         """Testa o endpoint de health check."""
         # Act
-        response = await test_client.get("/api/v1/health")
+        response = await test_client.get("/api/health")
         
         # Assert
         assert response.status_code == 200
@@ -23,7 +23,7 @@ class TestHealthEndpoints:
     async def test_readiness_check(self, test_client: AsyncClient):
         """Testa o endpoint de readiness check."""
         # Act
-        response = await test_client.get("/api/v1/health/ready")
+        response = await test_client.get("/api/health/ready")
         
         # Assert
         assert response.status_code == 200

@@ -1,0 +1,15 @@
+services:
+  auth-pg:
+    image: bitnami/postgresql:latest
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRESQL_USERNAME: ${DATABASE_USER}
+      POSTGRESQL_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRESQL_DATABASE: ${DATABASE_NAME}
+    volumes:
+      - ./docker:/docker-entrypoint-initdb.d:ro
+      - auth_pg_data:/bitnami/postgresql
+
+volumes:
+  auth_pg_data:

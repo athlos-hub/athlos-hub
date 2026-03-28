@@ -46,7 +46,7 @@ async def client(app_with_mocked_service):
 
 
 class TestValidateMembersEndpoint:
-    """Testes para o endpoint POST /api/v1/internal/validate-members"""
+    """Testes para o endpoint POST /api/internal/validate-members"""
 
     @pytest.mark.asyncio
     async def test_validate_members_all_valid(self, client, mock_org_service):
@@ -77,7 +77,7 @@ class TestValidateMembersEndpoint:
         )
         
         response = await client.post(
-            "/api/v1/internal/validate-members",
+            "/api/internal/validate-members",
             json={
                 "organization_slug": "test-org",
                 "keycloak_ids": [str(user_id_1), str(user_id_2)]
@@ -121,7 +121,7 @@ class TestValidateMembersEndpoint:
         )
         
         response = await client.post(
-            "/api/v1/internal/validate-members",
+            "/api/internal/validate-members",
             json={
                 "organization_slug": "test-org",
                 "keycloak_ids": [str(user_id_1), str(user_id_2)]
@@ -157,7 +157,7 @@ class TestValidateMembersEndpoint:
         )
         
         response = await client.post(
-            "/api/v1/internal/validate-members",
+            "/api/internal/validate-members",
             json={
                 "organization_slug": "nonexistent-org",
                 "keycloak_ids": [str(user_id)]
@@ -191,7 +191,7 @@ class TestValidateMembersEndpoint:
         )
         
         response = await client.post(
-            "/api/v1/internal/validate-members",
+            "/api/internal/validate-members",
             json={
                 "organization_slug": "test-org",
                 "keycloak_ids": [str(user_id)]
@@ -205,7 +205,7 @@ class TestValidateMembersEndpoint:
 
 
 class TestCheckOrganizationExistsEndpoint:
-    """Testes para o endpoint GET /api/v1/internal/organizations/{org_slug}/exists"""
+    """Testes para o endpoint GET /api/internal/organizations/{org_slug}/exists"""
 
     @pytest.mark.asyncio
     async def test_organization_exists(self, client, mock_org_service):
@@ -217,7 +217,7 @@ class TestCheckOrganizationExistsEndpoint:
         
         mock_org_service.get_organization_by_slug_internal.return_value = mock_org
         
-        response = await client.get("/api/v1/internal/organizations/test-org/exists")
+        response = await client.get("/api/internal/organizations/test-org/exists")
         
         assert response.status_code == 200
         data = response.json()
@@ -230,7 +230,7 @@ class TestCheckOrganizationExistsEndpoint:
         """Testa quando a organização não existe."""
         mock_org_service.get_organization_by_slug_internal.return_value = None
         
-        response = await client.get("/api/v1/internal/organizations/nonexistent/exists")
+        response = await client.get("/api/internal/organizations/nonexistent/exists")
         
         assert response.status_code == 200
         data = response.json()

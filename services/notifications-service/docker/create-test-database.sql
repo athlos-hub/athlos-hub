@@ -1,0 +1,1 @@
+CREATE DATABASE notifications_test;

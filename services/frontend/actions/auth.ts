@@ -70,7 +70,7 @@ export async function registerUser(formData: FormData): Promise<void> {
             const cookieStore = await cookies();
             cookieStore.set("pending_verification_email", emailVal, {
                 httpOnly: true,
-                secure: process.env.NODE_ENV === "production",
+                secure: process.env.ENV === "prod",
                 maxAge: 60 * 60 * 24,
                 path: "/",
                 sameSite: "lax",

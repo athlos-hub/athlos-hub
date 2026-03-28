@@ -50,7 +50,7 @@ from .stats_ruleset_routes import router as stats_ruleset_router
 from .sport_ruleset_routes import router as sport_ruleset_router
 from .internal_routes import router as internal_router
 
-router = APIRouter(prefix="/api/v1")
+router = APIRouter(prefix="/api")
 
 router.include_router(modality_router)
 router.include_router(competitions_router)

@@ -17,7 +17,19 @@ const dbUrlSchema = z
     message: 'Invalid DATABASE_URL',
   });
 
+const envProfileSchema = z
+  .string()
+  .optional()
+  .transform((raw): 'dev' | 'prod' => {
+    if (raw == null || raw.trim() === '') return 'dev';
+    const v = raw.trim().toLowerCase();
+    if (v === 'prod' || v === 'production') return 'prod';
+    if (v === 'dev' || v === 'development') return 'dev';
+    throw new Error(`ENV must be dev or prod (got ${raw})`);
+  });
+
 export const envSchema = z.object({
+  ENV: envProfileSchema,
   DATABASE_URL: dbUrlSchema,
   PORT: z.coerce.number().optional().default(3333),
   REDIS_HOST: z.string().optional().default('localhost'),

@@ -19,19 +19,11 @@ async def lifespan(app: FastAPI):
     startup_logger = logging.getLogger("app.startup")
     try:
         startup_logger.info("Inicializando banco de notificações...")
-        connect_args: dict = {}
-        if settings.notifications_database_schema:
-            connect_args = {
-                "server_settings": {
-                    "search_path": f"{settings.notifications_database_schema},public"
-                }
-            }
         db.init(
             url=settings.database_url,
             pool_min=5,
             pool_max=10,
             timeout=30,
-            connect_args=connect_args,
         )
         await db.check_health()
         startup_logger.info("Banco conectado.")
@@ -63,5 +55,5 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(RequestLoggerMiddleware)
     register_exception_handlers(app)
-    app.include_router(api_router, prefix="/api/v1")
+    app.include_router(api_router, prefix="/api")
     return app

@@ -10,6 +10,7 @@ dotenv.config({
 // Set default test environment variables if not already set
 // This ensures tests work in CI environments where .env.test doesn't exist
 const testDefaults: Record<string, string> = {
+  ENV: 'dev',
   NODE_ENV: 'test',
   DATABASE_URL: 'postgresql://test:test@localhost:5432/livestream_test',
   PORT: '3333',

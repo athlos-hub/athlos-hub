@@ -39,7 +39,7 @@ describe('CompetitionsClientService', () => {
     await service.startMatch('match-123');
 
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://competitions-service:8001/api/v1/matches/match-123/start',
+      'http://competitions-service:8001/api/matches/match-123/start',
       {
         method: 'POST',
         headers: {

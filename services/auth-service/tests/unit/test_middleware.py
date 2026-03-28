@@ -49,7 +49,7 @@ class TestKeycloakAuthMiddleware:
 
     def test_is_public_path_private(self, middleware):
         """Test private paths are not identified as public."""
-        assert middleware._is_public_path("/api/v1/organizations") is False
+        assert middleware._is_public_path("/api/organizations") is False
         assert middleware._is_public_path("/private/endpoint") is False
 
     @pytest.mark.asyncio
@@ -82,7 +82,7 @@ class TestKeycloakAuthMiddleware:
         """Test request without auth header passes through."""
         request = MagicMock(spec=Request)
         request.method = "GET"
-        request.url.path = "/api/v1/protected"
+        request.url.path = "/api/protected"
         request.headers.get.return_value = None
 
         call_next = AsyncMock(return_value=MagicMock())
@@ -96,7 +96,7 @@ class TestKeycloakAuthMiddleware:
         """Test request with non-Bearer auth header passes through."""
         request = MagicMock(spec=Request)
         request.method = "GET"
-        request.url.path = "/api/v1/protected"
+        request.url.path = "/api/protected"
         request.headers.get.return_value = "Basic dXNlcjpwYXNz"
 
         call_next = AsyncMock(return_value=MagicMock())
@@ -110,7 +110,7 @@ class TestKeycloakAuthMiddleware:
         """Test request with valid token sets user payload."""
         request = MagicMock(spec=Request)
         request.method = "GET"
-        request.url.path = "/api/v1/protected"
+        request.url.path = "/api/protected"
         request.headers.get.return_value = "Bearer valid_token"
         request.state = MagicMock()
 
@@ -139,7 +139,7 @@ class TestKeycloakAuthMiddleware:
 
         request = MagicMock(spec=Request)
         request.method = "GET"
-        request.url.path = "/api/v1/protected"
+        request.url.path = "/api/protected"
         request.headers.get.return_value = "Bearer expired_token"
 
         call_next = AsyncMock()
@@ -167,7 +167,7 @@ class TestKeycloakAuthMiddleware:
 
         request = MagicMock(spec=Request)
         request.method = "GET"
-        request.url.path = "/api/v1/protected"
+        request.url.path = "/api/protected"
         request.headers.get.return_value = "Bearer invalid_token"
 
         call_next = AsyncMock()
@@ -192,7 +192,7 @@ class TestKeycloakAuthMiddleware:
         """Test request with malformed token returns 401."""
         request = MagicMock(spec=Request)
         request.method = "GET"
-        request.url.path = "/api/v1/protected"
+        request.url.path = "/api/protected"
         request.headers.get.return_value = "Bearer malformed_token"
 
         call_next = AsyncMock()

@@ -24,11 +24,10 @@ async def lifespan(app: FastAPI):
 
         # Inicializa o DatabaseClient (Async)
         db.init(
-            url=settings.DATABASE_URL,
+            url=settings.database_url,
             pool_min=settings.DB_POOL_MIN_SIZE,
             pool_max=settings.DB_POOL_MAX_SIZE,
             timeout=settings.DB_POOL_TIMEOUT,
-            connect_args={"server_settings": {"search_path": f"{settings.COMPETITIONS_DATABASE_SCHEMA},public"}} 
         )
         
         # Verifica saúde do banco

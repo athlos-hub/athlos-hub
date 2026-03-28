@@ -18,7 +18,7 @@ async def scoreboard_websocket(
     """
     WebSocket endpoint para receber atualizações em tempo real do placar de uma partida.
     
-    Conecte-se em: ws://localhost:8001/api/v1/scoreboard/ws/{match_id}
+    Conecte-se em: ws://localhost:8001/api/scoreboard/ws/{match_id}
     
     Mensagens recebidas:
     {

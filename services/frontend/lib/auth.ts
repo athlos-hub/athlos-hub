@@ -102,7 +102,7 @@ export const authOptions: NextAuthOptions = {
                             if (isVerificationIssue) {
                                 cookieStore.set("pending_verification_email", credentials.email, {
                                     httpOnly: true,
-                                    secure: process.env.NODE_ENV === "production",
+                                    secure: process.env.ENV === "prod",
                                     path: "/",
                                     sameSite: "lax",
                                     maxAge: 60 * 15,

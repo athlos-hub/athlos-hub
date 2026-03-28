@@ -10,7 +10,7 @@ class TestGetUsersPublic:
     @pytest.mark.asyncio
     async def test_get_users_public_returns_enabled_users(self, client, test_user):
         """Test that get users public returns only enabled users."""
-        response = await client.get("/api/v1/users/")
+        response = await client.get("/api/users/")
         
         assert response.status_code == 200
         data = response.json()
@@ -35,7 +35,7 @@ class TestGetUsersPublic:
         await async_session.execute(delete(User))
         await async_session.commit()
         
-        response = await client.get("/api/v1/users/")
+        response = await client.get("/api/users/")
         
         assert response.status_code == 200
         data = response.json()
@@ -49,7 +49,7 @@ class TestGetUserById:
     @pytest.mark.asyncio
     async def test_get_user_by_id_success(self, client, test_user):
         """Test successful retrieval of user by ID."""
-        response = await client.get(f"/api/v1/users/{test_user.id}")
+        response = await client.get(f"/api/users/{test_user.id}")
         
         assert response.status_code == 200
         data = response.json()
@@ -61,7 +61,7 @@ class TestGetUserById:
     async def test_get_user_by_id_not_found(self, client):
         """Test 404 when user ID doesn't exist."""
         non_existent_id = uuid4()
-        response = await client.get(f"/api/v1/users/{non_existent_id}")
+        response = await client.get(f"/api/users/{non_existent_id}")
         
         assert response.status_code == 404
 
@@ -84,6 +84,6 @@ class TestGetUserById:
         async_session.add(disabled_user)
         await async_session.commit()
         
-        response = await client.get(f"/api/v1/users/{disabled_user.id}")
+        response = await client.get(f"/api/users/{disabled_user.id}")
         
         assert response.status_code == 404

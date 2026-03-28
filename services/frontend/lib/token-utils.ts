@@ -30,12 +30,12 @@ export async function refreshAccessToken(refreshToken: string): Promise<{
         
         if (typeof window !== 'undefined') {
             if (window.location.origin.includes('athloshub.com.br')) {
-                baseUrl = 'https://athloshub.com.br/api/v1';
+                baseUrl = 'https://athloshub.com.br/api';
             } else {
-                baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8100/api/v1';
+                baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8100/api';
             }
         } else {
-            baseUrl = process.env.API_BASE_URL || 'http://localhost:8100/api/v1';
+            baseUrl = process.env.API_BASE_URL || 'http://localhost:8100/api';
         }
 
         console.debug('[TOKEN-UTILS] refreshAccessToken using baseUrl:', baseUrl);

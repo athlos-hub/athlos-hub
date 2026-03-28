@@ -10,7 +10,7 @@ class TestGetAllUsers:
     @pytest.mark.asyncio
     async def test_get_all_users_without_auth(self, client):
         """Test getting all users fails without authentication."""
-        response = await client.get("/api/v1/admin/users")
+        response = await client.get("/api/admin/users")
         
         # Should require authentication
         assert response.status_code in [401, 403]
@@ -19,7 +19,7 @@ class TestGetAllUsers:
     async def test_get_all_users_with_invalid_token(self, client):
         """Test getting all users with invalid token."""
         response = await client.get(
-            "/api/v1/admin/users",
+            "/api/admin/users",
             headers={"Authorization": "Bearer invalid-token"}
         )
         
@@ -34,7 +34,7 @@ class TestSuspendUser:
     async def test_suspend_user_without_auth(self, client):
         """Test suspending user fails without authentication."""
         user_id = str(uuid4())
-        response = await client.delete(f"/api/v1/admin/users/{user_id}")
+        response = await client.delete(f"/api/admin/users/{user_id}")
         
         # Should require authentication
         assert response.status_code in [401, 403]
@@ -44,7 +44,7 @@ class TestSuspendUser:
         """Test suspending user with invalid token."""
         user_id = str(uuid4())
         response = await client.delete(
-            f"/api/v1/admin/users/{user_id}",
+            f"/api/admin/users/{user_id}",
             headers={"Authorization": "Bearer invalid-token"}
         )
         
@@ -59,7 +59,7 @@ class TestUnsuspendUser:
     async def test_unsuspend_user_without_auth(self, client):
         """Test unsuspending user fails without authentication."""
         user_id = str(uuid4())
-        response = await client.patch(f"/api/v1/admin/users/{user_id}/unsuspend")
+        response = await client.patch(f"/api/admin/users/{user_id}/unsuspend")
         
         # Should require authentication
         assert response.status_code in [401, 403]
@@ -69,7 +69,7 @@ class TestUnsuspendUser:
         """Test unsuspending user with invalid token."""
         user_id = str(uuid4())
         response = await client.patch(
-            f"/api/v1/admin/users/{user_id}/unsuspend",
+            f"/api/admin/users/{user_id}/unsuspend",
             headers={"Authorization": "Bearer invalid-token"}
         )
         
@@ -83,7 +83,7 @@ class TestDeleteOrganization:
     @pytest.mark.asyncio
     async def test_delete_org_without_auth(self, client):
         """Test deleting organization fails without authentication."""
-        response = await client.delete("/api/v1/admin/organizations/delete/test-org")
+        response = await client.delete("/api/admin/organizations/delete/test-org")
         
         # Should require authentication
         assert response.status_code in [401, 403]
@@ -92,7 +92,7 @@ class TestDeleteOrganization:
     async def test_delete_org_with_invalid_token(self, client):
         """Test deleting organization with invalid token."""
         response = await client.delete(
-            "/api/v1/admin/organizations/delete/test-org",
+            "/api/admin/organizations/delete/test-org",
             headers={"Authorization": "Bearer invalid-token"}
         )
         
@@ -106,7 +106,7 @@ class TestAcceptOrganization:
     @pytest.mark.asyncio
     async def test_accept_org_without_auth(self, client):
         """Test accepting organization fails without authentication."""
-        response = await client.patch("/api/v1/admin/organizations/accept/test-org")
+        response = await client.patch("/api/admin/organizations/accept/test-org")
         
         # Should require authentication
         assert response.status_code in [401, 403]
@@ -115,7 +115,7 @@ class TestAcceptOrganization:
     async def test_accept_org_with_invalid_token(self, client):
         """Test accepting organization with invalid token."""
         response = await client.patch(
-            "/api/v1/admin/organizations/accept/test-org",
+            "/api/admin/organizations/accept/test-org",
             headers={"Authorization": "Bearer invalid-token"}
         )
         
@@ -129,7 +129,7 @@ class TestSuspendOrganization:
     @pytest.mark.asyncio
     async def test_suspend_org_without_auth(self, client):
         """Test suspending organization fails without authentication."""
-        response = await client.delete("/api/v1/admin/organizations/suspend/test-org")
+        response = await client.delete("/api/admin/organizations/suspend/test-org")
         
         # Should require authentication
         assert response.status_code in [401, 403]
@@ -138,7 +138,7 @@ class TestSuspendOrganization:
     async def test_suspend_org_with_invalid_token(self, client):
         """Test suspending organization with invalid token."""
         response = await client.delete(
-            "/api/v1/admin/organizations/suspend/test-org",
+            "/api/admin/organizations/suspend/test-org",
             headers={"Authorization": "Bearer invalid-token"}
         )
         
@@ -152,7 +152,7 @@ class TestUnsuspendOrganization:
     @pytest.mark.asyncio
     async def test_unsuspend_org_without_auth(self, client):
         """Test unsuspending organization fails without authentication."""
-        response = await client.patch("/api/v1/admin/organizations/unsuspend/test-org")
+        response = await client.patch("/api/admin/organizations/unsuspend/test-org")
         
         # Should require authentication
         assert response.status_code in [401, 403]
@@ -161,7 +161,7 @@ class TestUnsuspendOrganization:
     async def test_unsuspend_org_with_invalid_token(self, client):
         """Test unsuspending organization with invalid token."""
         response = await client.patch(
-            "/api/v1/admin/organizations/unsuspend/test-org",
+            "/api/admin/organizations/unsuspend/test-org",
             headers={"Authorization": "Bearer invalid-token"}
         )
         
@@ -175,7 +175,7 @@ class TestGetOrganizationsByStatus:
     @pytest.mark.asyncio
     async def test_get_orgs_by_status_without_auth(self, client):
         """Test getting organizations by status fails without authentication."""
-        response = await client.get("/api/v1/admin/organizations?status=ACTIVE")
+        response = await client.get("/api/admin/organizations?status=ACTIVE")
         
         # Should require authentication
         assert response.status_code in [401, 403]
@@ -184,7 +184,7 @@ class TestGetOrganizationsByStatus:
     async def test_get_orgs_by_status_with_invalid_token(self, client):
         """Test getting organizations by status with invalid token."""
         response = await client.get(
-            "/api/v1/admin/organizations?status=ACTIVE",
+            "/api/admin/organizations?status=ACTIVE",
             headers={"Authorization": "Bearer invalid-token"}
         )
         
@@ -194,7 +194,7 @@ class TestGetOrganizationsByStatus:
     @pytest.mark.asyncio
     async def test_get_orgs_by_status_missing_status_param(self, client):
         """Test getting organizations without status parameter."""
-        response = await client.get("/api/v1/admin/organizations")
+        response = await client.get("/api/admin/organizations")
         
         # Should require status parameter or auth
         assert response.status_code in [401, 403, 422]

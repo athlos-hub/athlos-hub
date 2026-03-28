@@ -710,7 +710,7 @@ class TeamService:
         competitions_url = getattr(
             settings, "COMPETITIONS_SERVICE_URL", "http://localhost:8001"
         )
-        url = f"{competitions_url}/api/v1/internal/teams"
+        url = f"{competitions_url}/api/internal/teams"
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:

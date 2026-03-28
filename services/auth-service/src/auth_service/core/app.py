@@ -30,11 +30,6 @@ async def lifespan(app: FastAPI):
             pool_min=settings.DB_POOL_MIN_SIZE,
             pool_max=settings.DB_POOL_MAX_SIZE,
             timeout=settings.DB_POOL_TIMEOUT,
-            connect_args={
-                "server_settings": {
-                    "search_path": f"{settings.AUTH_DATABASE_SCHEMA},public"
-                }
-            },
         )
         await db.check_health()
 
@@ -78,6 +73,6 @@ def create_app() -> FastAPI:
 
     register_exception_handlers(app)
 
-    app.include_router(api_router, prefix="/api/v1")
+    app.include_router(api_router, prefix="/api")
 
     return app

@@ -27,7 +27,7 @@ export function useScoreboard(matchId: string | null): UseScoreboardReturn {
     try {
       // URL do WebSocket - usa variável de ambiente
       const getScoreboardWsUrl = () => {
-        const baseUrl = process.env.NEXT_PUBLIC_SCOREBOARD_WS_URL || 'wss://athloshub.com.br/api/v1';
+        const baseUrl = process.env.NEXT_PUBLIC_SCOREBOARD_WS_URL || 'wss://athloshub.com.br/api';
         // Converte http/https para ws/wss
         return baseUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
       };

@@ -5,7 +5,7 @@ import { axiosAPI } from "@/lib/api/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-const SOCIAL_API_URL = process.env.API_BASE_URL || "http://localhost:8100/api/v1";
+const SOCIAL_API_URL = process.env.API_BASE_URL || "http://localhost:8100/api";
 
 interface ApiResponse<T> {
   success: boolean;

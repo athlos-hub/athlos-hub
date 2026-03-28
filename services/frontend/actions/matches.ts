@@ -11,7 +11,7 @@ import type {
   MatchScoreResponse 
 } from "@/types/stats";
 
-const COMPETITIONS_API_URL = process.env.COMPETITIONS_API_URL || "http://localhost:8001/api/v1";
+const COMPETITIONS_API_URL = process.env.COMPETITIONS_API_URL || "http://localhost:8001/api";
 
 async function competitionsAPI<T>(
   endpoint: string,

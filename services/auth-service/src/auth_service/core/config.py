@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Literal, Optional
+from typing import List, Optional
 from urllib.parse import quote_plus
 
 from pydantic import Field, field_validator
@@ -18,9 +18,8 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Environment
-    # Accept common variants like 'production'/'prod' and 'development'/'dev'.
-    ENV: str = Field(default="dev", alias="env")
+    # Ambiente: apenas dev ou prod (aliases: development → dev, production → prod)
+    ENV: str = Field(default="dev")
 
     # Keycloak
     KEYCLOAK_URL: str
@@ -46,21 +45,17 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int
 
-    # Banco de dados
+    # Banco de dados (PostgreSQL da aplicação)
     DATABASE_HOST: str
     DATABASE_PORT: int
     DATABASE_NAME: str
+    DATABASE_USER: str
+    DATABASE_PASSWORD: str
 
     # Conexão com o keycloak
     KEYCLOAK_DATABASE_URL: str
     KEYCLOAK_DATABASE_USER: str
     KEYCLOAK_DATABASE_PASSWORD: str
-
-    # Conexão com o schema de auth
-    AUTH_DATABASE_USER: str
-    AUTH_DATABASE_PASSWORD: str
-    AUTH_DATABASE_URL: Optional[str] = None
-    AUTH_DATABASE_SCHEMA: Optional[str] = None
 
     # Database Pool (optional with sensible defaults)
     DB_POOL_MIN_SIZE: int = 5
@@ -94,27 +89,29 @@ class Settings(BaseSettings):
     AWS_BUCKET_NAME: str
     AWS_BUCKET_ACCESS_KEY_ID: str
     AWS_BUCKET_SECRET_ACCESS_KEY: str
-    # Normalize ENV values (support 'production'/'prod' and 'development'/'dev')
+
     @field_validator("ENV", mode="before")
+    @classmethod
     def _normalize_env(cls, v):
-        if v is None:
-            return v
-        val = str(v).lower()
+        if v is None or (isinstance(v, str) and v.strip() == ""):
+            return "dev"
+        val = str(v).lower().strip()
         if val in ("production", "prod"):
             return "prod"
         if val in ("development", "dev"):
             return "dev"
-        return val
+        raise ValueError(
+            "ENV must be 'dev' or 'prod' (aliases: development, production)"
+        )
 
     @property
     def database_url(self) -> str:
-        """Constrói a URL do banco com URL encoding correto"""
-        if self.AUTH_DATABASE_URL:
-            return self.AUTH_DATABASE_URL
-        
-        user = quote_plus(self.AUTH_DATABASE_USER)
-        password = quote_plus(self.AUTH_DATABASE_PASSWORD)
-        return f"postgresql+asyncpg://{user}:{password}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
+        user = quote_plus(self.DATABASE_USER)
+        password = quote_plus(self.DATABASE_PASSWORD)
+        return (
+            f"postgresql+asyncpg://{user}:{password}@"
+            f"{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
+        )
 
 
 settings = Settings()  # type: ignore

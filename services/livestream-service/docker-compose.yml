@@ -1,0 +1,51 @@
+services:
+  livestream-pg:
+    image: bitnami/postgresql:latest
+    ports:
+      - "5435:5432"
+    environment:
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    volumes:
+      - ./docker:/docker-entrypoint-initdb.d:ro
+      - livestream_pg_data:/bitnami/postgresql
+    networks:
+      - athlos-network
+
+  mediamtx:
+    image: bluenviron/mediamtx:1-ffmpeg
+    ports:
+      - "1935:1935"    # RTMP
+      - "8888:8888"    # HLS
+      - "8889:8889"    # WebRTC
+      - "9997:9997"    # API
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro
+    networks:
+      - athlos-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - athlos-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  livestream_pg_data:
+  redis_data: {}
+
+networks:
+  athlos-network:
+    driver: bridge

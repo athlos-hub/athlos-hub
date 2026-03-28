@@ -26,8 +26,8 @@ const nextConfig: NextConfig = {
         if (!isProd) {
             return [
                 {
-                    source: '/api/v1/auth/:path*',
-                    destination: `${process.env.AUTH_API_URL || 'http://localhost:8000'}/api/v1/auth/:path*`,
+                    source: '/api/auth/:path*',
+                    destination: `${process.env.AUTH_API_URL || 'http://localhost:8000'}/api/auth/:path*`,
                 },
                 {
                     source: '/api/social/:path*',

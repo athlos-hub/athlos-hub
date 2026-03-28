@@ -18,11 +18,11 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Build-time público: use NEXT_PUBLIC_API_BASE_URL como única base de API.
-ARG NEXT_PUBLIC_API_BASE_URL=https://athloshub.com.br/api/v1
+ARG NEXT_PUBLIC_API_BASE_URL=https://athloshub.com.br/api
 ARG NEXT_PUBLIC_APP_URL=https://athloshub.com.br
 ARG NEXT_PUBLIC_LIVESTREAM_WS_URL=https://athloshub.com.br
 ARG NEXT_PUBLIC_HLS_URL=https://athloshub.com.br
-ARG NEXT_PUBLIC_SCOREBOARD_WS_URL=wss://athloshub.com.br/api/v1
+ARG NEXT_PUBLIC_SCOREBOARD_WS_URL=wss://athloshub.com.br/api
 ARG NEXT_PUBLIC_RTMP_SERVER_URL=rtmp://athloshub.com.br
 ARG NEXT_PUBLIC_MEDIAMTX_RTMP_PORT=1935
 

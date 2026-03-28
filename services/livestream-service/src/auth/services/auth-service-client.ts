@@ -91,7 +91,7 @@ export class AuthServiceClient {
     organizationId: string,
   ): Promise<boolean> {
     try {
-      const url = `${this.authServiceUrl}/api/v1/organizations/by-id/${organizationId}/permissions?keycloak_sub=${encodeURIComponent(keycloakSub)}`;
+      const url = `${this.authServiceUrl}/api/organizations/by-id/${organizationId}/permissions?keycloak_sub=${encodeURIComponent(keycloakSub)}`;
       
       this.logger.log(`Validando permissão: ${url}`);
       

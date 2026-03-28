@@ -59,7 +59,7 @@ async def test_create_list_get_competitions(client: AsyncClient, session: AsyncS
         }
     }
 
-    response = await client.post("/api/v1/competitions/", json=payload)
+    response = await client.post("/api/competitions/", json=payload)
     assert response.status_code == 201
     data = response.json()
     assert data["name"] == "Campeonato A"
@@ -78,16 +78,16 @@ async def test_create_list_get_competitions(client: AsyncClient, session: AsyncS
         "sport_ruleset_id": ruleset_id
     }
 
-    response_reuse = await client.post("/api/v1/competitions/", json=payload_reuse)
+    response_reuse = await client.post("/api/competitions/", json=payload_reuse)
     assert response_reuse.status_code == 201
 
-    list_response = await client.get("/api/v1/competitions/")
+    list_response = await client.get("/api/competitions/")
     assert list_response.status_code == 200
     list_data = list_response.json()
     assert len(list_data) == 2
 
     comp_id = data["id"]
-    get_response = await client.get(f"/api/v1/competitions/{comp_id}")
+    get_response = await client.get(f"/api/competitions/{comp_id}")
     assert get_response.status_code == 200
     get_data = get_response.json()
     assert get_data["id"] == comp_id
@@ -132,7 +132,7 @@ async def test_generate_structure_endpoint(client: AsyncClient, session: AsyncSe
     with patch("src.services.competition_generator.competition_generator.LivestreamClient", return_value=mock_livestream_client), \
          patch("src.services.competition_generator.competition_generator.LiveCreationService", return_value=mock_live_service):
         response = await client.post(
-            f"/api/v1/competitions/{competition.id}/generate-structure",
+            f"/api/competitions/{competition.id}/generate-structure",
             json={"organization_id": organization_id}
         )
     

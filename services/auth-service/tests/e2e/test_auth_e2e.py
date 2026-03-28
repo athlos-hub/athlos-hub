@@ -24,7 +24,7 @@ class TestLoginE2E:
         """
         # Act
         response = await test_client.post(
-            "/api/v1/auth/login",
+            "/api/auth/login",
             json={}
         )
         
@@ -41,7 +41,7 @@ class TestLoginE2E:
         """
         # Act
         response = await test_client.post(
-            "/api/v1/auth/login",
+            "/api/auth/login",
             json={"email": "test@example.com"}
         )
         
@@ -58,7 +58,7 @@ class TestLoginE2E:
         """
         # Act
         response = await test_client.post(
-            "/api/v1/auth/login",
+            "/api/auth/login",
             json={"password": "testpass123"}
         )
         
@@ -75,7 +75,7 @@ class TestLoginE2E:
         """
         # Act
         response = await test_client.post(
-            "/api/v1/auth/login",
+            "/api/auth/login",
             json={
                 "email": "not-an-email",
                 "password": "testpass123"
@@ -99,7 +99,7 @@ class TestRegisterE2E:
         """
         # Act
         response = await test_client.post(
-            "/api/v1/auth/register",
+            "/api/auth/register",
             json={}
         )
         
@@ -116,7 +116,7 @@ class TestRegisterE2E:
         """
         # Act
         response = await test_client.post(
-            "/api/v1/auth/register",
+            "/api/auth/register",
             json={
                 "email": "invalid-email",
                 "password": "ValidPass123!",
@@ -138,7 +138,7 @@ class TestRegisterE2E:
         """
         # Act
         response = await test_client.post(
-            "/api/v1/auth/register",
+            "/api/auth/register",
             json={
                 "email": "test@example.com",
                 "password": "123",  # Senha muito fraca
@@ -164,7 +164,7 @@ class TestEmailVerificationE2E:
         """
         # Act
         response = await test_client.post(
-            "/api/v1/auth/verify/invalid-token-here"
+            "/api/auth/verify/invalid-token-here"
         )
         
         # Assert
@@ -180,7 +180,7 @@ class TestEmailVerificationE2E:
         """
         # Act
         response = await test_client.post(
-            "/api/v1/auth/resend-verification",
+            "/api/auth/resend-verification",
             json={}
         )
         
@@ -197,7 +197,7 @@ class TestEmailVerificationE2E:
         """
         # Act
         response = await test_client.post(
-            "/api/v1/auth/resend-verification",
+            "/api/auth/resend-verification",
             json={"email": "not-an-email"}
         )
         
@@ -218,7 +218,7 @@ class TestPasswordResetE2E:
         """
         # Act
         response = await test_client.post(
-            "/api/v1/auth/forgot-password",
+            "/api/auth/forgot-password",
             json={}
         )
         
@@ -235,7 +235,7 @@ class TestPasswordResetE2E:
         """
         # Act
         response = await test_client.post(
-            "/api/v1/auth/forgot-password",
+            "/api/auth/forgot-password",
             json={"email": "invalid-email"}
         )
         
@@ -256,7 +256,7 @@ class TestTokenRefreshE2E:
         """
         # Act
         response = await test_client.post(
-            "/api/v1/auth/refresh",
+            "/api/auth/refresh",
             json={}
         )
         
@@ -273,7 +273,7 @@ class TestTokenRefreshE2E:
         """
         # Act
         response = await test_client.post(
-            "/api/v1/auth/refresh",
+            "/api/auth/refresh",
             json={"refresh_token": "invalid-refresh-token"}
         )
         
@@ -293,7 +293,7 @@ class TestLogoutE2E:
         E2E: Testa logout sem autenticação.
         """
         # Act
-        response = await test_client.post("/api/v1/auth/logout")
+        response = await test_client.post("/api/auth/logout")
         
         # Assert - pode aceitar, rejeitar ou não existir
         assert response.status_code in [200, 204, 401, 403, 404, 422]

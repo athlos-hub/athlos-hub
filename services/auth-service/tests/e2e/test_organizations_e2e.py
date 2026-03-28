@@ -25,7 +25,7 @@ class TestListOrganizationsE2E:
         E2E: Testa listagem de organizações quando não há nenhuma.
         """
         # Act
-        response = await test_client.get("/api/v1/organizations")
+        response = await test_client.get("/api/organizations")
         
         # Assert
         assert response.status_code == 200
@@ -43,7 +43,7 @@ class TestListOrganizationsE2E:
         E2E: Testa listagem de organizações com dados no banco real.
         """
         # Act
-        response = await test_client.get("/api/v1/organizations")
+        response = await test_client.get("/api/organizations")
         
         # Assert
         assert response.status_code == 200
@@ -67,7 +67,7 @@ class TestListOrganizationsE2E:
         """
         # Act
         response = await test_client.get(
-            "/api/v1/organizations",
+            "/api/organizations",
             params={"privacy": "PUBLIC"}
         )
         
@@ -99,7 +99,7 @@ class TestListOrganizationsE2E:
         """
         # Act
         response = await test_client.get(
-            "/api/v1/organizations",
+            "/api/organizations",
             params={"privacy": "PRIVATE"}
         )
         
@@ -130,7 +130,7 @@ class TestListOrganizationsE2E:
         """
         # Act
         response = await test_client.get(
-            "/api/v1/organizations",
+            "/api/organizations",
             params={"limit": 2}
         )
         
@@ -150,12 +150,12 @@ class TestListOrganizationsE2E:
         E2E: Testa paginação com offset.
         """
         # Primeiro, pega todas
-        response_all = await test_client.get("/api/v1/organizations")
+        response_all = await test_client.get("/api/organizations")
         all_orgs = response_all.json()
         
         # Act - pega com offset
         response = await test_client.get(
-            "/api/v1/organizations",
+            "/api/organizations",
             params={"limit": 2, "offset": 2}
         )
         
@@ -186,7 +186,7 @@ class TestGetOrganizationBySlugE2E:
         """
         # Act
         response = await test_client.get(
-            f"/api/v1/organizations/{test_organization.slug}"
+            f"/api/organizations/{test_organization.slug}"
         )
         
         # Assert
@@ -207,7 +207,7 @@ class TestGetOrganizationBySlugE2E:
         """
         # Act
         response = await test_client.get(
-            "/api/v1/organizations/non-existent-organization"
+            "/api/organizations/non-existent-organization"
         )
         
         # Assert
@@ -227,7 +227,7 @@ class TestOrganizationAuthenticationE2E:
         """
         # Act
         response = await test_client.post(
-            "/api/v1/organizations",
+            "/api/organizations",
             data={
                 "name": "New Organization",
                 "description": "A test organization",
@@ -248,7 +248,7 @@ class TestOrganizationAuthenticationE2E:
         """
         # Act
         response = await test_client.post(
-            "/api/v1/organizations",
+            "/api/organizations",
             headers={"Authorization": "Bearer invalid-token-here"},
             data={
                 "name": "New Organization",
@@ -269,7 +269,7 @@ class TestOrganizationAuthenticationE2E:
         E2E: Testa que /organizations/me requer autenticação.
         """
         # Act
-        response = await test_client.get("/api/v1/organizations/me")
+        response = await test_client.get("/api/organizations/me")
         
         # Assert
         assert response.status_code in [401, 403]
@@ -290,7 +290,7 @@ class TestOrganizationDataIntegrityE2E:
         """
         # Act
         response = await test_client.get(
-            f"/api/v1/organizations/{test_organization.slug}"
+            f"/api/organizations/{test_organization.slug}"
         )
         
         # Assert
@@ -308,7 +308,7 @@ class TestOrganizationDataIntegrityE2E:
         E2E: Verifica que slug retornado corresponde ao esperado.
         """
         # Act
-        response = await test_client.get("/api/v1/organizations")
+        response = await test_client.get("/api/organizations")
         
         # Assert
         assert response.status_code == 200

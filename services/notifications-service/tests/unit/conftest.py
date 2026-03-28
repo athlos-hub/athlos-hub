@@ -10,9 +10,14 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Configurar variáveis de ambiente antes de importar as dependências
+os.environ.setdefault("ENV", "dev")
 os.environ.setdefault("NOVU_API_KEY", "test-api-key")
 os.environ.setdefault("NOVU_APP_ID", "test-app-id")
-os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost:5432/test")
+os.environ.setdefault("DATABASE_HOST", "localhost")
+os.environ.setdefault("DATABASE_PORT", "5432")
+os.environ.setdefault("DATABASE_NAME", "test")
+os.environ.setdefault("DATABASE_USER", "test")
+os.environ.setdefault("DATABASE_PASSWORD", "test")
 
 from notifications_service.domain.interfaces.repositories import INotificationRepository
 from notifications_service.infrastructure.database.models import Notification, NotificationType

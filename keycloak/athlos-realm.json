@@ -603,11 +603,12 @@
         "id" : "2eefe5b2-25c3-4079-b8b9-040ad96e203b",
         "name" : "Default Policy",
         "description" : "A policy that grants access only for users within this realm",
-        "type" : "js",
+        "type" : "role",
         "logic" : "POSITIVE",
         "decisionStrategy" : "AFFIRMATIVE",
         "config" : {
-          "code" : "// by default, grants any permission associated with this policy\n$evaluation.grant();\n"
+          "fetchRoles" : "false",
+          "roles" : "[{\"id\":\"4184f4a1-ef85-40e5-b9f8-e71c5cd938a5\",\"required\":true}]"
         }
       }, {
         "id" : "785961f5-0d1d-419d-9909-b6c8612adc5b",
@@ -1933,7 +1934,7 @@
     "acr.loa.map" : "{}",
     "shortVerificationUri" : ""
   },
-  "keycloakVersion" : "23.0.7",
+  "keycloakVersion" : "26.5.6",
   "userManagedAccessAllowed" : false,
   "clientProfiles" : {
     "profiles" : [ ]

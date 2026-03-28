@@ -260,7 +260,7 @@ async def _send_notification(
         
         async with httpx.AsyncClient() as client:
             await client.post(
-                "http://localhost:8003/api/v1/notifications/send",
+                "http://localhost:8003/api/notifications/send",
                 json={
                     "user_id": str(user_id),
                     "type": notification_type,

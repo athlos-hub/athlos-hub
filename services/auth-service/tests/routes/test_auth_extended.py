@@ -12,7 +12,7 @@ class TestAuthEndpointsCallback:
     async def test_callback_missing_fields(self, client):
         """Test OAuth callback with missing required fields."""
         response = await client.post(
-            "/api/v1/auth/keycloak/callback",
+            "/api/auth/keycloak/callback",
             json={}
         )
         # Should return validation error for missing fields
@@ -25,14 +25,14 @@ class TestAuthEndpointsLogin:
     @pytest.mark.asyncio
     async def test_login_missing_credentials(self, client):
         """Test login with missing credentials."""
-        response = await client.post("/api/v1/auth/login", json={})
+        response = await client.post("/api/auth/login", json={})
         assert response.status_code == 422
 
     @pytest.mark.asyncio
     async def test_login_with_credentials(self, client):
         """Test login with credentials - will fail without Keycloak."""
         response = await client.post(
-            "/api/v1/auth/login",
+            "/api/auth/login",
             json={"email": "test@test.com", "password": "password123"}
         )
         # Will fail auth without proper Keycloak setup
@@ -45,7 +45,7 @@ class TestAuthEndpointsRefresh:
     @pytest.mark.asyncio
     async def test_refresh_missing_token(self, client):
         """Test refresh without token."""
-        response = await client.post("/api/v1/auth/refresh", json={})
+        response = await client.post("/api/auth/refresh", json={})
         assert response.status_code == 422
 
 
@@ -55,7 +55,7 @@ class TestAuthEndpointsLogout:
     @pytest.mark.asyncio
     async def test_logout_missing_token(self, client):
         """Test logout without refresh token."""
-        response = await client.post("/api/v1/auth/logout", json={})
+        response = await client.post("/api/auth/logout", json={})
         assert response.status_code == 422
 
 
@@ -66,7 +66,7 @@ class TestAuthEndpointsRegister:
     async def test_register_missing_fields(self, client):
         """Test register with missing required fields."""
         response = await client.post(
-            "/api/v1/auth/register",
+            "/api/auth/register",
             data={"email": "test@test.com"}
         )
         assert response.status_code == 422
@@ -75,7 +75,7 @@ class TestAuthEndpointsRegister:
     async def test_register_invalid_email(self, client):
         """Test register with all required fields but may fail on Keycloak."""
         response = await client.post(
-            "/api/v1/auth/register",
+            "/api/auth/register",
             data={
                 "email": "test@test.com",
                 "username": "testuser",
@@ -94,7 +94,7 @@ class TestAuthEndpointsVerifyEmail:
     @pytest.mark.asyncio
     async def test_verify_email_invalid_token(self, client):
         """Test verify email with invalid token."""
-        response = await client.post("/api/v1/auth/verify/invalid-token")
+        response = await client.post("/api/auth/verify/invalid-token")
         # Should fail with invalid token
         assert response.status_code in [400, 401, 500]
 
@@ -105,7 +105,7 @@ class TestAuthEndpointsResendVerification:
     @pytest.mark.asyncio
     async def test_resend_verification_missing_email(self, client):
         """Test resend verification without email."""
-        response = await client.post("/api/v1/auth/resend-verification", json={})
+        response = await client.post("/api/auth/resend-verification", json={})
         assert response.status_code == 422
 
 
@@ -115,7 +115,7 @@ class TestAuthEndpointsRequestResetPassword:
     @pytest.mark.asyncio
     async def test_request_reset_password_missing_email(self, client):
         """Test request reset password without email."""
-        response = await client.post("/api/v1/auth/request-reset-password", json={})
+        response = await client.post("/api/auth/request-reset-password", json={})
         assert response.status_code == 422
 
 
@@ -126,7 +126,7 @@ class TestAuthEndpointsResetPassword:
     async def test_reset_password_invalid_token(self, client):
         """Test reset password with invalid token."""
         response = await client.post(
-            "/api/v1/auth/reset-password/invalid-token",
+            "/api/auth/reset-password/invalid-token",
             json={"new_password": "newpassword123"}
         )
         # Should fail with invalid token
@@ -136,7 +136,7 @@ class TestAuthEndpointsResetPassword:
     async def test_reset_password_missing_password(self, client):
         """Test reset password without new password."""
         response = await client.post(
-            "/api/v1/auth/reset-password/some-token",
+            "/api/auth/reset-password/some-token",
             json={}
         )
         assert response.status_code == 422
@@ -148,6 +148,6 @@ class TestAuthEndpointsGoogleUrl:
     @pytest.mark.asyncio
     async def test_get_google_auth_url(self, client):
         """Test get Google auth URL endpoint."""
-        response = await client.get("/api/v1/auth/google/url")
+        response = await client.get("/api/auth/google/url")
         # May fail without Keycloak, but tests the endpoint exists
         assert response.status_code in [200, 500]

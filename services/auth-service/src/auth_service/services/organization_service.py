@@ -89,7 +89,7 @@ class OrganizationService:
         action_url: str = None
     ):
         """Helper para enviar notificações de forma consistente."""
-        endpoint = f"{settings.NOTIFICATIONS_SERVICE_URL.rstrip('/')}/api/v1/notifications/internal"
+        endpoint = f"{settings.NOTIFICATIONS_SERVICE_URL.rstrip('/')}/api/notifications/internal"
         try:
             base_extra_data = {
                 "organization_id": str(organization.id),

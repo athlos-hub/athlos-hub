@@ -16,7 +16,7 @@ class TestHealthEndpointsE2E:
         conexão real ao banco de dados.
         """
         # Act
-        response = await test_client.get("/api/v1/health")
+        response = await test_client.get("/api/health")
         
         # Assert
         assert response.status_code == 200
@@ -33,7 +33,7 @@ class TestHealthEndpointsE2E:
         com todas as dependências funcionando.
         """
         # Act
-        response = await test_client.get("/api/v1/health/ready")
+        response = await test_client.get("/api/health/ready")
         
         # Assert
         assert response.status_code == 200
@@ -52,7 +52,7 @@ class TestHealthEndpointsE2E:
         
         # Act
         start_time = time.time()
-        response = await test_client.get("/api/v1/health")
+        response = await test_client.get("/api/health")
         elapsed_time = time.time() - start_time
         
         # Assert

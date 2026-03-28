@@ -40,7 +40,7 @@ public class NotificationServiceClient {
         }
         
         try {
-            String url = notificationServiceUrl + "/api/v1/notifications/internal";
+            String url = notificationServiceUrl + "/api/notifications/internal";
             
             Map<String, Object> payload = new HashMap<>();
             payload.put("user_id", recipientKeycloakId);

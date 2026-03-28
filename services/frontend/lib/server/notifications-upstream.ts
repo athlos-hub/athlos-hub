@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
-const API_GATEWAY_URL = process.env.API_BASE_URL || 'http://localhost:8100/api/v1';
+const API_GATEWAY_URL = process.env.API_BASE_URL || 'http://localhost:8100/api';
 
 export function getNotificationsGatewayUrl(): string {
   return API_GATEWAY_URL.replace(/\/$/, '');

@@ -67,21 +67,21 @@ export function parseErrorMessage(errorData: unknown): string {
 }
 
 export function getBaseURL(): string {
-    const base = process.env.API_BASE_URL || "http://localhost:8100/api/v1";
+    const base = process.env.API_BASE_URL || "http://localhost:8100/api";
     return base.replace(/\/$/, "");
 }
 
 export function getServiceURL(service: "auth" | "competitions" = "auth"): string {
-    const gateway = (process.env.API_BASE_URL || "http://localhost:8100/api/v1").replace(/\/$/, "");
-    if (process.env.NODE_ENV === "development") {
+    const gateway = (process.env.API_BASE_URL || "http://localhost:8100/api").replace(/\/$/, "");
+    if (process.env.ENV !== "prod") {
         if (service === "competitions") {
-            return (process.env.COMPETITIONS_API_URL || "http://localhost:8001/api/v1").replace(/\/$/, "");
+            return (process.env.COMPETITIONS_API_URL || "http://localhost:8001/api").replace(/\/$/, "");
         }
         const authHost = process.env.AUTH_API_URL;
         if (authHost) {
-            return `${authHost.replace(/\/$/, "")}/api/v1`;
+            return `${authHost.replace(/\/$/, "")}/api`;
         }
-        return "http://localhost:8000/api/v1";
+        return "http://localhost:8000/api";
     }
     return gateway;
 }

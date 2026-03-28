@@ -16,13 +16,13 @@ import java.util.UUID;
 )
 public interface CompetitionsServiceClient {
     
-    @GetMapping("/api/v1/teams/{teamId}")
+    @GetMapping("/api/teams/{teamId}")
     TeamDTO getTeamById(
         @PathVariable("teamId") UUID teamId,
         @RequestHeader("Authorization") String authorization
     );
     
-    @GetMapping("/api/v1/teams")
+    @GetMapping("/api/teams")
     List<TeamDTO> getAllTeams(
         @RequestHeader("Authorization") String authorization
     );

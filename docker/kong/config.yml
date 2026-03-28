@@ -1,0 +1,221 @@
+_format_version: "3.0"
+_transform: true
+
+# Roteamento por prefixos explícitos em /api/...; rotas mais longas (/api/internal/teams, ...)
+# antes do prefixo genérico /api/internal do auth (ordem + especificidade do Kong).
+
+services:
+  - name: auth-service
+    url: http://host.docker.internal:8000
+    protocol: http
+    host: host.docker.internal
+    port: 8000
+    routes:
+      - name: auth-routes
+        protocols:
+          - http
+          - https
+        paths:
+          - /api/auth
+          - /api/users
+          - /api/organizations
+          - /api/admin
+          - /api/health
+          - /api/teams
+        strip_path: false
+      - name: auth-internal-routes
+        protocols:
+          - http
+          - https
+        paths:
+          - /api/internal
+        strip_path: false
+
+  - name: competitions-service
+    url: http://host.docker.internal:8001
+    protocol: http
+    host: host.docker.internal
+    port: 8001
+    routes:
+      - name: competitions-routes
+        protocols:
+          - http
+          - https
+        paths:
+          - /api/competitions
+          - /api/matches
+          - /api/modalities
+          - /api/scoreboard
+        strip_path: false
+      - name: competitions-internal-teams
+        protocols:
+          - http
+          - https
+        paths:
+          - /api/internal/teams
+        strip_path: false
+      - name: competitions-internal-health
+        protocols:
+          - http
+          - https
+        paths:
+          - /api/internal/health
+        strip_path: false
+
+  - name: mediamtx-hls
+    url: http://host.docker.internal:8888
+    protocol: http
+    host: host.docker.internal
+    port: 8888
+    routes:
+      - name: hls-stream
+        paths:
+          - /live
+        protocols:
+          - http
+          - https
+        strip_path: false
+        preserve_host: true
+
+  - name: livestream-service
+    url: http://host.docker.internal:3333
+    protocol: http
+    host: host.docker.internal
+    port: 3333
+    routes:
+      - name: livestream-routes
+        protocols:
+          - http
+          - https
+        paths:
+          - /api/lives
+          - /api/google-calendar
+          - /api/webhooks
+        strip_path: false
+      - name: livestream-socket
+        paths:
+          - /socket.io
+        protocols:
+          - http
+          - https
+        strip_path: false
+        preserve_host: true
+
+  - name: notifications-service
+    url: http://host.docker.internal:8003
+    protocol: http
+    host: host.docker.internal
+    port: 8003
+    routes:
+      - name: notifications-combined-routes
+        protocols:
+          - http
+          - https
+        paths:
+          - /api/notifications
+        strip_path: false
+        methods:
+          - GET
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+          - OPTIONS
+          - HEAD
+        request_buffering: false
+        response_buffering: false
+      - name: notifications-sse-unread-stream
+        protocols:
+          - http
+          - https
+        paths:
+          - /api/notifications/unread-count/stream
+        strip_path: false
+        preserve_host: true
+        request_buffering: false
+        response_buffering: false
+
+  - name: social-service
+    url: http://host.docker.internal:8083
+    protocol: http
+    host: host.docker.internal
+    port: 8083
+    routes:
+      - name: social-routes
+        protocols:
+          - http
+          - https
+        paths:
+          - /api/social
+        strip_path: true
+
+  - name: keycloak-service
+    url: http://host.docker.internal:8080
+    protocol: http
+    host: host.docker.internal
+    port: 8080
+    routes:
+      - name: keycloak-routes
+        protocols:
+          - http
+          - https
+        paths:
+          - /keycloak
+        strip_path: false
+        preserve_host: true
+
+  - name: frontend-service
+    url: http://host.docker.internal:3000
+    protocol: http
+    host: host.docker.internal
+    port: 3000
+    routes:
+      - name: frontend-routes
+        protocols:
+          - http
+          - https
+        paths:
+          - /
+        strip_path: false
+        preserve_host: true
+
+plugins:
+  - name: cors
+    config:
+      origins:
+        - "http://athloshub.com.br"
+        - "http://localhost:8100"
+        - "http://localhost:3000"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+        - HEAD
+      headers:
+        - Accept
+        - Accept-Version
+        - Content-Length
+        - Content-MD5
+        - Content-Type
+        - Date
+        - X-Auth-Token
+        - Authorization
+        - X-Requested-With
+        - X-Request-Id
+        - X-User-Id
+        - Cache-Control
+        - Connection
+        - Keep-Alive
+      exposed_headers:
+        - Cache-Control
+        - Connection
+        - Content-Type
+        - Date
+        - Keep-Alive
+        - Transfer-Encoding
+        - X-Accel-Buffering
+      credentials: true
+      max_age: 3600
