@@ -1,14 +1,16 @@
-"""Dependências da API para injeção de dependência"""
+"""Dependências da API para injeção de dependência.
+
+JWT validation is handled exclusively by Kong Gateway.
+This service trusts X-Keycloak-Sub injected by Kong.
+Do NOT add JWT validation here — it breaks the single-responsibility contract.
+"""
 
 from typing import Annotated
 
-from auth_service.common.security.jwt_handler import JwtHandler
+from auth_service.common.gateway_identity import resolve_gateway_sub
 from auth_service.infrastructure.database.dependencies import get_session
-from fastapi import Depends, Request
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from auth_service.core.config import settings
 from auth_service.core.adapters.keycloak_admin_adapter import KeycloakAdminAdapter
 from auth_service.core.ports.keycloak_service import IKeycloakService
 from auth_service.infrastructure.database.models.user_model import User
@@ -28,8 +30,6 @@ from auth_service.repositories.user_repository import UserRepository, UserReposi
 from auth_service.services.authentication_service import AuthenticationService
 from auth_service.services.organization_service import OrganizationService
 from auth_service.services.user_service import UserService
-
-bearer_scheme = HTTPBearer()
 
 
 class OrgRole:
@@ -112,52 +112,38 @@ def get_authentication_service(
 
 
 async def get_current_db_user(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
-    auth_service: AuthenticationService = Depends(get_authentication_service),
+    user_repo: UserRepositoryContract = Depends(get_user_repository),
+    x_keycloak_sub: Annotated[str | None, Header(alias="X-Keycloak-Sub")] = None,
+    x_test_sub: Annotated[str | None, Header(alias="X-Test-Sub")] = None,
 ) -> User:
-    """Obtém usuário autenticado atual do token JWT."""
+    """Usuário autenticado: identidade vem do Kong (JWT validado no gateway)."""
 
-    public_key = await AuthenticationService.get_public_key()
-
-    payload = JwtHandler.decode_token(
-        token=credentials.credentials,
-        public_key=public_key,
-        audience=settings.KEYCLOAK_CLIENT_ID,
-        issuer=f"{settings.KEYCLOAK_ISSUER.rstrip('/')}/realms/{settings.KEYCLOAK_REALM}",
-        verify_aud=False
-    )
-
-    db_user = await auth_service.get_or_create_user_from_keycloak_token(payload)
-    return db_user
+    sub = resolve_gateway_sub(x_keycloak_sub, x_test_sub)
+    if not sub:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Não autenticado (cabeçalho X-Keycloak-Sub ausente).",
+        )
+    user = await user_repo.get_by_keycloak_id(sub)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuário não encontrado para o subject informado.",
+        )
+    return user
 
 
 async def get_current_user_optional(
-    request: Request,
-    auth_service: AuthenticationService = Depends(get_authentication_service),
+    user_repo: UserRepositoryContract = Depends(get_user_repository),
+    x_keycloak_sub: Annotated[str | None, Header(alias="X-Keycloak-Sub")] = None,
+    x_test_sub: Annotated[str | None, Header(alias="X-Test-Sub")] = None,
 ) -> User | None:
-    """Obtém usuário atual se autenticado, None caso contrário."""
+    """Usuário opcional quando o Kong propaga X-Keycloak-Sub (rotas sem JWT no gateway = anônimo)."""
 
-    auth_header = request.headers.get("Authorization")
-
-    if not auth_header or not auth_header.startswith("Bearer "):
+    sub = resolve_gateway_sub(x_keycloak_sub, x_test_sub)
+    if not sub:
         return None
-
-    try:
-        token = auth_header.split(" ")[1]
-        public_key = await AuthenticationService.get_public_key()
-
-        payload = JwtHandler.decode_token(
-            token=token,
-            public_key=public_key,
-            audience=settings.KEYCLOAK_CLIENT_ID,
-            issuer=f"{settings.KEYCLOAK_ISSUER.rstrip('/')}/realms/{settings.KEYCLOAK_REALM}",
-            verify_aud=False
-        )
-
-        user = await auth_service.get_or_create_user_from_keycloak_token(payload)
-        return user
-    except Exception:
-        return None
+    return await user_repo.get_by_keycloak_id(sub)
 
 
 UserRepositoryDep = Annotated[UserRepositoryContract, Depends(get_user_repository)]

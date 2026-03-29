@@ -1,3 +1,8 @@
+/**
+ * JWT validation is handled exclusively by Kong Gateway.
+ * This guard uses request.user set by JwtAuthGuard (X-Keycloak-Sub from Kong).
+ * Do NOT add JWT validation here — it breaks the single-responsibility contract.
+ */
 import {
   Injectable,
   CanActivate,
@@ -5,7 +10,7 @@ import {
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
-import { JwtPayload } from '../strategies/jwt.strategy.js';
+import { JwtPayload } from '../types/gateway-user.types.js';
 import { AuthServiceClient } from '../services/auth-service-client.js';
 
 @Injectable()
@@ -28,20 +33,13 @@ export class OrganizationPermissionGuard implements CanActivate {
       throw new ForbiddenException('ID da organização não fornecido');
     }
 
-    const authHeader = request.headers.authorization;
-    if (!authHeader) {
-      throw new ForbiddenException('Token de autorização não fornecido');
-    }
+    const { hasPermission, role } =
+      await this.authServiceClient.getOrganizationPermissionDetails(user.sub, organizationId);
 
-    const token = authHeader.replace('Bearer ', '');
-
-    const hasPermission = await this.authServiceClient.validateOrganizationPermission(
-      user.sub,
-      organizationId,
-      token,
-    );
-
-    if (!hasPermission) {
+    if (
+      !hasPermission ||
+      (role !== 'OWNER' && role !== 'ORGANIZER')
+    ) {
       this.logger.warn(
         `User ${user.sub} denied access to organization ${organizationId} - not OWNER or ORGANIZER`,
       );
@@ -51,12 +49,6 @@ export class OrganizationPermissionGuard implements CanActivate {
           'Apenas donos e organizadores podem transmitir.',
       );
     }
-
-    const role = await this.authServiceClient.getUserRoleInOrganization(
-      user.sub,
-      organizationId,
-      token,
-    );
 
     request.organizationRole = role;
 

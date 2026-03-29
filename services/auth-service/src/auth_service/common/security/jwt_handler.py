@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 from jose import JWTError, jwt
 
@@ -10,48 +10,22 @@ logger = logging.getLogger(__name__)
 
 class JwtHandler:
     @staticmethod
-    def decode_token(
-        token: str,
-        public_key: str,
-        issuer: str,
-        audience: Optional[str] = None,
-        algorithms: List[str] = None,
-        verify_aud: bool = True,
-    ) -> Dict[str, Any]:
-        if algorithms is None:
-            algorithms = ["RS256"]
+    def parse_keycloak_access_token_claims(token: str) -> Dict[str, Any]:
+        """
+        Extrai claims do access_token devolvido pelo Keycloak sem verificar assinatura RS256.
+
+        Validação JWT em chamadas à API fica no Kong. Aqui o token foi obtido há instantes
+        do token endpoint (password / authorization_code); só precisamos de claims para
+        sincronizar o utilizador local.
+        """
+        if not token or not isinstance(token, str):
+            raise InvalidCredentialsError("Token de acesso ausente ou inválido")
         try:
-            options = {
-                "verify_signature": True,
-                "verify_aud": verify_aud,
-                "verify_exp": True,
-                "verify_iss": True,
-            }
-
-            payload = jwt.decode(
-                token,
-                public_key,
-                algorithms=algorithms,
-                options=options,
-                audience=audience,
-                issuer=issuer,
-            )
-
-            required_claims = ["sub", "exp", "iat"]
-            missing = [c for c in required_claims if c not in payload]
-            if missing:
-                raise InvalidCredentialsError(f"Claims faltando: {missing}")
-
-            return payload
-
+            raw = jwt.get_unverified_claims(token)
+            return dict(raw) if isinstance(raw, dict) else {}
         except JWTError as e:
-            logger.warning("Token inválido: %s", str(e))
-            err_msg = str(e).lower()
-            if "exp" in err_msg or "expired" in err_msg:
-                raise TokenExpiredError()
-            if "iss" in err_msg or "issuer" in err_msg:
-                raise InvalidCredentialsError("Token de origem (Issuer) inválida")
-            raise InvalidCredentialsError("Token inválido ou malformado")
+            logger.debug("Access token não é JWT ou está malformado: %s", e)
+            return {}
 
     @staticmethod
     def decode_email_token(

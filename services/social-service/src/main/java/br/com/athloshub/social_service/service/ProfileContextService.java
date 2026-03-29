@@ -33,10 +33,11 @@ public class ProfileContextService {
             throw new ResponseStatusException(UNAUTHORIZED, "Usuário não autenticado");
         }
         
-        String token = "Bearer " + jwtTokenProvider.getFullJwt()
-            .map(jwt -> jwt.getTokenValue())
-            .orElseThrow(() -> new ResponseStatusException(UNAUTHORIZED, "Token não encontrado"));
-        
+        String token = jwtTokenProvider.getBearerAuthorizationHeader();
+        if (token == null || token.isBlank()) {
+            throw new ResponseStatusException(UNAUTHORIZED, "Token não encontrado");
+        }
+
         OrganizationDTO organization = authServiceClient.getOrganizationBySlug(organizationSlug, token);
         
         return organization.isAdmin();
@@ -53,10 +54,11 @@ public class ProfileContextService {
             throw new ResponseStatusException(UNAUTHORIZED, "Usuário não autenticado");
         }
         
-        String token = "Bearer " + jwtTokenProvider.getFullJwt()
-            .map(jwt -> jwt.getTokenValue())
-            .orElseThrow(() -> new ResponseStatusException(UNAUTHORIZED, "Token não encontrado"));
-        
+        String token = jwtTokenProvider.getBearerAuthorizationHeader();
+        if (token == null || token.isBlank()) {
+            throw new ResponseStatusException(UNAUTHORIZED, "Token não encontrado");
+        }
+
         try {
             UUID teamUUID = UUID.fromString(teamId);
             
@@ -127,10 +129,11 @@ public class ProfileContextService {
     }
     
     public List<String> getUserOrganizationSlugs() {
-        String token = "Bearer " + jwtTokenProvider.getFullJwt()
-            .map(jwt -> jwt.getTokenValue())
-            .orElseThrow(() -> new ResponseStatusException(UNAUTHORIZED, "Token não encontrado"));
-        
+        String token = jwtTokenProvider.getBearerAuthorizationHeader();
+        if (token == null || token.isBlank()) {
+            throw new ResponseStatusException(UNAUTHORIZED, "Token não encontrado");
+        }
+
         List<OrganizationDTO> organizations = authServiceClient.getMyOrganizations(token);
         
         return organizations.stream()

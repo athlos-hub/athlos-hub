@@ -1,10 +1,4 @@
-import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
-
-interface OrganizationPermissionResponse {
-  hasPermission: boolean;
-  role?: 'OWNER' | 'ORGANIZER' | 'MEMBER' | 'NONE';
-  organizationId?: string;
-}
+import { Injectable, Logger } from '@nestjs/common';
 
 interface OrganizationPermissionCheckResponse {
   has_permission: boolean;
@@ -22,79 +16,15 @@ export class AuthServiceClient {
     this.authServiceUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:8000';
   }
 
-  async validateOrganizationPermission(
-    userId: string,
-    organizationId: string,
-    accessToken: string,
-  ): Promise<boolean> {
-    try {
-      const response = await fetch(
-        `${this.authServiceUrl}/organizations/${organizationId}/check-permission`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-
-      if (!response.ok) {
-        if (response.status === 403 || response.status === 404) {
-          return false;
-        }
-        throw new Error(`Auth service returned ${response.status}`);
-      }
-
-      const data: OrganizationPermissionResponse = await response.json();
-
-      return data.hasPermission && (data.role === 'OWNER' || data.role === 'ORGANIZER');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`Failed to validate organization permission: ${message}`);
-      throw new ForbiddenException(
-        'Não foi possível validar suas permissões. Tente novamente.',
-      );
-    }
-  }
-
-  async getUserRoleInOrganization(
-    userId: string,
-    organizationId: string,
-    accessToken: string,
-  ): Promise<'OWNER' | 'ORGANIZER' | 'MEMBER' | 'NONE'> {
-    try {
-      const response = await fetch(
-        `${this.authServiceUrl}/organizations/${organizationId}/my-role`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-
-      if (!response.ok) {
-        return 'NONE';
-      }
-
-      const data = await response.json();
-      return data.role || 'NONE';
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.warn(`Failed to get user role: ${message}`);
-      return 'NONE';
-    }
-  }
-
-  async checkOrganizationPermission(
+  async getOrganizationPermissionDetails(
     keycloakSub: string,
     organizationId: string,
-  ): Promise<boolean> {
+  ): Promise<{ hasPermission: boolean; role: 'OWNER' | 'ORGANIZER' | 'MEMBER' | 'NONE' | null }> {
     try {
       const url = `${this.authServiceUrl}/api/organizations/by-id/${organizationId}/permissions?keycloak_sub=${encodeURIComponent(keycloakSub)}`;
-      
+
       this.logger.log(`Validando permissão: ${url}`);
-      
+
       const response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
@@ -106,24 +36,23 @@ export class AuthServiceClient {
           this.logger.warn(
             `Organização ou usuário não encontrado: orgId=${organizationId}, keycloakSub=${keycloakSub}`,
           );
-          return false;
+          return { hasPermission: false, role: 'NONE' };
         }
         throw new Error(`Auth service returned ${response.status}`);
       }
 
       const data: OrganizationPermissionCheckResponse = await response.json();
-      
+
       this.logger.log(
         `Resultado da validação: has_permission=${data.has_permission}, role=${data.role}`,
       );
 
-      return data.has_permission;
+      const role = (data.role as 'OWNER' | 'ORGANIZER' | 'MEMBER' | 'NONE' | null) ?? 'NONE';
+      return { hasPermission: Boolean(data.has_permission), role };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(
-        `Falha ao validar permissão da organização: ${message}`,
-      );
-      return false;
+      this.logger.error(`Falha ao validar permissão da organização: ${message}`);
+      return { hasPermission: false, role: 'NONE' };
     }
   }
 }

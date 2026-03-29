@@ -54,7 +54,6 @@ def sample_notification(sample_notification_id: UUID, sample_user_id: UUID) -> N
         action_url="/test",
         is_read=False,
         read_at=None,
-        novu_notification_id=None,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
     )
@@ -73,7 +72,6 @@ def sample_read_notification(sample_notification: Notification) -> Notification:
         action_url=sample_notification.action_url,
         is_read=True,
         read_at=datetime.utcnow(),
-        novu_notification_id=None,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
     )
@@ -144,7 +142,6 @@ def multiple_notifications(sample_user_id: UUID) -> list[Notification]:
             action_url=f"/test/{i}",
             is_read=i % 2 == 0,  # Alterna entre lida e não lida
             read_at=datetime.utcnow() if i % 2 == 0 else None,
-            novu_notification_id=None,
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow(),
         )

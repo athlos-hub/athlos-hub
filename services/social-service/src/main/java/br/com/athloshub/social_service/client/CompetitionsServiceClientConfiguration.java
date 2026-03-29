@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import br.com.athloshub.social_service.security.GatewayUserAuthentication;
 
 @Configuration
 public class CompetitionsServiceClientConfiguration {
@@ -19,9 +19,11 @@ public class CompetitionsServiceClientConfiguration {
             public void apply(RequestTemplate template) {
                 Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
                 
-                if (authentication instanceof JwtAuthenticationToken jwtAuth) {
-                    String token = jwtAuth.getToken().getTokenValue();
-                    template.header("Authorization", "Bearer " + token);
+                if (authentication instanceof GatewayUserAuthentication gw) {
+                    String hdr = (String) gw.getCredentials();
+                    if (hdr != null && !hdr.isBlank()) {
+                        template.header("Authorization", hdr);
+                    }
                 }
             }
         };

@@ -18,7 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 import uuid
 
-from .routes import get_session, get_current_user
+from .routes import get_session
 from src.models.teams import TeamModel, PlayerModel
 from src.services.teams_service import TeamService
 from src.services.auth_client import AuthClient, PermissionDenied, AuthServiceUnavailable

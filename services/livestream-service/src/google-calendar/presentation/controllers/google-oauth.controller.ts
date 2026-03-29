@@ -12,7 +12,7 @@ import type { Response } from 'express';
 import { GoogleOAuthService } from '../../application/services/google-oauth.service.js';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator.js';
-import type { JwtPayload } from '../../../auth/strategies/jwt.strategy.js';
+import type { JwtPayload } from '../../../auth/types/gateway-user.types.js';
 
 @Controller('google-calendar/oauth')
 export class GoogleOAuthController {

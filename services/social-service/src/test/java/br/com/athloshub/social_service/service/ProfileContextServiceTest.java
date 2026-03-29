@@ -3,6 +3,7 @@ package br.com.athloshub.social_service.service;
 import br.com.athloshub.social_service.client.AuthServiceClient;
 import br.com.athloshub.social_service.client.CompetitionsServiceClient;
 import br.com.athloshub.social_service.dto.auth.OrganizationDTO;
+import br.com.athloshub.social_service.dto.auth.UserDTO;
 import br.com.athloshub.social_service.dto.competitions.TeamDTO;
 import br.com.athloshub.social_service.entity.Post;
 import br.com.athloshub.social_service.security.JwtTokenProvider;
@@ -11,11 +12,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
@@ -56,7 +55,7 @@ class ProfileContextServiceTest {
     @Test
     void canCreatePostAsOrganization_whenTokenMissing_shouldThrow401() {
         when(jwtTokenProvider.getCurrentKeycloakId()).thenReturn(me);
-        when(jwtTokenProvider.getFullJwt()).thenReturn(Optional.empty());
+        when(jwtTokenProvider.getBearerAuthorizationHeader()).thenReturn(null);
 
         assertThatThrownBy(() -> service.canCreatePostAsOrganization(orgSlug))
                 .isInstanceOf(ResponseStatusException.class)
@@ -69,10 +68,7 @@ class ProfileContextServiceTest {
     @Test
     void canCreatePostAsOrganization_shouldCallAuthClient_andReturnIsAdmin() {
         when(jwtTokenProvider.getCurrentKeycloakId()).thenReturn(me);
-
-        Jwt jwt = mock(Jwt.class);
-        when(jwt.getTokenValue()).thenReturn("tok");
-        when(jwtTokenProvider.getFullJwt()).thenReturn(Optional.of(jwt));
+        when(jwtTokenProvider.getBearerAuthorizationHeader()).thenReturn("Bearer tok");
 
         OrganizationDTO org = mock(OrganizationDTO.class);
         when(org.isAdmin()).thenReturn(true);
@@ -100,7 +96,7 @@ class ProfileContextServiceTest {
     @Test
     void canCreatePostAsTeam_whenTokenMissing_shouldThrow401() {
         when(jwtTokenProvider.getCurrentKeycloakId()).thenReturn(me);
-        when(jwtTokenProvider.getFullJwt()).thenReturn(Optional.empty());
+        when(jwtTokenProvider.getBearerAuthorizationHeader()).thenReturn(null);
 
         assertThatThrownBy(() -> service.canCreatePostAsTeam(UUID.randomUUID().toString()))
                 .isInstanceOf(ResponseStatusException.class)
@@ -113,10 +109,7 @@ class ProfileContextServiceTest {
     @Test
     void canCreatePostAsTeam_whenInvalidTeamId_shouldThrow400() {
         when(jwtTokenProvider.getCurrentKeycloakId()).thenReturn(me);
-
-        Jwt jwt = mock(Jwt.class);
-        when(jwt.getTokenValue()).thenReturn("tok");
-        when(jwtTokenProvider.getFullJwt()).thenReturn(Optional.of(jwt));
+        when(jwtTokenProvider.getBearerAuthorizationHeader()).thenReturn("Bearer tok");
 
         assertThatThrownBy(() -> service.canCreatePostAsTeam("not-a-uuid"))
                 .isInstanceOf(ResponseStatusException.class)
@@ -129,17 +122,20 @@ class ProfileContextServiceTest {
     @Test
     void canCreatePostAsTeam_shouldCallCompetitionsClient_andReturnIsMember() {
         when(jwtTokenProvider.getCurrentKeycloakId()).thenReturn(me);
-
-        Jwt jwt = mock(Jwt.class);
-        when(jwt.getTokenValue()).thenReturn("tok");
-        when(jwtTokenProvider.getFullJwt()).thenReturn(Optional.of(jwt));
+        when(jwtTokenProvider.getBearerAuthorizationHeader()).thenReturn("Bearer tok");
 
         UUID teamUUID = UUID.randomUUID();
         TeamDTO team = mock(TeamDTO.class);
 
-        UUID userUUID = UUID.fromString(me);
+        UUID userUUID = UUID.randomUUID();
+        UserDTO currentUser = mock(UserDTO.class);
+        when(currentUser.getId()).thenReturn(userUUID);
+        when(authServiceClient.getUserByKeycloakId(eq(me), eq("Bearer tok"))).thenReturn(currentUser);
+
         when(team.isPlayerMember(userUUID)).thenReturn(true);
 
+        when(authServiceClient.getTeamById(eq(teamUUID), eq("Bearer tok")))
+                .thenThrow(new RuntimeException("not in auth"));
         when(competitionsServiceClient.getTeamById(eq(teamUUID), eq("Bearer tok"))).thenReturn(team);
 
         boolean result = service.canCreatePostAsTeam(teamUUID.toString());
@@ -152,12 +148,14 @@ class ProfileContextServiceTest {
     @Test
     void canCreatePostAsTeam_whenCompetitionsClientThrows_shouldThrow404() {
         when(jwtTokenProvider.getCurrentKeycloakId()).thenReturn(me);
-
-        Jwt jwt = mock(Jwt.class);
-        when(jwt.getTokenValue()).thenReturn("tok");
-        when(jwtTokenProvider.getFullJwt()).thenReturn(Optional.of(jwt));
+        when(jwtTokenProvider.getBearerAuthorizationHeader()).thenReturn("Bearer tok");
 
         UUID teamUUID = UUID.randomUUID();
+        UserDTO currentUser = mock(UserDTO.class);
+        when(currentUser.getId()).thenReturn(UUID.randomUUID());
+        when(authServiceClient.getUserByKeycloakId(eq(me), eq("Bearer tok"))).thenReturn(currentUser);
+        when(authServiceClient.getTeamById(eq(teamUUID), eq("Bearer tok")))
+                .thenThrow(new RuntimeException("not in auth"));
         when(competitionsServiceClient.getTeamById(eq(teamUUID), eq("Bearer tok")))
                 .thenThrow(new RuntimeException("boom"));
 
@@ -169,7 +167,7 @@ class ProfileContextServiceTest {
 
     @Test
     void getUserOrganizationSlugs_whenTokenMissing_shouldThrow401() {
-        when(jwtTokenProvider.getFullJwt()).thenReturn(Optional.empty());
+        when(jwtTokenProvider.getBearerAuthorizationHeader()).thenReturn(null);
 
         assertThatThrownBy(() -> service.getUserOrganizationSlugs())
                 .isInstanceOf(ResponseStatusException.class)
@@ -181,9 +179,7 @@ class ProfileContextServiceTest {
 
     @Test
     void getUserOrganizationSlugs_shouldReturnOnlySlugs() {
-        Jwt jwt = mock(Jwt.class);
-        when(jwt.getTokenValue()).thenReturn("tok");
-        when(jwtTokenProvider.getFullJwt()).thenReturn(Optional.of(jwt));
+        when(jwtTokenProvider.getBearerAuthorizationHeader()).thenReturn("Bearer tok");
 
         OrganizationDTO o1 = mock(OrganizationDTO.class);
         OrganizationDTO o2 = mock(OrganizationDTO.class);

@@ -127,7 +127,6 @@ async def sample_notification(
         action_url="/test",
         is_read=False,
         read_at=None,
-        novu_notification_id=None,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
     )
@@ -155,7 +154,6 @@ async def sample_read_notification(
         action_url="/test",
         is_read=True,
         read_at=datetime.utcnow(),
-        novu_notification_id=None,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
     )
@@ -186,7 +184,6 @@ async def multiple_notifications(
             action_url=f"/test/{i}",
             is_read=i % 2 == 0,  # Alterna entre lida e não lida
             read_at=datetime.utcnow() if i % 2 == 0 else None,
-            novu_notification_id=None,
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow(),
         )
@@ -219,7 +216,6 @@ async def another_user_notification(
         action_url=None,
         is_read=False,
         read_at=None,
-        novu_notification_id=None,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
     )

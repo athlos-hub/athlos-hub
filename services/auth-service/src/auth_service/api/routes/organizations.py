@@ -4,8 +4,7 @@ import logging
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, File, Form, Query, Security, UploadFile, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import APIRouter, File, Form, Query, UploadFile, status
 
 from auth_service.api.deps import (
     CurrentUserDep,
@@ -37,8 +36,6 @@ from auth_service.schemas.user import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/organizations", tags=["Organizations"])
-
-optional_bearer = HTTPBearer(auto_error=False)
 
 
 @router.post(
@@ -116,7 +113,6 @@ async def get_organization_by_slug(
     org_slug: str,
     org_service: OrganizationServiceDep,
     user: CurrentUserOptionalDep,
-    _: HTTPAuthorizationCredentials | None = Security(optional_bearer),
 ):
     """Obtém organização por slug."""
 

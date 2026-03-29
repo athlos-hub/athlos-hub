@@ -4,84 +4,79 @@ import { AuthServiceClient } from '../../services/auth-service-client';
 
 describe('OrganizationPermissionGuard', () => {
   let guard: OrganizationPermissionGuard;
-  let authServiceClient: jest.Mocked<AuthServiceClient>;
+  let authServiceClient: jest.Mocked<Pick<AuthServiceClient, 'getOrganizationPermissionDetails'>>;
 
   beforeEach(() => {
     authServiceClient = {
-      validateOrganizationPermission: jest.fn(),
-      getUserRoleInOrganization: jest.fn(),
-    } as any;
+      getOrganizationPermissionDetails: jest.fn(),
+    };
 
-    guard = new OrganizationPermissionGuard(authServiceClient);
+    guard = new OrganizationPermissionGuard(authServiceClient as AuthServiceClient);
   });
 
-  const createContext = (user: any, body?: any, params?: any, authHeader?: string) => ({
-    switchToHttp: () => ({
-      getRequest: () => ({
-        user,
-        body,
-        params,
-        headers: { authorization: authHeader },
+  const createContext = (user: unknown, body?: unknown, params?: unknown) =>
+    ({
+      switchToHttp: () => ({
+        getRequest: () => ({
+          user,
+          body,
+          params,
+        }),
       }),
-    }),
-  } as any);
+    }) as Parameters<OrganizationPermissionGuard['canActivate']>[0];
 
   it('should throw when user not authenticated', async () => {
-    const context = createContext(null, {}, {}, 'Bearer token');
+    const context = createContext(null, {}, {});
 
     await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
   });
 
   it('should throw when organizationId missing', async () => {
-    const context = createContext({ sub: 'u1' }, {}, {}, 'Bearer token');
-
-    await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
-  });
-
-  it('should throw when auth header missing', async () => {
-    const context = createContext({ sub: 'u1' }, { organizationId: 'org1' }, {});
+    const context = createContext({ sub: 'u1' }, {}, {});
 
     await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
   });
 
   it('should throw when permission denied', async () => {
-    authServiceClient.validateOrganizationPermission.mockResolvedValue(false);
-    const context = createContext({ sub: 'u1' }, { organizationId: 'org1' }, {}, 'Bearer token');
+    authServiceClient.getOrganizationPermissionDetails.mockResolvedValue({
+      hasPermission: false,
+      role: 'NONE',
+    });
+    const context = createContext({ sub: 'u1' }, { organizationId: 'org1' }, {});
 
     await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
   });
 
   it('should allow access when authorized', async () => {
-    authServiceClient.validateOrganizationPermission.mockResolvedValue(true);
-    authServiceClient.getUserRoleInOrganization.mockResolvedValue('OWNER');
+    authServiceClient.getOrganizationPermissionDetails.mockResolvedValue({
+      hasPermission: true,
+      role: 'OWNER',
+    });
     const request = {
       user: { sub: 'u1' },
       body: { organizationId: 'org1' },
-      headers: { authorization: 'Bearer token' },
     };
     const context = {
       switchToHttp: () => ({
         getRequest: () => request,
       }),
-    } as any;
+    } as Parameters<OrganizationPermissionGuard['canActivate']>[0];
 
     const result = await guard.canActivate(context);
 
     expect(result).toBe(true);
-    expect(request.organizationRole).toBe('OWNER');
+    expect((request as { organizationRole?: string }).organizationRole).toBe('OWNER');
   });
 
   it('should get organizationId from params if not in body', async () => {
-    authServiceClient.validateOrganizationPermission.mockResolvedValue(true);
-    authServiceClient.getUserRoleInOrganization.mockResolvedValue('ORGANIZER');
-    const context = createContext({ sub: 'u1' }, {}, { organizationId: 'org1' }, 'Bearer token');
+    authServiceClient.getOrganizationPermissionDetails.mockResolvedValue({
+      hasPermission: true,
+      role: 'ORGANIZER',
+    });
+    const context = createContext({ sub: 'u1' }, {}, { organizationId: 'org1' });
 
     await guard.canActivate(context);
 
-    expect(authServiceClient.validateOrganizationPermission).toHaveBeenCalledWith(
-      'u1',
-      'org1',
-      'token',
-    );
+    expect(authServiceClient.getOrganizationPermissionDetails).toHaveBeenCalledWith('u1', 'org1');
   });
 });

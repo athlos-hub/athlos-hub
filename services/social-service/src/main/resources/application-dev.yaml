@@ -14,13 +14,6 @@ spring:
     livereload:
       enabled: true
   
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: http://localhost:8100/keycloak/realms/athlos
-          jwk-set-uri: http://localhost:8100/keycloak/realms/athlos/protocol/openid-connect/certs
-
 logging:
   level:
     root: INFO

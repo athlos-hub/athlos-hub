@@ -5,7 +5,6 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 import { Redis } from 'ioredis';
 import { v4 as uuidv4 } from 'uuid';
-import * as jwt from 'jsonwebtoken';
 
 describe('Lives Auth Protected - Integration Tests (e2e)', () => {
   let app: INestApplication;
@@ -15,16 +14,6 @@ describe('Lives Auth Protected - Integration Tests (e2e)', () => {
   const databaseUrl = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5433/livestream_test';
   const redisHost = process.env.REDIS_HOST || 'localhost';
   const redisPort = parseInt(process.env.REDIS_PORT || '6380');
-
-  // Test JWT secret (for testing only)
-  const testPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
-MIIEowIBAAKCAQEAtest
------END RSA PRIVATE KEY-----`;
-
-  const createTestToken = (payload: { sub: string; email: string }) => {
-    // For testing, we'll use a simpler approach - mock the guard
-    return 'test-token';
-  };
 
   beforeAll(async () => {
     prisma = new PrismaClient({
@@ -67,9 +56,10 @@ MIIEowIBAAKCAQEAtest
 
     // Mock AuthServiceClient to always return true for permissions
     const mockAuthServiceClient = {
-      checkOrganizationPermission: jest.fn().mockResolvedValue(true),
-      checkPermission: jest.fn().mockResolvedValue(true),
-      getRole: jest.fn().mockResolvedValue('ADMIN'),
+      getOrganizationPermissionDetails: jest.fn().mockResolvedValue({
+        hasPermission: true,
+        role: 'OWNER',
+      }),
     };
 
     // Mock JwtAuthGuard to always pass and inject test user

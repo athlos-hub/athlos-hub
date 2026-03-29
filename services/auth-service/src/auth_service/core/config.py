@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import List, Optional
 from urllib.parse import quote_plus
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -20,6 +20,9 @@ class Settings(BaseSettings):
 
     # Ambiente: apenas dev ou prod (aliases: development → dev, production → prod)
     ENV: str = Field(default="dev")
+
+    # true em produção; false só em dev/testes (aceita X-Test-Sub / X-Test-Roles).
+    TRUST_GATEWAY: bool = Field(default=True)
 
     # Keycloak
     KEYCLOAK_URL: str
@@ -51,11 +54,6 @@ class Settings(BaseSettings):
     DATABASE_NAME: str
     DATABASE_USER: str
     DATABASE_PASSWORD: str
-
-    # Conexão com o keycloak
-    KEYCLOAK_DATABASE_URL: str
-    KEYCLOAK_DATABASE_USER: str
-    KEYCLOAK_DATABASE_PASSWORD: str
 
     # Database Pool (optional with sensible defaults)
     DB_POOL_MIN_SIZE: int = 5
@@ -103,6 +101,22 @@ class Settings(BaseSettings):
         raise ValueError(
             "ENV must be 'dev' or 'prod' (aliases: development, production)"
         )
+
+    @field_validator("TRUST_GATEWAY", mode="before")
+    @classmethod
+    def _parse_trust_gateway(cls, v):
+        if v is None or (isinstance(v, str) and v.strip() == ""):
+            return True
+        if isinstance(v, bool):
+            return v
+        s = str(v).strip().lower()
+        return s not in ("false", "0", "no")
+
+    @model_validator(mode="after")
+    def _trust_gateway_required_in_prod(self):
+        if self.ENV == "prod" and not self.TRUST_GATEWAY:
+            raise ValueError("TRUST_GATEWAY cannot be false when ENV is prod")
+        return self
 
     @property
     def database_url(self) -> str:

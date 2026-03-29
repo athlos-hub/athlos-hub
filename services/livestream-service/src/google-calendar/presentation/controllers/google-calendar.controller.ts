@@ -13,7 +13,7 @@ import {
 } from '../dto/calendar-url-response.dto.js';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator.js';
-import type { JwtPayload } from '../../../auth/strategies/jwt.strategy.js';
+import type { JwtPayload } from '../../../auth/types/gateway-user.types.js';
 
 @Controller('google-calendar')
 @UseGuards(JwtAuthGuard)

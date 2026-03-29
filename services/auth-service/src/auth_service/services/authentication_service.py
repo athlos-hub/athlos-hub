@@ -56,8 +56,6 @@ keycloak_openid = KeycloakOpenID(
 class AuthenticationService:
     """Serviço para operações de autenticação."""
 
-    _public_key_cache: Optional[str] = None
-
     def __init__(self, user_repository: UserRepositoryContract):
         self._user_repo = user_repository
 
@@ -108,19 +106,23 @@ class AuthenticationService:
             logger.error("Erro ao redefinir senha para usuário %s: %s", user_id, exc)
             raise AppException("Erro ao redefinir senha. Tente novamente.")
 
-    @staticmethod
-    async def get_public_key() -> str:
-        if AuthenticationService._public_key_cache:
-            return AuthenticationService._public_key_cache
+    async def _claims_for_user_sync(self, access_token: str) -> dict[str, Any]:
+        """
+        Claims para get_or_create_user_from_keycloak_token: JWT sem verificação de assinatura
+        ou, se faltar `sub` (access tokens minimalistas), merge com userinfo do Keycloak.
+        """
+        claims = JwtHandler.parse_keycloak_access_token_claims(access_token)
+        if claims.get("sub"):
+            return claims
         try:
-            key_pem = await run_in_threadpool(keycloak_openid.public_key)
-            AuthenticationService._public_key_cache = (
-                "-----BEGIN PUBLIC KEY-----\n" f"{key_pem}\n" "-----END PUBLIC KEY-----"
-            )
-            return AuthenticationService._public_key_cache
+            userinfo = await run_in_threadpool(keycloak_openid.userinfo, access_token)
+            if isinstance(userinfo, dict):
+                return {**claims, **userinfo}
         except Exception as exc:
-            logger.error("Erro ao obter chave pública: %s", exc)
-            raise KeycloakCommunicationError("Erro ao obter chave pública do Keycloak")
+            logger.warning(
+                "Falha ao obter userinfo do Keycloak (access_token sem sub): %s", exc
+            )
+        return claims
 
     @staticmethod
     def generate_email_token(user_id: str, expiry_hours: int = 24) -> str:
@@ -165,14 +167,7 @@ class AuthenticationService:
                     "Falha ao trocar code por token no Keycloak"
                 )
 
-            public_key = await self.get_public_key()
-            token_payload = JwtHandler.decode_token(
-                token=access_token,
-                public_key=public_key,
-                verify_aud=False,
-                audience=settings.KEYCLOAK_CLIENT_ID,
-                issuer=f"{settings.KEYCLOAK_ISSUER.rstrip('/')}/realms/{settings.KEYCLOAK_REALM}",
-            )
+            token_payload = await self._claims_for_user_sync(access_token)
             db_user = await self.get_or_create_user_from_keycloak_token(token_payload)
 
             try:
@@ -226,14 +221,7 @@ class AuthenticationService:
                     "Resposta inválida do servidor de autenticação"
                 )
 
-            public_key = await self.get_public_key()
-            token_payload = JwtHandler.decode_token(
-                token=token_response.access_token,
-                public_key=public_key,
-                audience=settings.KEYCLOAK_CLIENT_ID,
-                issuer=f"{settings.KEYCLOAK_ISSUER.rstrip('/')}/realms/{settings.KEYCLOAK_REALM}",
-                verify_aud=False,
-            )
+            token_payload = await self._claims_for_user_sync(token_response.access_token)
             await self.get_or_create_user_from_keycloak_token(token_payload)
             logger.info("Login bem-sucedido para usuário: %s", email)
             return TokenResponse(

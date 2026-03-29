@@ -33,28 +33,24 @@ class TestAuthenticationServiceLogin:
             "auth_service.services.authentication_service.run_in_threadpool"
         ) as mock_threadpool:
             with patch.object(
-                AuthenticationService, "get_public_key", new_callable=AsyncMock
-            ) as mock_get_key:
-                with patch(
-                    "auth_service.services.authentication_service.JwtHandler.decode_token"
-                ) as mock_decode:
-                    with patch.object(
-                        service, "get_or_create_user_from_keycloak_token", new_callable=AsyncMock
-                    ) as mock_get_user:
-                        mock_threadpool.return_value = {
-                            "access_token": "test_access_token",
-                            "refresh_token": "test_refresh_token",
-                            "expires_in": 300,
-                        }
-                        mock_get_key.return_value = "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----"
-                        mock_decode.return_value = {"sub": "keycloak-user-123"}
-                        mock_get_user.return_value = mock_user
+                service, "_claims_for_user_sync", new_callable=AsyncMock
+            ) as mock_claims:
+                with patch.object(
+                    service, "get_or_create_user_from_keycloak_token", new_callable=AsyncMock
+                ) as mock_get_user:
+                    mock_threadpool.return_value = {
+                        "access_token": "test_access_token",
+                        "refresh_token": "test_refresh_token",
+                        "expires_in": 300,
+                    }
+                    mock_claims.return_value = {"sub": "keycloak-user-123"}
+                    mock_get_user.return_value = mock_user
 
-                        result = await service.login("user@example.com", "password123")
+                    result = await service.login("user@example.com", "password123")
 
-                        assert result.access_token == "test_access_token"
-                        assert result.refresh_token == "test_refresh_token"
-                        assert result.expires_in == 300
+                    assert result.access_token == "test_access_token"
+                    assert result.refresh_token == "test_refresh_token"
+                    assert result.expires_in == 300
 
     @pytest.mark.asyncio
     async def test_login_keycloak_authentication_error(self, mock_user_repository):
@@ -172,32 +168,28 @@ class TestAuthenticationServiceHandleKeycloakCallback:
             "auth_service.services.authentication_service.run_in_threadpool"
         ) as mock_threadpool:
             with patch.object(
-                AuthenticationService, "get_public_key", new_callable=AsyncMock
-            ) as mock_get_key:
-                with patch(
-                    "auth_service.services.authentication_service.JwtHandler.decode_token"
-                ) as mock_decode:
+                service, "_claims_for_user_sync", new_callable=AsyncMock
+            ) as mock_claims:
+                with patch.object(
+                    service, "get_or_create_user_from_keycloak_token", new_callable=AsyncMock
+                ) as mock_get_user:
                     with patch.object(
-                        service, "get_or_create_user_from_keycloak_token", new_callable=AsyncMock
-                    ) as mock_get_user:
-                        with patch.object(
-                            service, "add_role_to_user"
-                        ):
-                            mock_threadpool.return_value = {
-                                "access_token": "callback_access_token",
-                                "refresh_token": "callback_refresh_token",
-                            }
-                            mock_get_key.return_value = "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----"
-                            mock_decode.return_value = {"sub": "keycloak-user-123"}
-                            mock_get_user.return_value = mock_user
+                        service, "add_role_to_user"
+                    ):
+                        mock_threadpool.return_value = {
+                            "access_token": "callback_access_token",
+                            "refresh_token": "callback_refresh_token",
+                        }
+                        mock_claims.return_value = {"sub": "keycloak-user-123"}
+                        mock_get_user.return_value = mock_user
 
-                            result = await service.handle_keycloak_callback(
-                                "valid_code", "http://localhost/callback"
-                            )
+                        result = await service.handle_keycloak_callback(
+                            "valid_code", "http://localhost/callback"
+                        )
 
-                            assert result["access_token"] == "callback_access_token"
-                            assert result["refresh_token"] == "callback_refresh_token"
-                            assert result["user"]["email"] == mock_user.email
+                        assert result["access_token"] == "callback_access_token"
+                        assert result["refresh_token"] == "callback_refresh_token"
+                        assert result["user"]["email"] == mock_user.email
 
     @pytest.mark.asyncio
     async def test_callback_no_access_token(self, mock_user_repository):
@@ -241,24 +233,6 @@ class TestAuthenticationServiceHandleKeycloakAuthError:
 
         with pytest.raises(InvalidCredentialsError):
             service._handle_keycloak_auth_error(error)
-
-
-class TestAuthenticationServiceGetPublicKeyError:
-    """Tests for get_public_key error handling."""
-
-    @pytest.mark.asyncio
-    async def test_get_public_key_error(self, mock_user_repository):
-        """Test KeycloakCommunicationError when getting public key fails."""
-        # Reset cache
-        AuthenticationService._public_key_cache = None
-
-        with patch(
-            "auth_service.services.authentication_service.run_in_threadpool"
-        ) as mock_threadpool:
-            mock_threadpool.side_effect = Exception("Connection error")
-
-            with pytest.raises(KeycloakCommunicationError):
-                await AuthenticationService.get_public_key()
 
 
 class TestAuthenticationServiceEmailTokenEdgeCases:
@@ -571,23 +545,6 @@ class TestAuthenticationServiceLogoutSecond:
 
             with pytest.raises(KeycloakCommunicationError):
                 await service.logout("invalid_refresh_token")
-
-
-class TestAuthenticationServiceGetPublicKey:
-    """Tests for get_public_key method."""
-
-    @pytest.mark.asyncio
-    async def test_get_public_key_cached(self, mock_user_repository):
-        """Test returning cached public key."""
-        # Set cached value
-        AuthenticationService._public_key_cache = "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----"
-        
-        result = await AuthenticationService.get_public_key()
-
-        assert "BEGIN PUBLIC KEY" in result
-
-        # Reset cache
-        AuthenticationService._public_key_cache = None
 
 
 class TestAuthenticationServiceEmailToken:

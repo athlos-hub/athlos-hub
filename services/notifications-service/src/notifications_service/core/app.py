@@ -12,6 +12,10 @@ from notifications_service.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+# JWT validation is handled exclusively by Kong Gateway.
+# This service trusts X-Keycloak-Sub injected by Kong.
+# Do NOT add JWT validation here — it breaks the single-responsibility contract.
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

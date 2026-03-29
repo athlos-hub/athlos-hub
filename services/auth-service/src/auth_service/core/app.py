@@ -7,11 +7,14 @@ from auth_service.infrastructure.database.client import db
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from auth_service.api.middleware import KeycloakAuthMiddleware
 from auth_service.api.router import api_router
 from auth_service.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+# JWT validation is handled exclusively by Kong Gateway.
+# This service trusts X-Keycloak-* headers injected by Kong.
+# Do NOT add JWT validation middleware here — it breaks the single-responsibility contract.
 
 
 @asynccontextmanager
@@ -58,8 +61,6 @@ def create_app() -> FastAPI:
         version="1.0.0",
         lifespan=lifespan,
     )
-
-    app.add_middleware(KeycloakAuthMiddleware)
 
     app.add_middleware(
         CORSMiddleware,

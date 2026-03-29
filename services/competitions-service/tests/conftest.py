@@ -65,7 +65,6 @@ async def client_fixture(session: AsyncSession):
     from uuid import UUID
 
     from src.api.deps import get_current_keycloak_id
-    from src.routes.routes import get_current_user
 
     mock_auth_client = AsyncMock()
     mock_auth_client.__aenter__.return_value = mock_auth_client
@@ -87,19 +86,14 @@ async def client_fixture(session: AsyncSession):
 
         app.dependency_overrides[get_session] = lambda: session
 
-        async def mock_get_current_user():
-            return {
-                "sub": "test-user-123",
-                "email": "test@example.com",
-                "preferred_username": "testuser",
-                "realm_access": {"roles": ["user", "admin"]},
-            }
-
         async def mock_get_current_keycloak_id():
             return UUID("00000000-0000-0000-0000-000000000001")
 
-        app.dependency_overrides[get_current_user] = mock_get_current_user
         app.dependency_overrides[get_current_keycloak_id] = mock_get_current_keycloak_id
 
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"X-Keycloak-Sub": "00000000-0000-0000-0000-000000000001"},
+        ) as client:
             yield client

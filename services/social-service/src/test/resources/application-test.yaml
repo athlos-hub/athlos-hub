@@ -22,13 +22,6 @@ spring:
       host: localhost
       port: 6380
 
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: http://localhost:8080/realms/test
-          jwk-set-uri: http://localhost:8080/realms/test/protocol/openid-connect/certs
-
 # Logging para testes
 logging:
   level:

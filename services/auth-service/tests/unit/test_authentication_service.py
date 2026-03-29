@@ -171,37 +171,6 @@ class TestAuthenticationServicePasswordReset:
                     await service.reset_user_password(user_id, new_password)
 
 
-class TestAuthenticationServicePublicKeyCache:
-    """Tests for public key caching."""
-
-    def test_public_key_cache_initialization(self):
-        """Test that public key cache starts as None."""
-        assert AuthenticationService._public_key_cache is None
-
-    @pytest.mark.asyncio
-    async def test_get_public_key_caches_result(self, mock_user_repository):
-        """Test that get_public_key caches the result."""
-        service = AuthenticationService(user_repository=mock_user_repository)
-
-        # Reset cache first
-        AuthenticationService._public_key_cache = None
-
-        with patch("auth_service.services.authentication_service.keycloak_openid") as mock_keycloak_openid:
-            with patch("auth_service.services.authentication_service.run_in_threadpool") as mock_threadpool:
-                mock_threadpool.return_value = "test-key-content"
-
-                # First call
-                key1 = await AuthenticationService.get_public_key()
-                # Second call
-                key2 = await AuthenticationService.get_public_key()
-
-                # Should contain BEGIN and END markers
-                assert "-----BEGIN PUBLIC KEY-----" in key1
-                assert "-----END PUBLIC KEY-----" in key1
-                # Both calls should return the same cached value
-                assert key1 == key2
-
-
 class TestAuthenticationServiceGetUserInfoForPasswordReset:
     """Tests for get_user_info_for_password_reset method."""
 

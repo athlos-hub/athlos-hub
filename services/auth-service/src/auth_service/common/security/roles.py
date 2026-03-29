@@ -1,55 +1,35 @@
-import inspect
-from typing import Awaitable, Callable, List, Optional, Union
+from typing import Annotated, List
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-
-from auth_service.common.security.jwt_handler import JwtHandler
-
-security = HTTPBearer()
+from auth_service.common.gateway_identity import resolve_gateway_roles
+from fastapi import Header, HTTPException, status
 
 
 class RoleChecker:
-    def __init__(
+    """Autorização por papéis do realm (via cabeçalhos injetados pelo Kong após validar o JWT).
+
+    JWT validation is handled exclusively by Kong Gateway.
+    This service trusts X-Keycloak-Roles injected by Kong.
+    Do NOT add JWT validation here — it breaks the single-responsibility contract.
+    """
+
+    def __init__(self, allowed_roles: List[str]):
+        self.allowed_roles = {r.lower() for r in allowed_roles}
+
+    def __call__(
         self,
-        allowed_roles: List[str],
-        public_key: Union[str, Callable[[], Awaitable[str]]],
-        issuer: str,
-        audience: Optional[str] = None,
-    ):
-        self.allowed_roles = allowed_roles
-        self.public_key = public_key
-        self.audience = audience
-        self.issuer = issuer
-
-    async def _get_key(self) -> str:
-        if callable(self.public_key):
-            result = self.public_key()
-            if inspect.isawaitable(result):
-                return await result
-            return result
-        return self.public_key
-
-    async def __call__(self, token: HTTPAuthorizationCredentials = Depends(security)):
-        resolved_key = await self._get_key()
-
-        payload = JwtHandler.decode_token(
-            token=token.credentials,
-            public_key=resolved_key,
-            audience=None,
-            issuer=self.issuer,
-            verify_aud=False,
-        )
-
-        realm_access = payload.get("realm_access", {})
-        user_roles = realm_access.get("roles", [])
-
-        has_role = any(role in user_roles for role in self.allowed_roles)
-
-        if not has_role:
+        x_keycloak_roles: Annotated[str | None, Header(alias="X-Keycloak-Roles")] = None,
+        x_test_roles: Annotated[str | None, Header(alias="X-Test-Roles")] = None,
+    ) -> None:
+        roles_header = resolve_gateway_roles(x_keycloak_roles, x_test_roles)
+        if not roles_header:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Acesso negado. Requer permissão: {self.allowed_roles}",
+                detail="Acesso negado: papéis ausentes (esperado após passagem pelo API Gateway).",
             )
 
-        return payload
+        roles = {r.strip().lower() for r in roles_header.split(",") if r.strip()}
+        if not roles.intersection(self.allowed_roles):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Acesso negado. Requer um dos papéis: {sorted(self.allowed_roles)}",
+            )

@@ -1,26 +1,58 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtAuthGuard } from '../jwt-auth.guard';
 
 describe('JwtAuthGuard', () => {
-  it('should return user when valid', () => {
-    const guard = new JwtAuthGuard();
-    const user = { sub: 'user-1' } as any;
+  const mockConfig = (trust = true, env: 'dev' | 'prod' = 'dev') =>
+    ({
+      get: jest.fn((key: string) => {
+        if (key === 'TRUST_GATEWAY') return trust;
+        if (key === 'ENV') return env;
+        return undefined;
+      }),
+    }) as unknown as ConfigService;
 
-    const result = guard.handleRequest(null, user, null);
+  const createContext = (headers: Record<string, string>) =>
+    ({
+      switchToHttp: () => ({
+        getRequest: () => ({ headers }),
+      }),
+    }) as ExecutionContext;
 
-    expect(result).toBe(user);
+  it('should set user from gateway headers', () => {
+    const guard = new JwtAuthGuard(mockConfig());
+    const req: { headers: Record<string, string>; user?: unknown } = {
+      headers: {
+        'x-keycloak-sub': 'sub-1',
+        'x-keycloak-email': 'a@b.com',
+        'x-keycloak-preferred-username': 'user1',
+        'x-keycloak-roles': 'user,admin',
+      },
+    };
+    const ctx = {
+      switchToHttp: () => ({ getRequest: () => req }),
+    } as ExecutionContext;
+
+    expect(guard.canActivate(ctx)).toBe(true);
+    expect((req as { user: { sub: string } }).user.sub).toBe('sub-1');
   });
 
-  it('should throw when error provided', () => {
-    const guard = new JwtAuthGuard();
-    const err = new Error('fail');
+  it('should throw when X-Keycloak-Sub missing', () => {
+    const guard = new JwtAuthGuard(mockConfig());
+    const ctx = createContext({});
 
-    expect(() => guard.handleRequest(err, null, null)).toThrow(err);
+    expect(() => guard.canActivate(ctx)).toThrow(UnauthorizedException);
   });
 
-  it('should throw UnauthorizedException when no user', () => {
-    const guard = new JwtAuthGuard();
-
-    expect(() => guard.handleRequest(null, null, null)).toThrow(UnauthorizedException);
+  it('should accept X-Test-Sub when TRUST_GATEWAY is false and not prod', () => {
+    const guard = new JwtAuthGuard(mockConfig(false, 'dev'));
+    const req: { headers: Record<string, string>; user?: unknown } = {
+      headers: { 'x-test-sub': 'test-sub-1' },
+    };
+    const ctx = {
+      switchToHttp: () => ({ getRequest: () => req }),
+    } as ExecutionContext;
+    expect(guard.canActivate(ctx)).toBe(true);
+    expect((req as { user: { sub: string } }).user.sub).toBe('test-sub-1');
   });
 });

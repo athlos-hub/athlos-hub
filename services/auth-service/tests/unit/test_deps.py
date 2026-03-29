@@ -1,10 +1,8 @@
 """Unit tests for API dependencies."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
-
-from starlette.requests import Request
 
 from auth_service.api.deps import (
     get_user_repository,
@@ -126,89 +124,23 @@ class TestServiceFactories:
 
 
 class TestGetCurrentUserOptional:
-    """Tests for get_current_user_optional dependency."""
+    """Tests for get_current_user_optional dependency (cabeçalho X-Keycloak-Sub)."""
 
     @pytest.mark.asyncio
-    async def test_no_auth_header_returns_none(self):
-        """Test returns None when no Authorization header."""
-        request = MagicMock(spec=Request)
-        request.headers.get.return_value = None
+    async def test_no_header_returns_none(self):
+        mock_repo = AsyncMock()
+        mock_repo.get_by_keycloak_id = AsyncMock()
 
-        mock_auth_service = MagicMock()
-
-        result = await get_current_user_optional(request, mock_auth_service)
+        result = await get_current_user_optional(mock_repo, None)
 
         assert result is None
+        mock_repo.get_by_keycloak_id.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_invalid_auth_header_format_returns_none(self):
-        """Test returns None when Authorization header doesn't start with Bearer."""
-        request = MagicMock(spec=Request)
-        request.headers.get.return_value = "Basic dXNlcjpwYXNz"
+    async def test_header_returns_user(self, mock_user):
+        mock_repo = AsyncMock()
+        mock_repo.get_by_keycloak_id = AsyncMock(return_value=mock_user)
 
-        mock_auth_service = MagicMock()
+        result = await get_current_user_optional(mock_repo, str(mock_user.keycloak_id))
 
-        result = await get_current_user_optional(request, mock_auth_service)
-
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_valid_token_returns_user(self, mock_user):
-        """Test returns user when valid token is provided."""
-        request = MagicMock(spec=Request)
-        request.headers.get.return_value = "Bearer valid_token"
-
-        mock_auth_service = AsyncMock()
-        mock_auth_service.get_or_create_user_from_keycloak_token = AsyncMock(
-            return_value=mock_user
-        )
-
-        with patch(
-            "auth_service.api.deps.AuthenticationService.get_public_key",
-            new_callable=AsyncMock,
-        ) as mock_get_key:
-            with patch("auth_service.api.deps.JwtHandler.decode_token") as mock_decode:
-                mock_get_key.return_value = "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----"
-                mock_decode.return_value = {"sub": "keycloak-user-123"}
-
-                result = await get_current_user_optional(request, mock_auth_service)
-
-                assert result == mock_user
-
-    @pytest.mark.asyncio
-    async def test_exception_returns_none(self):
-        """Test returns None when exception occurs during token processing."""
-        request = MagicMock(spec=Request)
-        request.headers.get.return_value = "Bearer invalid_token"
-
-        mock_auth_service = MagicMock()
-
-        with patch(
-            "auth_service.api.deps.AuthenticationService.get_public_key",
-            new_callable=AsyncMock,
-        ) as mock_get_key:
-            mock_get_key.side_effect = Exception("Token error")
-
-            result = await get_current_user_optional(request, mock_auth_service)
-
-            assert result is None
-
-    @pytest.mark.asyncio
-    async def test_token_decode_error_returns_none(self):
-        """Test returns None when token decode fails."""
-        request = MagicMock(spec=Request)
-        request.headers.get.return_value = "Bearer malformed_token"
-
-        mock_auth_service = MagicMock()
-
-        with patch(
-            "auth_service.api.deps.AuthenticationService.get_public_key",
-            new_callable=AsyncMock,
-        ) as mock_get_key:
-            with patch("auth_service.api.deps.JwtHandler.decode_token") as mock_decode:
-                mock_get_key.return_value = "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----"
-                mock_decode.side_effect = Exception("Invalid token")
-
-                result = await get_current_user_optional(request, mock_auth_service)
-
-                assert result is None
+        assert result == mock_user

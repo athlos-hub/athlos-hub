@@ -29,6 +29,7 @@ const testDefaults: Record<string, string> = {
   REDIS_DB: '1',
   MEDIAMTX_URL: 'http://localhost:9997',
   LOG_LEVEL: 'error',
+  TRUST_GATEWAY: 'true',
 };
 
 // Set defaults for any missing environment variables
