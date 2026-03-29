@@ -48,7 +48,10 @@ export default function PlayerHeader({ session }: PlayerHeaderProps) {
     };
 
     return (
-        <div className="w-full fixed top-0 left-0 z-50 bg-white shadow-md">
+        <div
+            id="app-header"
+            className="w-full fixed top-0 left-0 z-50 bg-white shadow-md"
+        >
             <div className="w-full flex items-center justify-between py-4 bg-white">
                 <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
                     <Image

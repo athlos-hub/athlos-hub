@@ -1,5 +1,5 @@
-
 import PlayerHeader from "@/components/layout/player/header";
+import { MainContentPadding } from "@/components/layout/main-content-padding";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -10,9 +10,9 @@ interface MainLayoutProps {
 export default async function MainLayout({ children }: MainLayoutProps) {
     const session = await getServerSession(authOptions);
     return (
-        <div className="max-w-7xl mx-auto w-full py-32">
+        <div className="max-w-7xl mx-auto w-full min-w-0">
             <PlayerHeader session={session} />
-            {children}
+            <MainContentPadding>{children}</MainContentPadding>
         </div>
     );
 }
