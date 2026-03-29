@@ -30,16 +30,16 @@ class Settings(BaseSettings):
     DATABASE_USER: str = Field(default="test_user")
     DATABASE_PASSWORD: str = Field(default="test_password")
 
-    LIVESTREAM_SERVICE_URL: str = Field(default="http://live-service:8004")
+    LIVESTREAM_SERVICE_URL: str = Field(default="http://localhost:8100")
     LIVESTREAM_SERVICE_TIMEOUT: int = Field(default=10)
-    
-    SOCIAL_SERVICE_URL: str = Field(default="http://social-service:8083")
+
+    SOCIAL_SERVICE_URL: str = Field(default="http://localhost:8100")
     SOCIAL_SERVICE_TIMEOUT: int = Field(default=10)
 
-    AUTH_SERVICE_URL: str = Field(default="http://auth-service:8000")
+    AUTH_SERVICE_URL: str = Field(default="http://localhost:8100")
     AUTH_SERVICE_TIMEOUT: int = Field(default=10)
 
-    NOTIFICATIONS_SERVICE_URL: str = Field(default="http://notifications-service:8003")
+    NOTIFICATIONS_SERVICE_URL: str = Field(default="http://localhost:8100")
     NOTIFICATIONS_INTERNAL_API_KEY: str = Field(default="")
     
     FRONTEND_URL: str = Field(default="https://athloshub.com.br")

@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     DATABASE_USER: str = Field(default="postgres")
     DATABASE_PASSWORD: str = Field(default="postgres")
 
-    AUTH_SERVICE_URL: str = Field(default="http://localhost:8000")
+    AUTH_SERVICE_URL: str = Field(default="http://localhost:8100")
 
     internal_api_key: str = Field(
         default="dev-notifications-internal-key",
@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     debug: bool = Field(default=False, alias="DEBUG")
 
     allowed_origins: str = Field(
-        default="http://localhost:3000,http://localhost:8000,http://localhost:8100,https://athloshub.com.br",
+        default="http://localhost:3000,http://localhost:8100",
         alias="ALLOWED_ORIGINS",
     )
 

@@ -25,6 +25,7 @@ interface BackendUserResponse {
 }
 
 export const authOptions: NextAuthOptions = {
+    trustHost: true,
     providers: [
         CredentialsProvider({
             name: "Credentials",

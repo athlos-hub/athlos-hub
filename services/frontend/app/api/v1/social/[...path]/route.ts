@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-const SOCIAL_SERVICE_URL = process.env.SOCIAL_SERVICE_URL || "http://localhost:8083";
+const SOCIAL_SERVICE_URL = process.env.SOCIAL_SERVICE_URL || "http://localhost:8100";
 
 async function handleRequest(req: NextRequest, method: string) {
     const session = await getServerSession(authOptions);

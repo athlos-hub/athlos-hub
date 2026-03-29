@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     DATABASE_USER: str
     DATABASE_PASSWORD: str
 
-    PORT: int = 3333
+    PORT: int = 8004
 
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379

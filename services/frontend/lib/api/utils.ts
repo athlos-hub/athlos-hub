@@ -75,7 +75,7 @@ export function getServiceURL(service: "auth" | "competitions" = "auth"): string
     const gateway = (process.env.API_BASE_URL || "http://localhost:8100/api").replace(/\/$/, "");
     if (process.env.ENV !== "prod") {
         if (service === "competitions") {
-            return (process.env.COMPETITIONS_API_URL || "http://localhost:8001/api").replace(/\/$/, "");
+            return (process.env.COMPETITIONS_API_URL || "http://localhost:8100/api").replace(/\/$/, "");
         }
         const authHost = process.env.AUTH_API_URL;
         if (authHost) {

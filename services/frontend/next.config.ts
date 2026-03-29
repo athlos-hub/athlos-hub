@@ -21,23 +21,23 @@ const nextConfig: NextConfig = {
         },
     },
     async rewrites() {
-        const isProd = process.env.ENV === 'prod';
-    
+        const isProd = process.env.ENV === "prod";
+
         if (!isProd) {
+            // Não reescrever /api/auth/* — NextAuth usa /api/auth/session, csrf, etc. no próprio Next.
+            // Rotas BFF ficam em app/api/auth/* (refresh-token, register, ...).
+            const socialBase =
+                process.env.SOCIAL_SERVICE_URL || "http://localhost:8100";
             return [
                 {
-                    source: '/api/auth/:path*',
-                    destination: `${process.env.AUTH_API_URL || 'http://localhost:8000'}/api/auth/:path*`,
-                },
-                {
-                    source: '/api/social/:path*',
-                    destination: `${process.env.SOCIAL_SERVICE_URL || 'http://localhost:8083'}/api/social/:path*`,
+                    source: "/api/social/:path*",
+                    destination: `${socialBase.replace(/\/$/, "")}/api/social/:path*`,
                 },
             ];
         }
-        
+
         return [];
-  },
+    },
 };
 
 export default nextConfig;

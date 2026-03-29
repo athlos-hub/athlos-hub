@@ -10,8 +10,6 @@ from shared.database.client import db
 from shared.api.handlers import register_exception_handlers
 from shared.logging import RequestLoggerMiddleware, setup_logging
 
-logger = logging.getLogger(__name__)
-
 # JWT validation is handled exclusively by Kong Gateway.
 # This service trusts X-Keycloak-Sub injected by Kong.
 # Do NOT add JWT validation here — it breaks the single-responsibility contract.
@@ -19,39 +17,29 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Setup de Logging
     setup_logging(log_level_str=settings.LOG_LEVEL, env=settings.ENV)
-    
-    startup_logger = logging.getLogger("app.startup")
-    
-    try:
-        startup_logger.info("Inicializando conexão com banco de dados Competitions...")
 
-        # Inicializa o DatabaseClient (Async)
+    startup_logger = logging.getLogger("app.startup")
+
+    try:
         db.init(
             url=settings.database_url,
             pool_min=settings.DB_POOL_MIN_SIZE,
             pool_max=settings.DB_POOL_MAX_SIZE,
             timeout=settings.DB_POOL_TIMEOUT,
         )
-        
-        # Verifica saúde do banco
         await db.check_health()
-        startup_logger.info("Banco de dados conectado com sucesso.")
 
     except Exception as e:
-        startup_logger.critical(f"Falha crítica no startup: {e}")
-        raise e
+        startup_logger.critical("Falha crítica no startup: %s", e)
+        raise
 
     yield
 
-    # Shutdown
-    startup_logger.info("Encerrando aplicação...")
     try:
         await db.close()
-        startup_logger.info("Conexões fechadas.")
     except Exception as e:
-        startup_logger.error(f"Erro ao fechar recursos: {e}")
+        startup_logger.error("Erro ao fechar recursos: %s", e)
 
 
 def create_app() -> FastAPI:

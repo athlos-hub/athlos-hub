@@ -50,9 +50,6 @@ def setup_logging(log_level_str: str, env: str, log_dir: str = "logs"):
     logging.getLogger("asyncpg").setLevel(logging.WARNING)
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
-    logger = logging.getLogger("app.startup")
-    logger.info("Logging configurado. Ambiente: %s", env)
-
 
 class RequestLoggerMiddleware:
     def __init__(self, app, always_log_paths: list[str] = None):

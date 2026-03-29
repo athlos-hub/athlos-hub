@@ -13,26 +13,39 @@ consumers:
     secret: kong-rs256-placeholder-secret
     rsa_public_key: |
       -----BEGIN PUBLIC KEY-----
-      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlKCDh8rPMBGUFLvE+9rc
-      3HuJ/09+J7kSub9xYTSel4A5MSyAjw4eEJ8aA4kEYtvHJAVZ3udDhHNqnJGKge1n
-      /4LDUL/t6um9vl0Q0GgcpQ3fcS0VUYElWm+WbczRTj7d3B0kXSZufd4ADhr/N7Mz
-      xjHEbYTFXjvWOu6jZrqtlBJFpz/12kf/lG1bh4n+B2m/8DeL1rmDYR0pxCOBbnYh
-      zM03hz1ZOC/Br1F4F2spQTytueCtUzpx1SGFuJi3QcGz9M/cyQ76A+4958mmqS70
-      gfpyb7dIMnj5fELUHfE9oQomumdQfKsoAvf1x5lKqak7dcu9DPWWFtFNipMFmcDY
-      nQIDAQAB
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyOuM+1pTx5i8AhL+lc++
+      mGCsyVjNNu0eLbNGfOW4sJs2MEaPTZh6ckC/wDwd8SvQvRVkagxE1qEPzWGMHSxj
+      1jAhRwYAdiBPFiL68QezgB7w62/AFZYQ0EzUKX2Rx2BYihZDo2ijCIGfJCcWjmTy
+      NSwAlsKLmYoPF4BiJkNNajP2lLBA2KZIU513uyCVNt9qzpc9QCt9IYTh9rOEf9Tx
+      NfnNnxKXXDGvVHtungUvnER7aXlQ04Ob5PB12UPkkm6hwQT5vknlMFzkuURNSOGA
+      UMCiBhdHy24hXiPrhvVKjgwWKZYlImmAy5f9wrDFiAmfmbJ4lIgVWi5yBUlZQ3nk
+      qwIDAQAB
+      -----END PUBLIC KEY-----
+  - algorithm: RS256
+    key: http://localhost:8080/keycloak/realms/athlos
+    secret: kong-rs256-placeholder-secret
+    rsa_public_key: |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyOuM+1pTx5i8AhL+lc++
+      mGCsyVjNNu0eLbNGfOW4sJs2MEaPTZh6ckC/wDwd8SvQvRVkagxE1qEPzWGMHSxj
+      1jAhRwYAdiBPFiL68QezgB7w62/AFZYQ0EzUKX2Rx2BYihZDo2ijCIGfJCcWjmTy
+      NSwAlsKLmYoPF4BiJkNNajP2lLBA2KZIU513uyCVNt9qzpc9QCt9IYTh9rOEf9Tx
+      NfnNnxKXXDGvVHtungUvnER7aXlQ04Ob5PB12UPkkm6hwQT5vknlMFzkuURNSOGA
+      UMCiBhdHy24hXiPrhvVKjgwWKZYlImmAy5f9wrDFiAmfmbJ4lIgVWi5yBUlZQ3nk
+      qwIDAQAB
       -----END PUBLIC KEY-----
   - algorithm: RS256
     key: https://athloshub.com.br/keycloak/realms/athlos
     secret: kong-rs256-placeholder-secret
     rsa_public_key: |
       -----BEGIN PUBLIC KEY-----
-      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlKCDh8rPMBGUFLvE+9rc
-      3HuJ/09+J7kSub9xYTSel4A5MSyAjw4eEJ8aA4kEYtvHJAVZ3udDhHNqnJGKge1n
-      /4LDUL/t6um9vl0Q0GgcpQ3fcS0VUYElWm+WbczRTj7d3B0kXSZufd4ADhr/N7Mz
-      xjHEbYTFXjvWOu6jZrqtlBJFpz/12kf/lG1bh4n+B2m/8DeL1rmDYR0pxCOBbnYh
-      zM03hz1ZOC/Br1F4F2spQTytueCtUzpx1SGFuJi3QcGz9M/cyQ76A+4958mmqS70
-      gfpyb7dIMnj5fELUHfE9oQomumdQfKsoAvf1x5lKqak7dcu9DPWWFtFNipMFmcDY
-      nQIDAQAB
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyOuM+1pTx5i8AhL+lc++
+      mGCsyVjNNu0eLbNGfOW4sJs2MEaPTZh6ckC/wDwd8SvQvRVkagxE1qEPzWGMHSxj
+      1jAhRwYAdiBPFiL68QezgB7w62/AFZYQ0EzUKX2Rx2BYihZDo2ijCIGfJCcWjmTy
+      NSwAlsKLmYoPF4BiJkNNajP2lLBA2KZIU513uyCVNt9qzpc9QCt9IYTh9rOEf9Tx
+      NfnNnxKXXDGvVHtungUvnER7aXlQ04Ob5PB12UPkkm6hwQT5vknlMFzkuURNSOGA
+      UMCiBhdHy24hXiPrhvVKjgwWKZYlImmAy5f9wrDFiAmfmbJ4lIgVWi5yBUlZQ3nk
+      qwIDAQAB
       -----END PUBLIC KEY-----
 plugins:
 - name: cors
@@ -169,9 +182,11 @@ services:
           if not raw then
             return
           end
-          local cjson = require("cjson.safe")
-          local claims = cjson.decode(raw)
-          if not claims or type(claims) ~= "table" then
+          -- O sandbox bloqueia require("cjson.safe"). Whitelist o módulo `cjson` em
+          -- KONG_UNTRUSTED_LUA_SANDBOX_REQUIRES e use require("cjson") (decode com pcall).
+          local cjson = require("cjson")
+          local ok, claims = pcall(cjson.decode, raw)
+          if not ok or not claims or type(claims) ~= "table" then
             return
           end
           if claims.sub then
@@ -230,9 +245,11 @@ services:
           if not raw then
             return
           end
-          local cjson = require("cjson.safe")
-          local claims = cjson.decode(raw)
-          if not claims or type(claims) ~= "table" then
+          -- O sandbox bloqueia require("cjson.safe"). Whitelist o módulo `cjson` em
+          -- KONG_UNTRUSTED_LUA_SANDBOX_REQUIRES e use require("cjson") (decode com pcall).
+          local cjson = require("cjson")
+          local ok, claims = pcall(cjson.decode, raw)
+          if not ok or not claims or type(claims) ~= "table" then
             return
           end
           if claims.sub then
@@ -291,9 +308,11 @@ services:
           if not raw then
             return
           end
-          local cjson = require("cjson.safe")
-          local claims = cjson.decode(raw)
-          if not claims or type(claims) ~= "table" then
+          -- O sandbox bloqueia require("cjson.safe"). Whitelist o módulo `cjson` em
+          -- KONG_UNTRUSTED_LUA_SANDBOX_REQUIRES e use require("cjson") (decode com pcall).
+          local cjson = require("cjson")
+          local ok, claims = pcall(cjson.decode, raw)
+          if not ok or not claims or type(claims) ~= "table" then
             return
           end
           if claims.sub then
@@ -352,9 +371,11 @@ services:
           if not raw then
             return
           end
-          local cjson = require("cjson.safe")
-          local claims = cjson.decode(raw)
-          if not claims or type(claims) ~= "table" then
+          -- O sandbox bloqueia require("cjson.safe"). Whitelist o módulo `cjson` em
+          -- KONG_UNTRUSTED_LUA_SANDBOX_REQUIRES e use require("cjson") (decode com pcall).
+          local cjson = require("cjson")
+          local ok, claims = pcall(cjson.decode, raw)
+          if not ok or not claims or type(claims) ~= "table" then
             return
           end
           if claims.sub then
@@ -413,9 +434,11 @@ services:
           if not raw then
             return
           end
-          local cjson = require("cjson.safe")
-          local claims = cjson.decode(raw)
-          if not claims or type(claims) ~= "table" then
+          -- O sandbox bloqueia require("cjson.safe"). Whitelist o módulo `cjson` em
+          -- KONG_UNTRUSTED_LUA_SANDBOX_REQUIRES e use require("cjson") (decode com pcall).
+          local cjson = require("cjson")
+          local ok, claims = pcall(cjson.decode, raw)
+          if not ok or not claims or type(claims) ~= "table" then
             return
           end
           if claims.sub then
@@ -474,9 +497,11 @@ services:
           if not raw then
             return
           end
-          local cjson = require("cjson.safe")
-          local claims = cjson.decode(raw)
-          if not claims or type(claims) ~= "table" then
+          -- O sandbox bloqueia require("cjson.safe"). Whitelist o módulo `cjson` em
+          -- KONG_UNTRUSTED_LUA_SANDBOX_REQUIRES e use require("cjson") (decode com pcall).
+          local cjson = require("cjson")
+          local ok, claims = pcall(cjson.decode, raw)
+          if not ok or not claims or type(claims) ~= "table" then
             return
           end
           if claims.sub then
@@ -539,9 +564,11 @@ services:
           if not raw then
             return
           end
-          local cjson = require("cjson.safe")
-          local claims = cjson.decode(raw)
-          if not claims or type(claims) ~= "table" then
+          -- O sandbox bloqueia require("cjson.safe"). Whitelist o módulo `cjson` em
+          -- KONG_UNTRUSTED_LUA_SANDBOX_REQUIRES e use require("cjson") (decode com pcall).
+          local cjson = require("cjson")
+          local ok, claims = pcall(cjson.decode, raw)
+          if not ok or not claims or type(claims) ~= "table" then
             return
           end
           if claims.sub then
@@ -602,9 +629,11 @@ services:
           if not raw then
             return
           end
-          local cjson = require("cjson.safe")
-          local claims = cjson.decode(raw)
-          if not claims or type(claims) ~= "table" then
+          -- O sandbox bloqueia require("cjson.safe"). Whitelist o módulo `cjson` em
+          -- KONG_UNTRUSTED_LUA_SANDBOX_REQUIRES e use require("cjson") (decode com pcall).
+          local cjson = require("cjson")
+          local ok, claims = pcall(cjson.decode, raw)
+          if not ok or not claims or type(claims) ~= "table" then
             return
           end
           if claims.sub then
@@ -663,9 +692,11 @@ services:
           if not raw then
             return
           end
-          local cjson = require("cjson.safe")
-          local claims = cjson.decode(raw)
-          if not claims or type(claims) ~= "table" then
+          -- O sandbox bloqueia require("cjson.safe"). Whitelist o módulo `cjson` em
+          -- KONG_UNTRUSTED_LUA_SANDBOX_REQUIRES e use require("cjson") (decode com pcall).
+          local cjson = require("cjson")
+          local ok, claims = pcall(cjson.decode, raw)
+          if not ok or not claims or type(claims) ~= "table" then
             return
           end
           if claims.sub then
@@ -710,7 +741,7 @@ services:
     - /api/matches
     - /api/modalities
     - /api/scoreboard
-    - /api/teams
+    - /api/sport-teams
     - /api/rankings
     - /api/stats-rulesets
     - /api/sport-rulesets
@@ -750,9 +781,11 @@ services:
           if not raw then
             return
           end
-          local cjson = require("cjson.safe")
-          local claims = cjson.decode(raw)
-          if not claims or type(claims) ~= "table" then
+          -- O sandbox bloqueia require("cjson.safe"). Whitelist o módulo `cjson` em
+          -- KONG_UNTRUSTED_LUA_SANDBOX_REQUIRES e use require("cjson") (decode com pcall).
+          local cjson = require("cjson")
+          local ok, claims = pcall(cjson.decode, raw)
+          if not ok or not claims or type(claims) ~= "table" then
             return
           end
           if claims.sub then
@@ -832,9 +865,11 @@ services:
           if not raw then
             return
           end
-          local cjson = require("cjson.safe")
-          local claims = cjson.decode(raw)
-          if not claims or type(claims) ~= "table" then
+          -- O sandbox bloqueia require("cjson.safe"). Whitelist o módulo `cjson` em
+          -- KONG_UNTRUSTED_LUA_SANDBOX_REQUIRES e use require("cjson") (decode com pcall).
+          local cjson = require("cjson")
+          local ok, claims = pcall(cjson.decode, raw)
+          if not ok or not claims or type(claims) ~= "table" then
             return
           end
           if claims.sub then
@@ -921,9 +956,11 @@ services:
           if not raw then
             return
           end
-          local cjson = require("cjson.safe")
-          local claims = cjson.decode(raw)
-          if not claims or type(claims) ~= "table" then
+          -- O sandbox bloqueia require("cjson.safe"). Whitelist o módulo `cjson` em
+          -- KONG_UNTRUSTED_LUA_SANDBOX_REQUIRES e use require("cjson") (decode com pcall).
+          local cjson = require("cjson")
+          local ok, claims = pcall(cjson.decode, raw)
+          if not ok or not claims or type(claims) ~= "table" then
             return
           end
           if claims.sub then
@@ -985,9 +1022,11 @@ services:
           if not raw then
             return
           end
-          local cjson = require("cjson.safe")
-          local claims = cjson.decode(raw)
-          if not claims or type(claims) ~= "table" then
+          -- O sandbox bloqueia require("cjson.safe"). Whitelist o módulo `cjson` em
+          -- KONG_UNTRUSTED_LUA_SANDBOX_REQUIRES e use require("cjson") (decode com pcall).
+          local cjson = require("cjson")
+          local ok, claims = pcall(cjson.decode, raw)
+          if not ok or not claims or type(claims) ~= "table" then
             return
           end
           if claims.sub then
@@ -1217,9 +1256,11 @@ services:
           if not raw then
             return
           end
-          local cjson = require("cjson.safe")
-          local claims = cjson.decode(raw)
-          if not claims or type(claims) ~= "table" then
+          -- O sandbox bloqueia require("cjson.safe"). Whitelist o módulo `cjson` em
+          -- KONG_UNTRUSTED_LUA_SANDBOX_REQUIRES e use require("cjson") (decode com pcall).
+          local cjson = require("cjson")
+          local ok, claims = pcall(cjson.decode, raw)
+          if not ok or not claims or type(claims) ~= "table" then
             return
           end
           if claims.sub then

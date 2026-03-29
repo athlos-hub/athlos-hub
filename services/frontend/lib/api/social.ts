@@ -9,7 +9,7 @@ import {
     ApiResponse,
 } from "@/types/social";
 
-const SOCIAL_SERVICE_URL = process.env.SOCIAL_SERVICE_URL || "http://localhost:8083";
+const SOCIAL_SERVICE_URL = process.env.SOCIAL_SERVICE_URL || "http://localhost:8100";
 
 async function callSocialService<T>(
     endpoint: string,

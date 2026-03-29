@@ -52,8 +52,6 @@ class DatabaseClient:
                 expire_on_commit=False,
             )
 
-            logger.info("DatabaseClient inicializado com sucesso.")
-
         except Exception as e:
             logger.exception("Falha ao inicializar DatabaseClient: %s", e)
             raise DatabaseError(f"Falha ao inicializar banco de dados: {e}")

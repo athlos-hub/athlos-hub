@@ -708,7 +708,7 @@ class TeamService:
         """Envia time aprovado para o competitions-service."""
         # URL do competitions-service (usar variável de ambiente)
         competitions_url = getattr(
-            settings, "COMPETITIONS_SERVICE_URL", "http://localhost:8001"
+            settings, "COMPETITIONS_SERVICE_URL", "http://localhost:8100"
         )
         url = f"{competitions_url}/api/internal/teams"
 

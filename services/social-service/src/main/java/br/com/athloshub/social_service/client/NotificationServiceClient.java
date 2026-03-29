@@ -17,7 +17,7 @@ public class NotificationServiceClient {
     
     private final RestTemplate restTemplate;
     
-    @Value("${services.notification.service.url:http://localhost:8003}")
+    @Value("${services.notification.service.url:http://localhost:8100}")
     private String notificationServiceUrl;
 
     @Value("${services.notification.service.internal-api-key:}")

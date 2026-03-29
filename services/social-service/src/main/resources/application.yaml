@@ -7,8 +7,8 @@ spring:
 
   datasource:
     url: jdbc:postgresql://${DATABASE_HOST:localhost}:${DATABASE_PORT:5432}/${DATABASE_NAME:social_db}
-    username: ${DATABASE_USER:social_user}}
-    password: ${DATABASE_PASSWORD:sOPA5ySJAZcSlHT60NOFEqEhRBMMnAfI}}
+    username: ${DATABASE_USER:social_user}
+    password: ${DATABASE_PASSWORD:}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
@@ -62,16 +62,16 @@ feign:
         readTimeout: ${FEIGN_READ_TIMEOUT:5000}
         loggerLevel: ${FEIGN_LOG_LEVEL:full}
       auth-service:
-        url: ${AUTH_SERVICE_URL:http://localhost:8000}
+        url: ${AUTH_SERVICE_URL:http://localhost:8100}
 
 services:
   auth-service:
-    url: ${AUTH_SERVICE_URL:http://localhost:8000}
+    url: ${AUTH_SERVICE_URL:http://localhost:8100}
   competitions-service:
-    url: ${COMPETITIONS_SERVICE_URL:http://localhost:8001}
+    url: ${COMPETITIONS_SERVICE_URL:http://localhost:8100}
   notification:
     service:
-      url: ${NOTIFICATION_SERVICE_URL:http://localhost:8003}
+      url: ${NOTIFICATION_SERVICE_URL:http://localhost:8100}
       internal-api-key: ${NOTIFICATIONS_INTERNAL_API_KEY:}
       enabled: ${NOTIFICATION_SERVICE_ENABLED:true}
 

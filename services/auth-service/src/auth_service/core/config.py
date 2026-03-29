@@ -78,9 +78,9 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "%(levelname)s:%(name)s:%(message)s"
 
-    NOTIFICATIONS_SERVICE_URL: str = "http://notifications-service:8003"
+    NOTIFICATIONS_SERVICE_URL: str = "http://localhost:8100"
     NOTIFICATIONS_INTERNAL_API_KEY: str = "dev-notifications-internal-key"
-    COMPETITIONS_SERVICE_URL: str = "http://competitions-service:8001"
+    COMPETITIONS_SERVICE_URL: str = "http://localhost:8100"
 
     # Bucket S3
     AWS_BUCKET_REGION: str
