@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     DATABASE_USER: str = Field(default="test_user")
     DATABASE_PASSWORD: str = Field(default="test_password")
 
-    LIVESTREAM_SERVICE_URL: str = Field(default="http://livestream-service:3333")
+    LIVESTREAM_SERVICE_URL: str = Field(default="http://live-service:8004")
     LIVESTREAM_SERVICE_TIMEOUT: int = Field(default=10)
     
     SOCIAL_SERVICE_URL: str = Field(default="http://social-service:8083")

@@ -215,9 +215,9 @@ jobs:
           comment_mode: off
 
   # ------------------------------------------------------------------
-  # JOB 3: TESTES DO LIVESTREAM-SERVICE
+  # JOB 3: TESTES DO LIVE-SERVICE
   # ------------------------------------------------------------------
-  test-livestream-service:
+  test-live-service:
     runs-on: ubuntu-latest
     outputs:
       tests_run: ${{ steps.should_run.outputs.run }}
@@ -233,7 +233,7 @@ jobs:
         with:
           filters: |
             src:
-              - 'services/livestream-service/**'
+              - 'services/live-service/**'
               - '.github/workflows/ci_cd.yml'
 
       - name: Determine if tests should run
@@ -245,62 +245,54 @@ jobs:
             echo "run=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Set up Node.js
+      - name: Set up Python
         if: steps.should_run.outputs.run == 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-python@v4
         with:
-          node-version: '20.x'
+          python-version: '3.12.12'
 
-      - name: Install pnpm
+      - name: Install Poetry
         if: steps.should_run.outputs.run == 'true'
-        run: npm install -g pnpm
-
-      - name: Install Dependencies
+        run: pip install poetry
+        
+      - name: Install Deps
         if: steps.should_run.outputs.run == 'true'
-        working-directory: ./services/livestream-service
-        run: pnpm install
+        working-directory: ./services/live-service
+        run: poetry install
 
       - name: Run Tests
         if: steps.should_run.outputs.run == 'true'
-        working-directory: ./services/livestream-service
-        run: pnpm test:cov
+        working-directory: ./services/live-service
+        env:
+          CI: 'true'
+        run: poetry run pytest tests --junitxml=test-results.xml --cov=src/live_service --cov-report=term --cov-report=xml --cov-report=json -v
 
       - name: Extract Test Results
         if: steps.should_run.outputs.run == 'true' && always()
         id: test-results
-        working-directory: ./services/livestream-service
+        working-directory: ./services/live-service
         run: |
-          # Jest outputs test count in the last lines of stdout
-          # We'll use a simpler approach: count from coverage files
-          TOTAL=302
-          PASSED=302
-          FAILED=0
-          echo "total=$TOTAL" >> $GITHUB_OUTPUT
-          echo "passed=$PASSED" >> $GITHUB_OUTPUT
-          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+          if [ -f test-results.xml ]; then
+            TOTAL=$(grep -oP 'tests="\K[0-9]+' test-results.xml | head -1)
+            FAILURES=$(grep -oP 'failures="\K[0-9]+' test-results.xml | head -1)
+            ERRORS=$(grep -oP 'errors="\K[0-9]+' test-results.xml | head -1)
+            PASSED=$((TOTAL - FAILURES - ERRORS))
+            echo "total=$TOTAL" >> $GITHUB_OUTPUT
+            echo "passed=$PASSED" >> $GITHUB_OUTPUT
+            echo "failed=$((FAILURES + ERRORS))" >> $GITHUB_OUTPUT
+          else
+            echo "total=0" >> $GITHUB_OUTPUT
+            echo "passed=0" >> $GITHUB_OUTPUT
+            echo "failed=0" >> $GITHUB_OUTPUT
+          fi
 
       - name: Extract Coverage
         if: steps.should_run.outputs.run == 'true' && always()
         id: coverage
-        working-directory: ./services/livestream-service
+        working-directory: ./services/live-service
         run: |
-          if [ -f coverage/coverage-summary.json ]; then
-            COVERAGE=$(cat coverage/coverage-summary.json | jq '.total.lines.pct // 0')
-            echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
-          elif [ -f coverage/coverage-final.json ]; then
-            # Calculate from coverage-final.json
-            COVERAGE=$(node -e "
-              const data = require('./coverage/coverage-final.json');
-              let totalStatements = 0, coveredStatements = 0;
-              Object.values(data).forEach(file => {
-                const s = file.s;
-                Object.values(s).forEach(count => {
-                  totalStatements++;
-                  if (count > 0) coveredStatements++;
-                });
-              });
-              console.log(totalStatements ? (coveredStatements / totalStatements * 100).toFixed(1) : 0);
-            ")
+          if [ -f coverage.json ]; then
+            COVERAGE=$(python -c "import json; print(round(json.load(open('coverage.json'))['totals']['percent_covered'], 1))")
             echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
           else
             echo "coverage=0" >> $GITHUB_OUTPUT
@@ -310,9 +302,17 @@ jobs:
         if: steps.should_run.outputs.run == 'true' && always()
         uses: actions/upload-artifact@v4
         with:
-          name: livestream-service-coverage
-          path: services/livestream-service/coverage/lcov.info
+          name: live-service-coverage
+          path: services/live-service/coverage.xml
           retention-days: 7
+
+      - name: Publish Test Results
+        if: steps.should_run.outputs.run == 'true' && always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: 'services/live-service/test-results.xml'
+          check_name: 'Live Service Test Results'
+          comment_mode: off
 
   # ------------------------------------------------------------------
   # JOB 4: TESTES DO NOTIFICATIONS-SERVICE
@@ -522,7 +522,7 @@ jobs:
   # Consolida resultados de todos os serviços e comenta no PR
   # ------------------------------------------------------------------
   test-summary:
-    needs: [test-auth-service, test-competitions-service, test-livestream-service, test-notifications-service, test-social-service]
+    needs: [test-auth-service, test-competitions-service, test-live-service, test-notifications-service, test-social-service]
     runs-on: ubuntu-latest
     if: always() && github.event_name == 'pull_request'
     steps:
@@ -589,12 +589,12 @@ jobs:
           COMP_COV=${COMP_COV:-0}
           COMP_STATUS=$(get_status_badge "$COMP_RUN" "$COMP_FAILED")
 
-          # Livestream Service - com valores padrão
-          LIVE_RUN="${{ needs.test-livestream-service.outputs.tests_run }}"
-          LIVE_TOTAL="${{ needs.test-livestream-service.outputs.total_tests }}"
-          LIVE_PASSED="${{ needs.test-livestream-service.outputs.passed_tests }}"
-          LIVE_FAILED="${{ needs.test-livestream-service.outputs.failed_tests }}"
-          LIVE_COV="${{ needs.test-livestream-service.outputs.coverage }}"
+          # Live Service - com valores padrão
+          LIVE_RUN="${{ needs.test-live-service.outputs.tests_run }}"
+          LIVE_TOTAL="${{ needs.test-live-service.outputs.total_tests }}"
+          LIVE_PASSED="${{ needs.test-live-service.outputs.passed_tests }}"
+          LIVE_FAILED="${{ needs.test-live-service.outputs.failed_tests }}"
+          LIVE_COV="${{ needs.test-live-service.outputs.coverage }}"
           
           LIVE_RUN=${LIVE_RUN:-false}
           LIVE_TOTAL=${LIVE_TOTAL:-0}
@@ -694,7 +694,7 @@ jobs:
           |---------|--------|-------|-----------|-----------|--------------|
           | 🔐 Auth Service | $AUTH_STATUS | $AUTH_TOTAL_DISPLAY | $AUTH_PASSED_DISPLAY | $AUTH_FAILED_DISPLAY | $(get_coverage_badge "$AUTH_COV") |
           | 🏆 Competitions Service | $COMP_STATUS | $COMP_TOTAL_DISPLAY | $COMP_PASSED_DISPLAY | $COMP_FAILED_DISPLAY | $(get_coverage_badge "$COMP_COV") |
-          | 📺 Livestream Service | $LIVE_STATUS | $LIVE_TOTAL_DISPLAY | $LIVE_PASSED_DISPLAY | $LIVE_FAILED_DISPLAY | $(get_coverage_badge "$LIVE_COV") |
+          | 📺 Live Service | $LIVE_STATUS | $LIVE_TOTAL_DISPLAY | $LIVE_PASSED_DISPLAY | $LIVE_FAILED_DISPLAY | $(get_coverage_badge "$LIVE_COV") |
           | 🔔 Notifications Service | $NOTIF_STATUS | $NOTIF_TOTAL_DISPLAY | $NOTIF_PASSED_DISPLAY | $NOTIF_FAILED_DISPLAY | $(get_coverage_badge "$NOTIF_COV") |
           | 👥 Social Service | $SOCIAL_STATUS | $SOCIAL_TOTAL_DISPLAY | $SOCIAL_PASSED_DISPLAY | $SOCIAL_FAILED_DISPLAY | $(get_coverage_badge "$SOCIAL_COV") |
 
@@ -738,7 +738,7 @@ jobs:
   # Este job só roda se os anteriores forem bem sucedidos
   # ------------------------------------------------------------------
   gatekeeper:
-    needs: [test-auth-service, test-competitions-service, test-livestream-service, test-notifications-service, test-social-service]
+    needs: [test-auth-service, test-competitions-service, test-live-service, test-notifications-service, test-social-service]
     runs-on: ubuntu-latest
     if: success()
     steps:
@@ -749,11 +749,9 @@ jobs:
           echo "✅ All tests passed successfully!"
           echo "Auth Service: PASSED"
           echo "Competitions Service: PASSED"
-          echo "Livestream Service: PASSED"
+          echo "Live Service: PASSED"
           echo "Notifications Service: PASSED"
           echo "Social Service: PASSED"
-          echo "Livestream Service: PASSED"
-          echo "Notifications Service: PASSED"
 
   # ------------------------------------------------------------------
   # DEPLOY - IMPLEMENTAÇÃO PENDENTE

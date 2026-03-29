@@ -315,7 +315,7 @@ class ManageMatchesService:
     async def start_match(self, match_id: uuid.UUID) -> MatchModel:
         """
         Inicia uma partida, mudando seu status para LIVE.
-        Usado quando o livestream-service detecta que a transmissão começou.
+        Usado quando o live-service detecta que a transmissão começou.
         """
         q_match = (
             select(MatchModel)
@@ -345,7 +345,7 @@ class ManageMatchesService:
         await self.session.commit()
         await self.session.refresh(match)
 
-        logger.info(f"Partida {match_id} iniciada via livestream-service")
+        logger.info(f"Partida {match_id} iniciada via live-service")
         
         return match
 

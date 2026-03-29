@@ -768,11 +768,11 @@ services:
           if ra and type(ra) == "table" and ra.roles and type(ra.roles) == "table" then
             kong.service.request.set_header("X-Keycloak-Roles", table.concat(ra.roles, ","))
           end
-- name: livestream-service
-  url: http://host.docker.internal:3333
+- name: live-service
+  url: http://host.docker.internal:8004
   protocol: http
   host: host.docker.internal
-  port: 3333
+  port: 8004
   routes:
   - name: livestream-webhooks
     paths:

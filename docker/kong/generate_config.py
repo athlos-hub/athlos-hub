@@ -242,7 +242,7 @@ def main() -> None:
     ]
     services.append(comp)
 
-    ls = base_service("livestream-service", host, 3333)
+    ls = base_service("live-service", host, 8004)
     ls["routes"] = [
         {"name": "livestream-webhooks", "paths": ["/api/webhooks"], "protocols": ["http", "https"], "strip_path": False},
         {

@@ -21,7 +21,7 @@ class LiveCreationService:
         """
         Args:
             session: Sessão do SQLAlchemy
-            livestream_client: Cliente configurado para o livestream-service
+            livestream_client: Cliente configurado para o live-service
             organization_id: ID da organização dona da competição
         """
         self.session = session
@@ -34,7 +34,7 @@ class LiveCreationService:
         competition: CompetitionModel
     ) -> List[Dict[str, Any]]:
         """
-        Cria lives no livestream-service para cada partida
+        Cria lives no live-service para cada partida
         
         Args:
             matches: Lista de partidas criadas

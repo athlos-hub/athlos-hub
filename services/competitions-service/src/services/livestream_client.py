@@ -15,7 +15,7 @@ class LivestreamClientError(Exception):
 
 
 class LivestreamServiceUnavailable(LivestreamClientError):
-    """Exceção quando o serviço de livestream está indisponível"""
+    """Exceção quando o live-service está indisponível"""
     pass
 
 
@@ -30,7 +30,7 @@ class LivestreamClient:
     def __init__(self, base_url: str, timeout: int = 10):
         """
         Args:
-            base_url: URL base do livestream-service (ex: http://localhost:3333)
+            base_url: URL base do live-service (ex: http://localhost:8004)
             timeout: Timeout em segundos para requisições
         """
         self.base_url = base_url.rstrip('/')
@@ -59,7 +59,7 @@ class LivestreamClient:
         organization_id: UUID
     ) -> Dict[str, Any]:
         """
-        Cria uma nova live no livestream-service
+        Cria uma nova live no live-service
         
         Args:
             external_match_id: ID da partida no competitions-service
@@ -107,7 +107,7 @@ class LivestreamClient:
         except httpx.ConnectError as e:
             logger.error(f"Erro de conexão com livestream service: {e}")
             raise LivestreamServiceUnavailable(
-                f"Não foi possível conectar ao livestream service: {str(e)}"
+                f"Não foi possível conectar ao live service: {str(e)}"
             ) from e
             
         except httpx.HTTPStatusError as e:
@@ -125,7 +125,7 @@ class LivestreamClient:
     
     async def health_check(self) -> bool:
         """
-        Verifica se o livestream-service está acessível
+        Verifica se o live-service está acessível
         
         Returns:
             True se o serviço está disponível, False caso contrário

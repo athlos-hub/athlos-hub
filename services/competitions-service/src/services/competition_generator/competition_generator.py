@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class StructureGeneratorService:
     """
     Service responsável por gerar a estrutura completa de uma competição
-    e criar as lives associadas no livestream-service
+    e criar as lives associadas no live-service
     """
     
     def __init__(self, session: AsyncSession):
@@ -108,7 +108,7 @@ class StructureGeneratorService:
             timeout=settings.LIVESTREAM_SERVICE_TIMEOUT
         ) as livestream_client:
             
-            # 6. Validar disponibilidade do livestream-service
+            # 6. Validar disponibilidade do live-service
             is_available = await livestream_client.health_check()
             if not is_available:
                 logger.warning(
@@ -194,7 +194,7 @@ class StructureGeneratorService:
                 await self.session.rollback()
                 raise HTTPException(
                     status_code=502,
-                    detail=f"Falha ao criar lives no livestream service: {str(e)}"
+                    detail=f"Falha ao criar lives no live service: {str(e)}"
                 )
                 
             except Exception as e:

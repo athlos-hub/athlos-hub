@@ -1,9 +1,0 @@
-node_modules
-dist
-.git
-.gitignore
-*.md
-.env*
-.eslintrc*
-.prettierrc*
-tsconfig.tsbuildinfo

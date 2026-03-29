@@ -342,9 +342,9 @@ async def start_match(
     """
     Inicia um jogo que está agendado (scheduled):
     - Atualiza status para 'live'.
-    - Chamado automaticamente pelo livestream-service quando a transmissão começa.
+    - Chamado automaticamente pelo live-service quando a transmissão começa.
     
-    **Sem autenticação**: Endpoint interno chamado pelo livestream-service.
+    **Sem autenticação**: Endpoint interno chamado pelo live-service.
     """
     service = ManageMatchesService(session)
     started_match = await service.start_match(match_id)
