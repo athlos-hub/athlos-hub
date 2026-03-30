@@ -103,7 +103,7 @@ async def register(
             "verification_link": activation_link,
             "expiry_hours": 24,
             "company_name": "AthlosHub",
-            "support_email": "suporte@athloshub.com.br",
+            "support_email": settings.EMAIL_FROM,
             "logo_url": "https://athloshub-media.s3.us-east-2.amazonaws.com//faedd37d-d03d-4027-9e55-28ffbc52783d_logo-athlos.jpeg",
         },
     )
@@ -153,7 +153,7 @@ async def resend_verification_email(
             "verification_link": verification_link,
             "expiry_hours": 24,
             "company_name": "AthlosHub",
-            "support_email": "suporte@athloshub.com.br",
+            "support_email": settings.EMAIL_FROM,
             "logo_url": "https://athloshub-media.s3.us-east-2.amazonaws.com//faedd37d-d03d-4027-9e55-28ffbc52783d_logo-athlos.jpeg",
         },
     )
@@ -197,7 +197,7 @@ async def request_reset_password(
             "reset_link": reset_link,
             "expiry_hours": 2,
             "company_name": "AthlosHub",
-            "support_email": "suporte@athloshub.com.br",
+            "support_email": settings.EMAIL_FROM,
             "logo_url": "https://athloshub-media.s3.us-east-2.amazonaws.com//faedd37d-d03d-4027-9e55-28ffbc52783d_logo-athlos.jpeg",
         },
     )

@@ -66,9 +66,12 @@ class Settings(BaseSettings):
 
     FRONTEND_URL: Optional[str] = None
 
-    # Email Resend
+    # Email SMTP
     EMAIL_TOKEN_SECRET: str
-    RESEND_API_KEY: str
+    EMAIL_FROM: str
+    EMAIL_PASSWORD: str
+    EMAIL_SMTP_HOST: str
+    EMAIL_SMTP_PORT: int
 
     # Rate Limiting (optional)
     RATE_LIMIT_ENABLED: bool = False
