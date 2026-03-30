@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { RiHome5Line } from "react-icons/ri";
@@ -10,6 +10,7 @@ import { FiUsers } from "react-icons/fi";
 import { FaChevronDown } from "react-icons/fa6";
 import { dropdownData } from '@/data/dropdownData';
 import DropdownNavbar from "@/components/layout/player/dropdown-navbar";
+import { filterNavDropdownSections } from "@/lib/auth/filter-nav-dropdown";
 import {Session} from "next-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {LogoutButton} from "@/components/layout/player/logout-button";
@@ -46,6 +47,14 @@ export default function PlayerHeader({ session }: PlayerHeaderProps) {
             setActiveDropdown(null);
         }, 500);
     };
+
+    const filteredMainSections = useMemo(() => {
+        if (!activeDropdown) return [];
+        return filterNavDropdownSections(
+            dropdownData[activeDropdown].mainSections,
+            !!session
+        );
+    }, [activeDropdown, session]);
 
     return (
         <div
@@ -151,7 +160,7 @@ export default function PlayerHeader({ session }: PlayerHeaderProps) {
                 >
                     <DropdownNavbar
                         categoryName={dropdownData[activeDropdown].categoryName}
-                        mainSections={dropdownData[activeDropdown].mainSections}
+                        mainSections={filteredMainSections}
                         isOpen={true}
                     />
                 </div>

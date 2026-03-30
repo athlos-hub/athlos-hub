@@ -32,18 +32,19 @@ export default function CompetitionsPage() {
   const [selectedOrg, setSelectedOrg] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
+  /** Evita loading infinito quando não há orgs públicas: competições só carregam depois disso. */
+  const [orgsLoaded, setOrgsLoaded] = useState(false);
 
   // Carregar organizações públicas uma vez no início
   useEffect(() => {
     loadOrganizations();
   }, []);
 
-  // Recarregar competições quando filtros mudarem
+  // Recarregar competições quando orgs estiverem carregadas (mesmo lista vazia) ou filtros mudarem
   useEffect(() => {
-    if (organizations.length > 0) {
-      loadCompetitions();
-    }
-  }, [selectedOrg, selectedStatus, organizations]);
+    if (!orgsLoaded) return;
+    loadCompetitions();
+  }, [selectedOrg, selectedStatus, organizations, orgsLoaded]);
 
   const loadOrganizations = async () => {
     try {
@@ -55,12 +56,19 @@ export default function CompetitionsPage() {
         error instanceof Error ? error.message : "Erro ao carregar organizações";
       toast.error(message);
       console.error("Erro ao carregar organizações:", error);
+    } finally {
+      setOrgsLoaded(true);
     }
   };
 
   const loadCompetitions = async () => {
     setIsLoading(true);
     try {
+      if (organizations.length === 0) {
+        setCompetitionsByOrg([]);
+        return;
+      }
+
       // Para cada organização pública, buscar suas competições
       const grouped: CompetitionsByOrganization[] = [];
       
@@ -149,8 +157,8 @@ export default function CompetitionsPage() {
 
   return (
     <div className="min-h-screen">
-      <div className="container">
-        <div className="space-y-6">
+      <div className="container min-w-0">
+        <div className="space-y-6 min-w-0">
           {/* Cabeçalho */}
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Competições</h1>
@@ -159,16 +167,16 @@ export default function CompetitionsPage() {
             </p>
           </div>
 
-          {/* Filtros */}
-          <Card className="p-6">
-            <div className="flex items-center gap-4 flex-wrap">
-              <div className="flex items-center gap-2">
+          {/* Filtros: overflow-visible evita recálculo de clipping; selects com largura fixa + shrink-0 evitam reflow do flex */}
+          <Card className="p-6 overflow-visible">
+            <div className="flex min-w-0 w-full items-center gap-4 flex-wrap">
+              <div className="flex shrink-0 items-center gap-2">
                 <Filter className="w-5 h-5 text-gray-600" />
                 <span className="text-sm font-medium text-gray-700">Filtros:</span>
               </div>
 
-              <div className="flex gap-3 flex-wrap flex-1">
-                <div className="w-64">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+                <div className="w-64 shrink-0">
                   <Select value={selectedOrg} onValueChange={setSelectedOrg}>
                     <SelectTrigger>
                       <SelectValue placeholder="Todas as organizações" />
@@ -184,7 +192,7 @@ export default function CompetitionsPage() {
                   </Select>
                 </div>
 
-                <div className="w-48">
+                <div className="w-48 shrink-0">
                   <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                     <SelectTrigger>
                       <SelectValue placeholder="Todos os status" />
@@ -198,17 +206,18 @@ export default function CompetitionsPage() {
                   </Select>
                 </div>
 
-                {(selectedOrg !== "all" || selectedStatus !== "all") && (
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setSelectedOrg("all");
-                      setSelectedStatus("all");
-                    }}
-                  >
-                    Limpar filtros
-                  </Button>
-                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="shrink-0"
+                  disabled={selectedOrg === "all" && selectedStatus === "all"}
+                  onClick={() => {
+                    setSelectedOrg("all");
+                    setSelectedStatus("all");
+                  }}
+                >
+                  Limpar filtros
+                </Button>
               </div>
             </div>
           </Card>

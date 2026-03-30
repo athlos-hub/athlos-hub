@@ -10,7 +10,7 @@ export interface FinalCtaSectionProps {
 export function FinalCtaSection({ isAuthenticated }: FinalCtaSectionProps) {
   return (
     <section
-      className="relative left-1/2 w-[100vw] min-w-0 -translate-x-1/2 overflow-hidden bg-main py-20 pb-24 text-primary-foreground sm:pb-28 md:min-h-[min(48vh,520px)] md:pb-32"
+      className="relative ml-[calc(50%-50vw)] w-screen min-w-0 overflow-hidden bg-main py-20 pb-24 text-primary-foreground sm:pb-28 md:min-h-[min(48vh,520px)] md:pb-32"
       aria-labelledby="home-final-cta-heading"
     >
       <div

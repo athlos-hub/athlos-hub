@@ -11,25 +11,18 @@ import type { TeamListItem } from "@/types/team";
 import type { OrganizationListItem } from "@/types/organization";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 
 export default function ClubesPainelPage() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
+  const { status } = useSession();
   const [teams, setTeams] = useState<TeamListItem[]>([]);
   const [myOrganizations, setMyOrganizations] = useState<OrganizationListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/auth/login");
-      return;
-    }
-    
     if (status === "authenticated") {
       loadData();
     }
-  }, [status, router]);
+  }, [status]);
 
   const loadData = async () => {
     setIsLoading(true);

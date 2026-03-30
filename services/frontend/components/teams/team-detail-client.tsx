@@ -119,7 +119,11 @@ export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
         <Button 
           variant="ghost" 
           size="icon"
-          onClick={() => router.push('/clubes/painel')}
+          onClick={() =>
+            session
+              ? router.push("/clubes/painel")
+              : router.push("/organizations")
+          }
           className="shrink-0"
         >
           <ArrowLeft className="h-5 w-5" />

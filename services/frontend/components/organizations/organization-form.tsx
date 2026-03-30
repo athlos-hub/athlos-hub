@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { createOrganization } from "@/actions/organizations";
+import type { OrganizationResponse } from "@/types/organization";
 import { OrganizationPrivacy } from "@/types/organization";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,14 @@ const organizationSchema = z.object({
 
 type OrganizationFormData = z.infer<typeof organizationSchema>;
 
-export function OrganizationForm() {
+export interface OrganizationFormProps {
+  /** Se definido, chamado após sucesso em vez de navegar (ex.: modal). */
+  onSuccess?: (organization: OrganizationResponse) => void;
+  /** Se definido, o botão Cancelar chama isto em vez de `router.back()`. */
+  onCancel?: () => void;
+}
+
+export function OrganizationForm({ onSuccess, onCancel }: OrganizationFormProps = {}) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [logo, setLogo] = useState<File | null>(null);
@@ -61,7 +69,11 @@ export function OrganizationForm() {
       const organization = await createOrganization(formData);
 
       toast.success("Organização criada com sucesso!");
-      router.push(`/organizations/${organization.slug}`);
+      if (onSuccess) {
+        onSuccess(organization);
+      } else {
+        router.push(`/organizations/${organization.slug}`);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erro ao criar organização";
       toast.error(message);
@@ -165,7 +177,7 @@ export function OrganizationForm() {
         <Button
           type="button"
           variant="outline"
-          onClick={() => router.back()}
+          onClick={() => (onCancel ? onCancel() : router.back())}
           disabled={isSubmitting}
         >
           Cancelar

@@ -122,12 +122,24 @@
 
     html {
         overflow-x: hidden;
+        /* Reserva espaço da barra vertical para a largura do layout não “pular”. */
+        scrollbar-gutter: stable;
     }
 
     body {
         @apply bg-background text-foreground;
         font-family: var(--font-outfit), sans-serif;
         overflow-x: hidden;
+    }
+
+    /*
+     * react-remove-scroll-bar (Radix Select, Dialog, etc.) aplica padding/margin direito em body[data-scroll-locked]
+     * para compensar a barra que some. Com scrollbar-gutter: stable no html, essa compensação vira duplicada e
+     * todo o conteúdo centralizado parece deslocar para a esquerda.
+     */
+    body[data-scroll-locked] {
+        padding-right: 0 !important;
+        margin-right: 0 !important;
     }
 
     h1, h2, h3, h4, h5, h6 {

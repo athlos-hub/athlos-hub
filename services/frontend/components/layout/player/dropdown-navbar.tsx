@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {FaArrowRightLong} from "react-icons/fa6";
 import {MainSection} from "@/types/components/header";
@@ -15,6 +15,10 @@ export default function DropdownNavbar({ mainSections, isOpen, categoryName }: D
     const [selectedSection, setSelectedSection] = useState(
         mainSections.length > 0 ? 0 : -1
     );
+
+    useEffect(() => {
+        setSelectedSection(mainSections.length > 0 ? 0 : -1);
+    }, [mainSections]);
 
     if (!isOpen) return null;
 

@@ -51,7 +51,9 @@ export function JoinTeamInviteClient({ inviteToken }: JoinTeamInviteClientProps)
   const handleAcceptInvite = async () => {
     if (sessionStatus !== "authenticated") {
       // Redirecionar para login, depois voltar aqui
-      router.push(`/auth/signin?callbackUrl=/convite/time/${inviteToken}`);
+      router.push(
+        `/auth/login?callbackUrl=${encodeURIComponent(`/convite/time/${inviteToken}`)}`
+      );
       return;
     }
 

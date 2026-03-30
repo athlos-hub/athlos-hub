@@ -20,6 +20,25 @@ const nextConfig: NextConfig = {
             allowedOrigins: process.env.NEXT_ALLOWED_ORIGINS?.split(',') || ['localhost:8100', 'localhost:3000'],
         },
     },
+    async redirects() {
+        return [
+            {
+                source: "/jogos/agendados",
+                destination: "/jogos?status=scheduled",
+                permanent: false,
+            },
+            {
+                source: "/jogos/ao-vivo",
+                destination: "/jogos?status=live",
+                permanent: false,
+            },
+            {
+                source: "/jogos/resultados",
+                destination: "/jogos?status=finished",
+                permanent: false,
+            },
+        ];
+    },
     async rewrites() {
         const isProd = process.env.ENV === "prod";
 

@@ -39,7 +39,7 @@ export function HeroSection({ isAuthenticated }: HeroSectionProps) {
   return (
     <section
       aria-labelledby="home-hero-heading"
-      className="relative left-1/2 w-[100vw] min-w-0 -translate-x-1/2 overflow-hidden border-b border-border bg-secondary -mt-px"
+      className="relative ml-[calc(50%-50vw)] w-screen min-w-0 overflow-hidden border-b border-border bg-secondary -mt-px"
       style={{ minHeight: "100svh" }}
     >
       <div className="pointer-events-none absolute inset-0 opacity-[0.12]">

@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Plus, Building2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { OrganizationCard } from "@/components/organizations/organization-card";
+import { CreateOrganizationDialog } from "@/components/organizations/create-organization-dialog";
+import type { OrganizationResponse } from "@/types/organization";
 import {
   getOrganizations,
   getMyOrganizations,
@@ -20,11 +22,13 @@ import { useSession } from "next-auth/react";
 type TabType = "public" | "my-organizations";
 
 export default function OrganizationsPage() {
+  const router = useRouter();
   const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState<TabType>("public");
   const [publicOrgs, setPublicOrgs] = useState<OrganizationGetPublic[]>([]);
   const [myOrgs, setMyOrgs] = useState<OrganizationListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [createOrgOpen, setCreateOrgOpen] = useState(false);
 
   useEffect(() => {
     loadOrganizations();
@@ -49,8 +53,18 @@ export default function OrganizationsPage() {
     }
   };
 
+  const handleOrganizationCreated = (organization: OrganizationResponse) => {
+    router.push(`/organizations/${organization.slug}`);
+  };
+
   return (
     <div className="space-y-6">
+      <CreateOrganizationDialog
+        open={createOrgOpen}
+        onOpenChange={setCreateOrgOpen}
+        onCreated={handleOrganizationCreated}
+      />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Organizações</h1>
@@ -60,12 +74,14 @@ export default function OrganizationsPage() {
         </div>
 
         {session && (
-          <Link href="/organizations/new">
-            <Button className="bg-main hover:bg-main/90 text-white">
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Organização
-            </Button>
-          </Link>
+          <Button
+            type="button"
+            className="bg-main hover:bg-main/90 text-white"
+            onClick={() => setCreateOrgOpen(true)}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nova Organização
+          </Button>
         )}
       </div>
 
@@ -137,12 +153,14 @@ export default function OrganizationsPage() {
                     <p className="text-gray-600 mb-4">
                       Você ainda não faz parte de nenhuma organização
                     </p>
-                    <Link href="/organizations/new">
-                      <Button className="bg-main hover:bg-main/90 text-white">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Criar Organização
-                      </Button>
-                    </Link>
+                    <Button
+                      type="button"
+                      className="bg-main hover:bg-main/90 text-white"
+                      onClick={() => setCreateOrgOpen(true)}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Criar Organização
+                    </Button>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -64,6 +64,12 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
     }, [session]);
 
     useEffect(() => {
+        if (!session && feedType === "following") {
+            setFeedType("all");
+        }
+    }, [session, feedType]);
+
+    useEffect(() => {
         async function loadFeed() {
             setIsLoadingFeed(true);
             try {
@@ -143,33 +149,40 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
                 onSubmit={handleCreatePost}
             />
 
-            {session && (
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-                    <div className="flex gap-4 items-center">
-                        <Users className="w-5 h-5 text-gray-600"/>
-                        <button
-                            onClick={() => setFeedType("all")}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                feedType === "all"
-                                    ? "bg-main text-white"
-                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            }`}
-                        >
-                            Para Você
-                        </button>
-                        <button
-                            onClick={() => setFeedType("following")}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                feedType === "following"
-                                    ? "bg-main text-white"
-                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            }`}
-                        >
-                            Seguindo
-                        </button>
-                    </div>
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+                <div className="flex flex-wrap gap-4 items-center">
+                    <Users className="w-5 h-5 text-gray-600 shrink-0"/>
+                    <button
+                        type="button"
+                        onClick={() => setFeedType("all")}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            feedType === "all"
+                                ? "bg-main text-white"
+                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        }`}
+                    >
+                        Para Você
+                    </button>
+                    <button
+                        type="button"
+                        disabled={!session}
+                        title={!session ? "Entre na conta para ver publicações de quem você segue" : undefined}
+                        onClick={() => session && setFeedType("following")}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                            feedType === "following"
+                                ? "bg-main text-white"
+                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        }`}
+                    >
+                        Seguindo
+                    </button>
+                    {!session && (
+                        <span className="text-xs text-muted-foreground">
+                            O feed &quot;Seguindo&quot; requer login.
+                        </span>
+                    )}
                 </div>
-            )}
+            </div>
 
             <Feed
                 initialPosts={posts}

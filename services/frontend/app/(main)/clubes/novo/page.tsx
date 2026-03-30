@@ -42,15 +42,10 @@ export default function NovoTimePage() {
   const selectedComp = competitions.find(c => c.id.toString() === selectedCompetition);
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/auth/login");
-      return;
-    }
-
     if (status === "authenticated") {
       loadOrganizations();
     }
-  }, [status, router]);
+  }, [status]);
 
   useEffect(() => {
     if (selectedOrg) {

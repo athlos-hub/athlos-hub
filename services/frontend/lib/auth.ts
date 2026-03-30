@@ -25,7 +25,6 @@ interface BackendUserResponse {
 }
 
 export const authOptions: NextAuthOptions = {
-    trustHost: true,
     providers: [
         CredentialsProvider({
             name: "Credentials",
@@ -218,7 +217,7 @@ export const authOptions: NextAuthOptions = {
             return session;
         },
     },
-    pages: { signIn: "/login", error: "/login" },
+    pages: { signIn: "/auth/login", error: "/auth/login" },
     session: { strategy: "jwt" },
     events: {
         async signOut({ token }) {

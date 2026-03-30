@@ -1,32 +1,52 @@
-import { IoFootballOutline } from "react-icons/io5";
-import { MdOutlineSportsVolleyball } from "react-icons/md";
 import { GrTrophy } from "react-icons/gr";
-import { LuBox, LuTv } from "react-icons/lu";
+import { LuBox, LuTv, LuUser } from "react-icons/lu";
 import { FiUsers } from "react-icons/fi";
-import { BsGraphUp } from "react-icons/bs";
-import {DropdownData} from "@/types/components/header";
+import { DropdownData } from "@/types/components/header";
 
 export const dropdownData: Record<string, DropdownData> = {
     esportes: {
         categoryName: "Esportes",
         mainSections: [
             {
-                icon: <MdOutlineSportsVolleyball size={32} />,
-                label: "Jogos",
-                description: "Acompanhe jogos e transmissões",
+                icon: <LuTv size={32} />,
+                label: "Jogos e transmissões",
+                description: "Ao vivo, agendadas e encerradas",
                 subItems: [
-                    { label: "Lista de Jogos", description: "Veja todos os jogos", href: "/jogos" },
-                ]
+                    {
+                        label: "Agenda de jogos",
+                        description: "Todas as transmissões e partidas",
+                        href: "/jogos",
+                    },
+                    {
+                        label: "Ao vivo",
+                        description: "Somente transmissões em andamento",
+                        href: "/jogos?status=live",
+                    },
+                    {
+                        label: "Agendadas",
+                        description: "Próximas transmissões",
+                        href: "/jogos?status=scheduled",
+                    },
+                ],
             },
             {
                 icon: <GrTrophy size={27} />,
-                label: "Competições",
-                description: "Acompanhe classificações e rankings",
+                label: "Competições e ligas",
+                description: "Campeonatos e quem os organiza",
                 subItems: [
-                    { label: "Todas as Competições", description: "Explore competições disponíveis", href: "/competitions" },
-                ]
-            }
-        ]
+                    {
+                        label: "Competições",
+                        description: "Explorar campeonatos, tabelas e detalhes",
+                        href: "/competitions",
+                    },
+                    {
+                        label: "Organizações",
+                        description: "Ligas, federações e clubes promotores",
+                        href: "/organizations",
+                    },
+                ],
+            },
+        ],
     },
     gestao: {
         categoryName: "Gestão",
@@ -34,46 +54,74 @@ export const dropdownData: Record<string, DropdownData> = {
             {
                 icon: <LuBox size={32} />,
                 label: "Organizações",
-                description: "Gerencie organizações e convites",
+                description: "Crie organizações e responda convites",
                 subItems: [
-                    { label: "Explorar Organizações", description: "Lista pública de organizações", href: "/organizations" },
-                    { label: "Criar Organização", description: "Iniciar nova organização", href: "/organizations/new" },
-                    { label: "Convites Recebidos", description: "Gerencie seus convites", href: "/organizations/invites" },
-                ]
+                    {
+                        label: "Suas organizações",
+                        description: "Lista e acesso às organizações que você participa",
+                        href: "/organizations",
+                    },
+                    {
+                        label: "Convites recebidos",
+                        description: "Convites pendentes para entrar em organizações",
+                        href: "/organizations/invites",
+                        requiresAuth: true,
+                    },
+                ],
             },
             {
-                icon: <GrTrophy size={27} />,
-                label: "Times",
-                description: "Gerencie seus times",
+                icon: <FiUsers size={32} />,
+                label: "Times e clubes",
+                description: "Monte elencos e acesse o painel dos times",
                 subItems: [
-                    { label: "Painel de Times", description: "Visão geral dos seus times", href: "/clubes/painel" },
-                    { label: "Criar Novo Time", description: "Iniciar um novo time", href: "/clubes/novo" },
-                ]
+                    {
+                        label: "Painel de times",
+                        description: "Visão geral dos times que você gerencia",
+                        href: "/clubes/painel",
+                        requiresAuth: true,
+                    },
+                    {
+                        label: "Criar time",
+                        description: "Cadastrar um novo time vinculado a competições",
+                        href: "/clubes/novo",
+                        requiresAuth: true,
+                    },
+                ],
             },
-        ]
+        ],
     },
     social: {
         categoryName: "Social",
         mainSections: [
             {
                 icon: <FiUsers size={32} />,
-                label: "Comunidade",
-                description: "Conecte-se com atletas e times",
+                label: "Feed e descoberta",
+                description: "Conteúdo da comunidade e busca",
                 subItems: [
-                    { label: "Feed Principal", description: "Publicações recentes", href: "/social" },
-                    { label: "Explorar", description: "Descubra novos conteúdos", href: "/social/explore" },
-                    { label: "Buscar", description: "Encontre pessoas e times", href: "/social/search" },
-                    { label: "Meu Perfil", description: "Seu perfil público", href: "/profile" }
-                ]
+                    { label: "Feed", description: "Linha do tempo das publicações", href: "/social" },
+                    { label: "Explorar", description: "Descobrir posts e perfis", href: "/social/explore" },
+                    { label: "Buscar", description: "Pessoas, times e publicações", href: "/social/search" },
+                ],
             },
             {
-                icon: <BsGraphUp size={32} />,
-                label: "Interações",
-                description: "Acompanhe suas atividades",
+                icon: <LuUser size={32} />,
+                label: "Conta",
+                description: "Perfil e alertas",
                 subItems: [
-                    { label: "Notificações", description: "Todas as suas atualizações", href: "/notifications" },
-                ]
-            }
-        ]
-    }
+                    {
+                        label: "Meu perfil",
+                        description: "Seu perfil público de atleta",
+                        href: "/profile",
+                        requiresAuth: true,
+                    },
+                    {
+                        label: "Notificações",
+                        description: "Menções, convites e atualizações",
+                        href: "/notifications",
+                        requiresAuth: true,
+                    },
+                ],
+            },
+        ],
+    },
 };
