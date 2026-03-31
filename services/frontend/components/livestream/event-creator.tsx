@@ -82,7 +82,7 @@ const eventTypeConfig: Record<MatchEventType, {
     description: "Início de tempo, set, quarter, etc",
     color: "text-emerald-600",
     fields: [
-      { name: "period", label: "Período", placeholder: "Ex: 1º Tempo, Set 1, 1º Quarter", required: true },
+      { name: "period", label: "Período", placeholder: "Ex: 1º Tempo, Set 1, 1º Quarto", required: true },
     ]
   },
   [MatchEventType.PERIOD_END]: { 
@@ -91,7 +91,7 @@ const eventTypeConfig: Record<MatchEventType, {
     description: "Fim de tempo, set, quarter, etc",
     color: "text-slate-600",
     fields: [
-      { name: "period", label: "Período", placeholder: "Ex: 1º Tempo, Set 1, 1º Quarter", required: true },
+      { name: "period", label: "Período", placeholder: "Ex: 1º Tempo, Set 1, 1º Quarto", required: true },
       { name: "score", label: "Placar", placeholder: "Ex: 2x1, 25-23", required: false },
     ]
   },

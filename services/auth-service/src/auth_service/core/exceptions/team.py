@@ -1,5 +1,8 @@
 """Exceções relacionadas a times."""
 
+from typing import Optional
+from uuid import UUID
+
 
 class TeamError(Exception):
     """Classe base para erros de time."""
@@ -16,7 +19,7 @@ class TeamNotFoundError(TeamError):
 
 class TeamAlreadyExistsError(TeamError):
     """Time já existe."""
-    def __init__(self, name: str = None, competition_id: int = None):
+    def __init__(self, name: str = None, competition_id: Optional[UUID] = None):
         self.name = name
         self.competition_id = competition_id
         message = f"Já existe um time com nome '{name}' nesta competição" if name else "Time já existe"

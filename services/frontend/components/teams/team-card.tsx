@@ -1,126 +1,154 @@
 "use client";
 
 import Link from "next/link";
-import { TeamListItem, TeamStatus, TeamRole } from "@/types/team";
+import { TeamListItem, TeamRole } from "@/types/team";
 import { Badge } from "@/components/ui/badge";
-import { Users, Shield, Clock, Trophy, UserPlus, CheckCircle, XCircle } from "lucide-react";
+import { Users, Shield, Trophy, Building2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface TeamCardProps {
   team: TeamListItem;
+  /** Exibe distintivo capitão/jogador */
   showRole?: boolean;
+  /** Oculta status (ex.: painel só com equipes ativas na competição) */
+  hideStatus?: boolean;
 }
 
-export function TeamCard({ team, showRole = true }: TeamCardProps) {
+export function TeamCard({ team, showRole = true, hideStatus = false }: TeamCardProps) {
   const getRoleBadge = (role: TeamRole) => {
     const roleConfig = {
       [TeamRole.CAPTAIN]: { label: "Capitão", variant: "default" as const, icon: Shield },
       [TeamRole.PLAYER]: { label: "Jogador", variant: "outline" as const, icon: Users },
     };
-    
     return roleConfig[role] || { label: role, variant: "outline" as const, icon: Users };
   };
 
-  const getStatusBadge = (status: TeamStatus) => {
-    const statusConfig = {
-      [TeamStatus.PENDING]: { 
-        label: "Pendente", 
-        variant: "outline" as const, 
-        className: "bg-yellow-50 text-yellow-700 border-yellow-300",
-        icon: Clock 
-      },
-      [TeamStatus.RECRUITING]: { 
-        label: "Recrutando", 
-        variant: "outline" as const, 
-        className: "bg-blue-50 text-blue-700 border-blue-300",
-        icon: UserPlus 
-      },
-      [TeamStatus.READY]: { 
-        label: "Pronto", 
-        variant: "outline" as const, 
-        className: "bg-green-50 text-green-700 border-green-300",
-        icon: CheckCircle 
-      },
-      [TeamStatus.APPROVED]: { 
-        label: "Aprovado", 
-        variant: "default" as const, 
-        className: "bg-green-500 text-white border-green-500",
-        icon: CheckCircle 
-      },
-      [TeamStatus.REJECTED]: { 
-        label: "Rejeitado", 
-        variant: "destructive" as const, 
-        className: "bg-red-50 text-red-700 border-red-300",
-        icon: XCircle 
-      },
-      [TeamStatus.ACTIVE]: { 
-        label: "Ativo", 
-        variant: "default" as const, 
-        className: "bg-green-500 text-white border-green-500",
-        icon: CheckCircle 
-      },
-    };
-    return statusConfig[status] || statusConfig[TeamStatus.PENDING];
-  };
+  const roleConfig = team.role ? getRoleBadge(team.role) : null;
+  const RoleIcon = roleConfig?.icon;
 
-  const roleConfig = getRoleBadge(team.role);
-  const statusConfig = getStatusBadge(team.status);
-  const RoleIcon = roleConfig.icon;
-  const StatusIcon = statusConfig.icon;
-
-  return (
-    <Link href={`/clubes/${team.id}`}>
-      <div className="group relative bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-300 hover:border-main cursor-pointer">
-        <div className="flex items-start gap-4">
-          <div className="relative w-16 h-16 rounded-lg bg-linear-to-br from-main to-main/80 flex items-center justify-center shrink-0 overflow-hidden">
-            <span className="text-white font-bold text-xl">{team.abbreviation}</span>
-          </div>
-
-          <div className="flex-1 min-w-0 flex flex-col justify-between min-h-16">
-            <div>
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold text-gray-900 group-hover:text-main transition-colors truncate">
-                    {team.name}
-                  </h3>
-                  <Badge variant={statusConfig.variant} className={`${statusConfig.className} shrink-0`}>
-                    <StatusIcon className="w-3 h-3 mr-1" />
-                    {statusConfig.label}
-                  </Badge>
-                </div>
-              </div>
-
+  if (hideStatus) {
+    return (
+      <div
+        className={cn(
+          "group overflow-hidden rounded-xl border border-gray-200 bg-card transition-all",
+          "hover:border-main/35 hover:shadow-md"
+        )}
+      >
+        <Link href={`/clubes/${team.id}`} className="block p-5 space-y-3 text-left">
+          <div className="flex items-start gap-3">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-main to-main/85 text-base font-bold text-white shadow-sm ring-1 ring-main/20">
+              <span className="leading-none">{team.abbreviation}</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-bold text-gray-900 line-clamp-2 leading-snug group-hover:text-main transition-colors">
+                {team.name}
+              </h3>
               {team.competition_name && (
-                <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                  <Trophy className="w-4 h-4 text-main" />
+                <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                  <Trophy className="h-4 w-4 shrink-0 text-main/80" />
                   <span className="truncate">{team.competition_name}</span>
                 </div>
               )}
-
-              {team.organization_name && (
-                <p className="text-sm text-gray-500 truncate">
-                  {team.organization_name}
-                </p>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between gap-2 mt-3">
-              {team.player_count !== undefined && (
-                <div className="flex items-center gap-1 text-xs text-gray-500">
-                  <Users className="w-3 h-3" />
-                  <span>{team.player_count} jogador{team.player_count !== 1 ? 'es' : ''}</span>
-                </div>
-              )}
-              
-              {showRole && team.role && (
-                <Badge variant={roleConfig.variant} className="gap-1">
-                  <RoleIcon className="w-3 h-3" />
-                  {roleConfig.label}
-                </Badge>
-              )}
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                {team.player_count !== undefined && (
+                  <span className="flex items-center gap-1">
+                    <Users className="h-3.5 w-3.5" />
+                    {team.player_count} jogador{team.player_count !== 1 ? "es" : ""}
+                  </span>
+                )}
+                {showRole && roleConfig && RoleIcon && (
+                  <Badge variant={roleConfig.variant} className="gap-1 text-xs">
+                    <RoleIcon className="h-3 w-3" />
+                    {roleConfig.label}
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </Link>
+
+        {team.organization_name && team.organization_slug && (
+          <div className="border-t bg-muted/40 px-5 py-3">
+            <Link
+              href={`/organizations/${team.organization_slug}`}
+              className="flex items-center gap-3 min-w-0 text-sm font-medium text-gray-900 hover:text-main transition-colors"
+            >
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-main/15 bg-main/10">
+                <Building2 className="h-4 w-4 text-main" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">Organização</p>
+                <p className="truncate">{team.organization_name}</p>
+              </div>
+            </Link>
+          </div>
+        )}
       </div>
-    </Link>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "group relative rounded-xl border border-border/80 bg-card transition-all",
+        "hover:border-main/35 hover:shadow-md"
+      )}
+    >
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-main/30 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+
+      <div className="flex flex-col gap-3 p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <Link
+            href={`/clubes/${team.id}`}
+            className="flex min-w-0 flex-1 gap-4 rounded-lg outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-main"
+          >
+            <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-main to-main/80 text-lg font-bold text-white shadow-inner ring-1 ring-main/25">
+              <span className="leading-none">{team.abbreviation}</span>
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <h3 className="text-lg font-semibold text-foreground transition-colors group-hover:text-main">
+                {team.name}
+              </h3>
+
+              {team.competition_name && (
+                <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                  <Trophy className="size-4 shrink-0 text-main/80" />
+                  <span className="truncate">{team.competition_name}</span>
+                </div>
+              )}
+            </div>
+          </Link>
+
+          <div className="flex shrink-0 flex-wrap items-center gap-2 sm:flex-col sm:items-end">
+            {team.player_count !== undefined && (
+              <div className="flex items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground">
+                <Users className="size-3.5 shrink-0" />
+                <span>
+                  {team.player_count} jogador{team.player_count !== 1 ? "es" : ""}
+                </span>
+              </div>
+            )}
+
+            {showRole && roleConfig && RoleIcon && (
+              <Badge variant={roleConfig.variant} className="gap-1">
+                <RoleIcon className="size-3" />
+                {roleConfig.label}
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {team.organization_name && team.organization_slug && (
+          <Link
+            href={`/organizations/${team.organization_slug}`}
+            className="inline-flex max-w-full items-center gap-2 rounded-md text-sm font-medium text-main transition-colors hover:underline"
+          >
+            <Building2 className="size-4 shrink-0" />
+            <span className="truncate">{team.organization_name}</span>
+          </Link>
+        )}
+      </div>
+    </div>
   );
 }

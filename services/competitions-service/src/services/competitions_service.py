@@ -1,8 +1,11 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy import desc
 from sqlalchemy.orm import selectinload
+from sqlalchemy.exc import IntegrityError
 from typing import Optional, List
+from uuid import UUID
 
 from src.models.competition import CompetitionModel, CompetitionStatus
 from src.models.sport_ruleset import SportRulesetModel
@@ -29,11 +32,13 @@ class CompetitionService:
         # 1. Validação da Modalidade
         query_modality = select(ModalityModel).where(ModalityModel.id == data.modality_id)
         result_modality = await self.session.execute(query_modality)
-        if not result_modality.scalar_one_or_none():
+        modality = result_modality.scalar_one_or_none()
+        if not modality:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, 
                 detail=f"Modalidade com ID {data.modality_id} não encontrada."
             )
+        organization_slug = modality.organization_slug
 
         # 2. Resolução do Sport Ruleset (Regras do Jogo) - OPCIONAL
         final_sport_ruleset_id = None
@@ -48,10 +53,21 @@ class CompetitionService:
                     status_code=status.HTTP_404_NOT_FOUND, 
                     detail=f"Sport Ruleset com ID {data.sport_ruleset_id} não encontrado."
                 )
+            if (
+                existing_ruleset.organization_slug is None
+                or existing_ruleset.organization_slug != organization_slug
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="O conjunto de regras esportivas não pertence a esta organização.",
+                )
             final_sport_ruleset_id = existing_ruleset.id
 
         elif data.ruleset:
-            new_ruleset = SportRulesetModel(**data.ruleset.model_dump())
+            new_ruleset = SportRulesetModel(
+                **data.ruleset.model_dump(),
+                organization_slug=organization_slug,
+            )
             self.session.add(new_ruleset)
             await self.session.flush() 
             final_sport_ruleset_id = new_ruleset.id
@@ -116,7 +132,6 @@ class CompetitionService:
                     "name": existing_type.name,
                     "abbreviation": existing_type.abbreviation,
                     "description": existing_type.description,
-                    "icon": existing_type.icon,
                     "display_order": existing_type.display_order,
                     "stats_ruleset_id": new_stats_copy.id
                 }
@@ -179,12 +194,12 @@ class CompetitionService:
                 query = query.where(CompetitionModel.status == status_enum)
             except ValueError:
                 pass  # Ignorar status inválido
-        
-        query = query.offset(skip).limit(limit)
+
+        query = query.order_by(desc(CompetitionModel.start_date)).offset(skip).limit(limit)
         result = await self.session.execute(query)
         return result.scalars().all()
 
-    async def get_by_id(self, competition_id: int) -> CompetitionModel:
+    async def get_by_id(self, competition_id: UUID) -> CompetitionModel:
         query = (
             select(CompetitionModel)
             .options(
@@ -202,7 +217,123 @@ class CompetitionService:
             
         return competition
 
-    async def get_stats_ruleset(self, competition_id: int) -> Optional[StatsRuleSetModel]:
+    async def update(self, competition_id: UUID, data: CompetitionUpdate) -> CompetitionModel:
+        competition = await self.get_by_id(competition_id)
+        update_data = data.model_dump(exclude_unset=True)
+        can_edit_before_start = competition.status == CompetitionStatus.PENDING
+
+        teams_count_result = await self.session.execute(
+            select(TeamModel.id).where(TeamModel.competition_id == competition_id)
+        )
+        has_teams = len(teams_count_result.scalars().all()) > 0
+        stats_ruleset = await self.get_stats_ruleset(competition_id)
+
+        if "name" in update_data and not can_edit_before_start:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Só é possível alterar o nome antes do início da competição.",
+            )
+
+        if ("system" in update_data or "sport_ruleset_id" in update_data) and not can_edit_before_start:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Sistema e regras esportivas só podem ser alterados antes do início da competição.",
+            )
+
+        if ("min_members_per_team" in update_data or "max_members_per_team" in update_data) and has_teams:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Não é possível alterar limite de membros com times já inscritos.",
+            )
+
+        if "sport_ruleset_id" in update_data and update_data["sport_ruleset_id"] is not None:
+            modality = await self.session.get(ModalityModel, competition.modality_id)
+            org_slug = modality.organization_slug if modality else None
+            if not org_slug:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Modalidade da competição inválida.",
+                )
+            rs_result = await self.session.execute(
+                select(SportRulesetModel).where(SportRulesetModel.id == update_data["sport_ruleset_id"])
+            )
+            ruleset = rs_result.scalar_one_or_none()
+            if not ruleset:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Sport Ruleset com ID {update_data['sport_ruleset_id']} não encontrado.",
+                )
+            if ruleset.organization_slug is None or ruleset.organization_slug != org_slug:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="O conjunto de regras esportivas não pertence a esta organização.",
+                )
+
+        stats_mode = update_data.pop("stats_ruleset_mode", None)
+        if stats_mode:
+            if stats_mode not in {"keep", "none", "new"}:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='stats_ruleset_mode inválido. Use "keep", "none" ou "new".',
+                )
+
+            if not can_edit_before_start:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Conjunto de estatísticas só pode ser alterado antes do início da competição.",
+                )
+
+            if stats_mode == "none":
+                if not stats_ruleset:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="A competição já está sem conjunto de estatísticas.",
+                    )
+                if stats_ruleset.stats_types and len(stats_ruleset.stats_types) > 0:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Só é possível remover o conjunto de estatísticas quando não há métricas cadastradas.",
+                    )
+                await self.session.delete(stats_ruleset)
+
+            if stats_mode == "new":
+                if stats_ruleset:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="A competição já possui conjunto de estatísticas.",
+                    )
+                new_stats_ruleset = StatsRuleSetModel(
+                    name=f"Estatísticas {competition.name}",
+                    description="Conjunto de estatísticas da competição",
+                    competition_id=competition.id,
+                )
+                self.session.add(new_stats_ruleset)
+
+        if "start_date" in update_data and update_data["start_date"] and update_data["start_date"].tzinfo:
+            update_data["start_date"] = update_data["start_date"].replace(tzinfo=None)
+        if "end_date" in update_data and update_data["end_date"] and update_data["end_date"].tzinfo:
+            update_data["end_date"] = update_data["end_date"].replace(tzinfo=None)
+
+        for key, value in update_data.items():
+            setattr(competition, key, value)
+
+        await self.session.commit()
+        await self.session.refresh(competition)
+        return await self.get_by_id(competition_id)
+
+    async def delete(self, competition_id: UUID) -> None:
+        competition = await self.get_by_id(competition_id)
+        try:
+            await self.session.delete(competition)
+            await self.session.commit()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Não foi possível excluir a competição porque ela possui vínculos ativos.",
+            ) from exc
+
+    async def get_stats_ruleset(self, competition_id: UUID) -> Optional[StatsRuleSetModel]:
         """
         Retorna o StatsRuleSet da competição com seus tipos de métricas.
         Retorna None se a competição não tiver stats configurados.
@@ -215,7 +346,7 @@ class CompetitionService:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_teams_with_players(self, competition_id: int) -> List[TeamModel]:
+    async def get_teams_with_players(self, competition_id: UUID) -> List[TeamModel]:
         """
         Retorna todos os times da competição com seus jogadores.
         """
@@ -234,7 +365,7 @@ class CompetitionService:
         result = await self.session.execute(query)
         return result.scalars().all()
     
-    async def finalize_competition(self, competition_id: int) -> dict:
+    async def finalize_competition(self, competition_id: UUID) -> dict:
         """
         Finaliza uma competição e verifica todas as conquistas.
         

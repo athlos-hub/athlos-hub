@@ -19,7 +19,7 @@ interface LiveEventsProps {
     home_team_id?: string;
     away_team_id?: string;
   };
-  competitionId?: number;
+  competitionId?: string;
   competitionStats?: CompetitionStat[];
   teamsWithPlayers?: TeamWithPlayers[];
   segments?: SegmentScore[];

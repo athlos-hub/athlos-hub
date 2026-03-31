@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
+from uuid import UUID
 
 from src.routes.routes import get_session
 from src.services.stats_ruleset_service import StatsRuleSetService
@@ -24,7 +25,7 @@ router = APIRouter(prefix="/stats-rulesets", tags=["Stats Rulesets"])
     summary="Criar Stats Ruleset para uma competição"
 )
 async def create_stats_ruleset(
-    competition_id: int,
+    competition_id: UUID,
     data: StatsRuleSetCreate,
     session: AsyncSession = Depends(get_session)
 ):
@@ -44,7 +45,7 @@ async def create_stats_ruleset(
     summary="Obter Stats Ruleset de uma competição"
 )
 async def get_competition_stats_ruleset(
-    competition_id: int,
+    competition_id: UUID,
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -69,7 +70,7 @@ async def get_competition_stats_ruleset(
     summary="Obter Stats Ruleset por ID"
 )
 async def get_stats_ruleset(
-    ruleset_id: int,
+    ruleset_id: UUID,
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -102,7 +103,7 @@ async def list_stats_rulesets(
     summary="Atualizar Stats Ruleset"
 )
 async def update_stats_ruleset(
-    ruleset_id: int,
+    ruleset_id: UUID,
     data: StatsRuleSetUpdate,
     session: AsyncSession = Depends(get_session)
 ):
@@ -119,7 +120,7 @@ async def update_stats_ruleset(
     summary="Deletar Stats Ruleset"
 )
 async def delete_stats_ruleset(
-    ruleset_id: int,
+    ruleset_id: UUID,
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -138,7 +139,7 @@ async def delete_stats_ruleset(
     summary="Adicionar tipo de estatística ao ruleset"
 )
 async def add_stat_type(
-    ruleset_id: int,
+    ruleset_id: UUID,
     data: StatsTypeCreate,
     session: AsyncSession = Depends(get_session)
 ):
@@ -155,8 +156,8 @@ async def add_stat_type(
     summary="Atualizar tipo de estatística"
 )
 async def update_stat_type(
-    ruleset_id: int,
-    stat_type_id: int,
+    ruleset_id: UUID,
+    stat_type_id: UUID,
     data: StatsTypeUpdate,
     session: AsyncSession = Depends(get_session)
 ):
@@ -173,8 +174,8 @@ async def update_stat_type(
     summary="Deletar tipo de estatística"
 )
 async def delete_stat_type(
-    ruleset_id: int,
-    stat_type_id: int,
+    ruleset_id: UUID,
+    stat_type_id: UUID,
     session: AsyncSession = Depends(get_session)
 ):
     """

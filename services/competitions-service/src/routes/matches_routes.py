@@ -98,7 +98,7 @@ async def list_organization_matches(
     summary="Listar jogos de uma competição com filtros"
 )
 async def list_competition_matches(
-    competition_id: int,
+    competition_id: UUID,
     period: MatchPeriodFilter = Query(
         MatchPeriodFilter.ALL, 
         description="Filtro de período: 'today', 'week', ou 'all'"
@@ -138,7 +138,7 @@ async def list_team_matches(
     summary="Listar rodadas e jogos da competição"
 )
 async def list_competition_rounds(
-    competition_id: int,
+    competition_id: UUID,
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -153,7 +153,7 @@ async def list_competition_rounds(
     summary="Listar rodadas e jogos de um grupo"
 )
 async def list_group_rounds(
-    group_id: int,
+    group_id: UUID,
     session: AsyncSession = Depends(get_session)
 ):
     """

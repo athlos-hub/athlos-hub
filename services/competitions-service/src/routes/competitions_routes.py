@@ -28,7 +28,7 @@ class GenerateStructureRequest(BaseModel):
 router = APIRouter(prefix="/competitions", tags=["Competitions"])
 
 
-async def _get_organization_slug_from_modality(session: AsyncSession, modality_id: int) -> str:
+async def _get_organization_slug_from_modality(session: AsyncSession, modality_id: UUID) -> str:
     """
     Busca o organization_slug a partir da modalidade.
     Lança HTTPException 404 se a modalidade não existir.
@@ -128,18 +128,53 @@ async def list_competitions(
     summary="Obter detalhes de uma competição"
 )
 async def get_competition(
-    competition_id: int, 
+    competition_id: UUID, 
     session: AsyncSession = Depends(get_session)
 ):
     service = CompetitionService(session)
     return await service.get_by_id(competition_id)
+
+
+@router.put(
+    "/{competition_id}",
+    response_model=CompetitionResponse,
+    summary="Atualizar competição",
+)
+async def update_competition(
+    competition_id: UUID,
+    data: CompetitionUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_keycloak_id: UUID = Depends(get_current_keycloak_id),
+):
+    service = CompetitionService(session)
+    competition = await service.get_by_id(competition_id)
+    organization_slug = await _get_organization_slug_from_modality(session, competition.modality_id)
+    await _verify_user_permission(current_keycloak_id, organization_slug)
+    return await service.update(competition_id, data)
+
+
+@router.delete(
+    "/{competition_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Excluir competição",
+)
+async def delete_competition(
+    competition_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    current_keycloak_id: UUID = Depends(get_current_keycloak_id),
+):
+    service = CompetitionService(session)
+    competition = await service.get_by_id(competition_id)
+    organization_slug = await _get_organization_slug_from_modality(session, competition.modality_id)
+    await _verify_user_permission(current_keycloak_id, organization_slug)
+    await service.delete(competition_id)
 
 @router.post(
     "/{competition_id}/generate-structure", 
     status_code=status.HTTP_200_OK
 )
 async def generate_structure(
-    competition_id: int,
+    competition_id: UUID,
     request: GenerateStructureRequest,
     session: AsyncSession = Depends(get_session),
     current_keycloak_id: UUID = Depends(get_current_keycloak_id)
@@ -172,7 +207,7 @@ async def generate_structure(
     summary="Obter regras de estatísticas da competição"
 )
 async def get_competition_stats_ruleset(
-    competition_id: int,
+    competition_id: UUID,
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -190,7 +225,7 @@ async def get_competition_stats_ruleset(
     summary="Obter tipos de estatísticas da competição"
 )
 async def get_competition_stats(
-    competition_id: int,
+    competition_id: UUID,
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -212,7 +247,7 @@ async def get_competition_stats(
     summary="Obter times e jogadores da competição"
 )
 async def get_competition_teams_with_players(
-    competition_id: int,
+    competition_id: UUID,
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -229,7 +264,7 @@ async def get_competition_teams_with_players(
     summary="Finalizar competição e verificar conquistas"
 )
 async def finalize_competition(
-    competition_id: int,
+    competition_id: UUID,
     session: AsyncSession = Depends(get_session)
 ):
     """

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Users, CheckCircle, XCircle, Loader2, Clock, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -143,8 +144,13 @@ export function PendingTeamsSection({ organizationSlug, isAdmin }: PendingTeamsS
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h4 className="font-semibold text-gray-900">{team.name}</h4>
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <Link
+                        href={`/clubes/${team.id}`}
+                        className="font-semibold text-gray-900 hover:text-main hover:underline"
+                      >
+                        {team.name}
+                      </Link>
                       <span className="text-sm text-gray-500">({team.abbreviation})</span>
                     </div>
                     <div className="text-sm text-gray-600 space-y-1">

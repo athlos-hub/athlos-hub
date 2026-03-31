@@ -31,7 +31,7 @@ class ManageMatchesService:
         match_id: uuid.UUID,
         team_side: str,  # "home" | "away"
         increment: int = 1,
-        segment_id: Optional[int] = None,
+        segment_id: Optional[uuid.UUID] = None,
         stats_metric_abbreviation: Optional[str] = None,
         player_id: Optional[uuid.UUID] = None,
     ) -> MatchModel:

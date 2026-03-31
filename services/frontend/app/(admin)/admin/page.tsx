@@ -509,11 +509,11 @@ export default function AdminPage() {
                     </Card>
                 </TabsContent>
 
-                <TabsContent value="suspended-users" className="space-y-4">
+                <TabsContent value="suspended-users" className="space-y-4 mt-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Usuários Suspensos</CardTitle>
-                            <CardDescription>Usuários que foram suspensos por administradores</CardDescription>
+                            <CardTitle className="text-2xl">Usuários Suspensos</CardTitle>
+                            <CardDescription className="text-md">Usuários que foram suspensos por administradores</CardDescription>
                             <div className="relative mt-4">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                                 <Input
@@ -606,11 +606,11 @@ export default function AdminPage() {
                     </Card>
                 </TabsContent>
 
-                <TabsContent value="organizations" className="space-y-4">
+                <TabsContent value="organizations" className="space-y-4 mt-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Organizações Ativas</CardTitle>
-                            <CardDescription>Todas as organizações aceitas na plataforma</CardDescription>
+                            <CardTitle className="text-2xl">Organizações Ativas</CardTitle>
+                            <CardDescription className="text-md">Todas as organizações aceitas na plataforma</CardDescription>
                             <div className="relative mt-4">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                                 <Input
@@ -696,11 +696,11 @@ export default function AdminPage() {
                     </Card>
                 </TabsContent>
 
-                <TabsContent value="pending-orgs" className="space-y-4">
+                <TabsContent value="pending-orgs" className="space-y-4 mt-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Organizações Aguardando Aprovação</CardTitle>
-                            <CardDescription>Aprove ou rejeite organizações pendentes</CardDescription>
+                            <CardTitle className="text-2xl">Organizações Aguardando Aprovação</CardTitle>
+                            <CardDescription className="text-md">Aprove ou rejeite organizações pendentes</CardDescription>
                             <div className="relative mt-4">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                                 <Input
@@ -792,11 +792,11 @@ export default function AdminPage() {
                     </Card>
                 </TabsContent>
 
-                <TabsContent value="suspended-orgs" className="space-y-4">
+                <TabsContent value="suspended-orgs" className="space-y-4 mt-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Organizações Suspensas</CardTitle>
-                            <CardDescription>Organizações que foram suspensas por violação de políticas</CardDescription>
+                            <CardTitle className="text-2xl">Organizações Suspensas</CardTitle>
+                            <CardDescription className="text-md">Organizações que foram suspensas por violação de políticas</CardDescription>
                             <div className="relative mt-4">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                                 <Input

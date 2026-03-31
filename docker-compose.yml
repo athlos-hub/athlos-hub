@@ -6,6 +6,7 @@ services:
       KONG_ADMIN_LISTEN: '0.0.0.0:8101'
       KONG_ADMIN_GUI_URL: http://localhost:8102
       KONG_DECLARATIVE_CONFIG: '/kong/config.yml'
+      KONG_UNTRUSTED_LUA_SANDBOX_REQUIRES: 'cjson,cjson.safe'
     volumes:
       - './docker/kong/config.yml:/kong/config.yml'
     extra_hosts:

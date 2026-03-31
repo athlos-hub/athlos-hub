@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Building2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { OrganizationCard } from "@/components/organizations/organization-card";
@@ -21,14 +21,26 @@ import { useSession } from "next-auth/react";
 
 type TabType = "public" | "my-organizations";
 
-export default function OrganizationsPage() {
+const TAB_QUERY_MY = "minhas";
+
+function OrganizationsPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState<TabType>("public");
   const [publicOrgs, setPublicOrgs] = useState<OrganizationGetPublic[]>([]);
   const [myOrgs, setMyOrgs] = useState<OrganizationListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab === TAB_QUERY_MY && session) {
+      setActiveTab("my-organizations");
+    } else {
+      setActiveTab("public");
+    }
+  }, [searchParams, session]);
 
   useEffect(() => {
     loadOrganizations();
@@ -56,6 +68,18 @@ export default function OrganizationsPage() {
   const handleOrganizationCreated = (organization: OrganizationResponse) => {
     router.push(`/organizations/${organization.slug}`);
   };
+
+  const setTab = useCallback(
+    (tab: TabType) => {
+      setActiveTab(tab);
+      if (tab === "my-organizations") {
+        router.replace(`/organizations?tab=${TAB_QUERY_MY}`, { scroll: false });
+      } else {
+        router.replace("/organizations", { scroll: false });
+      }
+    },
+    [router]
+  );
 
   return (
     <div className="space-y-6">
@@ -90,7 +114,8 @@ export default function OrganizationsPage() {
           <Building2 className="w-5 h-5 text-gray-600" />
           <div className="flex gap-2">
             <button
-              onClick={() => setActiveTab("public")}
+              type="button"
+              onClick={() => setTab("public")}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === "public"
                   ? "bg-main text-white"
@@ -102,7 +127,8 @@ export default function OrganizationsPage() {
 
             {session && (
               <button
-                onClick={() => setActiveTab("my-organizations")}
+                type="button"
+                onClick={() => setTab("my-organizations")}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   activeTab === "my-organizations"
                     ? "bg-main text-white"
@@ -148,7 +174,7 @@ export default function OrganizationsPage() {
             {activeTab === "my-organizations" && (
               <div className="space-y-4">
                 {myOrgs.length === 0 ? (
-                  <div className="text-center py-12 bg-gray-50 rounded-xl">
+                  <div className="text-center py-12 rounded-xl">
                     <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                     <p className="text-gray-600 mb-4">
                       Você ainda não faz parte de nenhuma organização
@@ -179,5 +205,25 @@ export default function OrganizationsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function OrganizationsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-6">
+          <div className="h-10 w-64 bg-gray-100 rounded animate-pulse" />
+          <div className="h-32 bg-gray-100 rounded-2xl animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-40 bg-gray-100 rounded-xl animate-pulse" />
+            ))}
+          </div>
+        </div>
+      }
+    >
+      <OrganizationsPageContent />
+    </Suspense>
   );
 }

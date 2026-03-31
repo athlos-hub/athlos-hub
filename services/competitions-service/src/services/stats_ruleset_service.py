@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from typing import Optional, List
+from uuid import UUID
 
 from src.models.stats import StatsRuleSetModel, StatsTypeModel
 from src.models.competition import CompetitionModel
@@ -18,7 +19,7 @@ class StatsRuleSetService:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def create(self, competition_id: int, data: StatsRuleSetCreate) -> StatsRuleSetModel:
+    async def create(self, competition_id: UUID, data: StatsRuleSetCreate) -> StatsRuleSetModel:
         """
         Cria um novo StatsRuleSet para uma competição específica.
         Agora uma competição pode ter múltiplos stats rulesets.
@@ -59,7 +60,7 @@ class StatsRuleSetService:
         result = await self.session.execute(query)
         return result.scalar_one()
 
-    async def get_by_competition(self, competition_id: int) -> Optional[StatsRuleSetModel]:
+    async def get_by_competition(self, competition_id: UUID) -> Optional[StatsRuleSetModel]:
         """
         Retorna o StatsRuleSet de uma competição com seus tipos.
         """
@@ -71,7 +72,7 @@ class StatsRuleSetService:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_by_id(self, ruleset_id: int) -> StatsRuleSetModel:
+    async def get_by_id(self, ruleset_id: UUID) -> StatsRuleSetModel:
         """
         Retorna um StatsRuleSet pelo ID.
         """
@@ -91,7 +92,7 @@ class StatsRuleSetService:
         
         return ruleset
 
-    async def update(self, ruleset_id: int, data: StatsRuleSetUpdate) -> StatsRuleSetModel:
+    async def update(self, ruleset_id: UUID, data: StatsRuleSetUpdate) -> StatsRuleSetModel:
         """
         Atualiza um StatsRuleSet existente.
         """
@@ -106,7 +107,7 @@ class StatsRuleSetService:
         
         return ruleset
 
-    async def delete(self, ruleset_id: int) -> None:
+    async def delete(self, ruleset_id: UUID) -> None:
         """
         Deleta um StatsRuleSet e seus tipos associados (cascade).
         """
@@ -128,7 +129,7 @@ class StatsRuleSetService:
         return result.scalars().all()
 
     # Operações em StatsTypes individuais
-    async def add_stat_type(self, ruleset_id: int, data: StatsTypeCreate) -> StatsTypeModel:
+    async def add_stat_type(self, ruleset_id: UUID, data: StatsTypeCreate) -> StatsTypeModel:
         """
         Adiciona um novo tipo de estatística a um ruleset existente.
         """
@@ -144,8 +145,8 @@ class StatsRuleSetService:
 
     async def update_stat_type(
         self, 
-        ruleset_id: int, 
-        stat_type_id: int, 
+        ruleset_id: UUID, 
+        stat_type_id: UUID, 
         data: StatsTypeUpdate
     ) -> StatsTypeModel:
         """
@@ -173,7 +174,7 @@ class StatsRuleSetService:
         
         return stat_type
 
-    async def delete_stat_type(self, ruleset_id: int, stat_type_id: int) -> None:
+    async def delete_stat_type(self, ruleset_id: UUID, stat_type_id: UUID) -> None:
         """
         Remove um tipo de estatística de um ruleset.
         """

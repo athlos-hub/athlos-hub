@@ -1,5 +1,5 @@
 export interface Modality {
-  id: number;
+  id: string;
   name: string;
   organization_slug: string;
 }

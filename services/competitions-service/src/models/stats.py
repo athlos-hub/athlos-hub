@@ -14,10 +14,10 @@ if TYPE_CHECKING:
 class StatsRuleSetModel(Base):
     __tablename__ = "stats_rulesets"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    competition_id: Mapped[Optional[int]] = mapped_column(ForeignKey("competitions.id"), nullable=True)
+    competition_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("competitions.id"), nullable=True)
 
     # Relacionamentos
     competition: Mapped[Optional["CompetitionModel"]] = relationship("CompetitionModel")
@@ -28,13 +28,12 @@ class StatsRuleSetModel(Base):
 class StatsTypeModel(Base):
     __tablename__ = "stats_types"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     abbreviation: Mapped[str] = mapped_column(String(20), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    icon: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     display_order: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    stats_ruleset_id: Mapped[int] = mapped_column(ForeignKey("stats_rulesets.id"))
+    stats_ruleset_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stats_rulesets.id"))
 
     # Relacionamentos
     stats_ruleset: Mapped["StatsRuleSetModel"] = relationship("StatsRuleSetModel", back_populates="stats_types")
@@ -45,9 +44,9 @@ class StatsTypeModel(Base):
 class PlayerStatsModel(Base):
     __tablename__ = "player_stats"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     player_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("players.id"))
-    stats_type_id: Mapped[int] = mapped_column(ForeignKey("stats_types.id"))
+    stats_type_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stats_types.id"))
     match_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("matches.id"))
     value: Mapped[int] = mapped_column(Integer, nullable=False)
 

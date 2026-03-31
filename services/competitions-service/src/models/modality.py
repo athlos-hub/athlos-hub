@@ -1,4 +1,6 @@
+import uuid
 from sqlalchemy import String
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import List, TYPE_CHECKING
 
@@ -10,7 +12,7 @@ if TYPE_CHECKING:
 class ModalityModel(Base):
     __tablename__ = "modalities"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     organization_slug: Mapped[str] = mapped_column(String(255), index=True)
     name: Mapped[str] = mapped_column(String(50))
     

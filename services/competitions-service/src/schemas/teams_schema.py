@@ -15,7 +15,7 @@ class PlayerResponseSchema(BaseModel):
 
 class TeamBaseSchema(BaseModel):
     organization_slug: str = Field(..., description="Slug da organização")
-    competition_id: int = Field(..., description="ID da competição")
+    competition_id: uuid.UUID = Field(..., description="ID da competição")
     name: str = Field(..., description="Nome do time", max_length=100)
     abbreviation: str = Field(..., description="Abreviação (SIGLA)", max_length=3)
     
@@ -31,7 +31,7 @@ class TeamResponseSchema(BaseModel):
     name: str
     abbreviation: str
     status: str
-    competition_id: int
+    competition_id: uuid.UUID
     team_captain: Optional[uuid.UUID] = None
     players: List[PlayerResponseSchema]
     created_at: datetime
@@ -82,7 +82,7 @@ class AcceptInviteResponse(BaseModel):
     team_id: uuid.UUID
     team_name: str
     player_id: uuid.UUID
-    competition_id: int
+    competition_id: uuid.UUID
 
 
 class InviteValidationResponse(BaseModel):
@@ -91,7 +91,7 @@ class InviteValidationResponse(BaseModel):
     team_id: Optional[uuid.UUID] = None
     team_name: Optional[str] = None
     organization_slug: Optional[str] = None
-    competition_id: Optional[int] = None
+    competition_id: Optional[uuid.UUID] = None
     competition_name: Optional[str] = None
     expires_at: Optional[datetime] = None
     remaining_uses: Optional[int] = None  # None = ilimitado
@@ -111,7 +111,7 @@ class TeamListItemSchema(BaseModel):
     abbreviation: str
     status: str
     organization_slug: str
-    competition_id: int
+    competition_id: uuid.UUID
     team_captain: Optional[uuid.UUID] = None
     created_at: datetime
     competition_name: Optional[str] = None
@@ -129,7 +129,7 @@ class TeamDetailSchema(BaseModel):
     abbreviation: str
     status: str
     organization_slug: str
-    competition_id: int
+    competition_id: uuid.UUID
     team_captain: Optional[uuid.UUID] = None
     created_at: datetime
     competition_name: str

@@ -108,7 +108,7 @@ class TeamService:
 
     async def _validate_players_not_in_competition(
         self,
-        competition_id: int,
+        competition_id: uuid.UUID,
         keycloak_ids: List[uuid.UUID]
     ) -> None:
         """

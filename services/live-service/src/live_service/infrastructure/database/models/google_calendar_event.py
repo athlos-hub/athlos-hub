@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
@@ -36,12 +36,12 @@ class GoogleCalendarEvent(Base):
         "created_at",
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(),
+        default=lambda: datetime.now(timezone.utc),
     )
     updated_at: Mapped[datetime] = mapped_column(
         "updated_at",
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(),
-        onupdate=lambda: datetime.now(),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )

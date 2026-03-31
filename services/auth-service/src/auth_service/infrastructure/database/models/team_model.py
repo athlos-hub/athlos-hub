@@ -47,9 +47,9 @@ class Team(Base):
         index=True,
     )
 
-    # ID da competição no competitions-service
-    competition_id: Mapped[int] = mapped_column(
-        Integer,
+    # ID da competição no competitions-service (UUID)
+    competition_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
         nullable=False,
         index=True,
     )

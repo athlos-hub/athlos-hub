@@ -1,6 +1,8 @@
+import uuid
 from sqlalchemy import String, Integer, ForeignKey, Boolean
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Optional
 
 from src.models.base import Base
 
@@ -10,7 +12,10 @@ if TYPE_CHECKING:
 class SportRulesetModel(Base):
     __tablename__ = "sport_rulesets"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    # Escopo por organização (slug); reutilização só dentro da mesma organização
+    organization_slug: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     
     name: Mapped[str] = mapped_column(String(50))
     

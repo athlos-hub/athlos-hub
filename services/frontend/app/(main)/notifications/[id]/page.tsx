@@ -44,6 +44,13 @@ export default function NotificationDetailPage({ params }: NotificationDetailPag
     try {
       setLoading(true);
       const data = await notificationsApi.getNotification(resolvedParams.id);
+
+      console.log('created_at raw:', data.created_at);
+      console.log('created_at type:', typeof data.created_at);
+      console.log('new Date(created_at):', new Date(data.created_at));
+      console.log('new Date(created_at + Z):', new Date(data.created_at + 'Z'));
+      console.log('Date.now():', new Date());
+
       setNotification(data);
       
       if (!data.is_read) {
@@ -135,7 +142,15 @@ export default function NotificationDetailPage({ params }: NotificationDetailPag
 
   const formatTimeAgo = (dateString: string) => {
     try {
-      return formatDistanceToNow(new Date(dateString), {
+      // Normaliza espaço para 'T' e adiciona 'Z' apenas se não tiver timezone
+      const normalized = dateString.trim().replace(' ', 'T');
+      const hasTimezone = /[zZ]|[+-]\d{2}:\d{2}$/.test(normalized);
+      const iso = hasTimezone ? normalized : `${normalized}Z`;
+  
+      const date = new Date(iso);
+      if (Number.isNaN(date.getTime())) return 'agora';
+  
+      return formatDistanceToNow(date, {
         addSuffix: true,
         locale: ptBR,
       });
@@ -157,17 +172,15 @@ export default function NotificationDetailPage({ params }: NotificationDetailPag
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <Button
-          variant="ghost"
-          onClick={() => router.back()}
-          className="gap-2"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Voltar
-        </Button>
-        
+    <div className="mx-auto w-full space-y-6">
+      <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Detalhes da notificação</h1>
+            <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+              Visualize os detalhes da notificação
+            </p>
+          </div>
+
         <Button
           variant="destructive"
           size="sm"
@@ -176,7 +189,7 @@ export default function NotificationDetailPage({ params }: NotificationDetailPag
           className="gap-2"
         >
           <Trash2 className="w-4 h-4" />
-          {deleting ? 'Deletando...' : 'Deletar'}
+          {deleting ? 'Deletando...' : 'Deletar notificação'}
         </Button>
       </div>
 
@@ -201,16 +214,18 @@ export default function NotificationDetailPage({ params }: NotificationDetailPag
         </AlertDialogContent>
       </AlertDialog>
 
-      <Card>
-        <CardHeader>
+      <Card className="border-border/80 shadow-sm">
+        <CardHeader className="space-y-0 border-b bg-muted/20">
           <div className="flex items-start gap-4">
-            <div className="text-4xl">{getNotificationIcon(notification.type)}</div>
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl border bg-background text-2xl shadow-sm">
+              {getNotificationIcon(notification.type)}
+            </div>
             <div className="flex-1">
-              <CardTitle className="text-2xl mb-2">{notification.title}</CardTitle>
-              <CardDescription className="text-base">
+              <CardTitle className="mb-2 text-xl sm:text-2xl">{notification.title}</CardTitle>
+              <CardDescription className="flex flex-wrap items-center gap-2 text-sm sm:text-base">
                 {formatTimeAgo(notification.created_at)}
                 {!notification.is_read && (
-                  <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-main/10 text-main">
+                  <span className="inline-flex items-center rounded-full bg-main/10 px-2 py-1 text-xs font-medium text-main">
                     Nova
                   </span>
                 )}
@@ -218,44 +233,46 @@ export default function NotificationDetailPage({ params }: NotificationDetailPag
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 p-6">
           <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Mensagem</h3>
-            <p className="text-base text-gray-900">{notification.message}</p>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mensagem</h3>
+            <div className="rounded-lg border bg-background p-4">
+              <p className="text-sm leading-relaxed text-foreground sm:text-base">{notification.message}</p>
+            </div>
           </div>
 
           {notification.metadata && Object.keys(notification.metadata).length > 0 && (
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Detalhes</h3>
-              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Detalhes</h3>
+              <div className="space-y-2 rounded-lg border bg-muted/30 p-4">
                 {notification.metadata.organization_name && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Organização:</span>
-                    <span className="text-sm font-medium text-gray-900">
+                  <div className="flex items-start justify-between gap-3 rounded-md bg-background px-3 py-2">
+                    <span className="text-sm text-muted-foreground">Organização:</span>
+                    <span className="text-right text-sm font-medium text-foreground">
                       {notification.metadata.organization_name}
                     </span>
                   </div>
                 )}
                 {notification.metadata.requester_name && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Solicitante:</span>
-                    <span className="text-sm font-medium text-gray-900">
+                  <div className="flex items-start justify-between gap-3 rounded-md bg-background px-3 py-2">
+                    <span className="text-sm text-muted-foreground">Solicitante:</span>
+                    <span className="text-right text-sm font-medium text-foreground">
                       {notification.metadata.requester_name}
                     </span>
                   </div>
                 )}
                 {notification.metadata.member_name && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Membro:</span>
-                    <span className="text-sm font-medium text-gray-900">
+                  <div className="flex items-start justify-between gap-3 rounded-md bg-background px-3 py-2">
+                    <span className="text-sm text-muted-foreground">Membro:</span>
+                    <span className="text-right text-sm font-medium text-foreground">
                       {notification.metadata.member_name}
                     </span>
                   </div>
                 )}
                 {notification.metadata.inviter_name && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Convidado por:</span>
-                    <span className="text-sm font-medium text-gray-900">
+                  <div className="flex items-start justify-between gap-3 rounded-md bg-background px-3 py-2">
+                    <span className="text-sm text-muted-foreground">Convidado por:</span>
+                    <span className="text-right text-sm font-medium text-foreground">
                       {notification.metadata.inviter_name}
                     </span>
                   </div>
@@ -264,7 +281,9 @@ export default function NotificationDetailPage({ params }: NotificationDetailPag
             </div>
           )}
 
-          <NotificationActions notification={notification} onComplete={() => router.push('/notifications')} />
+          <div className="rounded-lg border bg-background p-4">
+            <NotificationActions notification={notification} onComplete={() => router.push('/notifications')} />
+          </div>
         </CardContent>
       </Card>
     </div>

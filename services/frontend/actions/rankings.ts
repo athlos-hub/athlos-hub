@@ -24,30 +24,26 @@ export interface PlayerRanking {
 }
 
 export async function getCompetitionStandings(
-  competitionId: number,
+  competitionId: string,
   limit?: number
 ): Promise<StandingsTeam[]> {
   const queryParams: Record<string, number> = {};
   if (limit) {
     queryParams.limit = limit;
   }
-
-  console.log(`[Rankings] Buscando standings para competição ${competitionId}`);
-
   const response = await axiosAPI<StandingsTeam[]>({
     endpoint: `/rankings/standings/${competitionId}`,
     method: "GET",
     queryParams,
-    withAuth: false,
+    withAuth: true,
     service: "competitions",
   });
 
-  console.log(`[Rankings] Standings recebidos:`, response.data);
   return response.data;
 }
 
 export async function getPlayerRankings(
-  competitionId: number,
+  competitionId: string,
   statsMetricAbbreviation: string,
   limit?: number
 ): Promise<PlayerRanking[]> {
@@ -55,33 +51,26 @@ export async function getPlayerRankings(
   if (limit) {
     queryParams.limit = limit;
   }
-
-  console.log(`[Rankings] Buscando player rankings para competição ${competitionId}, métrica ${statsMetricAbbreviation}`);
-
   const response = await axiosAPI<PlayerRanking[]>({
     endpoint: `/rankings/players/${competitionId}/${statsMetricAbbreviation}`,
     method: "GET",
     queryParams,
-    withAuth: false,
+    withAuth: true,
     service: "competitions",
   });
 
-  console.log(`[Rankings] Player rankings recebidos:`, response.data);
   return response.data;
 }
 
 export async function getCompetitionMatches(
-  competitionId: number
+  competitionId: string
 ): Promise<any[]> {
-  console.log(`[Rankings] Buscando matches para competição ${competitionId}`);
-
   const response = await axiosAPI<any[]>({
     endpoint: `/matches/competition/${competitionId}`,
     method: "GET",
-    withAuth: false,
+    withAuth: true,
     service: "competitions",
   });
 
-  console.log(`[Rankings] Matches recebidos:`, response.data);
   return response.data;
 }

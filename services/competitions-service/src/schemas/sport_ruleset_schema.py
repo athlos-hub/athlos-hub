@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
+import uuid
 
 
 class SportRulesetBase(BaseModel):
@@ -25,6 +26,7 @@ class SportRulesetUpdate(BaseModel):
 
 
 class SportRulesetResponse(SportRulesetBase):
-    id: int
-    
+    id: uuid.UUID
+    organization_slug: Optional[str] = None
+
     model_config = ConfigDict(from_attributes=True)

@@ -3,9 +3,11 @@ from sqlalchemy.orm import selectinload
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
+from typing import Optional
 from uuid import UUID
 
 from src.models.competition import CompetitionModel, CompetitionSystem, CompetitionStatus
+from src.models.modality import ModalityModel
 from src.models.teams import TeamModel
 from src.models.matches import MatchModel
 from .standings_manager import initialize_standings
@@ -30,7 +32,7 @@ class StructureGeneratorService:
     
     async def generate_structure(
         self, 
-        competition_id: int,
+        competition_id: UUID,
         organization_id: UUID
     ):
         """
@@ -52,7 +54,10 @@ class StructureGeneratorService:
         # 1. Buscar competição
         query = (
             select(CompetitionModel)
-            .options(selectinload(CompetitionModel.sport_ruleset))
+            .options(
+                selectinload(CompetitionModel.sport_ruleset),
+                selectinload(CompetitionModel.modality),
+            )
             .where(CompetitionModel.id == competition_id)
         )
         result = await self.session.execute(query)
@@ -74,13 +79,25 @@ class StructureGeneratorService:
             logger.warning(f"Competição {competition_id} sem ruleset. Criando ruleset padrão...")
             from src.models.sport_ruleset import SportRulesetModel
             
+            org_slug: Optional[str] = None
+            if competition.modality and competition.modality.organization_slug:
+                org_slug = competition.modality.organization_slug
+            else:
+                mod_res = await self.session.execute(
+                    select(ModalityModel.organization_slug).where(
+                        ModalityModel.id == competition.modality_id
+                    )
+                )
+                org_slug = mod_res.scalar_one_or_none()
+
             default_ruleset = SportRulesetModel(
                 name="Regras Padrão",
                 segment_type="TIME",
                 segments_regular_number=2,
                 overtime_segments=0,
                 penalty_segments=0,
-                has_break_segments=True
+                has_break_segments=True,
+                organization_slug=org_slug,
             )
             self.session.add(default_ruleset)
             await self.session.flush()
@@ -206,7 +223,7 @@ class StructureGeneratorService:
                     detail=f"Erro ao gerar estrutura da competição: {str(e)}"
                 )
     
-    async def _get_competition_matches(self, competition_id: int) -> list[MatchModel]:
+    async def _get_competition_matches(self, competition_id: UUID) -> list[MatchModel]:
         """
         Busca todas as partidas de uma competição
         

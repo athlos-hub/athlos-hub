@@ -14,10 +14,10 @@ if TYPE_CHECKING:
 class ClassificationModel(Base):
     __tablename__ = "classifications"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    competition_id: Mapped[int] = mapped_column(ForeignKey("competitions.id"))
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    competition_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("competitions.id"))
     team_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("teams.id"))
-    group_id: Mapped[Optional[int]] = mapped_column(ForeignKey("groups.id"), nullable=True)
+    group_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("groups.id"), nullable=True)
     points: Mapped[int] = mapped_column(Integer, default=0)
     games_played: Mapped[int] = mapped_column(Integer, default=0)
     wins: Mapped[int] = mapped_column(Integer, default=0)

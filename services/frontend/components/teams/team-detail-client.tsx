@@ -115,23 +115,11 @@ export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
   return (
     <div className="space-y-6">
       {/* Header com botão voltar */}
-      <div className="flex items-center gap-4">
-        <Button 
-          variant="ghost" 
-          size="icon"
-          onClick={() =>
-            session
-              ? router.push("/clubes/painel")
-              : router.push("/organizations")
-          }
-          className="shrink-0"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{team.name}</h1>
-          <p className="text-gray-600">{team.abbreviation}</p>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Detalhes do Time</h1>
+        <p className="text-muted-foreground mt-1">
+          Acompanhe as informações do time
+        </p>
       </div>
 
       {/* Card principal */}
@@ -237,6 +225,7 @@ export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
                   <Button 
                     onClick={handleApprove}
                     disabled={isApproving}
+                    size="sm"
                     className="bg-green-600 hover:bg-green-700"
                   >
                     {isApproving ? (

@@ -78,6 +78,8 @@ export interface TeamListItem {
   id: string;
   organization_slug: string;
   organization_name?: string;
+  /** ID da competição (formato do auth/competitions; comparar com String()) */
+  competition_id: number | string;
   competition_name: string;
   name: string;
   abbreviation: string;
@@ -93,6 +95,7 @@ export interface TeamResponse {
   organization_id: string;
   organization_slug: string;
   organization_name?: string;
+  competition_id: string;
   competition_name: string;
   name: string;
   abbreviation: string;
@@ -141,7 +144,7 @@ export interface AcceptInviteResponse {
 // Request para criar time (com competition_id da competição selecionada)
 export interface TeamCreateRequest {
   organization_slug: string;
-  competition_id: number;
+  competition_id: string;
   competition_name: string;
   name: string;
   abbreviation: string;

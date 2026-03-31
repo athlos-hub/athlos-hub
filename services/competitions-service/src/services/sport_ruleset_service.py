@@ -1,7 +1,8 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from typing import List
+from typing import List, Optional
+from uuid import UUID
 
 from src.models.sport_ruleset import SportRulesetModel
 from src.schemas.sport_ruleset_schema import SportRulesetCreate, SportRulesetUpdate
@@ -22,7 +23,7 @@ class SportRulesetService:
         
         return new_ruleset
 
-    async def get_by_id(self, ruleset_id: int) -> SportRulesetModel:
+    async def get_by_id(self, ruleset_id: UUID) -> SportRulesetModel:
         """
         Retorna um Sport Ruleset pelo ID.
         """
@@ -38,15 +39,23 @@ class SportRulesetService:
         
         return ruleset
 
-    async def list_all(self, skip: int = 0, limit: int = 100) -> List[SportRulesetModel]:
+    async def list_all(
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        organization_slug: Optional[str] = None,
+    ) -> List[SportRulesetModel]:
         """
-        Lista todos os Sport Rulesets.
+        Lista Sport Rulesets. Com organization_slug, apenas os daquela organização.
         """
-        query = select(SportRulesetModel).offset(skip).limit(limit)
+        query = select(SportRulesetModel)
+        if organization_slug is not None:
+            query = query.where(SportRulesetModel.organization_slug == organization_slug)
+        query = query.order_by(SportRulesetModel.name.asc()).offset(skip).limit(limit)
         result = await self.session.execute(query)
         return result.scalars().all()
 
-    async def update(self, ruleset_id: int, data: SportRulesetUpdate) -> SportRulesetModel:
+    async def update(self, ruleset_id: UUID, data: SportRulesetUpdate) -> SportRulesetModel:
         """
         Atualiza um Sport Ruleset existente.
         """
@@ -61,7 +70,7 @@ class SportRulesetService:
         
         return ruleset
 
-    async def delete(self, ruleset_id: int) -> None:
+    async def delete(self, ruleset_id: UUID) -> None:
         """
         Deleta um Sport Ruleset.
         Nota: Só pode deletar se não houver competições vinculadas.

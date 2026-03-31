@@ -1,6 +1,8 @@
 from datetime import datetime
+import uuid
 from typing import Optional, TYPE_CHECKING
 from sqlalchemy import String, Integer, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import enum
 
@@ -29,12 +31,12 @@ class CompetitionPhase(str, enum.Enum):
 class CompetitionModel(Base):
     __tablename__ = "competitions"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    modality_id: Mapped[int] = mapped_column(ForeignKey("modalities.id"))
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    modality_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("modalities.id"))
     
     name: Mapped[str] = mapped_column(String(100))
     status: Mapped[CompetitionStatus] = mapped_column(String, default="PENDING")
-    sport_ruleset_id: Mapped[Optional[int]] = mapped_column(ForeignKey("sport_rulesets.id"), nullable=True)
+    sport_ruleset_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("sport_rulesets.id"), nullable=True)
 
     start_date: Mapped[datetime]
     end_date: Mapped[datetime]

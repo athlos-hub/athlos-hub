@@ -104,7 +104,7 @@ class MatchesService:
     
     async def get_matches_by_competition(
         self, 
-        competition_id: int, 
+        competition_id: uuid.UUID, 
         period: MatchPeriodFilter = MatchPeriodFilter.ALL
     ):
         """

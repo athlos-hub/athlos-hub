@@ -57,9 +57,10 @@ export const dropdownData: Record<string, DropdownData> = {
                 description: "Crie organizações e responda convites",
                 subItems: [
                     {
-                        label: "Suas organizações",
+                        label: "Minhas organizações",
                         description: "Lista e acesso às organizações que você participa",
-                        href: "/organizations",
+                        href: "/organizations?tab=minhas",
+                        requiresAuth: true,
                     },
                     {
                         label: "Convites recebidos",
@@ -82,8 +83,8 @@ export const dropdownData: Record<string, DropdownData> = {
                     },
                     {
                         label: "Criar time",
-                        description: "Cadastrar um novo time vinculado a competições",
-                        href: "/clubes/novo",
+                        description: "Abre o painel para criar um time (inscrição em competições)",
+                        href: "/clubes/painel?criarTime=1",
                         requiresAuth: true,
                     },
                 ],

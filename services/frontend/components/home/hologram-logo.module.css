@@ -1,0 +1,188 @@
+/* Container só para posicionar — sem moldura/sombra/fundo */
+.wrap {
+  position: relative;
+  width: 100%;
+}
+
+.viewport {
+  position: relative;
+  aspect-ratio: 1;
+  width: 100%;
+  max-width: 280px;
+  margin: 0 auto;
+}
+
+.stack {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.baseImg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  filter: brightness(1.06) contrast(1.1) saturate(1.05);
+}
+
+/* Aberração cromática — mesma arte em camadas com blend */
+.channel {
+  position: absolute;
+  inset: 0;
+  background-image: url(/logo_v2.svg);
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.chR {
+  filter: brightness(1.2) sepia(1) hue-rotate(300deg) saturate(3);
+  animation: rgbShiftR 2.7s ease-in-out infinite;
+}
+
+.chG {
+  opacity: 0.28;
+  filter: brightness(1.1) hue-rotate(80deg) saturate(2);
+  animation: rgbShiftG 3s ease-in-out infinite;
+}
+
+.chB {
+  filter: brightness(1.15) hue-rotate(200deg) saturate(2.5);
+  animation: rgbShiftB 2.4s ease-in-out infinite;
+}
+
+/* Fatias horizontais — deslocamento rápido */
+.slicePlane {
+  position: absolute;
+  inset: 0;
+  background-image: url(/logo_v2.svg);
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  mix-blend-mode: lighten;
+  opacity: 0;
+  pointer-events: none;
+  animation: sliceGlitch 3.4s steps(1, end) infinite;
+}
+
+.flicker {
+  animation: holoFlicker 4.2s ease-in-out infinite;
+}
+
+@keyframes rgbShiftR {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  17% {
+    transform: translate(-5px, 1px);
+  }
+  31% {
+    transform: translate(4px, -2px);
+  }
+  49% {
+    transform: translate(-3px, 0);
+  }
+  66% {
+    transform: translate(6px, 1px);
+  }
+}
+
+@keyframes rgbShiftG {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  24% {
+    transform: translate(3px, -1px);
+  }
+  51% {
+    transform: translate(-4px, 2px);
+  }
+}
+
+@keyframes rgbShiftB {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  14% {
+    transform: translate(5px, 0);
+  }
+  38% {
+    transform: translate(-6px, -2px);
+  }
+  61% {
+    transform: translate(3px, 2px);
+  }
+}
+
+@keyframes sliceGlitch {
+  0%,
+  86%,
+  100% {
+    opacity: 0;
+    transform: translate(0, 0);
+    clip-path: inset(0 0 0 0);
+  }
+  87% {
+    opacity: 0.85;
+    transform: translate(-8px, 0);
+    clip-path: inset(15% 0 55% 0);
+  }
+  88% {
+    opacity: 0.9;
+    transform: translate(10px, -3px);
+    clip-path: inset(45% 0 30% 0);
+  }
+  89% {
+    opacity: 0.75;
+    transform: translate(-5px, 4px);
+    clip-path: inset(62% 0 12% 0);
+  }
+  90% {
+    opacity: 0;
+    transform: translate(0, 0);
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes holoFlicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  4% {
+    opacity: 0.9;
+  }
+  5% {
+    opacity: 1;
+  }
+  11% {
+    opacity: 0.85;
+  }
+  12% {
+    opacity: 1;
+  }
+  39% {
+    opacity: 0.94;
+  }
+  40% {
+    opacity: 0.72;
+  }
+  41% {
+    opacity: 1;
+  }
+  64% {
+    opacity: 0.88;
+  }
+  65% {
+    opacity: 0.98;
+  }
+}

@@ -11,6 +11,7 @@ import type {
   CompetitionStatCreate,
   TeamWithPlayers,
 } from "@/types/competition";
+import type { StatsRuleSet } from "@/types/stats";
 
 export async function listCompetitions(
   skip = 0,
@@ -29,17 +30,19 @@ export async function listCompetitions(
     endpoint: "/competitions/",
     method: "GET",
     queryParams,
-    withAuth: false,
+    withAuth: true,
+    service: "competitions",
   });
 
   return response.data;
 }
 
-export async function getCompetition(id: number): Promise<Competition> {
+export async function getCompetition(id: string): Promise<Competition> {
   const response = await axiosAPI<Competition>({
     endpoint: `/competitions/${id}`,
     method: "GET",
-    withAuth: false,
+    withAuth: true,
+    service: "competitions",
   });
 
   return response.data;
@@ -48,8 +51,6 @@ export async function getCompetition(id: number): Promise<Competition> {
 export async function createCompetition(
   data: CompetitionCreate
 ): Promise<Competition> {
-  console.log("[ACTION createCompetition] Dados recebidos:", JSON.stringify(data, null, 2));
-  
   try {
     const response = await axiosAPI<Competition>({
       endpoint: "/competitions/",
@@ -59,7 +60,6 @@ export async function createCompetition(
       service: "competitions",
     });
     
-    console.log("[ACTION createCompetition] Resposta:", response.data);
     return response.data;
   } catch (error) {
     console.error("[ACTION createCompetition] Erro:", error);
@@ -68,21 +68,31 @@ export async function createCompetition(
 }
 
 export async function updateCompetition(
-  id: number,
+  id: string,
   data: CompetitionUpdate
 ): Promise<Competition> {
   const response = await axiosAPI<Competition>({
     endpoint: `/competitions/${id}`,
-    method: "PATCH",
+    method: "PUT",
     data: data as unknown as Record<string, unknown>,
     withAuth: true,
+    service: "competitions",
   });
 
   return response.data;
 }
 
+export async function deleteCompetition(id: string): Promise<void> {
+  await axiosAPI<void>({
+    endpoint: `/competitions/${id}`,
+    method: "DELETE",
+    withAuth: true,
+    service: "competitions",
+  });
+}
+
 export async function generateCompetitionStructure(
-  competitionId: number,
+  competitionId: string,
   request: GenerateStructureRequest
 ): Promise<GenerateStructureResponse> {
   const response = await axiosAPI<GenerateStructureResponse>({
@@ -97,7 +107,7 @@ export async function generateCompetitionStructure(
 }
 
 export async function finalizeCompetition(
-  competitionId: number
+  competitionId: string
 ): Promise<Competition> {
   const response = await axiosAPI<Competition>({
     endpoint: `/competitions/${competitionId}/finalize`,
@@ -110,41 +120,46 @@ export async function finalizeCompetition(
 }
 
 export async function getCompetitionStats(
-  competitionId: number
+  competitionId: string
 ): Promise<CompetitionStat[]> {
   const response = await axiosAPI<CompetitionStat[]>({
     endpoint: `/competitions/${competitionId}/stats`,
     method: "GET",
-    withAuth: false,
+    withAuth: true,
+    service: "competitions",
   });
 
   return response.data;
 }
 
 export async function getCompetitionTeamsWithPlayers(
-  competitionId: number
+  competitionId: string
 ): Promise<TeamWithPlayers[]> {
   const response = await axiosAPI<TeamWithPlayers[]>({
     endpoint: `/competitions/${competitionId}/teams-with-players`,
     method: "GET",
-    withAuth: false,
+    withAuth: true,
+    service: "competitions",
   });
 
   return response.data;
 }
 export async function listSportRulesets(
   skip = 0,
-  limit = 100
+  limit = 100,
+  organization_slug?: string
 ): Promise<any[]> {
-  console.log("[ACTION] Chamando listSportRulesets com endpoint: /sport-rulesets/");
+  const queryParams: Record<string, number | string> = { skip, limit };
+  if (organization_slug) {
+    queryParams.organization_slug = organization_slug;
+  }
   const response = await axiosAPI<any[]>({
     endpoint: "/sport-rulesets/",
     method: "GET",
-    queryParams: { skip, limit },
-    withAuth: false,
+    queryParams,
+    withAuth: true,
     service: "competitions",
   });
-  console.log("[ACTION] Resposta listSportRulesets:", response.data);
   return response.data;
 }
 
@@ -152,27 +167,88 @@ export async function listStatsRulesets(
   skip = 0,
   limit = 100
 ): Promise<any[]> {
-  console.log("[ACTION] Chamando listStatsRulesets com endpoint: /stats-rulesets/");
   const response = await axiosAPI<any[]>({
     endpoint: "/stats-rulesets/",
     method: "GET",
     queryParams: { skip, limit },
-    withAuth: false,
+    withAuth: true,
     service: "competitions",
   });
-  console.log("[ACTION] Resposta listStatsRulesets:", response.data);
   return response.data;
 }
-export async function createCompetitionStat(
-  competitionId: number,
-  data: CompetitionStatCreate
-): Promise<CompetitionStat> {
-  const response = await axiosAPI<CompetitionStat>({
-    endpoint: `/competitions/${competitionId}/stats`,
+
+export async function getCompetitionStatsRuleset(
+  competitionId: string
+): Promise<StatsRuleSet | null> {
+  try {
+    const response = await axiosAPI<StatsRuleSet>({
+      endpoint: `/competitions/${competitionId}/stats-ruleset`,
+      method: "GET",
+      withAuth: true,
+      service: "competitions",
+    });
+    return response.data;
+  } catch {
+    return null;
+  }
+}
+
+export async function createStatsRulesetForCompetition(
+  competitionId: string,
+  data: {
+    name: string;
+    description?: string;
+    stats_types?: CompetitionStatCreate[];
+  }
+): Promise<StatsRuleSet> {
+  const response = await axiosAPI<StatsRuleSet>({
+    endpoint: `/stats-rulesets/competition/${competitionId}`,
     method: "POST",
     data: data as unknown as Record<string, unknown>,
     withAuth: true,
+    service: "competitions",
+  });
+  return response.data;
+}
+
+export async function addStatTypeToRuleset(
+  rulesetId: string,
+  data: CompetitionStatCreate
+): Promise<CompetitionStat> {
+  const response = await axiosAPI<CompetitionStat>({
+    endpoint: `/stats-rulesets/${rulesetId}/stats`,
+    method: "POST",
+    data: data as unknown as Record<string, unknown>,
+    withAuth: true,
+    service: "competitions",
   });
 
   return response.data;
+}
+
+export async function updateStatTypeInRuleset(
+  rulesetId: string,
+  statTypeId: string,
+  data: Partial<CompetitionStatCreate>
+): Promise<CompetitionStat> {
+  const response = await axiosAPI<CompetitionStat>({
+    endpoint: `/stats-rulesets/${rulesetId}/stats/${statTypeId}`,
+    method: "PATCH",
+    data: data as unknown as Record<string, unknown>,
+    withAuth: true,
+    service: "competitions",
+  });
+  return response.data;
+}
+
+export async function deleteStatTypeFromRuleset(
+  rulesetId: string,
+  statTypeId: string
+): Promise<void> {
+  await axiosAPI<void>({
+    endpoint: `/stats-rulesets/${rulesetId}/stats/${statTypeId}`,
+    method: "DELETE",
+    withAuth: true,
+    service: "competitions",
+  });
 }

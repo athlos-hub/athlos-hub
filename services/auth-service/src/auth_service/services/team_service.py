@@ -716,7 +716,7 @@ class TeamService:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
                     url,
-                    json=payload.model_dump(),
+                    json=payload.model_dump(mode="json"),
                     headers={"Content-Type": "application/json"},
                 )
 

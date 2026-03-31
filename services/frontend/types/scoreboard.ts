@@ -1,5 +1,5 @@
 export interface SegmentScore {
-  segment_id: number;
+  segment_id: string;
   segment_number: number;
   segment_type: string;
   home_score: number;

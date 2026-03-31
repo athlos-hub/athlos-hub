@@ -88,6 +88,7 @@ async def test_create_competition_with_existing_ruleset():
     mock_existing_ruleset = SportRulesetModel(
         id=5,
         name="Regras FIFA",
+        organization_slug="ORG1",
         segment_type="TIME",
         segments_regular_number=2,
         overtime_segments=0,

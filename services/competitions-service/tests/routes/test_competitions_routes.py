@@ -23,9 +23,10 @@ async def _create_modality(session: AsyncSession, organization_slug: str = "ORG1
     return modality
 
 
-async def _create_ruleset(session: AsyncSession) -> SportRulesetModel:
+async def _create_ruleset(session: AsyncSession, organization_slug: str = "ORG1") -> SportRulesetModel:
     ruleset = SportRulesetModel(
         name="Regras Básicas",
+        organization_slug=organization_slug,
         segment_type="TIME",
         segments_regular_number=2,
         overtime_segments=0,

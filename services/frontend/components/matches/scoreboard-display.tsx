@@ -10,7 +10,7 @@ import { ScoreEditor } from "./score-editor";
 
 interface ScoreboardDisplayProps {
   matchId: string;
-  competitionId?: number;
+  competitionId?: string;
   canEdit?: boolean;
   liveId?: string;
 }

@@ -36,7 +36,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface StatsCreatorProps {
   matchId: string;
-  competitionId: number;
+  competitionId: string;
   homeTeamId?: string;
   awayTeamId?: string;
   liveId?: string;
@@ -133,10 +133,10 @@ export function StatsCreator({
       'PENALTY': 'Pênaltis',
       'TIME': 'Tempo',
       'SET': 'Set',
-      'QUARTER': 'Quarter',
+      'QUARTER': 'Quarto',
     };
     
-    const typeName = typeMap[segment.segment_type.toUpperCase()] || segment.segment_type;
+    const typeName = typeMap[segment.segment_type.toUpperCase()] || 'Período';
     return `${segment.segment_number}º ${typeName}`;
   };
 
@@ -169,7 +169,7 @@ export function StatsCreator({
         increment,
         stats_metric_abbreviation: selectedStatType || undefined,
         player_id: selectedPlayerId || undefined,
-        segment_id: selectedSegmentId ? parseInt(selectedSegmentId) : undefined,
+        segment_id: selectedSegmentId || undefined,
       });
 
       // 2. Publica evento na timeline se tiver liveId

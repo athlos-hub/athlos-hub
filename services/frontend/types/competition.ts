@@ -11,8 +11,9 @@ export enum CompetitionSystem {
 }
 
 export interface SportRuleset {
-  id: number;
+  id: string;
   name: string;
+  organization_slug?: string | null;
   segment_type: string;
   segments_regular_number: number;
   overtime_segments: number;
@@ -35,9 +36,9 @@ export enum CompetitionPhase {
 }
 
 export interface Competition {
-  id: number;
+  id: string;
   name: string;
-  modality_id: number;
+  modality_id: string;
   organization_slug?: string;
   start_date: string;
   end_date: string;
@@ -48,14 +49,20 @@ export interface Competition {
   image?: string;
   teams_qualified_per_group?: number;
   teams_per_group?: number;
-  sport_ruleset_id?: number;
+  sport_ruleset_id?: string;
   sport_ruleset?: SportRuleset;
+  stats_ruleset?: {
+    id: string;
+    name: string;
+    description?: string;
+    stats_types: CompetitionStat[];
+  } | null;
   current_phase?: CompetitionPhase;
 }
 
 export interface CompetitionCreate {
   name: string;
-  modality_id: number;
+  modality_id: string;
   start_date: string;
   end_date: string;
   system: CompetitionSystem;
@@ -65,13 +72,13 @@ export interface CompetitionCreate {
   teams_qualified_per_group?: number;
   teams_per_group?: number;
   ruleset?: SportRulesetCreate;
-  sport_ruleset_id?: number;
+  sport_ruleset_id?: string;
   stats_ruleset?: {
     name: string;
     description?: string;
     stats_types: any[];
   };
-  stats_ruleset_id?: number;
+  stats_ruleset_id?: string;
 }
 
 export interface CompetitionUpdate {
@@ -81,6 +88,9 @@ export interface CompetitionUpdate {
   status?: CompetitionStatus;
   min_members_per_team?: number;
   max_members_per_team?: number;
+  system?: CompetitionSystem;
+  sport_ruleset_id?: string;
+  stats_ruleset_mode?: "keep" | "none" | "new";
 }
 
 export interface GenerateStructureRequest {
@@ -96,12 +106,11 @@ export interface GenerateStructureResponse {
 }
 
 export interface CompetitionStat {
-  id: number;
-  competition_id: number;
+  id: string;
+  competition_id: string;
   name: string;
   abbreviation: string;
   description?: string;
-  icon?: string;
   display_order: number;
 }
 
@@ -109,7 +118,6 @@ export interface CompetitionStatCreate {
   name: string;
   abbreviation: string;
   description?: string;
-  icon?: string;
   display_order?: number;
 }
 

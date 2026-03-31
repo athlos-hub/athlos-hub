@@ -6,7 +6,6 @@ import { Loader2, CheckCircle2, XCircle, Users, AlertCircle } from "lucide-react
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { validateTeamInvite, acceptTeamInvite } from "@/actions/teams";
 import { InviteValidationResponse } from "@/types/team";
 import { useSession } from "next-auth/react";
@@ -103,7 +102,7 @@ export function JoinTeamInviteClient({ inviteToken }: JoinTeamInviteClientProps)
           </CardDescription>
         </CardHeader>
         
-        <CardContent className="py-6">
+        <CardContent>
           {/* Validando */}
           {status === "validating" && (
             <div className="flex flex-col items-center gap-4 text-center">
@@ -119,15 +118,13 @@ export function JoinTeamInviteClient({ inviteToken }: JoinTeamInviteClientProps)
                 <div className="space-y-3">
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Time</p>
-                    <p className="text-lg font-bold text-gray-900">{inviteData.team_name}</p>
+                    <p className="text-sm font-medium text-gray-700">{inviteData.team_name}</p>
                   </div>
                   
                   {inviteData.organization_name && (
                     <div>
                       <p className="text-sm text-muted-foreground mb-1">Organização</p>
-                      <Badge variant="secondary" className="text-sm">
-                        {inviteData.organization_name}
-                      </Badge>
+                      <p className="text-sm font-medium text-gray-700">{inviteData.organization_name}</p>
                     </div>
                   )}
                   
@@ -151,7 +148,7 @@ export function JoinTeamInviteClient({ inviteToken }: JoinTeamInviteClientProps)
               <div className="flex flex-col gap-2">
                 {sessionStatus === "authenticated" ? (
                   <>
-                    <Button onClick={handleAcceptInvite} className="w-full">
+                    <Button onClick={handleAcceptInvite} className="w-full bg-main hover:bg-main/90">
                       Aceitar Convite
                     </Button>
                     <Button onClick={handleDecline} variant="outline" className="w-full">

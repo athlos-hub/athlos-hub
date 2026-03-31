@@ -23,8 +23,8 @@ class MatchStatus(str, enum.Enum):
 class GroupModel(Base):
     __tablename__ = "groups"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    competition_id: Mapped[int] = mapped_column(ForeignKey("competitions.id"))
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    competition_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("competitions.id"))
     name: Mapped[str] = mapped_column(String(50)) 
 
     # Relacionamentos
@@ -34,8 +34,8 @@ class GroupModel(Base):
 class RoundModel(Base):
     __tablename__ = "rounds"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    competition_id: Mapped[int] = mapped_column(ForeignKey("competitions.id"))    
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    competition_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("competitions.id"))    
     name: Mapped[str] = mapped_column(String(50)) 
 
     competition: Mapped["CompetitionModel"] = relationship("CompetitionModel")
@@ -45,11 +45,11 @@ class MatchModel(Base):
     __tablename__ = "matches"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    competition_id: Mapped[int] = mapped_column(ForeignKey("competitions.id"))
+    competition_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("competitions.id"))
     
     # Foreign Keys (IDs)
-    group_id: Mapped[Optional[int]] = mapped_column(ForeignKey("groups.id"), nullable=True)
-    round_id: Mapped[int] = mapped_column(ForeignKey("rounds.id"), nullable=False)
+    group_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("groups.id"), nullable=True)
+    round_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("rounds.id"), nullable=False)
     round_number_match: Mapped[int] = mapped_column(Integer, nullable=False)
     
     home_team_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("teams.id"), nullable=True)
@@ -115,7 +115,7 @@ class SegmentModel(Base):
         UniqueConstraint('match_id', 'segment_number', name='uq_match_segment'),
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     match_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("matches.id"))
     
     segment_number: Mapped[int] = mapped_column(Integer) 

@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from typing import List
+import uuid
 
 from src.models.matches import RoundModel, MatchModel
 from src.models.competition import CompetitionModel
@@ -11,7 +12,7 @@ class RoundsService:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_rounds_by_competition(self, competition_id: int):
+    async def get_rounds_by_competition(self, competition_id: uuid.UUID):
         """
         Lista todas as rodadas de uma competição com seus respectivos jogos.
         Útil para campeonatos de pontos corridos ou visualização geral.
@@ -35,7 +36,7 @@ class RoundsService:
         result = await self.session.execute(query)
         return self._format_response(result.scalars().all())
 
-    async def get_rounds_by_group(self, group_id: int):
+    async def get_rounds_by_group(self, group_id: uuid.UUID):
         """
         Lista as rodadas e jogos específicos de um Grupo.
         Faz um JOIN com MatchModel para garantir que só pegamos rodadas que têm jogos desse grupo.

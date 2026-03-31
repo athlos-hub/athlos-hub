@@ -53,7 +53,7 @@ class TeamRepository(TeamRepositoryContract):
         return result.scalar_one_or_none()
 
     async def get_by_organization_competition_name(
-        self, organization_id: UUID, competition_id: int, name: str
+        self, organization_id: UUID, competition_id: UUID, name: str
     ) -> Optional[Team]:
         stmt = select(Team).where(
             and_(
@@ -97,7 +97,7 @@ class TeamRepository(TeamRepositoryContract):
         return result.scalars().all()
 
     async def get_user_team_in_competition(
-        self, user_id: UUID, competition_id: int
+        self, user_id: UUID, competition_id: UUID
     ) -> Optional[Team]:
         stmt = (
             select(Team)

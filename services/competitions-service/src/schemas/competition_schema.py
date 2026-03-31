@@ -10,7 +10,7 @@ from src.schemas.stats_ruleset_schema import StatsRuleSetForCompetition, StatsRu
 
 class CompetitionBase(BaseModel):
     name: str = Field(..., max_length=100, description="Nome da competição")
-    modality_id: int = Field(..., description="ID da modalidade associada")
+    modality_id: uuid.UUID = Field(..., description="ID da modalidade associada")
     
     start_date: datetime = Field(..., description="Data de início")
     end_date: datetime = Field(..., description="Data de término")
@@ -40,7 +40,7 @@ class CompetitionCreate(CompetitionBase):
         None, 
         description="Objeto para criar um NOVO conjunto de regras esportivas"
     )
-    sport_ruleset_id: Optional[int] = Field(
+    sport_ruleset_id: Optional[uuid.UUID] = Field(
         None, 
         description="ID de um sport ruleset JÁ EXISTENTE para reutilizar"
     )
@@ -50,7 +50,7 @@ class CompetitionCreate(CompetitionBase):
         None,
         description="Objeto para criar um NOVO conjunto de estatísticas junto com a competição"
     )
-    stats_ruleset_id: Optional[int] = Field(
+    stats_ruleset_id: Optional[uuid.UUID] = Field(
         None,
         description="ID de um stats ruleset JÁ EXISTENTE para vincular à competição"
     )
@@ -74,15 +74,21 @@ class CompetitionUpdate(BaseModel):
     status: Optional[CompetitionStatus] = None
     min_members_per_team: Optional[int] = None
     max_members_per_team: Optional[int] = None
+    system: Optional[CompetitionSystem] = None
+    sport_ruleset_id: Optional[uuid.UUID] = None
+    stats_ruleset_mode: Optional[str] = Field(
+        None,
+        description='Ação no conjunto de estatísticas: "keep", "none", "new"',
+    )
     
 
 class CompetitionResponse(CompetitionBase):
-    id: int
+    id: uuid.UUID
     status: CompetitionStatus
     organization_slug: Optional[str] = None  # Adicionado para facilitar verificações de permissão
     
     # Retorna o ID da regra vinculada (opcional)
-    sport_ruleset_id: Optional[int] = None
+    sport_ruleset_id: Optional[uuid.UUID] = None
     sport_ruleset: Optional[SportRulesetResponse] = None
     
     # Stats Ruleset (opcional)

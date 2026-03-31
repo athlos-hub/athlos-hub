@@ -17,6 +17,7 @@ async def _seed_match_data(session: AsyncSession, organization_slug: str = "ORG1
     modality = ModalityModel(name="Futebol", organization_slug=organization_slug)
     ruleset = SportRulesetModel(
         name="Regras Básicas",
+        organization_slug=organization_slug,
         segment_type="TIME",
         segments_regular_number=2,
         overtime_segments=0,

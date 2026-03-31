@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { createCompetition, listSportRulesets, listStatsRulesets } from "@/actions/competitions";
+import { createCompetition, listSportRulesets } from "@/actions/competitions";
 import { listModalities } from "@/actions/modalities";
 import type { CompetitionCreate, CompetitionSystem } from "@/types/competition";
 import type { Modality } from "@/types/modality";
@@ -39,18 +39,22 @@ export function CreateCompetitionDialog({
   orgCode,
   onSuccess,
 }: CreateCompetitionDialogProps) {
+  const segmentTypeLabel: Record<string, string> = {
+    TIME: "Tempos",
+    SET: "Sets",
+    QUARTER: "Quartos",
+  };
+
   const [isLoading, setIsLoading] = useState(false);
   const [modalities, setModalities] = useState<Modality[]>([]);
   const [sportRulesets, setSportRulesets] = useState<any[]>([]);
-  const [statsRulesets, setStatsRulesets] = useState<any[]>([]);
   const [rulesetOption, setRulesetOption] = useState<"existing" | "new" | "none">("new"); // Padrão: criar novo ruleset
-  const [statsRulesetOption, setStatsRulesetOption] = useState<"existing" | "new" | "none">("none");
+  const [statsRulesetOption, setStatsRulesetOption] = useState<"default" | "none">("none");
   const [selectedRulesetId, setSelectedRulesetId] = useState<string>("");
-  const [selectedStatsRulesetId, setSelectedStatsRulesetId] = useState<string>("");
   
   const [formData, setFormData] = useState<CompetitionCreate>({
     name: "",
-    modality_id: 0,
+    modality_id: "",
     start_date: "",
     end_date: "",
     system: "points" as CompetitionSystem,
@@ -71,9 +75,14 @@ export function CreateCompetitionDialog({
     if (open) {
       loadModalities();
       loadSportRulesets();
-      loadStatsRulesets();
     }
   }, [open, orgCode]);
+
+  useEffect(() => {
+    if (sportRulesets.length === 0 && rulesetOption === "existing") {
+      setRulesetOption("new");
+    }
+  }, [sportRulesets.length, rulesetOption]);
 
   async function loadModalities() {
     try {
@@ -88,53 +97,19 @@ export function CreateCompetitionDialog({
 
   async function loadSportRulesets() {
     try {
-      console.log("[SPORT RULESETS] Iniciando carregamento...");
-      const data = await listSportRulesets(0, 100);
-      console.log("[SPORT RULESETS] Dados recebidos:", data);
-      
-      // Filtrar para mostrar apenas um ruleset por nome
-      const uniqueRulesets = data.reduce((acc: any[], current: any) => {
-        const exists = acc.find(item => item.name === current.name);
-        if (!exists) {
-          acc.push(current);
-        }
-        return acc;
-      }, []);
-      
-      console.log("[SPORT RULESETS] Rulesets únicos:", uniqueRulesets);
-      setSportRulesets(uniqueRulesets);
-      if (uniqueRulesets.length > 0 && rulesetOption === "existing") {
-        setSelectedRulesetId(uniqueRulesets[0].id.toString());
+      const data = await listSportRulesets(0, 100, orgCode);
+      setSportRulesets(data);
+      if (data.length > 0) {
+        setSelectedRulesetId((prev) => {
+          if (prev && data.some((r: { id: string }) => String(r.id) === prev)) return prev;
+          return data[0].id.toString();
+        });
+      } else {
+        setSelectedRulesetId("");
       }
     } catch (error) {
       console.error("[SPORT RULESETS] Erro ao carregar:", error);
       toast.error("Erro ao carregar conjunto de regras");
-    }
-  }
-
-  async function loadStatsRulesets() {
-    try {
-      console.log("[STATS RULESETS] Iniciando carregamento...");
-      const data = await listStatsRulesets(0, 100);
-      console.log("[STATS RULESETS] Dados recebidos:", data);
-      
-      // Filtrar para mostrar apenas um ruleset por nome
-      const uniqueRulesets = data.reduce((acc: any[], current: any) => {
-        const exists = acc.find(item => item.name === current.name);
-        if (!exists) {
-          acc.push(current);
-        }
-        return acc;
-      }, []);
-      
-      console.log("[STATS RULESETS] Rulesets únicos:", uniqueRulesets);
-      setStatsRulesets(uniqueRulesets);
-      if (uniqueRulesets.length > 0 && statsRulesetOption === "existing") {
-        setSelectedStatsRulesetId(uniqueRulesets[0].id.toString());
-      }
-    } catch (error) {
-      console.error("[STATS RULESETS] Erro ao carregar:", error);
-      toast.error("Erro ao carregar estatísticas");
     }
   }
 
@@ -162,7 +137,7 @@ export function CreateCompetitionDialog({
       // Sport Ruleset
       if (rulesetOption === "existing") {
         if (selectedRulesetId) {
-          dataToSend.sport_ruleset_id = parseInt(selectedRulesetId);
+          dataToSend.sport_ruleset_id = selectedRulesetId;
           console.log("[SUBMIT] Usando sport_ruleset_id:", dataToSend.sport_ruleset_id);
         }
       } else if (rulesetOption === "new") {
@@ -171,12 +146,7 @@ export function CreateCompetitionDialog({
       }
 
       // Stats Ruleset
-      if (statsRulesetOption === "existing") {
-        if (selectedStatsRulesetId) {
-          dataToSend.stats_ruleset_id = parseInt(selectedStatsRulesetId);
-          console.log("[SUBMIT] Usando stats_ruleset_id:", dataToSend.stats_ruleset_id);
-        }
-      } else if (statsRulesetOption === "new") {
+      if (statsRulesetOption === "default") {
         dataToSend.stats_ruleset = {
           name: "Estatísticas Padrão",
           description: "Conjunto de estatísticas padrão",
@@ -193,14 +163,14 @@ export function CreateCompetitionDialog({
       // Reset form
       setFormData({
         name: "",
-        modality_id: 0,
+        modality_id: "",
         start_date: "",
         end_date: "",
         system: "points" as CompetitionSystem,
         min_members_per_team: 5,
         max_members_per_team: 20,
       });
-      setRulesetOption("none");
+      setRulesetOption("new");
       setStatsRulesetOption("none");
       
       onSuccess();
@@ -238,9 +208,9 @@ export function CreateCompetitionDialog({
               <div className="space-y-2">
                 <Label htmlFor="modality">Modalidade *</Label>
                 <Select
-                  value={formData.modality_id.toString()}
+                  value={formData.modality_id}
                   onValueChange={(value) =>
-                    setFormData({ ...formData, modality_id: parseInt(value) })
+                    setFormData({ ...formData, modality_id: value })
                   }
                   required
                 >
@@ -254,7 +224,7 @@ export function CreateCompetitionDialog({
                       </div>
                     ) : (
                       modalities.map((modality) => (
-                        <SelectItem key={modality.id} value={modality.id.toString()}>
+                        <SelectItem key={modality.id} value={modality.id}>
                           {modality.name}
                         </SelectItem>
                       ))
@@ -300,7 +270,7 @@ export function CreateCompetitionDialog({
                   <SelectContent>
                     <SelectItem value="points">Pontos Corridos</SelectItem>
                     <SelectItem value="elimination">Eliminatória</SelectItem>
-                    <SelectItem value="mixed">Misto</SelectItem>
+                    <SelectItem value="mixed">Grupos + Mata-mata</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -352,7 +322,9 @@ export function CreateCompetitionDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="new">Criar novo conjunto</SelectItem>
-                  <SelectItem value="existing">Usar conjunto existente</SelectItem>
+                  {sportRulesets.length > 0 && (
+                    <SelectItem value="existing">Usar conjunto existente</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
 
@@ -374,7 +346,7 @@ export function CreateCompetitionDialog({
                       ) : (
                         sportRulesets.map((ruleset) => (
                           <SelectItem key={ruleset.id} value={ruleset.id.toString()}>
-                            {ruleset.name} ({ruleset.segment_type}, {ruleset.segments_regular_number} tempos)
+                            {ruleset.name} ({ruleset.segments_regular_number} {segmentTypeLabel[ruleset.segment_type] ?? "Tipo não definido"})
                           </SelectItem>
                         ))
                       )}
@@ -456,43 +428,13 @@ export function CreateCompetitionDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Nenhum</SelectItem>
-                  <SelectItem value="existing">Usar conjunto existente</SelectItem>
-                  <SelectItem value="new">Criar novo conjunto</SelectItem>
+                  <SelectItem value="default">Criar conjunto vazio (configurar depois)</SelectItem>
                 </SelectContent>
               </Select>
-
-              {statsRulesetOption === "existing" && (
-                <div className="space-y-2">
-                  <Label htmlFor="stats_ruleset">Selecione um conjunto</Label>
-                  <Select
-                    value={selectedStatsRulesetId}
-                    onValueChange={setSelectedStatsRulesetId}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um conjunto de estatísticas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {statsRulesets.length === 0 ? (
-                        <div className="p-2 text-sm text-muted-foreground">
-                          Nenhum conjunto cadastrado
-                        </div>
-                      ) : (
-                        statsRulesets.map((ruleset) => (
-                          <SelectItem key={ruleset.id} value={ruleset.id.toString()}>
-                            {ruleset.name}
-                            {ruleset.description && ` - ${ruleset.description}`}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {statsRulesetOption === "new" && (
+              {statsRulesetOption === "default" && (
                 <div className="p-4 border rounded-lg bg-blue-50">
                   <p className="text-sm text-gray-600">
-                    Um conjunto de estatísticas padrão será criado. Você poderá adicionar estatísticas específicas após criar a competição.
+                    Será criado um conjunto sem métricas iniciais. Depois da competição criada, você configura as estatísticas na aba de Estatísticas.
                   </p>
                 </div>
               )}

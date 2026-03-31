@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
+from uuid import UUID
 from src.services.stats_service import StatsService
 
 
@@ -14,7 +15,7 @@ router = APIRouter(prefix="/rankings", tags=["rankings"])
     summary="Obter ranking de jogadores por métrica em uma competição"
 )
 async def get_player_rankings(
-    competition_id: int,
+    competition_id: UUID,
     stats_metric_abbreviation: str,
     limit: int = None,
     session: AsyncSession = Depends(get_session)
@@ -38,7 +39,7 @@ async def get_player_rankings(
     summary="Obter classificação de uma competição"
 )
 async def get_competition_standings(
-    competition_id: int,
+    competition_id: UUID,
     limit: int = None,
     session: AsyncSession = Depends(get_session)
 ):

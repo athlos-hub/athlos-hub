@@ -3,7 +3,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from uuid import UUID
 
-from src.schemas.modality_schema import ModalityCreateSchema, ModalityResponseSchema
+from src.schemas.modality_schema import (
+    ModalityCreateSchema,
+    ModalityResponseSchema,
+    ModalityUpdateSchema,
+)
 from src.services.modality_service import ModalityService
 from src.routes.routes import get_session
 from src.api.deps import get_current_keycloak_id, RequireOrgPermission
@@ -58,3 +62,34 @@ async def get_modalities(
     )
     
     return modalities
+
+
+@router.patch("/{modality_id}", response_model=ModalityResponseSchema)
+async def update_modality(
+    modality_id: UUID,
+    modality_data: ModalityUpdateSchema,
+    session: AsyncSession = Depends(get_session),
+    current_keycloak_id: UUID = Depends(get_current_keycloak_id),
+):
+    modality_service = ModalityService(session)
+    modality = await modality_service.get_by_id(modality_id)
+    await require_org_permission(
+        organization_slug=modality.organization_slug,
+        keycloak_id=current_keycloak_id,
+    )
+    return await modality_service.update_modality(modality_id, modality_data)
+
+
+@router.delete("/{modality_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_modality(
+    modality_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    current_keycloak_id: UUID = Depends(get_current_keycloak_id),
+):
+    modality_service = ModalityService(session)
+    modality = await modality_service.get_by_id(modality_id)
+    await require_org_permission(
+        organization_slug=modality.organization_slug,
+        keycloak_id=current_keycloak_id,
+    )
+    await modality_service.delete_modality(modality_id)

@@ -19,7 +19,10 @@ JWT opcional (anonymous):
   injeta X-Keycloak-Sub. Atenção: token inválido também pode cair no fluxo anónimo (comportamento do Kong).
 """
 
+import json
+import os
 import pathlib
+import urllib.request
 
 import yaml
 
@@ -28,14 +31,21 @@ LUA = pathlib.Path(__file__).with_name("gateway-jwt-headers.lua").read_text(enco
 # UUID fixo referenciado por config.anonymous do JWT (consumer sem jwt_secrets).
 ANONYMOUS_CONSUMER_ID = "a0000001-0000-4000-8000-000000000001"
 
-PEM_PUBKEY = """-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlKCDh8rPMBGUFLvE+9rc
-3HuJ/09+J7kSub9xYTSel4A5MSyAjw4eEJ8aA4kEYtvHJAVZ3udDhHNqnJGKge1n
-/4LDUL/t6um9vl0Q0GgcpQ3fcS0VUYElWm+WbczRTj7d3B0kXSZufd4ADhr/N7Mz
-xjHEbYTFXjvWOu6jZrqtlBJFpz/12kf/lG1bh4n+B2m/8DeL1rmDYR0pxCOBbnYh
-zM03hz1ZOC/Br1F4F2spQTytueCtUzpx1SGFuJi3QcGz9M/cyQ76A+4958mmqS70
-gfpyb7dIMnj5fELUHfE9oQomumdQfKsoAvf1x5lKqak7dcu9DPWWFtFNipMFmcDY
-nQIDAQAB
+DEFAULT_JWT_ISSUERS = [
+    "http://localhost:8080/keycloak/realms/athlos",
+    "http://localhost:8100/keycloak/realms/athlos",
+    "https://athloshub.com.br/keycloak/realms/athlos",
+]
+
+# Fallback apenas para ambientes onde não seja possível descobrir a chave automaticamente.
+FALLBACK_PEM_PUBKEY = """-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyOuM+1pTx5i8AhL+lc++
+mGCsyVjNNu0eLbNGfOW4sJs2MEaPTZh6ckC/wDwd8SvQvRVkagxE1qEPzWGMHSxj
+1jAhRwYAdiBPFiL68QezgB7w62/AFZYQ0EzUKX2Rx2BYihZDo2ijCIGfJCcWjmTy
+NSwAlsKLmYoPF4BiJkNNajP2lLBA2KZIU513uyCVNt9qzpc9QCt9IYTh9rOEf9Tx
+NfnNnxKXXDGvVHtungUvnER7aXlQ04Ob5PB12UPkkm6hwQT5vknlMFzkuURNSOGA
+UMCiBhdHy24hXiPrhvVKjgwWKZYlImmAy5f9wrDFiAmfmbJ4lIgVWi5yBUlZQ3nk
+qwIDAQAB
 -----END PUBLIC KEY-----
 """
 
@@ -47,6 +57,39 @@ def _multiline_str_presenter(dumper, data: str):
 
 
 yaml.add_representer(str, _multiline_str_presenter)
+
+
+def _pem_from_keycloak_realm_public_key(raw_b64: str) -> str:
+    s = "".join(raw_b64.strip().split())
+    lines = [s[i : i + 64] for i in range(0, len(s), 64)]
+    return "-----BEGIN PUBLIC KEY-----\n" + "\n".join(lines) + "\n-----END PUBLIC KEY-----"
+
+
+def _discover_pem_pubkey(issuers: list[str]) -> str:
+    env_pem = os.getenv("KONG_JWT_PEM_PUBKEY", "").strip()
+    if env_pem:
+        return env_pem
+
+    for issuer in issuers:
+        realm_url = issuer.rstrip("/")
+        try:
+            with urllib.request.urlopen(realm_url, timeout=5) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            public_key = payload.get("public_key")
+            if isinstance(public_key, str) and public_key.strip():
+                return _pem_from_keycloak_realm_public_key(public_key)
+        except Exception:
+            continue
+
+    print("WARN: unable to discover Keycloak public key; using fallback KONG key")
+    return FALLBACK_PEM_PUBKEY
+
+
+def _jwt_issuers() -> list[str]:
+    raw = os.getenv("KONG_JWT_ISSUERS", "")
+    if not raw.strip():
+        return DEFAULT_JWT_ISSUERS
+    return [i.strip() for i in raw.split(",") if i.strip()]
 
 
 def jwt_plugins(*, anonymous_consumer_id: str | None = None) -> list:
@@ -75,6 +118,8 @@ def base_service(name: str, host: str, port: int) -> dict:
 
 def main() -> None:
     host = "host.docker.internal"
+    issuers = _jwt_issuers()
+    pem_pubkey = _discover_pem_pubkey(issuers)
 
     doc: dict = {
         "_format_version": "3.0",
@@ -89,16 +134,11 @@ def main() -> None:
                 "jwt_secrets": [
                     {
                         "algorithm": "RS256",
-                        "key": "http://localhost:8100/keycloak/realms/athlos",
+                        "key": issuer,
                         "secret": "kong-rs256-placeholder-secret",
-                        "rsa_public_key": PEM_PUBKEY,
-                    },
-                    {
-                        "algorithm": "RS256",
-                        "key": "https://athloshub.com.br/keycloak/realms/athlos",
-                        "secret": "kong-rs256-placeholder-secret",
-                        "rsa_public_key": PEM_PUBKEY,
-                    },
+                        "rsa_public_key": pem_pubkey,
+                    }
+                    for issuer in issuers
                 ],
             },
         ],
@@ -163,7 +203,39 @@ def main() -> None:
     auth_routes: list = [
         {"name": "auth-public-auth", "protocols": ["http", "https"], "paths": ["/api/auth"], "strip_path": False},
         {"name": "auth-public-health", "protocols": ["http", "https"], "paths": ["/api/health"], "strip_path": False},
-        {"name": "auth-public-internal", "protocols": ["http", "https"], "paths": ["/api/internal"], "strip_path": False},
+        {
+            "name": "auth-internal-validate-members",
+            "protocols": ["http", "https"],
+            "paths": ["/api/internal/validate-members"],
+            "methods": ["POST"],
+            "strip_path": False,
+            "regex_priority": 320,
+        },
+        {
+            "name": "auth-internal-check-permission",
+            "protocols": ["http", "https"],
+            "paths": ["/api/internal/check-permission"],
+            "methods": ["POST"],
+            "strip_path": False,
+            "regex_priority": 320,
+        },
+        {
+            "name": "auth-internal-org-exists",
+            "protocols": ["http", "https"],
+            "paths": [r"~/api/internal/organizations/[^/]+/exists$"],
+            "methods": ["GET"],
+            "strip_path": False,
+            "regex_priority": 320,
+        },
+        # Preview de convite de time (sem JWT) — não pode cair em auth-jwt-teams (/api/teams).
+        {
+            "name": "auth-public-team-invite-validate",
+            "protocols": ["http", "https"],
+            "paths": [r"~/api/teams/invites/[^/]+/validate$"],
+            "methods": ["GET"],
+            "strip_path": False,
+            "regex_priority": 200,
+        },
         {"name": "auth-public-users", "protocols": ["http", "https"], "paths": ["/api/users"], "strip_path": False},
         {
             "name": "auth-public-orgs-list-get",
@@ -221,7 +293,14 @@ def main() -> None:
 
     comp = base_service("competitions-service", host, 8001)
     comp["routes"] = [
-        {"name": "competitions-internal", "protocols": ["http", "https"], "paths": ["/api/internal"], "strip_path": False},
+        {
+            "name": "competitions-internal-teams",
+            "protocols": ["http", "https"],
+            "paths": ["/api/internal/teams"],
+            "methods": ["POST"],
+            "strip_path": False,
+            "regex_priority": 330,
+        },
         {"name": "competitions-health", "protocols": ["http", "https"], "paths": ["/api/health"], "strip_path": False},
         {
             "name": "competitions-protected",
@@ -231,7 +310,7 @@ def main() -> None:
                 "/api/matches",
                 "/api/modalities",
                 "/api/scoreboard",
-                "/api/teams",
+                "/api/sport-teams",
                 "/api/rankings",
                 "/api/stats-rulesets",
                 "/api/sport-rulesets",

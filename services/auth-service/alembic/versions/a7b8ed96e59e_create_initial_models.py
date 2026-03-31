@@ -1,8 +1,8 @@
 """create_initial_models
 
-Revision ID: 0f31623a173f
+Revision ID: a7b8ed96e59e
 Revises: 
-Create Date: 2026-03-28 21:58:00.776217
+Create Date: 2026-03-30 14:53:03.028003
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '0f31623a173f'
+revision: str = 'a7b8ed96e59e'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -84,7 +84,7 @@ def upgrade() -> None:
     op.create_table('teams',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('organization_id', sa.UUID(), nullable=False),
-    sa.Column('competition_id', sa.Integer(), nullable=False),
+    sa.Column('competition_id', sa.UUID(), nullable=False),
     sa.Column('competition_name', sa.String(length=255), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
     sa.Column('abbreviation', sa.String(length=3), nullable=False),
@@ -160,4 +160,15 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_users_keycloak_id'), table_name='users')
     op.drop_index(op.f('ix_users_email'), table_name='users')
     op.drop_table('users')
+    # PostgreSQL não remove tipos ENUM ao dropar tabelas — limpar manualmente
+    op.execute(
+        """
+        DROP TYPE IF EXISTS team_invite_status CASCADE;
+        DROP TYPE IF EXISTS team_status CASCADE;
+        DROP TYPE IF EXISTS member_status CASCADE;
+        DROP TYPE IF EXISTS org_status CASCADE;
+        DROP TYPE IF EXISTS org_join_policy CASCADE;
+        DROP TYPE IF EXISTS org_privacy CASCADE;
+        """
+    )
     # ### end Alembic commands ###

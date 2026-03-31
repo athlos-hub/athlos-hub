@@ -3,6 +3,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy import desc
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 from src.models.competition import CompetitionModel, CompetitionPhase
 from src.models.matches import GroupModel, RoundModel, MatchModel, MatchStatus
 from src.models.standings import ClassificationModel
@@ -13,7 +14,7 @@ class EndGroupPhaseService:
     def __init__ (self, session: AsyncSession):
         self.session = session
 
-    async def advance_group_phase(self, competition_id: int):
+    async def advance_group_phase(self, competition_id: UUID):
         """
         Finaliza a fase de grupos:
         1. Lê a classificação final de cada grupo.

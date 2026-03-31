@@ -6,7 +6,7 @@ export interface TeamBasicInfo {
 
 export interface MatchDetail {
   id: string;
-  competition_id: number;
+  competition_id: string;
   home_team?: TeamBasicInfo;
   away_team?: TeamBasicInfo;
   scheduled_datetime?: string;

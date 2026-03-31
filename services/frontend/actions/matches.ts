@@ -76,7 +76,7 @@ export async function getMatchesByIds(matchIds: string[]): Promise<MatchDetail[]
 /**
  * Busca os stats types (métricas) disponíveis para uma competição
  */
-export async function getCompetitionStatsTypes(competitionId: number): Promise<StatsRuleSet | null> {
+export async function getCompetitionStatsTypes(competitionId: string): Promise<StatsRuleSet | null> {
   try {
     return await competitionsAPI<StatsRuleSet>(`/competitions/${competitionId}/stats-ruleset`);
   } catch {
@@ -88,7 +88,7 @@ export async function getCompetitionStatsTypes(competitionId: number): Promise<S
 /**
  * Busca os times e jogadores de uma competição
  */
-export async function getCompetitionTeamsWithPlayers(competitionId: number): Promise<TeamWithPlayers[]> {
+export async function getCompetitionTeamsWithPlayers(competitionId: string): Promise<TeamWithPlayers[]> {
   return competitionsAPI<TeamWithPlayers[]>(`/competitions/${competitionId}/teams-with-players`);
 }
 

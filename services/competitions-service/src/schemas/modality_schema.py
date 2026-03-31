@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field, ConfigDict
+import uuid
 
 class ModalityBaseSchema(BaseModel):
     name: str = Field(..., description="Nome da modalidade", max_length=100)
@@ -7,7 +8,11 @@ class ModalityBaseSchema(BaseModel):
 class ModalityCreateSchema(ModalityBaseSchema):
     pass
 
+
+class ModalityUpdateSchema(BaseModel):
+    name: str = Field(..., description="Nome da modalidade", max_length=100)
+
 class ModalityResponseSchema(ModalityBaseSchema):
-    id: int = Field(..., description="ID da modalidade")
+    id: uuid.UUID = Field(..., description="ID da modalidade")
 
     model_config = ConfigDict(from_attributes=True)

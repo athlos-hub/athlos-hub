@@ -12,8 +12,11 @@ from pydantic import BaseModel, Field, ConfigDict
 
 class TeamCreateRequest(BaseModel):
     """Request para criar um novo time."""
+
+    model_config = ConfigDict(extra="ignore")
+
     organization_slug: str = Field(..., description="Slug da organização")
-    competition_id: int = Field(..., description="ID da competição no competitions-service")
+    competition_id: UUID = Field(..., description="ID da competição no competitions-service (UUID)")
     competition_name: str = Field(..., description="Nome da competição (para exibição)")
     name: str = Field(..., max_length=100, description="Nome do time")
     abbreviation: str = Field(..., max_length=3, description="Abreviação/sigla do time")
@@ -57,6 +60,7 @@ class TeamResponse(BaseModel):
     organization_id: UUID
     organization_slug: str
     organization_name: Optional[str] = None
+    competition_id: UUID = Field(..., description="ID da competição no competitions-service")
     competition_name: str
     name: str
     abbreviation: str
@@ -82,6 +86,7 @@ class TeamListItemResponse(BaseModel):
     id: UUID
     organization_slug: str
     organization_name: Optional[str] = None
+    competition_id: UUID = Field(..., description="ID da competição no competitions-service")
     competition_name: str
     name: str
     abbreviation: str
@@ -174,7 +179,7 @@ class PlayerPayload(BaseModel):
 class TeamApprovalPayload(BaseModel):
     """Payload enviado ao competitions-service quando um time é aprovado."""
     organization_slug: str
-    competition_id: int
+    competition_id: UUID
     name: str
     abbreviation: str
     captain_keycloak_id: str

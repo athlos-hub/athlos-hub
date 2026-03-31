@@ -1,11 +1,10 @@
 "use client";
 
-import { Trophy } from "lucide-react";
-
+import { HologramLogo } from "@/components/home/HologramLogo";
 import { cn } from "@/lib/utils";
 
 /**
- * Decoração animada do hero (sem imagem). Respeita prefers-reduced-motion via classes.
+ * Decoração animada do hero. Centro: logo com efeito holograma/glitch.
  */
 export function HeroRightVisual() {
   return (
@@ -13,7 +12,7 @@ export function HeroRightVisual() {
       className="relative flex h-full min-h-[260px] w-full items-center justify-center lg:min-h-0"
       aria-hidden
     >
-      <div className="relative flex size-[min(85vw,380px)] max-h-[min(50vh,420px)] items-center justify-center lg:size-[min(32vw,440px)]">
+      <div className="relative flex size-[min(85vw,380px)] max-h-[min(50vh,460px)] items-center justify-center lg:size-[min(36vw,460px)]">
         {/* anéis concêntricos */}
         <div
           className={cn(
@@ -36,21 +35,14 @@ export function HeroRightVisual() {
         {/* brilho pulsante */}
         <div
           className={cn(
-            "absolute inset-[28%] rounded-full bg-main/15 blur-2xl",
+            "absolute inset-[26%] rounded-full bg-main/12 blur-3xl",
             "motion-safe:animate-pulse motion-reduce:animate-none"
           )}
         />
-        <div className="relative z-[1] flex size-24 items-center justify-center rounded-2xl border border-main/20 bg-background/80 shadow-sm backdrop-blur-sm sm:size-28">
-          <Trophy
-            className={cn(
-              "size-12 text-main sm:size-14",
-              "motion-safe:animate-pulse motion-reduce:animate-none"
-            )}
-            strokeWidth={1.75}
-            aria-hidden
-          />
+        <div className="relative z-[1] flex w-[88%] max-w-[300px] items-center justify-center">
+          <HologramLogo />
         </div>
-        {/* partículas / pontos */}
+        {/* partículas */}
         <span className="absolute right-[6%] top-[12%] size-2 rounded-full bg-main/40 motion-safe:animate-ping motion-reduce:animate-none" />
         <span
           className="absolute bottom-[18%] left-[10%] size-1.5 rounded-full bg-main/35 motion-safe:animate-ping motion-reduce:animate-none motion-safe:[animation-delay:0.7s]"

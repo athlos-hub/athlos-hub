@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import List, Optional
+from uuid import UUID
 
 from src.routes.routes import get_session
 from src.services.sport_ruleset_service import SportRulesetService
@@ -40,7 +41,7 @@ async def create_sport_ruleset(
     summary="Obter Sport Ruleset por ID"
 )
 async def get_sport_ruleset(
-    ruleset_id: int,
+    ruleset_id: UUID,
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -58,13 +59,15 @@ async def get_sport_ruleset(
 async def list_sport_rulesets(
     skip: int = 0,
     limit: int = 100,
+    organization_slug: Optional[str] = None,
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Lista todos os conjuntos de regras esportivas cadastrados.
+    Lista conjuntos de regras esportivas cadastrados.
+    Use organization_slug para listar apenas os da organização.
     """
     service = SportRulesetService(session)
-    return await service.list_all(skip, limit)
+    return await service.list_all(skip, limit, organization_slug=organization_slug)
 
 
 @router.patch(
@@ -73,7 +76,7 @@ async def list_sport_rulesets(
     summary="Atualizar Sport Ruleset"
 )
 async def update_sport_ruleset(
-    ruleset_id: int,
+    ruleset_id: UUID,
     data: SportRulesetUpdate,
     session: AsyncSession = Depends(get_session)
 ):
@@ -90,7 +93,7 @@ async def update_sport_ruleset(
     summary="Deletar Sport Ruleset"
 )
 async def delete_sport_ruleset(
-    ruleset_id: int,
+    ruleset_id: UUID,
     session: AsyncSession = Depends(get_session)
 ):
     """

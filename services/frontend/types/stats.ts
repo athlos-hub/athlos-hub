@@ -1,17 +1,17 @@
 // Stats Types - Estatísticas de jogadores/partidas
 
 export interface StatsType {
-  id: number;
+  id: string;
   name: string;
   abbreviation: string;
-  stats_ruleset_id: number;
+  stats_ruleset_id: string;
 }
 
 export interface StatsRuleSet {
-  id: number;
+  id: string;
   name: string;
   description?: string;
-  competition_id?: number;
+  competition_id?: string;
   stats_types: StatsType[];
 }
 
@@ -34,7 +34,7 @@ export interface TeamWithPlayers {
 export interface RegisterScoreRequest {
   team_side: "home" | "away";
   increment: number;
-  segment_id?: number;
+  segment_id?: string;
   stats_metric_abbreviation?: string;
   player_id?: string;
 }
@@ -44,7 +44,7 @@ export interface SetScoreRequest {
   home_score: number;
   away_score: number;
   segments?: {
-    segment_id: number;
+    segment_id: string;
     home_score: number;
     away_score: number;
   }[];
@@ -75,7 +75,7 @@ export interface MatchScoreResponse {
     abbreviation: string;
   };
   round?: {
-    id: number;
+    id: string;
     name: string;
   };
 }

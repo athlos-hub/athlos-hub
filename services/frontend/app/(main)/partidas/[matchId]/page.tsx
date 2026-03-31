@@ -27,7 +27,7 @@ function matchStatusLabel(status: string): string {
     finished: "Finalizado",
     cancelled: "Cancelado",
   };
-  return map[s] || status;
+  return map[s] || "Status não definido";
 }
 
 export default function PartidaPage() {

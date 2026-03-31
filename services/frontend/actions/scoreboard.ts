@@ -17,6 +17,7 @@ export async function initializeMatchSegments(
     endpoint: `/scoreboard/${matchId}/initialize?num_segments=${numSegments}`,
     method: "POST",
     withAuth: true,
+    service: "competitions",
   });
   return response.data;
 }
@@ -30,6 +31,7 @@ export async function updateSegmentScore(
     method: "POST",
     data: data as unknown as Record<string, unknown>,
     withAuth: true,
+    service: "competitions",
   });
   return response.data;
 }
@@ -38,7 +40,8 @@ export async function getScoreboard(matchId: string) {
   const response = await axiosAPI({
     endpoint: `/scoreboard/${matchId}`,
     method: "GET",
-    withAuth: false,
+    withAuth: true,
+    service: "competitions",
   });
   return response.data;
 }

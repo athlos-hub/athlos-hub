@@ -3,9 +3,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from typing import List, Optional
 import logging
+from uuid import UUID
 
 from src.models.modality import ModalityModel
-from src.schemas.modality_schema import ModalityCreateSchema
+from src.schemas.modality_schema import ModalityCreateSchema, ModalityUpdateSchema
 from src.services.auth_client import (
     AuthClient,
     AuthClientError,
@@ -72,4 +73,31 @@ class ModalityService:
         query = query.offset(offset).limit(limit)
         result = await self.db.execute(query)
         return result.scalars().all()
+
+    async def get_by_id(self, modality_id: UUID) -> ModalityModel:
+        query = select(ModalityModel).where(ModalityModel.id == modality_id)
+        result = await self.db.execute(query)
+        modality = result.scalar_one_or_none()
+        if not modality:
+            raise HTTPException(status_code=404, detail="Modalidade não encontrada")
+        return modality
+
+    async def update_modality(self, modality_id: UUID, data: ModalityUpdateSchema) -> ModalityModel:
+        modality = await self.get_by_id(modality_id)
+        modality.name = data.name
+        await self.db.commit()
+        await self.db.refresh(modality)
+        return modality
+
+    async def delete_modality(self, modality_id: UUID) -> None:
+        modality = await self.get_by_id(modality_id)
+        try:
+            await self.db.delete(modality)
+            await self.db.commit()
+        except Exception as exc:
+            await self.db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail="Não foi possível excluir a modalidade porque ela possui vínculos ativos.",
+            ) from exc
 

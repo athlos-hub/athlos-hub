@@ -1704,7 +1704,7 @@ class OrganizationService:
             user_role = OrgRole.OWNER
         else:
             # Verificar se é organizador
-            organizer = await self._organizer_repo.get_by_org_and_user(org.id, user.id)
+            organizer = await self._organizer_repo.get_organizer(org.id, user.id)
             if organizer:
                 user_role = OrgRole.ORGANIZER
             else:

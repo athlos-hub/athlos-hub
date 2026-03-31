@@ -8,7 +8,6 @@ const AUTH_REQUIRED_EXACT = new Set<string>([
   "/profile",
   "/organizations/invites",
   "/clubes/painel",
-  "/clubes/novo",
 ]);
 
 const AUTH_REQUIRED_PREFIXES = [

@@ -1,4 +1,5 @@
 from typing import List, Optional, Dict, Any
+import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
@@ -15,7 +16,7 @@ class StatsService:
 
     async def get_player_rankings(
         self,
-        competition_id: int,
+        competition_id: uuid.UUID,
         stats_metric_abbreviation: str,
         limit: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
@@ -62,7 +63,7 @@ class StatsService:
     
     async def get_competition_standings(
         self,
-        competition_id: int,
+        competition_id: uuid.UUID,
         limit: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         print(f"[StatsService] Buscando standings para competição {competition_id}")
@@ -188,7 +189,7 @@ class StatsService:
 
         return await self._get_bracket(competition_id)
 
-    async def _get_bracket(self, competition_id: int) -> List[Dict[str, Any]]:
+    async def _get_bracket(self, competition_id: uuid.UUID) -> List[Dict[str, Any]]:
         rounds_res = await self.session.execute(
             select(RoundModel).where(RoundModel.competition_id == competition_id).order_by(RoundModel.id)
         )

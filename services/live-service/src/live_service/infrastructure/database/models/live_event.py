@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import JSONB
@@ -30,5 +30,5 @@ class LiveEvent(Base):
         "created_at",
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(),
+        default=lambda: datetime.now(timezone.utc),
     )

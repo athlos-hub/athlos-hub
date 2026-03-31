@@ -16,7 +16,7 @@ export async function listModalities(
     endpoint: "/modalities/",
     method: "GET",
     queryParams,
-    withAuth: false,
+    withAuth: true,
     service: "competitions",
   });
 
@@ -35,4 +35,27 @@ export async function createModality(
   });
 
   return response.data;
+}
+
+export async function updateModality(
+  id: string,
+  data: { name: string }
+): Promise<Modality> {
+  const response = await axiosAPI<Modality>({
+    endpoint: `/modalities/${id}`,
+    method: "PATCH",
+    data: data as unknown as Record<string, unknown>,
+    withAuth: true,
+    service: "competitions",
+  });
+  return response.data;
+}
+
+export async function deleteModality(id: string): Promise<void> {
+  await axiosAPI<void>({
+    endpoint: `/modalities/${id}`,
+    method: "DELETE",
+    withAuth: true,
+    service: "competitions",
+  });
 }

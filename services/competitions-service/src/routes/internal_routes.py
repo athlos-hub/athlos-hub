@@ -32,7 +32,7 @@ class PlayerPayload(BaseModel):
 class TeamFromAuthPayload(BaseModel):
     """Payload de time aprovado vindo do auth-service."""
     organization_slug: str = Field(..., description="Slug da organização")
-    competition_id: int = Field(..., description="ID da competição")
+    competition_id: UUID = Field(..., description="ID da competição")
     name: str = Field(..., description="Nome do time")
     abbreviation: str = Field(..., description="Abreviação/sigla do time")
     captain_keycloak_id: str = Field(..., description="Keycloak ID do capitão")
@@ -44,7 +44,7 @@ class TeamCreatedResponse(BaseModel):
     id: UUID
     name: str
     status: str
-    competition_id: int
+    competition_id: UUID
 
 
 # ==================== Endpoints ====================
