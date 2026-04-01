@@ -1,5 +1,12 @@
-import ResetPasswordPage from '@/components/pages/reset-password-page';
-import { redirect } from 'next/navigation';
+import type { Metadata } from "next";
+import ResetPasswordPage from "@/components/pages/reset-password-page";
+import { redirect } from "next/navigation";
+import { privateAreaMetadata } from "@/lib/seo/site";
+
+export const metadata: Metadata = privateAreaMetadata(
+  "Redefinir senha",
+  "Defina uma nova senha para acessar o AthlosHub."
+);
 
 interface PageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>; 

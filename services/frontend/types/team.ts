@@ -78,6 +78,8 @@ export interface TeamListItem {
   id: string;
   organization_slug: string;
   organization_name?: string;
+  /** Preenchido no cliente quando a lista de orgs traz logo (ex.: painel de clubes). */
+  organization_logo_url?: string | null;
   /** ID da competição (formato do auth/competitions; comparar com String()) */
   competition_id: number | string;
   competition_name: string;

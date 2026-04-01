@@ -1,5 +1,12 @@
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import VerifyEmailPage from "@/components/pages/verify-page";
+import { privateAreaMetadata } from "@/lib/seo/site";
+
+export const metadata: Metadata = privateAreaMetadata(
+  "Verificar e-mail",
+  "Confirme seu endereço de e-mail para ativar sua conta no AthlosHub."
+);
 
 interface PageProps {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>;

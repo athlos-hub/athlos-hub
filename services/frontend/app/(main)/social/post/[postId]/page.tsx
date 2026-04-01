@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { Metadata } from "next";
+import type { Metadata } from "next";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { axiosAPI } from "@/lib/api/client";
 import { Post } from "@/types/social";
 import { PostPageClient } from "./post-page-client";
+import { SITE_NAME, buildPageMetadata } from "@/lib/seo/site";
 
 interface ApiResponse<T> {
   success: boolean;
@@ -32,22 +33,21 @@ interface PostPageProps {
 export async function generateMetadata({ params }: PostPageProps): Promise<Metadata> {
   const { postId } = await params;
   const post = await getPost(postId);
-  
+
   if (!post) {
     return {
-      title: "Post não encontrado | Athlos Hub",
+      title: "Post não encontrado",
+      robots: { index: false, follow: false },
     };
   }
 
-  return {
-    title: `Post | Athlos Hub`,
-    description: post.content.substring(0, 160),
-    openGraph: {
-      title: `Post no Athlos Hub`,
-      description: post.content.substring(0, 160),
-      type: "article",
-    },
-  };
+  const snippet = post.content.trim().slice(0, 155) || `Publicação no ${SITE_NAME}.`;
+  return buildPageMetadata({
+    title: "Publicação",
+    description: snippet,
+    path: `/social/post/${postId}`,
+    ogType: "article",
+  });
 }
 
 function PostSkeleton() {

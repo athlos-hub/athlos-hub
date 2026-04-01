@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Users, Calendar, Trophy, Building2, Shield, ArrowLeft, CheckCircle, Loader2, UserPlus, XCircle, Clock } from "lucide-react";
+import { Users, Calendar, Trophy, Building2, CheckCircle, Loader2, UserPlus, XCircle, Clock } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { TeamInviteDialog } from "./team-invite-dialog";
 import { TeamPlayersSection } from "./team-players-section";
 import { FollowTeamButton } from "./follow-team-button";
 import { TeamPostsSection } from "./team-posts-section";
-import { TeamRole, TeamStatus } from "@/types/team";
+import { TeamStatus } from "@/types/team";
 import type { TeamDetail } from "@/types/team";
 import { requestTeamApproval } from "@/actions/teams";
 import { canApprove } from "@/lib/teams/utils";
@@ -51,11 +51,6 @@ export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
   // Verifica se o usuário logado é capitão
   const isCaptain = team.members?.some(
     m => m.is_captain && m.user.keycloak_id === session?.user?.keycloakId
-  ) ?? false;
-  
-  // Verifica se é membro do time
-  const isPlayer = team.members?.some(
-    m => m.user.keycloak_id === session?.user?.keycloakId
   ) ?? false;
   
   const memberCount = team.members?.length ?? 0;
@@ -143,23 +138,8 @@ export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
                     <StatusIcon className="w-3 h-3 mr-1" />
                     {statusConfig.label}
                   </Badge>
-                  {isPlayer && (
-                    <Badge variant={isCaptain ? "default" : "secondary"} className="gap-1">
-                      {isCaptain ? (
-                        <>
-                          <Shield className="w-3 h-3" />
-                          Capitão
-                        </>
-                      ) : (
-                        <>
-                          <Users className="w-3 h-3" />
-                          Jogador
-                        </>
-                      )}
-                    </Badge>
-                  )}
                 </div>
-                <div className="flex items-center gap-4 mt-2">
+                <div className="flex items-center gap-4">
                   <span className="text-sm text-muted-foreground">
                     {followersCount} seguidor{followersCount !== 1 ? "es" : ""}
                   </span>

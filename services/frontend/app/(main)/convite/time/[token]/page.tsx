@@ -1,5 +1,6 @@
 import { JoinTeamInviteClient } from "@/components/teams/join-team-invite-client";
-import { Metadata } from "next";
+import type { Metadata } from "next";
+import { privateAreaMetadata } from "@/lib/seo/site";
 
 interface TeamInvitePageProps {
   params: Promise<{
@@ -7,10 +8,10 @@ interface TeamInvitePageProps {
   }>;
 }
 
-export const metadata: Metadata = {
-  title: "Convite de Time - AthlosHub",
-  description: "Aceite o convite para entrar em um time",
-};
+export const metadata: Metadata = privateAreaMetadata(
+  "Convite para time",
+  "Aceite o convite para entrar em uma equipe no AthlosHub."
+);
 
 export default async function TeamInvitePage({ params }: TeamInvitePageProps) {
   const { token } = await params;

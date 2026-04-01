@@ -128,6 +128,8 @@ export default function ClubesPainelPage() {
   const [page, setPage] = useState(0);
 
   const [myOrganizations, setMyOrganizations] = useState<OrganizationListItem[]>([]);
+  /** slug → logo para exibir no rodapé do card (API de times não envia logo da org). */
+  const [orgLogoBySlug, setOrgLogoBySlug] = useState<Record<string, string | null>>({});
   const [competitionOptions, setCompetitionOptions] = useState<Competition[]>([]);
   const [cachedMine, setCachedMine] = useState<OrganizationListItem[] | null>(null);
   const followedSlugsCacheRef = useRef<string[] | null>(null);
@@ -158,6 +160,16 @@ export default function ClubesPainelPage() {
     if (status !== "authenticated") return;
     getMyOrganizations().then(setMyOrganizations).catch(() => {});
   }, [status]);
+
+  useEffect(() => {
+    setOrgLogoBySlug((prev) => {
+      const next = { ...prev };
+      for (const o of myOrganizations) {
+        next[o.slug] = o.logo_url ?? null;
+      }
+      return next;
+    });
+  }, [myOrganizations]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -215,6 +227,15 @@ export default function ClubesPainelPage() {
     setIsLoading(true);
     const mergedKey = `${orgScope}:${clubVisibility}:${competitionFilter}`;
 
+    const mergeOrgLogos = (
+      teams: TeamListItem[],
+      map: Record<string, string | null>
+    ): TeamListItem[] =>
+      teams.map((t) => ({
+        ...t,
+        organization_logo_url: map[t.organization_slug] ?? t.organization_logo_url,
+      }));
+
     try {
       const mineRows = await getMyTeams();
       const activeMine = mineRows.filter((t) => isActiveInCompetitionStatus(String(t.status)));
@@ -224,17 +245,29 @@ export default function ClubesPainelPage() {
         const merged = mergedTeamsRef.current;
         setTotalFiltered(merged.length);
         const slice = merged.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
-        setDisplayTeams(slice);
+        const logoMap: Record<string, string | null> = { ...orgLogoBySlug };
+        setDisplayTeams(mergeOrgLogos(slice, logoMap));
         setHasNextPage((page + 1) * PAGE_SIZE < merged.length);
         return;
       }
 
       let merged: TeamListItem[] = [];
+      const logoMap: Record<string, string | null> = { ...orgLogoBySlug };
 
       if (orgScope === "all" && clubVisibility === "mine") {
         merged = activeMine;
       } else if (orgScope === "all" && clubVisibility === "all") {
         const orgs = await getOrganizations(OrganizationPrivacy.PUBLIC, MAX_PUBLIC_ORGS_FOR_TEAMS, 0);
+        for (const o of orgs) {
+          logoMap[o.slug] = o.logo_url ?? null;
+        }
+        setOrgLogoBySlug((prev) => {
+          const next = { ...prev };
+          for (const o of orgs) {
+            next[o.slug] = o.logo_url ?? null;
+          }
+          return next;
+        });
         const lists = await Promise.all(
           orgs.map((o) =>
             getOrganizationTeams(o.slug).catch(() => [] as TeamListItem[])
@@ -252,6 +285,9 @@ export default function ClubesPainelPage() {
       } else if (orgScope === "mine") {
         const mine = cachedMine ?? (await getMyOrganizations());
         if (!cachedMine) setCachedMine(mine);
+        for (const o of mine) {
+          logoMap[o.slug] = o.logo_url ?? null;
+        }
         const slugs = mine.map((o) => o.slug);
         const lists = await Promise.all(
           slugs.map((slug) =>
@@ -310,7 +346,7 @@ export default function ClubesPainelPage() {
       mergedKeyRef.current = mergedKey;
       setTotalFiltered(merged.length);
       const slice = merged.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
-      setDisplayTeams(slice);
+      setDisplayTeams(mergeOrgLogos(slice, logoMap));
       setHasNextPage((page + 1) * PAGE_SIZE < merged.length);
     } catch (error) {
       const message =
@@ -329,6 +365,7 @@ export default function ClubesPainelPage() {
     competitionFilter,
     page,
     cachedMine,
+    orgLogoBySlug,
   ]);
 
   useEffect(() => {

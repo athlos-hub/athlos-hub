@@ -159,7 +159,7 @@ export default function OrganizationInvitesPage() {
           {activeTab === "invites" && (
             <>
               {invites.length === 0 ? (
-                <Card className="p-12">
+                <Card className="p-12 border-none shadow-none">
                   <div className="text-center">
                     <Mail className="w-16 h-16 mx-auto text-gray-300 mb-4" />
                     <p className="text-gray-600">Nenhum convite pendente</p>
@@ -228,7 +228,7 @@ export default function OrganizationInvitesPage() {
           {activeTab === "requests" && (
             <>
               {requests.length === 0 ? (
-                <Card className="p-12">
+                <Card className="p-12 border-none shadow-none">
                   <div className="text-center">
                     <Send className="w-16 h-16 mx-auto text-gray-300 mb-4" />
                     <p className="text-gray-600">Nenhuma solicitação pendente</p>

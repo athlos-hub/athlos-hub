@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getAthleteProfileByKeycloakId, getOrCreateAthleteProfile } from "@/actions/athlete-profile";
@@ -5,11 +6,25 @@ import { getAthletePostsByKeycloakId } from "@/actions/athlete-posts";
 import { getUserPublicInfo } from "@/actions/users";
 import { UnifiedProfileClient } from "@/components/profile/unified-profile-client";
 import { notFound } from "next/navigation";
+import { buildPageMetadata } from "@/lib/seo/site";
 
 interface AthleteProfilePageProps {
   params: Promise<{
     keycloakId: string;
   }>;
+}
+
+export async function generateMetadata({
+  params,
+}: AthleteProfilePageProps): Promise<Metadata> {
+  const { keycloakId } = await params;
+  return buildPageMetadata({
+    title: "Perfil",
+    description:
+      "Perfil de atleta no AthlosHub: estatísticas, publicações e informações públicas.",
+    path: `/profile/${keycloakId}`,
+    noIndex: true,
+  });
 }
 
 export default async function AthleteProfilePage({ params }: AthleteProfilePageProps) {

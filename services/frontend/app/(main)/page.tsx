@@ -1,6 +1,14 @@
+import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 
 import { getHomePageData } from "@/actions/home";
+import { SITE_DESCRIPTION, buildPageMetadata } from "@/lib/seo/site";
+
+export const metadata: Metadata = buildPageMetadata({
+  title: "Início",
+  description: SITE_DESCRIPTION,
+  path: "/",
+});
 import { HeroSection } from "@/components/home/HeroSection";
 import { StatsBar } from "@/components/home/StatsBar";
 import { HowItWorksSection } from "@/components/home/HowItWorksSection";

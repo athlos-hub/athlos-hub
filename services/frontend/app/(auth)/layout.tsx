@@ -1,4 +1,10 @@
 import Image from "next/image";
+import type { Metadata } from "next";
+
+/** Fluxos de login e cadastro não devem ser indexados. */
+export const metadata: Metadata = {
+  robots: { index: false, follow: false, googleBot: { index: false, follow: false } },
+};
 
 interface AuthLayoutProps {
     children: React.ReactNode;
@@ -10,7 +16,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
             <div className="hidden lg:flex flex-shrink-0 min-w-[391px] max-w-[531px] items-center justify-center p-8 relative z-10">
                 <Image
                     src="/auth.png"
-                    alt=""
+                    alt="Ilustração da plataforma AthlosHub"
                     width={453}
                     height={615}
                     className="w-full h-auto"

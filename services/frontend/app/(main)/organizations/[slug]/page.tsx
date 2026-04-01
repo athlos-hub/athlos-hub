@@ -1,10 +1,11 @@
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getOrganizationBySlug, getOrganizations } from "@/actions/organizations";
 import { OrganizationDetailClient } from "@/components/organizations/organization-detail-client";
 import { OrganizationPrivacy } from "@/types/organization";
+import { buildPageMetadata } from "@/lib/seo/site";
 
 interface OrganizationPageProps {
     params: Promise<{
@@ -13,18 +14,26 @@ interface OrganizationPageProps {
 }
 
 export async function generateMetadata({ params }: OrganizationPageProps): Promise<Metadata> {
-    try {
-        const { slug } = await params;
-        const org = await getOrganizationBySlug(slug, false);
-        return {
-            title: `${org.name} - AthlosHub`,
-            description: org.description || `Organização ${org.name}`,
-        };
-    } catch {
-        return {
-            title: "Organização não encontrada",
-        };
-    }
+  const { slug } = await params;
+  const session = await getServerSession(authOptions);
+  try {
+    // Mesma regra da página: org privada exige requisição autenticada para o backend aceitar.
+    const org = await getOrganizationBySlug(slug, !!session);
+    const description =
+      org.description?.trim() ||
+      `Organização esportiva ${org.name} no AthlosHub — competições, modalidades e comunidade.`;
+    return buildPageMetadata({
+      title: org.name,
+      description,
+      path: `/organizations/${slug}`,
+      ogImage: org.logo_url ?? null,
+    });
+  } catch {
+    return {
+      title: "Organização não encontrada",
+      robots: { index: false, follow: false },
+    };
+  }
 }
 
 export default async function OrganizationPage({ params }: OrganizationPageProps) {

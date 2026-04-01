@@ -78,9 +78,19 @@ export function TeamCard({ team, showRole = true, hideStatus = false }: TeamCard
               href={`/organizations/${team.organization_slug}`}
               className="flex items-center gap-3 min-w-0 text-sm font-medium text-gray-900 hover:text-main transition-colors"
             >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-main/15 bg-main/10">
-                <Building2 className="h-4 w-4 text-main" />
-              </div>
+              {team.organization_logo_url ? (
+                <TeamLogo
+                  name={team.organization_name}
+                  abbreviation={team.organization_slug.slice(0, 3)}
+                  logoUrl={team.organization_logo_url}
+                  className="h-9 w-9 rounded-md"
+                  textClassName="text-xs"
+                />
+              ) : (
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-main/15 bg-main/10">
+                  <Building2 className="h-4 w-4 text-main" />
+                </div>
+              )}
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Organização</p>
                 <p className="truncate">{team.organization_name}</p>
@@ -153,7 +163,17 @@ export function TeamCard({ team, showRole = true, hideStatus = false }: TeamCard
             href={`/organizations/${team.organization_slug}`}
             className="inline-flex max-w-full items-center gap-2 rounded-md text-sm font-medium text-main transition-colors hover:underline"
           >
-            <Building2 className="size-4 shrink-0" />
+            {team.organization_logo_url ? (
+              <TeamLogo
+                name={team.organization_name}
+                abbreviation={team.organization_slug.slice(0, 3)}
+                logoUrl={team.organization_logo_url}
+                className="size-7 shrink-0 rounded-md"
+                textClassName="text-[10px]"
+              />
+            ) : (
+              <Building2 className="size-4 shrink-0" />
+            )}
             <span className="truncate">{team.organization_name}</span>
           </Link>
         )}

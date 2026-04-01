@@ -1,12 +1,16 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getPublicFeed } from "@/actions/social-feed";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SocialFeedClient } from "@/components/social";
+import { buildPageMetadata } from "@/lib/seo/site";
 
-export const metadata = {
-    title: "Feed Social | Athlos Hub",
-    description: "Acompanhe as novidades da comunidade Athlos",
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: "Feed social",
+  description:
+    "Publicações, conquistas e novidades da comunidade esportiva no AthlosHub.",
+  path: "/social",
+});
 
 async function SocialFeedContent() {
     const feedData = await getPublicFeed(0, 10);

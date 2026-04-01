@@ -1,7 +1,14 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import AdminHeader from "@/components/layout/admin/admin-header";
+import { privateAreaMetadata } from "@/lib/seo/site";
+
+export const metadata: Metadata = privateAreaMetadata(
+  "Administração",
+  "Painel administrativo do AthlosHub."
+);
 
 function extractRolesFromToken(accessToken: string): string[] {
     try {
