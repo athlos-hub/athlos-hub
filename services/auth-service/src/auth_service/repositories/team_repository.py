@@ -52,6 +52,25 @@ class TeamRepository(TeamRepositoryContract):
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def resolve_team_with_members(self, team_id: UUID) -> Optional[Team]:
+        """
+        Resolve por ID interno (auth) ou pelo ID do time no competitions-service
+        (external_team_id), usado em URLs vindas da competição.
+        """
+        team = await self.get_by_id_with_members(team_id)
+        if team:
+            return team
+        stmt = (
+            select(Team)
+            .options(
+                selectinload(Team.members).selectinload(TeamMember.user),
+                selectinload(Team.organization),
+            )
+            .where(Team.external_team_id == team_id)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_by_organization_competition_name(
         self, organization_id: UUID, competition_id: UUID, name: str
     ) -> Optional[Team]:

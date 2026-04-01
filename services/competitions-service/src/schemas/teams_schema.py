@@ -135,6 +135,7 @@ class TeamDetailSchema(BaseModel):
     competition_name: str
     organization_name: Optional[str] = None
     modality_name: Optional[str] = None
+    logo_url: Optional[str] = None
     players: List[PlayerResponseSchema]
     role: Optional[str] = None  # CAPTAIN, PLAYER ou None se não for membro
     

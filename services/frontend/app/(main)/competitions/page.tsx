@@ -353,7 +353,7 @@ export default function CompetitionsPage() {
                   <SelectValue placeholder="Organizações" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas as organizações</SelectItem>
+                  <SelectItem value="all">Organizações públicas</SelectItem>
                   <SelectItem value="mine" disabled={sessionStatus !== "authenticated"}>
                     Minhas organizações
                   </SelectItem>

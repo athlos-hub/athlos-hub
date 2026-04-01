@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { getPendingTeams, approveTeam, rejectTeam } from "@/actions/teams";
 import type { TeamDetail } from "@/types/team";
+import { TeamLogo } from "@/components/teams/team-logo";
 
 interface PendingTeamsSectionProps {
   organizationSlug: string;
@@ -143,7 +144,15 @@ export function PendingTeamsSection({ organizationSlug, isAdmin }: PendingTeamsS
                 className="bg-white rounded-lg border border-gray-200 p-4 hover:border-orange-300 transition-colors"
               >
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
+                  <div className="flex-1 flex gap-3 min-w-0">
+                    <TeamLogo
+                      name={team.name}
+                      abbreviation={team.abbreviation}
+                      logoUrl={team.logo_url}
+                      className="h-12 w-12 shrink-0"
+                      textClassName="text-sm"
+                    />
+                    <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
                       <Link
                         href={`/clubes/${team.id}`}
@@ -164,6 +173,7 @@ export function PendingTeamsSection({ organizationSlug, isAdmin }: PendingTeamsS
                       <div className="text-sm font-medium text-orange-700">
                         Competição: {team.competition_name}
                       </div>
+                    </div>
                     </div>
                   </div>
 

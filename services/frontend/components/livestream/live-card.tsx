@@ -1,9 +1,12 @@
+"use client";
+
 import Link from "next/link";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LiveStatusBadge } from "./live-status-badge";
 import type { LiveWithMatchData } from "@/types/combined";
+import { TeamLogo } from "@/components/teams/team-logo";
 import { Calendar, Play, CalendarPlus, MapPin, Trophy } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -87,16 +90,17 @@ export function LiveCard({
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 flex-1 min-w-0">
-                {matchData.home_team.logo && (
-                  <img 
-                    src={matchData.home_team.logo} 
-                    alt={matchData.home_team.name}
-                    className="w-8 h-8 object-contain shrink-0"
-                    referrerPolicy="no-referrer"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                )}
+                <TeamLogo
+                  name={matchData.home_team.name}
+                  abbreviation={matchData.home_team.abbreviation || "?"}
+                  logoUrl={
+                    matchData.home_team.logo_url ??
+                    matchData.home_team.logo ??
+                    null
+                  }
+                  className="h-8 w-8"
+                  textClassName="text-[10px]"
+                />
                 <span className="font-semibold text-sm truncate">
                   {matchData.home_team.name}
                 </span>
@@ -115,16 +119,17 @@ export function LiveCard({
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 flex-1 min-w-0">
-                {matchData.away_team.logo && (
-                  <img 
-                    src={matchData.away_team.logo} 
-                    alt={matchData.away_team.name}
-                    className="w-8 h-8 object-contain shrink-0"
-                    referrerPolicy="no-referrer"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                )}
+                <TeamLogo
+                  name={matchData.away_team.name}
+                  abbreviation={matchData.away_team.abbreviation || "?"}
+                  logoUrl={
+                    matchData.away_team.logo_url ??
+                    matchData.away_team.logo ??
+                    null
+                  }
+                  className="h-8 w-8"
+                  textClassName="text-[10px]"
+                />
                 <span className="font-semibold text-sm truncate">
                   {matchData.away_team.name}
                 </span>

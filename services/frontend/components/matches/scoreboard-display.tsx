@@ -7,6 +7,15 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Trophy, Radio, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { ScoreEditor } from "./score-editor";
+import { TeamLogo } from "@/components/teams/team-logo";
+
+function abbrFromTeamName(name: string | null | undefined): string {
+  const t = (name || "").trim();
+  if (!t) return "?";
+  const p = t.split(/\s+/).filter(Boolean);
+  if (p.length >= 2) return (p[0][0] + p[1][0]).toUpperCase();
+  return t.slice(0, 3).toUpperCase();
+}
 
 interface ScoreboardDisplayProps {
   matchId: string;
@@ -76,10 +85,21 @@ export function ScoreboardDisplay({ matchId, competitionId, canEdit = false, liv
         {/* Placar Principal */}
         <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center">
           {/* Time da Casa */}
-          <div className="text-right space-y-1">
-            <p className="font-semibold text-lg truncate">
-              {scoreboard.home_team_name || "Time A"}
-            </p>
+          <div className="text-right space-y-2 flex flex-col items-end">
+            <div className="flex items-center justify-end gap-2 min-w-0">
+              <div className="min-w-0">
+                <p className="font-semibold text-lg truncate">
+                  {scoreboard.home_team_name || "Time A"}
+                </p>
+              </div>
+              <TeamLogo
+                name={scoreboard.home_team_name || "Time A"}
+                abbreviation={abbrFromTeamName(scoreboard.home_team_name)}
+                logoUrl={null}
+                className="h-10 w-10 shrink-0"
+                textClassName="text-xs"
+              />
+            </div>
             <p className="text-5xl font-bold text-primary">
               {scoreboard.home_total_score}
             </p>
@@ -91,10 +111,21 @@ export function ScoreboardDisplay({ matchId, competitionId, canEdit = false, liv
           </div>
 
           {/* Time Visitante */}
-          <div className="text-left space-y-1">
-            <p className="font-semibold text-lg truncate">
-              {scoreboard.away_team_name || "Time B"}
-            </p>
+          <div className="text-left space-y-2 flex flex-col items-start">
+            <div className="flex items-center justify-start gap-2 min-w-0">
+              <TeamLogo
+                name={scoreboard.away_team_name || "Time B"}
+                abbreviation={abbrFromTeamName(scoreboard.away_team_name)}
+                logoUrl={null}
+                className="h-10 w-10 shrink-0"
+                textClassName="text-xs"
+              />
+              <div className="min-w-0">
+                <p className="font-semibold text-lg truncate">
+                  {scoreboard.away_team_name || "Time B"}
+                </p>
+              </div>
+            </div>
             <p className="text-5xl font-bold text-primary">
               {scoreboard.away_total_score}
             </p>

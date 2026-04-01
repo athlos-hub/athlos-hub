@@ -16,11 +16,15 @@ def upload_image(
     prefix: str,
     user_id: Optional[str] = None,
     organization_id: Optional[str] = None,
+    team_id: Optional[str] = None,
 ) -> dict[str, str]:
     """Faz upload de imagem para o S3."""
 
-    if user_id and organization_id:
-        raise AvatarUploadError("Informe apenas user_id ou organization_id, não ambos")
+    id_count = sum(1 for x in (user_id, organization_id, team_id) if x)
+    if id_count > 1:
+        raise AvatarUploadError(
+            "Informe apenas um identificador: user_id, organization_id ou team_id"
+        )
 
     allowed_types = {
         "image/jpeg",
@@ -53,6 +57,9 @@ def upload_image(
 
     if organization_id:
         parts.append(organization_id)
+
+    if team_id:
+        parts.append(team_id)
 
     prefix = "/".join(parts) + "/"
 

@@ -27,6 +27,8 @@ export interface TeamWithPlayers {
   id: string;
   name: string;
   abbreviation: string;
+  logo_url?: string | null;
+  auth_team_id?: string | null;
   players: PlayerBasicInfo[];
 }
 

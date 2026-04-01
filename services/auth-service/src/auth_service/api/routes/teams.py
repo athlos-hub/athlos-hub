@@ -4,13 +4,14 @@ import logging
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_service.api.deps import get_current_db_user, get_session
 from auth_service.core.config import settings
 from auth_service.core.exceptions import (
     AlreadyTeamMemberError,
+    AvatarUploadError,
     CompetitionServiceError,
     NotTeamCaptainError,
     NotTeamMemberError,
@@ -18,11 +19,13 @@ from auth_service.core.exceptions import (
     PlayerAlreadyInCompetitionError,
     TeamAlreadyApprovedError,
     TeamAlreadyExistsError,
+    TeamError,
     TeamFullError,
     TeamInviteExpiredError,
     TeamInviteNotFoundError,
     TeamNotFoundError,
     TeamNotReadyError,
+    TeamProfileEditRestrictedError,
     TeamStatusError,
     UserNotFoundError,
 )
@@ -88,6 +91,7 @@ def _build_team_response(team, user_keycloak_id: Optional[str] = None) -> TeamRe
         competition_name=team.competition_name,
         name=team.name,
         abbreviation=team.abbreviation,
+        logo_url=team.logo_url,
         status=team.status.value,
         captain_id=captain.user.keycloak_id if captain and captain.user else "",
         min_members=team.min_members,
@@ -131,6 +135,7 @@ def _build_team_detail_response(team) -> TeamDetailResponse:
         competition_name=team.competition_name,
         name=team.name,
         abbreviation=team.abbreviation,
+        logo_url=team.logo_url,
         status=team.status.value,
         captain_id=captain.user.keycloak_id if captain and captain.user else "",
         min_members=team.min_members,
@@ -154,6 +159,7 @@ def _build_team_list_item(team, user_id: UUID) -> TeamListItemResponse:
         competition_name=team.competition_name,
         name=team.name,
         abbreviation=team.abbreviation,
+        logo_url=team.logo_url,
         status=team.status.value,
         player_count=len(team.members),
         role="CAPTAIN" if is_captain else "PLAYER",
@@ -274,6 +280,46 @@ async def get_team(
         return _build_team_detail_response(team)
     except TeamNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.put("/{team_id}", response_model=TeamDetailResponse)
+async def update_team(
+    team_id: UUID,
+    current_user: User = Depends(get_current_db_user),
+    service: TeamService = Depends(get_team_service),
+    name: Optional[str] = Form(None),
+    abbreviation: Optional[str] = Form(None),
+    min_members: Optional[int] = Form(None),
+    max_members: Optional[int] = Form(None),
+    remove_logo: str = Form("false"),
+    logo: UploadFile | None = File(None),
+):
+    """Atualiza dados do time (apenas capitão). Multipart: campos opcionais + logo."""
+    remove_flag = remove_logo.strip().lower() in ("true", "1", "yes", "on")
+    try:
+        team = await service.update_team(
+            team_id=team_id,
+            captain_keycloak_id=str(current_user.keycloak_id),
+            name=name,
+            abbreviation=abbreviation,
+            min_members=min_members,
+            max_members=max_members,
+            logo=logo,
+            remove_logo=remove_flag,
+        )
+        return _build_team_detail_response(team)
+    except TeamNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except NotTeamCaptainError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except TeamProfileEditRestrictedError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except TeamAlreadyExistsError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except (TeamFullError, TeamError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except AvatarUploadError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ==================== Convites ====================

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { Upload, X, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,13 +9,29 @@ interface LogoUploadProps {
   value?: File | string | null;
   onChange: (file: File | null) => void;
   currentLogoUrl?: string | null;
+  /** Rótulo do campo (padrão: organização) */
+  label?: string;
+  /** Permite remover logo já salvo no servidor (preview some) */
+  allowRemoveRemote?: boolean;
 }
 
-export function LogoUpload({ value, onChange, currentLogoUrl }: LogoUploadProps) {
+export function LogoUpload({
+  value,
+  onChange,
+  currentLogoUrl,
+  label = "Logo da Organização",
+  allowRemoveRemote = false,
+}: LogoUploadProps) {
   const [preview, setPreview] = useState<string | null>(
     currentLogoUrl || null
   );
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!value) {
+      setPreview(currentLogoUrl || null);
+    }
+  }, [currentLogoUrl, value]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -43,7 +59,7 @@ export function LogoUpload({ value, onChange, currentLogoUrl }: LogoUploadProps)
 
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium text-gray-700">Logo da Organização</label>
+      <label className="text-sm font-medium text-gray-700">{label}</label>
       
       <div className="flex items-end gap-4">
         <div 
@@ -92,6 +108,22 @@ export function LogoUpload({ value, onChange, currentLogoUrl }: LogoUploadProps)
               >
                 <X className="w-4 h-4 mr-1" />
                 Remover
+              </Button>
+            )}
+            {allowRemoveRemote && currentLogoUrl && preview === currentLogoUrl && !value && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  onChange(null);
+                  setPreview(null);
+                  if (inputRef.current) inputRef.current.value = "";
+                }}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <X className="w-4 h-4 mr-1" />
+                Remover escudo
               </Button>
             )}
           </div>

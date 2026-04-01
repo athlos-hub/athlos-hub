@@ -84,6 +84,8 @@ class StatsService:
                 select(
                     ClassificationModel.team_id,
                     TeamModel.name,
+                    TeamModel.abbreviation,
+                    TeamModel.logo_url,
                     ClassificationModel.points,
                     ClassificationModel.wins,
                     ClassificationModel.draws,
@@ -114,7 +116,8 @@ class StatsService:
                 {
                     "team_id": str(r.team_id),
                     "team_name": r.name,
-                    "team_abbreviation": "",
+                    "team_abbreviation": (r.abbreviation or "") if r.abbreviation is not None else "",
+                    "team_logo_url": r.logo_url,
                     "points": r.points,
                     "matches_played": r.wins + r.draws + r.losses,
                     "wins": r.wins,
@@ -140,6 +143,8 @@ class StatsService:
                     select(
                         ClassificationModel.team_id,
                         TeamModel.name,
+                        TeamModel.abbreviation,
+                        TeamModel.logo_url,
                         ClassificationModel.points,
                         ClassificationModel.wins,
                         ClassificationModel.draws,
@@ -173,6 +178,8 @@ class StatsService:
                             {
                                 "team_id": r.team_id,
                                 "team_name": r.name,
+                                "team_abbreviation": (r.abbreviation or "") if r.abbreviation is not None else "",
+                                "team_logo_url": r.logo_url,
                                 "points": r.points,
                                 "wins": r.wins,
                                 "draws": r.draws,

@@ -83,6 +83,8 @@ export interface TeamListItem {
   competition_name: string;
   name: string;
   abbreviation: string;
+  /** URL do escudo (opcional); sem valor, usar fallback com sigla */
+  logo_url?: string | null;
   status: TeamStatus;
   player_count: number;
   role: TeamRole;
@@ -99,6 +101,7 @@ export interface TeamResponse {
   competition_name: string;
   name: string;
   abbreviation: string;
+  logo_url?: string | null;
   status: TeamStatus;
   min_members: number;
   max_members: number;

@@ -131,5 +131,8 @@ export interface TeamWithPlayers {
   id: string;
   name: string;
   abbreviation: string;
+  logo_url?: string | null;
+  /** ID do time no auth-service; preferir em links para /clubes/[id] */
+  auth_team_id?: string | null;
   players: Player[];
 }

@@ -113,3 +113,12 @@ class CompetitionServiceError(TeamError):
         self.detail = detail
         message = f"Erro ao comunicar com serviço de competições: {detail}" if detail else "Erro ao comunicar com serviço de competições"
         super().__init__(message)
+
+
+class TeamProfileEditRestrictedError(TeamError):
+    """Time aprovado: só permite alterar logo/escudo."""
+
+    def __init__(self):
+        super().__init__(
+            "Este time já está aprovado na competição. Apenas a imagem do escudo pode ser alterada."
+        )

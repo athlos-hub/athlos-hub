@@ -28,6 +28,8 @@ class TeamUpdateRequest(BaseModel):
     """Request para atualizar um time."""
     name: Optional[str] = Field(None, max_length=100)
     abbreviation: Optional[str] = Field(None, max_length=3)
+    min_members: Optional[int] = Field(None, ge=1)
+    max_members: Optional[int] = Field(None, ge=1)
 
 
 class TeamMemberUser(BaseModel):
@@ -64,6 +66,7 @@ class TeamResponse(BaseModel):
     competition_name: str
     name: str
     abbreviation: str
+    logo_url: Optional[str] = None
     status: str
     captain_id: str
     min_members: int
@@ -90,6 +93,7 @@ class TeamListItemResponse(BaseModel):
     competition_name: str
     name: str
     abbreviation: str
+    logo_url: Optional[str] = None
     status: str
     player_count: int
     role: str  # CAPTAIN ou PLAYER
@@ -184,3 +188,5 @@ class TeamApprovalPayload(BaseModel):
     abbreviation: str
     captain_keycloak_id: str
     players: list[PlayerPayload]
+    logo_url: Optional[str] = None
+    auth_team_id: UUID = Field(..., description="ID do time no auth-service (links / referência cruzada)")

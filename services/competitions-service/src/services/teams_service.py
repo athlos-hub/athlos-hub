@@ -386,6 +386,7 @@ class TeamService:
             "competition_name": team.competition.name if team.competition else "Competição",
             "organization_name": None,  # TODO: buscar do auth-service
             "modality_name": None,  # TODO: buscar da modalidade
+            "logo_url": getattr(team, "logo_url", None),
             "players": [
                 {
                     "id": p.id,

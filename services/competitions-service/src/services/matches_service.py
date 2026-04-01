@@ -352,13 +352,15 @@ class MatchesService:
             home_team=TeamBasicInfo(
                 id=match.home_team.id,
                 name=match.home_team.name,
-                logo=getattr(match.home_team, 'logo', None)
+                abbreviation=(match.home_team.abbreviation or "") or "",
+                logo=match.home_team.logo_url,
             ) if match.home_team else None,
             
             away_team=TeamBasicInfo(
                 id=match.away_team.id,
                 name=match.away_team.name,
-                logo=getattr(match.away_team, 'logo', None)
+                abbreviation=(match.away_team.abbreviation or "") or "",
+                logo=match.away_team.logo_url,
             ) if match.away_team else None,
             
             # Informações da partida

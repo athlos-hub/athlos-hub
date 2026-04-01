@@ -5,6 +5,7 @@ import { TeamListItem, TeamRole } from "@/types/team";
 import { Badge } from "@/components/ui/badge";
 import { Users, Shield, Trophy, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TeamLogo } from "@/components/teams/team-logo";
 
 interface TeamCardProps {
   team: TeamListItem;
@@ -36,9 +37,13 @@ export function TeamCard({ team, showRole = true, hideStatus = false }: TeamCard
       >
         <Link href={`/clubes/${team.id}`} className="block p-5 space-y-3 text-left">
           <div className="flex items-start gap-3">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-main to-main/85 text-base font-bold text-white shadow-sm ring-1 ring-main/20">
-              <span className="leading-none">{team.abbreviation}</span>
-            </div>
+            <TeamLogo
+              name={team.name}
+              abbreviation={team.abbreviation}
+              logoUrl={team.logo_url}
+              className="h-14 w-14"
+              textClassName="text-base"
+            />
             <div className="min-w-0 flex-1">
               <h3 className="font-bold text-gray-900 line-clamp-2 leading-snug group-hover:text-main transition-colors">
                 {team.name}
@@ -102,9 +107,13 @@ export function TeamCard({ team, showRole = true, hideStatus = false }: TeamCard
             href={`/clubes/${team.id}`}
             className="flex min-w-0 flex-1 gap-4 rounded-lg outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-main"
           >
-            <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-main to-main/80 text-lg font-bold text-white shadow-inner ring-1 ring-main/25">
-              <span className="leading-none">{team.abbreviation}</span>
-            </div>
+            <TeamLogo
+              name={team.name}
+              abbreviation={team.abbreviation}
+              logoUrl={team.logo_url}
+              className="h-16 w-16"
+              textClassName="text-lg"
+            />
 
             <div className="min-w-0 flex-1">
               <h3 className="text-lg font-semibold text-foreground transition-colors group-hover:text-main">

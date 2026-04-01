@@ -2,6 +2,8 @@ export interface TeamBasicInfo {
   id: string;
   name: string;
   logo?: string;
+  logo_url?: string | null;
+  abbreviation?: string;
 }
 
 export interface MatchDetail {

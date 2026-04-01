@@ -205,8 +205,20 @@ function transformMatchForCalendar(m: Record<string, any>) {
     groupName: m.group_name ?? m.groupName,
     local: m.local ?? m.venue ?? m.location,
     scheduledDatetime: m.scheduled_datetime ?? m.scheduledDatetime ?? m.scheduledDatetimeUtc ?? m.scheduled_datetime_utc,
-    homeTeam: m.home_team ? { id: m.home_team.id, name: m.home_team.name, logo: m.home_team.logo } : m.homeTeam,
-    awayTeam: m.away_team ? { id: m.away_team.id, name: m.away_team.name, logo: m.away_team.logo } : m.awayTeam,
+    homeTeam: m.home_team
+      ? {
+          id: m.home_team.id,
+          name: m.home_team.name,
+          logo: m.home_team.logo_url ?? m.home_team.logo,
+        }
+      : m.homeTeam,
+    awayTeam: m.away_team
+      ? {
+          id: m.away_team.id,
+          name: m.away_team.name,
+          logo: m.away_team.logo_url ?? m.away_team.logo,
+        }
+      : m.awayTeam,
     homeScore: typeof m.home_score === 'number' ? m.home_score : m.homeScore,
     awayScore: typeof m.away_score === 'number' ? m.away_score : m.awayScore,
   };

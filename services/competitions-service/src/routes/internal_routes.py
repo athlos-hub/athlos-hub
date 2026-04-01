@@ -4,10 +4,10 @@ Rotas internas do competitions-service.
 Rotas para comunicação entre serviços (não expostas ao público).
 """
 import logging
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -37,6 +37,8 @@ class TeamFromAuthPayload(BaseModel):
     abbreviation: str = Field(..., description="Abreviação/sigla do time")
     captain_keycloak_id: str = Field(..., description="Keycloak ID do capitão")
     players: List[PlayerPayload] = Field(..., description="Lista de jogadores")
+    logo_url: Optional[str] = Field(None, description="URL do escudo (mesma do auth-service)")
+    auth_team_id: UUID = Field(..., description="ID do time no auth-service")
 
 
 class TeamCreatedResponse(BaseModel):
@@ -45,6 +47,11 @@ class TeamCreatedResponse(BaseModel):
     name: str
     status: str
     competition_id: UUID
+
+
+class TeamLogoSyncPayload(BaseModel):
+    """Sincroniza escudo vindo do auth após aprovação ou edição."""
+    logo_url: Optional[str] = Field(None, description="URL pública do escudo ou null para remover")
 
 
 # ==================== Endpoints ====================
@@ -150,6 +157,8 @@ async def receive_approved_team(
         competition_id=payload.competition_id,
         name=payload.name,
         abbreviation=payload.abbreviation,
+        logo_url=payload.logo_url,
+        auth_team_id=payload.auth_team_id,
         status=TeamStatus.ACTIVE,  # Já aprovado pelo auth, então ACTIVE
         team_captain=None  # Será atualizado após criar jogadores
     )
@@ -185,6 +194,21 @@ async def receive_approved_team(
         status=new_team.status.value if hasattr(new_team.status, 'value') else str(new_team.status),
         competition_id=new_team.competition_id
     )
+
+
+@router.patch("/teams/{team_id}/logo", status_code=204)
+async def sync_team_logo(
+    team_id: UUID,
+    payload: TeamLogoSyncPayload,
+    session: AsyncSession = Depends(get_session),
+):
+    """Sincroniza URL do escudo (chamado pelo auth-service após upload/remoção)."""
+    team = await session.get(TeamModel, team_id)
+    if not team:
+        raise HTTPException(status_code=404, detail="Time não encontrado")
+    team.logo_url = payload.logo_url
+    await session.commit()
+    return Response(status_code=204)
 
 
 @router.get("/health")

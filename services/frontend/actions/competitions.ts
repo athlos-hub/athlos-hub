@@ -132,6 +132,26 @@ export async function getCompetitionStats(
   return response.data;
 }
 
+function pickTeamLogoUrl(
+  row: TeamWithPlayers & { logoUrl?: string | null }
+): string | null {
+  const a = row.logo_url?.trim();
+  const b = typeof row.logoUrl === "string" ? row.logoUrl.trim() : "";
+  return a || b || null;
+}
+
+function pickAuthTeamId(
+  row: TeamWithPlayers & { authTeamId?: string | null }
+): string | null {
+  const a = row.auth_team_id?.trim();
+  const b = typeof row.authTeamId === "string" ? row.authTeamId.trim() : "";
+  return a || b || null;
+}
+
+/**
+ * Times da competição com jogadores; completa `logo_url` pelo auth quando o
+ * competitions ainda não tiver (ex.: times antigos ou sync pendente).
+ */
 export async function getCompetitionTeamsWithPlayers(
   competitionId: string
 ): Promise<TeamWithPlayers[]> {
@@ -142,7 +162,46 @@ export async function getCompetitionTeamsWithPlayers(
     service: "competitions",
   });
 
-  return response.data;
+  const raw = response.data;
+  if (!Array.isArray(raw)) return [];
+
+  return Promise.all(
+    raw.map(async (item) => {
+      const row = item as TeamWithPlayers & {
+        logoUrl?: string | null;
+        authTeamId?: string | null;
+      };
+      let logo_url = pickTeamLogoUrl(row);
+      const authId = pickAuthTeamId(row);
+      if (!logo_url && authId) {
+        try {
+          const authRes = await axiosAPI<{ logo_url?: string | null }>({
+            endpoint: `/teams/${authId}`,
+            method: "GET",
+            withAuth: true,
+            service: "auth",
+          });
+          logo_url = authRes.data?.logo_url?.trim() || null;
+        } catch {
+          /* ignora: auth indisponível */
+        }
+      }
+      if (!logo_url && item.id) {
+        try {
+          const authRes = await axiosAPI<{ logo_url?: string | null }>({
+            endpoint: `/teams/${item.id}`,
+            method: "GET",
+            withAuth: true,
+            service: "auth",
+          });
+          logo_url = authRes.data?.logo_url?.trim() || null;
+        } catch {
+          /* time não encontrado no auth ou sem sessão */
+        }
+      }
+      return { ...item, logo_url: logo_url ?? null };
+    })
+  );
 }
 export async function listSportRulesets(
   skip = 0,

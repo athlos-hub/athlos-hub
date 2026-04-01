@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { 
@@ -85,6 +85,7 @@ import type { StandingsTeam, PlayerRanking } from "@/actions/rankings";
 import { OrgRole } from "@/types/organization";
 import { CompetitionManagementDialogs } from "@/components/organizations/competition-management-dialogs";
 import { CompetitionTeamCard } from "@/components/teams/competition-team-card";
+import { TeamLogo } from "@/components/teams/team-logo";
 import { CreateTeamDialog } from "@/components/teams/create-team-dialog";
 import { getMyTeams } from "@/actions/teams";
 import type { TeamListItem } from "@/types/team";
@@ -175,6 +176,20 @@ export function CompetitionDetailPageInner() {
   // Filtros de jogos
   const [matchStatusFilter, setMatchStatusFilter] = useState<string>("all");
   const [matchPeriodFilter, setMatchPeriodFilter] = useState<string>("all");
+
+  /** Mesmo escudo da aba Times para classificação e jogos (id = time no competitions). */
+  const teamLogoByCompetitionTeamId = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const t of teams) {
+      const row = t as { id?: string; logo_url?: string | null; logoUrl?: string | null };
+      const url =
+        (typeof row.logo_url === "string" && row.logo_url.trim()) ||
+        (typeof row.logoUrl === "string" && row.logoUrl.trim()) ||
+        "";
+      if (url) m.set(String(row.id), url);
+    }
+    return m;
+  }, [teams]);
 
   useEffect(() => {
     if (competitionId) {
@@ -961,9 +976,24 @@ export function CompetitionDetailPageInner() {
                         <TableRow key={team.team_id}>
                           <TableCell className="font-medium">{index + 1}</TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div className="font-medium">{team.team_name}</div>
-                              <div className="text-xs text-gray-500">{team.team_abbreviation}</div>
+                            <div className="flex items-center gap-3 min-w-0">
+                              <TeamLogo
+                                name={team.team_name}
+                                abbreviation={team.team_abbreviation || "?"}
+                                logoUrl={
+                                  teamLogoByCompetitionTeamId.get(String(team.team_id)) ??
+                                  team.team_logo_url ??
+                                  null
+                                }
+                                className="h-9 w-9"
+                                textClassName="text-xs"
+                              />
+                              <div className="min-w-0">
+                                <div className="font-medium truncate">{team.team_name}</div>
+                                {team.team_abbreviation && (
+                                  <div className="text-xs text-gray-500">{team.team_abbreviation}</div>
+                                )}
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell className="text-center font-bold">{team.points}</TableCell>
@@ -1259,9 +1289,9 @@ export function CompetitionDetailPageInner() {
                         </div>
 
                         <div className="flex items-center justify-between gap-6">
-                          <div className="flex-1 flex items-center justify-end gap-3">
-                            <div className="text-right">
-                              <div className="font-semibold text-gray-900 text-lg">
+                          <div className="flex-1 flex items-center justify-end gap-3 min-w-0">
+                            <div className="text-right min-w-0">
+                              <div className="font-semibold text-gray-900 text-lg truncate">
                                 {match.home_team_name || match.home_team?.name || "Time A"}
                               </div>
                               {(match.home_team_abbreviation || match.home_team?.abbreviation) && (
@@ -1270,9 +1300,29 @@ export function CompetitionDetailPageInner() {
                                 </div>
                               )}
                             </div>
+                            <TeamLogo
+                              name={match.home_team_name || match.home_team?.name || "Time A"}
+                              abbreviation={
+                                match.home_team_abbreviation ||
+                                match.home_team?.abbreviation ||
+                                "?"
+                              }
+                              logoUrl={
+                                (match.home_team?.id != null
+                                  ? teamLogoByCompetitionTeamId.get(
+                                      String(match.home_team.id)
+                                    )
+                                  : undefined) ??
+                                match.home_team?.logo_url ??
+                                match.home_team?.logo ??
+                                null
+                              }
+                              className="h-10 w-10 shrink-0"
+                              textClassName="text-xs"
+                            />
                           </div>
                           
-                          <div className="flex items-center gap-3 px-6">
+                          <div className="flex items-center gap-3 px-6 shrink-0">
                             <div className="text-4xl font-bold text-gray-900">
                               {match.home_score ?? "-"}
                             </div>
@@ -1282,9 +1332,29 @@ export function CompetitionDetailPageInner() {
                             </div>
                           </div>
                           
-                          <div className="flex-1 flex items-center gap-3">
-                            <div className="text-left">
-                              <div className="font-semibold text-gray-900 text-lg">
+                          <div className="flex-1 flex items-center gap-3 min-w-0">
+                            <TeamLogo
+                              name={match.away_team_name || match.away_team?.name || "Time B"}
+                              abbreviation={
+                                match.away_team_abbreviation ||
+                                match.away_team?.abbreviation ||
+                                "?"
+                              }
+                              logoUrl={
+                                (match.away_team?.id != null
+                                  ? teamLogoByCompetitionTeamId.get(
+                                      String(match.away_team.id)
+                                    )
+                                  : undefined) ??
+                                match.away_team?.logo_url ??
+                                match.away_team?.logo ??
+                                null
+                              }
+                              className="h-10 w-10 shrink-0"
+                              textClassName="text-xs"
+                            />
+                            <div className="text-left min-w-0">
+                              <div className="font-semibold text-gray-900 text-lg truncate">
                                 {match.away_team_name || match.away_team?.name || "Time B"}
                               </div>
                               {(match.away_team_abbreviation || match.away_team?.abbreviation) && (

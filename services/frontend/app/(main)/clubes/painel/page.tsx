@@ -136,7 +136,6 @@ export default function ClubesPainelPage() {
   const mergedKeyRef = useRef<string>("");
 
   const [displayTeams, setDisplayTeams] = useState<TeamListItem[]>([]);
-  const [myTeamIdToRole, setMyTeamIdToRole] = useState<Map<string, TeamRole>>(new Map());
   const [hasNextPage, setHasNextPage] = useState(false);
   const [totalFiltered, setTotalFiltered] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -227,7 +226,6 @@ export default function ClubesPainelPage() {
         const slice = merged.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
         setDisplayTeams(slice);
         setHasNextPage((page + 1) * PAGE_SIZE < merged.length);
-        setMyTeamIdToRole(idToRole);
         return;
       }
 
@@ -314,7 +312,6 @@ export default function ClubesPainelPage() {
       const slice = merged.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
       setDisplayTeams(slice);
       setHasNextPage((page + 1) * PAGE_SIZE < merged.length);
-      setMyTeamIdToRole(idToRole);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Erro ao carregar dados";
@@ -398,7 +395,7 @@ export default function ClubesPainelPage() {
                 <SelectValue placeholder="Organizações" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas as organizações</SelectItem>
+                <SelectItem value="all">Organizações públicas</SelectItem>
                 <SelectItem value="mine">Minhas organizações</SelectItem>
                 <SelectItem value="following">Organizações que sigo</SelectItem>
               </SelectContent>
@@ -497,9 +494,7 @@ export default function ClubesPainelPage() {
                   key={team.id}
                   team={team}
                   hideStatus
-                  showRole={
-                    clubVisibility === "mine" ? true : myTeamIdToRole.has(team.id)
-                  }
+                  showRole={false}
                 />
               ))}
             </div>

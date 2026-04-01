@@ -18,6 +18,8 @@ import { getTeamFollowersCount } from "@/actions/team-follow";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 import { PageHeader } from "@/components/layout/page-header";
+import { TeamLogo } from "@/components/teams/team-logo";
+import { EditTeamDialog, EditTeamDialogTrigger } from "@/components/teams/edit-team-dialog";
 
 interface TeamDetailClientProps {
   team: TeamDetail;
@@ -29,6 +31,7 @@ export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
   const [team, setTeam] = useState(initialTeam);
   const [isApproving, setIsApproving] = useState(false);
   const [followersCount, setFollowersCount] = useState<number>(0);
+  const [editOpen, setEditOpen] = useState(false);
 
   useEffect(() => {
     getTeamFollowersCount(team.id).then(setFollowersCount);
@@ -125,9 +128,14 @@ export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
         <CardHeader>
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-lg bg-linear-to-br from-main to-main/80 flex items-center justify-center">
-                <span className="text-white font-bold text-2xl">{team.abbreviation}</span>
-              </div>
+              <TeamLogo
+                key={`${team.id}-${team.logo_url ?? "none"}`}
+                name={team.name}
+                abbreviation={team.abbreviation}
+                logoUrl={team.logo_url}
+                className="h-16 w-16 rounded-lg"
+                textClassName="text-2xl"
+              />
               <div>
                 <div className="flex items-center gap-3 flex-wrap">
                   <CardTitle className="text-2xl">{team.name}</CardTitle>
@@ -158,7 +166,12 @@ export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
                 </div>
               </div>
             </div>
-            <FollowTeamButton teamId={team.id} />
+            <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
+              {isCaptain && (
+                <EditTeamDialogTrigger onClick={() => setEditOpen(true)} />
+              )}
+              <FollowTeamButton teamId={team.id} />
+            </div>
           </div>
           <div className="flex items-center gap-4 mt-1">
             {team.competition_name && (
@@ -252,6 +265,18 @@ export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
 
       {/* Posts da equipe */}
       <TeamPostsSection teamId={team.id} />
+
+      {isCaptain && (
+        <EditTeamDialog
+          team={team}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          onUpdated={(t) => {
+            setTeam(t);
+            router.refresh();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ export interface StandingsTeam {
   team_id: string;
   team_name: string;
   team_abbreviation: string;
+  team_logo_url?: string | null;
   points: number;
   matches_played: number;
   wins: number;

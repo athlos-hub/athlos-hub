@@ -5,6 +5,7 @@ from typing import Optional, Sequence
 from uuid import UUID
 
 import httpx
+from fastapi import UploadFile
 
 from auth_service.core.config import settings
 from auth_service.core.exceptions import (
@@ -21,9 +22,12 @@ from auth_service.core.exceptions import (
     TeamInviteNotFoundError,
     TeamNotFoundError,
     TeamNotReadyError,
+    TeamProfileEditRestrictedError,
+    TeamError,
     TeamStatusError,
     UserNotFoundError,
 )
+from auth_service.core.exceptions.user import AvatarUploadError
 from auth_service.infrastructure.database.models.enums import (
     MemberStatus,
     TeamInviteStatus,
@@ -48,6 +52,7 @@ from auth_service.schemas.team import (
     TeamApprovalPayload,
     TeamCreateRequest,
 )
+from auth_service.utils.upload_image import upload_image
 
 logger = logging.getLogger(__name__)
 
@@ -146,13 +151,113 @@ class TeamService:
         )
 
         # Recarregar time com membros
-        return await self._team_repo.get_by_id_with_members(team.id)
+        return await self._team_repo.resolve_team_with_members(team.id)
+
+    async def update_team(
+        self,
+        team_id: UUID,
+        captain_keycloak_id: str,
+        name: Optional[str] = None,
+        abbreviation: Optional[str] = None,
+        min_members: Optional[int] = None,
+        max_members: Optional[int] = None,
+        logo: Optional[UploadFile] = None,
+        remove_logo: bool = False,
+    ) -> Team:
+        """
+        Atualiza dados do time. Apenas o capitão pode editar.
+        Times já aprovados na competição só podem alterar a imagem do escudo.
+        """
+        team = await self._team_repo.resolve_team_with_members(team_id)
+        if not team:
+            raise TeamNotFoundError(str(team_id))
+
+        user = await self._user_repo.get_by_keycloak_id(captain_keycloak_id)
+        if not user:
+            raise UserNotFoundError(captain_keycloak_id)
+
+        captain = team.captain
+        if not captain or captain.user_id != user.id:
+            raise NotTeamCaptainError()
+
+        approved = team.status == TeamStatus.APPROVED
+
+        def _norm(s: Optional[str]) -> Optional[str]:
+            if s is None:
+                return None
+            t = s.strip()
+            return t if t else None
+
+        name = _norm(name)
+        abbreviation = _norm(abbreviation)
+
+        if approved:
+            if name is not None and name != team.name:
+                raise TeamProfileEditRestrictedError()
+            if abbreviation is not None and abbreviation.upper() != team.abbreviation:
+                raise TeamProfileEditRestrictedError()
+            if min_members is not None and min_members != team.min_members:
+                raise TeamProfileEditRestrictedError()
+            if max_members is not None and max_members != team.max_members:
+                raise TeamProfileEditRestrictedError()
+        else:
+            if name is not None:
+                existing = await self._team_repo.get_by_organization_competition_name(
+                    team.organization_id, team.competition_id, name
+                )
+                if existing and existing.id != team.id:
+                    raise TeamAlreadyExistsError(name, team.competition_id)
+                team.name = name
+
+            if abbreviation is not None:
+                team.abbreviation = abbreviation.upper()
+
+            if min_members is not None:
+                team.min_members = min_members
+
+            if max_members is not None:
+                team.max_members = max_members
+
+            if team.min_members > team.max_members:
+                raise TeamError("O mínimo de membros não pode ser maior que o máximo.")
+
+            current = await self._member_repo.count_by_team(team.id)
+            if team.max_members < current:
+                raise TeamFullError(team.max_members)
+
+        if remove_logo:
+            team.logo_url = None
+
+        if logo and getattr(logo, "filename", None):
+            try:
+                result = upload_image(
+                    logo,
+                    aws_access_key_id=settings.AWS_BUCKET_ACCESS_KEY_ID,
+                    aws_secret_access_key=settings.AWS_BUCKET_SECRET_ACCESS_KEY,
+                    aws_region=settings.AWS_BUCKET_REGION,
+                    aws_bucket=settings.AWS_BUCKET_NAME,
+                    prefix="teams",
+                    team_id=str(team.id),
+                )
+                team.logo_url = result["url"]
+            except AvatarUploadError as exc:
+                raise exc
+
+        await self._team_repo.update(team)
+        updated = await self._team_repo.resolve_team_with_members(team.id)
+        if updated and updated.external_team_id and (
+            remove_logo or (logo and getattr(logo, "filename", None))
+        ):
+            await self._sync_team_logo_to_competitions(
+                updated.external_team_id, updated.logo_url
+            )
+        return updated
 
     # ==================== Listagem ====================
 
     async def get_team(self, team_id: UUID) -> Team:
         """Obtém um time pelo ID."""
-        team = await self._team_repo.get_by_id_with_members(team_id)
+        team = await self._team_repo.resolve_team_with_members(team_id)
         if not team:
             raise TeamNotFoundError(str(team_id))
         return team
@@ -213,7 +318,7 @@ class TeamService:
         Cria um convite para o time.
         Apenas o capitão pode criar convites.
         """
-        team = await self._team_repo.get_by_id_with_members(team_id)
+        team = await self._team_repo.resolve_team_with_members(team_id)
         if not team:
             raise TeamNotFoundError(str(team_id))
 
@@ -260,7 +365,7 @@ class TeamService:
         Lista convites do time.
         Apenas o capitão pode ver os convites.
         """
-        team = await self._team_repo.get_by_id_with_members(team_id)
+        team = await self._team_repo.resolve_team_with_members(team_id)
         if not team:
             raise TeamNotFoundError(str(team_id))
 
@@ -274,7 +379,7 @@ class TeamService:
             raise NotTeamCaptainError()
 
         # Retornar convites ativos
-        return await self._invite_repo.get_active_by_team(team_id)
+        return await self._invite_repo.get_active_by_team(team.id)
 
     async def validate_invite(self, token: str) -> TeamInvite:
         """Valida um convite pelo token."""
@@ -374,7 +479,7 @@ class TeamService:
         logger.info(f"Usuário {user.email} entrou no time '{team.name}'")
 
         # Recarregar time
-        team = await self._team_repo.get_by_id_with_members(team.id)
+        team = await self._team_repo.resolve_team_with_members(team.id)
         return team, added_to_org
 
     async def revoke_invite(
@@ -398,7 +503,7 @@ class TeamService:
         Remove um membro do time.
         Apenas o capitão pode remover membros (exceto a si mesmo).
         """
-        team = await self._team_repo.get_by_id_with_members(team_id)
+        team = await self._team_repo.resolve_team_with_members(team_id)
         if not team:
             raise TeamNotFoundError(str(team_id))
 
@@ -416,7 +521,7 @@ class TeamService:
             raise NotTeamCaptainError()  # Usar exceção apropriada
 
         # Buscar membro
-        member = await self._member_repo.get_by_team_and_user(team_id, member_user_id)
+        member = await self._member_repo.get_by_team_and_user(team.id, member_user_id)
         if not member:
             raise NotTeamMemberError()
 
@@ -428,7 +533,7 @@ class TeamService:
 
         logger.info(f"Membro {member_user_id} removido do time '{team.name}'")
 
-        return await self._team_repo.get_by_id_with_members(team_id)
+        return await self._team_repo.resolve_team_with_members(team.id)
 
     async def leave_team(
         self,
@@ -439,7 +544,7 @@ class TeamService:
         Sai do time.
         Capitão não pode sair (deve transferir capitania primeiro ou deletar time).
         """
-        team = await self._team_repo.get_by_id_with_members(team_id)
+        team = await self._team_repo.resolve_team_with_members(team_id)
         if not team:
             raise TeamNotFoundError(str(team_id))
 
@@ -447,7 +552,7 @@ class TeamService:
         if not user:
             raise UserNotFoundError(leaver_keycloak_id)
 
-        member = await self._member_repo.get_by_team_and_user(team_id, user.id)
+        member = await self._member_repo.get_by_team_and_user(team.id, user.id)
         if not member:
             raise NotTeamMemberError()
 
@@ -467,7 +572,7 @@ class TeamService:
         current_captain_keycloak_id: str,
     ) -> Team:
         """Transfere a capitania para outro membro."""
-        team = await self._team_repo.get_by_id_with_members(team_id)
+        team = await self._team_repo.resolve_team_with_members(team_id)
         if not team:
             raise TeamNotFoundError(str(team_id))
 
@@ -481,7 +586,7 @@ class TeamService:
             raise NotTeamCaptainError()
 
         # Buscar novo capitão
-        new_captain_member = await self._member_repo.get_by_team_and_user(team_id, new_captain_user_id)
+        new_captain_member = await self._member_repo.get_by_team_and_user(team.id, new_captain_user_id)
         if not new_captain_member:
             raise NotTeamMemberError()
 
@@ -493,7 +598,7 @@ class TeamService:
 
         logger.info(f"Capitania do time '{team.name}' transferida para {new_captain_user_id}")
 
-        return await self._team_repo.get_by_id_with_members(team_id)
+        return await self._team_repo.resolve_team_with_members(team.id)
 
     # ==================== Aprovação ====================
 
@@ -506,7 +611,7 @@ class TeamService:
         Solicita aprovação do time (apenas capitão).
         Muda o status do time para READY.
         """
-        team = await self._team_repo.get_by_id_with_members(team_id)
+        team = await self._team_repo.resolve_team_with_members(team_id)
         if not team:
             raise TeamNotFoundError(str(team_id))
 
@@ -558,7 +663,7 @@ class TeamService:
         Returns:
             Tuple[Team, UUID]: Time atualizado e ID externo no competitions-service
         """
-        team = await self._team_repo.get_by_id_with_members(team_id)
+        team = await self._team_repo.resolve_team_with_members(team_id)
         if not team:
             raise TeamNotFoundError(str(team_id))
 
@@ -602,6 +707,8 @@ class TeamService:
             abbreviation=team.abbreviation,
             captain_keycloak_id=captain.user.keycloak_id,
             players=[PlayerPayload(keycloak_id=m.user.keycloak_id) for m in team.members],
+            logo_url=team.logo_url,
+            auth_team_id=team.id,
         )
 
         # Enviar para competitions-service
@@ -626,7 +733,7 @@ class TeamService:
         reason: Optional[str] = None,
     ) -> Team:
         """Rejeita um time (apenas admin/organizer)."""
-        team = await self._team_repo.get_by_id_with_members(team_id)
+        team = await self._team_repo.resolve_team_with_members(team_id)
         if not team:
             raise TeamNotFoundError(str(team_id))
 
@@ -663,7 +770,7 @@ class TeamService:
         Apenas o capitão ou owner/organizer pode deletar.
         Não pode deletar time aprovado.
         """
-        team = await self._team_repo.get_by_id_with_members(team_id)
+        team = await self._team_repo.resolve_team_with_members(team_id)
         if not team:
             raise TeamNotFoundError(str(team_id))
 
@@ -733,4 +840,28 @@ class TeamService:
         except httpx.RequestError as e:
             logger.error(f"Erro de conexão com competitions-service: {e}")
             raise CompetitionServiceError(str(e))
+
+    async def _sync_team_logo_to_competitions(
+        self, external_team_id: UUID, logo_url: Optional[str]
+    ) -> None:
+        """Propaga escudo do auth para o registro do time no competitions-service."""
+        competitions_url = getattr(
+            settings, "COMPETITIONS_SERVICE_URL", "http://localhost:8100"
+        )
+        url = f"{competitions_url}/api/internal/teams/{external_team_id}/logo"
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.patch(
+                    url,
+                    json={"logo_url": logo_url},
+                    headers={"Content-Type": "application/json"},
+                )
+                if response.status_code not in (204, 200):
+                    logger.error(
+                        "Erro ao sincronizar escudo no competitions: %s - %s",
+                        response.status_code,
+                        response.text,
+                    )
+        except httpx.RequestError as e:
+            logger.error(f"Erro de conexão ao sincronizar escudo no competitions: {e}")
 

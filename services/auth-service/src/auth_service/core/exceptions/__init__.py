@@ -53,6 +53,7 @@ from auth_service.core.exceptions.team import (
     TeamInviteNotFoundError,
     TeamNotFoundError,
     TeamNotReadyError,
+    TeamProfileEditRestrictedError,
     TeamStatusError,
 )
 from auth_service.core.exceptions.user import (
@@ -133,6 +134,7 @@ __all__ = [
     "TeamNotReadyError",
     "TeamAlreadyApprovedError",
     "TeamStatusError",
+    "TeamProfileEditRestrictedError",
     "PlayerAlreadyInCompetitionError",
     "CompetitionServiceError",
 ]

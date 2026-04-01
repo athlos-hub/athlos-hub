@@ -106,7 +106,11 @@ class TeamModel(Base):
     competition_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("competitions.id"))
     name: Mapped[str] = mapped_column(String(100))
     abbreviation: Mapped[Optional[str]] = mapped_column(String(3), nullable=False)
-    
+    logo_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    auth_team_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), nullable=True, index=True
+    )
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     status: Mapped[TeamStatus] = mapped_column(String(20), default=TeamStatus.PENDING) 
 

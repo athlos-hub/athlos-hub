@@ -111,6 +111,8 @@ class TeamWithPlayersResponse(BaseModel):
     id: uuid.UUID
     name: str
     abbreviation: str
+    logo_url: Optional[str] = None
+    auth_team_id: Optional[uuid.UUID] = None
     players: List[PlayerBasicResponse] = []
     
     model_config = ConfigDict(from_attributes=True)

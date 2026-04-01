@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowUpRight, Shield, Users } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import type { TeamWithPlayers } from "@/types/competition";
+import { TeamLogo } from "@/components/teams/team-logo";
 import { cn } from "@/lib/utils";
 
 export interface CompetitionTeamCardProps {
@@ -21,6 +22,7 @@ export function CompetitionTeamCard({
   organizationName,
 }: CompetitionTeamCardProps) {
   const playerCount = team.players?.length ?? 0;
+  const profileTeamId = team.auth_team_id?.trim() || team.id;
   const orgLabel =
     organizationName?.trim() ||
     (organizationSlug
@@ -40,12 +42,16 @@ export function CompetitionTeamCard({
       />
       <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
         <Link
-          href={`/clubes/${team.id}`}
+          href={`/clubes/${profileTeamId}`}
           className="flex min-w-0 flex-1 items-center gap-4 rounded-lg outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-main"
         >
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-main/10 text-sm font-bold uppercase tracking-tight text-main ring-1 ring-main/20">
-            {team.abbreviation.slice(0, 3)}
-          </div>
+          <TeamLogo
+            name={team.name}
+            abbreviation={team.abbreviation}
+            logoUrl={team.logo_url}
+            className="h-14 w-14"
+            textClassName="text-base"
+          />
           <div className="min-w-0 flex-1 text-left">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
               <h3 className="text-base font-semibold text-foreground transition-colors group-hover:text-main sm:text-lg">

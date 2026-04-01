@@ -60,6 +60,7 @@ class Team(Base):
     # Dados do time
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     abbreviation: Mapped[str] = mapped_column(String(3), nullable=False)
+    logo_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
 
     # Status do time
     status: Mapped[TeamStatus] = mapped_column(

@@ -17,6 +17,7 @@ class TeamSummary(BaseModel):
     id: uuid.UUID
     name: str
     abbreviation: str
+    logo_url: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 class MatchOrgResponse(BaseModel):
@@ -74,6 +75,7 @@ class TeamBasicInfo(BaseModel):
     """Informações básicas de um time para exibição no card"""
     id: uuid.UUID
     name: str
+    abbreviation: str = ""
     logo: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)

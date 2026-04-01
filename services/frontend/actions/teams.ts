@@ -67,7 +67,9 @@ export async function getMyTeams(): Promise<TeamListItem[]> {
 }
 
 /**
- * Busca os detalhes de um time pelo ID (do auth-service)
+ * Busca os detalhes de um time pelo ID (do auth-service).
+ * Quando o time já está na competição, alinha `logo_url` com o competitions-service
+ * (mesma fonte dos cards na competição), com fallback para o escudo do auth.
  */
 export async function getTeamById(teamId: string): Promise<TeamDetail> {
   try {
@@ -78,12 +80,56 @@ export async function getTeamById(teamId: string): Promise<TeamDetail> {
       service: "auth",
     });
 
-    return response.data;
+    const team = response.data;
+    const externalId = team.external_team_id?.trim();
+    if (!externalId) {
+      return team;
+    }
+
+    try {
+      const comp = await axiosAPI<{ logo_url?: string | null }>({
+        endpoint: `/teams/${externalId}`,
+        method: "GET",
+        withAuth: true,
+        service: "competitions",
+      });
+      const compLogo = comp.data?.logo_url?.trim();
+      const authLogo = team.logo_url?.trim();
+      return {
+        ...team,
+        logo_url: compLogo || authLogo || null,
+      };
+    } catch {
+      return team;
+    }
   } catch (error) {
     if (error instanceof APIException) {
       throw error;
     }
     throw new Error("Erro ao buscar time");
+  }
+}
+
+/**
+ * Atualiza time (capitão). Multipart: campos opcionais + logo ou remove_logo.
+ */
+export async function updateTeam(teamId: string, formData: FormData): Promise<TeamDetail> {
+  try {
+    const response = await axiosAPI<TeamDetail>({
+      endpoint: `/teams/${teamId}`,
+      method: "PUT",
+      data: formData,
+      withAuth: true,
+      withAttachment: true,
+      service: "auth",
+    });
+
+    return response.data;
+  } catch (error) {
+    if (error instanceof APIException) {
+      throw error;
+    }
+    throw new Error("Erro ao atualizar time");
   }
 }
 
