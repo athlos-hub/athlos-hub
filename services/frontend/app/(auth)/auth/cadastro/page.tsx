@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { resizeAvatarImage } from "@/lib/image/resize-avatar";
 
 const signupSchema = z
   .object({
@@ -41,7 +42,9 @@ export default function CadastroPage() {
         setIsSubmitting(true);
 
         try {
-            const formEl = e?.target as HTMLFormElement | undefined;
+            const formEl =
+                (e?.currentTarget as HTMLFormElement | undefined) ||
+                (e?.target as HTMLFormElement | undefined);
             const formData = formEl ? new FormData(formEl) : new FormData();
 
             formData.set('first_name', values.first_name);
@@ -49,6 +52,12 @@ export default function CadastroPage() {
             formData.set('email', values.email);
             formData.set('username', (values.username && values.username.length > 0) ? values.username : values.email.split('@')[0]);
             formData.set('password', values.password);
+
+            const avatar = formData.get("avatar");
+            if (avatar instanceof File && avatar.size > 0) {
+                const resizedAvatar = await resizeAvatarImage(avatar);
+                formData.set("avatar", resizedAvatar);
+            }
 
             await registerUser(formData);
             toast.success('Conta criada. Verifique seu email para ativar a conta.');

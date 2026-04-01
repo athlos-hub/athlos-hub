@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Check } from "lucide-react";
 import { updateUserProfile, getUserProfile } from "@/actions/auth";
 import AvatarInput from "@/components/forms/avatar-input";
+import { resizeAvatarImage } from "@/lib/image/resize-avatar";
 
 const profileSchema = z.object({
   first_name: z.string().min(1, { message: "Nome é obrigatório" }),
@@ -86,12 +87,20 @@ export function EditProfileModal({
   const onSubmit = async (values: ProfileFormValues, e?: React.BaseSyntheticEvent) => {
     setIsSubmitting(true);
     try {
-      const formEl = e?.target as HTMLFormElement | undefined;
+      const formEl =
+        (e?.currentTarget as HTMLFormElement | undefined) ||
+        (e?.target as HTMLFormElement | undefined);
       const formData = formEl ? new FormData(formEl) : new FormData();
 
       formData.set("first_name", values.first_name || "");
       formData.set("last_name", values.last_name || "");
       formData.set("username", values.username || "");
+
+      const avatar = formData.get("avatar");
+      if (avatar instanceof File && avatar.size > 0) {
+        const resizedAvatar = await resizeAvatarImage(avatar);
+        formData.set("avatar", resizedAvatar);
+      }
 
       await updateUserProfile(formData);
 

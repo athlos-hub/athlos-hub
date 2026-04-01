@@ -16,6 +16,7 @@ from fastapi.concurrency import run_in_threadpool
 from jose import jwt
 from keycloak import KeycloakAdmin, KeycloakOpenID, KeycloakOpenIDConnection
 from keycloak.exceptions import KeycloakAuthenticationError, KeycloakPostError
+from slugify import slugify
 from sqlalchemy.exc import IntegrityError
 
 from auth_service.core.config import settings
@@ -23,7 +24,6 @@ from auth_service.core.exceptions import (
     AvatarUploadError,
     EmailAlreadyInUseError,
     EmailAlreadyVerifiedError,
-    IdentityConflictError,
     InvalidCallbackError,
     InvalidCredentialsError,
     InvalidTokenError,
@@ -315,6 +315,24 @@ class AuthenticationService:
         avatar: Optional[UploadFile] = None,
     ) -> dict[str, Any]:
         try:
+            logger.info("Dados recebidos: email=%s, username=%s, first_name=%s, last_name=%s", 
+                email, username, first_name, last_name)
+            
+            email = (email or "").strip()
+            username = (username or "").strip()
+            first_name = (first_name or "").strip()
+            last_name = (last_name or "").strip()
+            password = password or ""
+
+            if not email:
+                raise RegistrationError("Email é obrigatório")
+            if not username:
+                raise RegistrationError("Username é obrigatório")
+            if not first_name:
+                raise RegistrationError("Nome é obrigatório")
+            if not password:
+                raise RegistrationError("Senha é obrigatória")
+
             keycloak_admin = get_keycloak_admin_client()
             users_email = await run_in_threadpool(
                 keycloak_admin.get_users, query={"email": email, "exact": True}
@@ -328,17 +346,36 @@ class AuthenticationService:
             if users_username:
                 raise UsernameAlreadyInUseError(username)
 
-            new_user_id = await run_in_threadpool(
-                keycloak_admin.create_user,
+            keycloak_payload = {
+                "email": email,
+                "username": username,
+                "firstName": first_name,
+                "lastName": last_name,
+                "enabled": False,
+                "credentials": [
+                    {"value": password, "type": "password", "temporary": False}
+                ],
+            }
+
+            logger.info("Payload Keycloak: %s", keycloak_payload)
+
+            new_user_id = await run_in_threadpool(keycloak_admin.create_user, keycloak_payload)
+
+            logger.info("Usuário criado com ID: %s", new_user_id)
+
+            user_check = await run_in_threadpool(keycloak_admin.get_user, new_user_id)
+            logger.info("Usuário no Keycloak após criação: %s", user_check)
+
+            # Em algumas configurações do Keycloak federado, garantir update explícito
+            # evita perda de campos básicos após criação.
+            await run_in_threadpool(
+                keycloak_admin.update_user,
+                new_user_id,
                 {
                     "email": email,
                     "username": username,
                     "firstName": first_name,
                     "lastName": last_name,
-                    "enabled": False,
-                    "credentials": [
-                        {"value": password, "type": "password", "temporary": False}
-                    ],
                 },
             )
 
@@ -358,7 +395,12 @@ class AuthenticationService:
                     await run_in_threadpool(
                         keycloak_admin.update_user,
                         new_user_id,
-                        {"attributes": {"avatar_url": avatar_url}},
+                        {
+                            "email": email,
+                            "firstName": first_name,
+                            "lastName": last_name,
+                            "attributes": {"avatar_url": avatar_url},  # 👈 junto com o resto
+                        },
                     )
                 except Exception as exc:
                     logger.warning("Erro no upload do avatar: %s", exc)
@@ -526,19 +568,38 @@ class AuthenticationService:
         enabled_payload: bool,
         now: datetime.datetime,
     ) -> User:
-        if not user.keycloak_id:
+        if not user.keycloak_id or user.keycloak_id != keycloak_id:
+            # Permite login por múltiplos provedores (senha/google) para o mesmo email.
+            # Reassocia o usuário local ao `sub` atual recebido do Keycloak.
             user.keycloak_id = keycloak_id
-            user.email_verified = email_verified
             user.last_login_at = now
+            user.email_verified = email_verified
             if avatar_url:
                 user.avatar_url = avatar_url
             if enabled_payload is not None:
                 user.enabled = enabled_payload
             await self._user_repo.commit()
             return user
-        if user.keycloak_id != keycloak_id:
-            raise IdentityConflictError()
         return user
+
+    @staticmethod
+    def _normalize_username(
+        username: Optional[str],
+        email: Optional[str],
+        first_name: str,
+        last_name: str,
+        keycloak_id: str,
+    ) -> str:
+        base = (
+            username
+            or f"{first_name or ''} {last_name or ''}".strip()
+            or (email.split("@")[0] if email else "")
+            or "user"
+        )
+        normalized = slugify(base, lowercase=True)
+        if not normalized:
+            normalized = slugify(f"user-{keycloak_id[:8]}", lowercase=True)
+        return normalized
 
     async def _create_new_user(
         self,
@@ -552,11 +613,19 @@ class AuthenticationService:
         enabled_payload: bool,
         now: datetime.datetime,
     ) -> User:
+        normalized_username = self._normalize_username(
+            username=username,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            keycloak_id=keycloak_id,
+        )
+
         new_user = User(
             id=uuid.uuid4(),
             keycloak_id=keycloak_id,
             email=email,
-            username=username,
+            username=normalized_username,
             first_name=first_name,
             last_name=last_name,
             enabled=enabled_payload,

@@ -515,6 +515,51 @@ class TestAuthenticationServiceGetOrCreateUser:
         with pytest.raises(Exception):  # Can be AppException or InvalidCredentialsError
             await service.get_or_create_user_from_keycloak_token({})
 
+    @pytest.mark.asyncio
+    async def test_link_existing_user_by_email_with_new_keycloak_sub(
+        self, mock_user_repository, mock_user
+    ):
+        """Should relink keycloak_id when same email logs via another provider."""
+        mock_user.keycloak_id = "old-keycloak-id"
+        mock_user_repository.get_by_keycloak_id.return_value = None
+        mock_user_repository.get_by_email.return_value = mock_user
+        mock_user_repository.commit = AsyncMock()
+
+        service = AuthenticationService(user_repository=mock_user_repository)
+        token_payload = {
+            "sub": "google-keycloak-id",
+            "email": mock_user.email,
+            "preferred_username": "john.doe@gmail.com",
+            "email_verified": True,
+        }
+
+        result = await service.get_or_create_user_from_keycloak_token(token_payload)
+
+        assert result.keycloak_id == "google-keycloak-id"
+        mock_user_repository.commit.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_create_new_user_slugifies_username_from_email(self, mock_user_repository):
+        """Should normalize social username using slugify pattern."""
+        mock_user_repository.get_by_keycloak_id.return_value = None
+        mock_user_repository.get_by_email.return_value = None
+        mock_user_repository.create = AsyncMock()
+        mock_user_repository.commit = AsyncMock()
+
+        service = AuthenticationService(user_repository=mock_user_repository)
+        token_payload = {
+            "sub": "new-google-sub",
+            "email": "Joao.Silva+Athlos@gmail.com",
+            "preferred_username": "Joao.Silva+Athlos@gmail.com",
+            "given_name": "João",
+            "family_name": "Silva",
+            "email_verified": True,
+        }
+
+        result = await service.get_or_create_user_from_keycloak_token(token_payload)
+
+        assert result.username == "joao-silva-athlos-gmail-com"
+
 
 class TestAuthenticationServiceLogoutSecond:
     """Additional tests for logout method."""

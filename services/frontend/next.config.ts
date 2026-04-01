@@ -17,6 +17,7 @@ const nextConfig: NextConfig = {
     },
     experimental: {
         serverActions: {
+            bodySizeLimit: "8mb",
             allowedOrigins: process.env.NEXT_ALLOWED_ORIGINS?.split(',') || ['localhost:8100', 'localhost:3000'],
         },
     },
