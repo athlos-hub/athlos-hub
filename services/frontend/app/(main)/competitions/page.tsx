@@ -31,7 +31,11 @@ import {
 } from "@/actions/organizations";
 import { getMyFollowedOrganizations } from "@/actions/follow";
 import type { Competition, CompetitionStatus, CompetitionPhase } from "@/types/competition";
-import type { OrganizationGetPublic, OrganizationListItem } from "@/types/organization";
+import {
+  OrganizationPrivacy,
+  type OrganizationGetPublic,
+  type OrganizationListItem,
+} from "@/types/organization";
 import { toast } from "sonner";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -71,14 +75,14 @@ async function fetchAllPublicOrganizationSlugs(): Promise<string[]> {
   const slugs: string[] = [];
   for (let p = 0; p < PUBLIC_ORGS_MAX_PAGES; p += 1) {
     const offset = p * PUBLIC_ORGS_PAGE_SIZE;
+    // Sem autenticação: apenas organizações públicas (evita "Usuário não autenticado" no axios com withAuth).
     const rows = await getOrganizations(
-      undefined,
+      OrganizationPrivacy.PUBLIC,
       PUBLIC_ORGS_PAGE_SIZE,
       offset,
-      true
+      false
     );
     for (const org of rows) {
-      if (org.privacy !== "PUBLIC") continue;
       if (!slugs.includes(org.slug)) slugs.push(org.slug);
     }
     if (rows.length < PUBLIC_ORGS_PAGE_SIZE) break;
@@ -116,11 +120,15 @@ export default function CompetitionsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [orgBySlug, setOrgBySlug] = useState<Record<string, OrganizationGetPublic>>({});
 
-  const mergedMode = orgScope === "mine" || orgScope === "following";
-
   useEffect(() => {
     setPage(0);
   }, [orgScope, selectedStatus]);
+
+  useEffect(() => {
+    if (sessionStatus === "unauthenticated" && orgScope !== "all") {
+      setOrgScope("all");
+    }
+  }, [sessionStatus, orgScope]);
 
   useEffect(() => {
     followedSlugsCacheRef.current = null;
@@ -134,6 +142,7 @@ export default function CompetitionsPage() {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     const statusFilter = selectedStatus !== "all" ? selectedStatus : undefined;
+    let holdLoading = false;
 
     try {
       if (orgScope === "all") {
@@ -175,6 +184,11 @@ export default function CompetitionsPage() {
         );
         setCompetitions(slice);
         setHasNextPage((page + 1) * COMPETITIONS_PAGE_SIZE < merged.length);
+        return;
+      }
+
+      if (sessionStatus === "loading") {
+        holdLoading = true;
         return;
       }
 
@@ -240,7 +254,9 @@ export default function CompetitionsPage() {
       setMergedTotalCount(null);
       setHasNextPage(false);
     } finally {
-      setIsLoading(false);
+      if (!holdLoading) {
+        setIsLoading(false);
+      }
     }
   }, [orgScope, page, selectedStatus, sessionStatus, cachedMine]);
 

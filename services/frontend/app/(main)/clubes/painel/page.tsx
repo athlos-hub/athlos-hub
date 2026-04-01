@@ -34,7 +34,7 @@ import {
 import { listCompetitions } from "@/actions/competitions";
 import type { TeamListItem } from "@/types/team";
 import { TeamRole } from "@/types/team";
-import type { OrganizationListItem } from "@/types/organization";
+import type { OrganizationGetPublic, OrganizationListItem } from "@/types/organization";
 import { OrganizationPrivacy } from "@/types/organization";
 import type { Competition } from "@/types/competition";
 import { toast } from "sonner";
@@ -43,7 +43,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { FilterPanel } from "@/components/layout/filter-panel";
 
 const PAGE_SIZE = 12;
-const MAX_PUBLIC_ORGS_FOR_TEAMS = 36;
+const PUBLIC_ORGS_PAGE_SIZE = 100;
+const PUBLIC_ORGS_MAX_PAGES = 30;
 
 type OrgScope = "all" | "mine" | "following";
 type ClubVisibility = "mine" | "all";
@@ -79,6 +80,28 @@ async function fetchAllFollowedSlugs(): Promise<string[]> {
     if (p > 50) break;
   }
   return slugs;
+}
+
+/** Organizações públicas, sem exigir token (lista usada no filtro “Organizações públicas”). */
+async function fetchAllPublicOrganizations(): Promise<OrganizationGetPublic[]> {
+  const all: OrganizationGetPublic[] = [];
+  const seen = new Set<string>();
+  for (let p = 0; p < PUBLIC_ORGS_MAX_PAGES; p += 1) {
+    const offset = p * PUBLIC_ORGS_PAGE_SIZE;
+    const rows = await getOrganizations(
+      OrganizationPrivacy.PUBLIC,
+      PUBLIC_ORGS_PAGE_SIZE,
+      offset,
+      false
+    );
+    for (const org of rows) {
+      if (seen.has(org.slug)) continue;
+      seen.add(org.slug);
+      all.push(org);
+    }
+    if (rows.length < PUBLIC_ORGS_PAGE_SIZE) break;
+  }
+  return all;
 }
 
 function mergeCompetitionsById(lists: Competition[][]): Competition[] {
@@ -254,34 +277,42 @@ export default function ClubesPainelPage() {
       let merged: TeamListItem[] = [];
       const logoMap: Record<string, string | null> = { ...orgLogoBySlug };
 
-      if (orgScope === "all" && clubVisibility === "mine") {
-        merged = activeMine;
-      } else if (orgScope === "all" && clubVisibility === "all") {
-        const orgs = await getOrganizations(OrganizationPrivacy.PUBLIC, MAX_PUBLIC_ORGS_FOR_TEAMS, 0);
-        for (const o of orgs) {
+      if (orgScope === "all") {
+        const publicOrgs = await fetchAllPublicOrganizations();
+        for (const o of publicOrgs) {
           logoMap[o.slug] = o.logo_url ?? null;
         }
         setOrgLogoBySlug((prev) => {
           const next = { ...prev };
-          for (const o of orgs) {
+          for (const o of publicOrgs) {
             next[o.slug] = o.logo_url ?? null;
           }
           return next;
         });
-        const lists = await Promise.all(
-          orgs.map((o) =>
-            getOrganizationTeams(o.slug).catch(() => [] as TeamListItem[])
-          )
-        );
-        const flat: TeamListItem[] = [];
-        for (const list of lists) {
-          for (const t of list) {
-            if (!isActiveInCompetitionStatus(String(t.status))) continue;
-            const role = idToRole.get(t.id) ?? TeamRole.PLAYER;
-            flat.push(withRole(t, role));
+        const publicSlugSet = new Set(publicOrgs.map((o) => o.slug));
+
+        if (clubVisibility === "mine") {
+          merged = activeMine.filter((t) => publicSlugSet.has(t.organization_slug));
+        } else {
+          if (publicOrgs.length === 0) {
+            merged = [];
+          } else {
+            const lists = await Promise.all(
+              publicOrgs.map((o) =>
+                getOrganizationTeams(o.slug).catch(() => [] as TeamListItem[])
+              )
+            );
+            const flat: TeamListItem[] = [];
+            for (const list of lists) {
+              for (const t of list) {
+                if (!isActiveInCompetitionStatus(String(t.status))) continue;
+                const role = idToRole.get(t.id) ?? TeamRole.PLAYER;
+                flat.push(withRole(t, role));
+              }
+            }
+            merged = dedupeTeamsById(flat);
           }
         }
-        merged = dedupeTeamsById(flat);
       } else if (orgScope === "mine") {
         const mine = cachedMine ?? (await getMyOrganizations());
         if (!cachedMine) setCachedMine(mine);

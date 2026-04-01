@@ -246,7 +246,7 @@ function OrganizationsPageContent() {
             {activeTab === "private" && (
               <div className="space-y-4">
                 {!session ? (
-                  <div className="text-center py-12 rounded-xl border border-dashed">
+                  <div className="text-center py-12">
                     <Lock className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                     <p className="text-gray-700">Faça login para ver organizações privadas.</p>
                   </div>

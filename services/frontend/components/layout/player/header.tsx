@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { RiHome5Line } from "react-icons/ri";
@@ -56,6 +56,12 @@ export default function PlayerHeader({ session }: PlayerHeaderProps) {
         );
     }, [activeDropdown, session]);
 
+    useEffect(() => {
+        if (!session && activeDropdown === 'gestao') {
+            setActiveDropdown(null);
+        }
+    }, [session, activeDropdown]);
+
     return (
         <div
             id="app-header"
@@ -89,15 +95,17 @@ export default function PlayerHeader({ session }: PlayerHeaderProps) {
                             <FaChevronDown className={`transition-transform duration-200 ${activeDropdown === 'esportes' ? 'rotate-180' : ''}`} />
                         </div>
 
-                        <div
-                            className={`${activeDropdown === "gestao" ? "bg-[#1F78FF10]" : "hover:bg-[#1F78FF10]"} py-2.5 px-4 flex items-center gap-3 text-main transition-colors rounded-xl duration-300 cursor-pointer`}
-                            onMouseEnter={() => handleMouseEnter('gestao')}
-                            onMouseLeave={handleMouseLeave}
-                        >
-                            <LuBox size={20} />
-                            <span>Gestão</span>
-                            <FaChevronDown className={`transition-transform duration-200 ${activeDropdown === 'gestao' ? 'rotate-180' : ''}`} />
-                        </div>
+                        {session ? (
+                            <div
+                                className={`${activeDropdown === "gestao" ? "bg-[#1F78FF10]" : "hover:bg-[#1F78FF10]"} py-2.5 px-4 flex items-center gap-3 text-main transition-colors rounded-xl duration-300 cursor-pointer`}
+                                onMouseEnter={() => handleMouseEnter('gestao')}
+                                onMouseLeave={handleMouseLeave}
+                            >
+                                <LuBox size={20} />
+                                <span>Gestão</span>
+                                <FaChevronDown className={`transition-transform duration-200 ${activeDropdown === 'gestao' ? 'rotate-180' : ''}`} />
+                            </div>
+                        ) : null}
 
                         <div
                             className={`${activeDropdown === "social" ? "bg-[#1F78FF10]" : "hover:bg-[#1F78FF10]"} py-2.5 px-4 flex items-center gap-3 text-main transition-colors rounded-xl duration-300 cursor-pointer`}
