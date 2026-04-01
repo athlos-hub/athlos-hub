@@ -36,14 +36,15 @@ export function LeaveOrganizationDialog({
     const router = useRouter();
 
     const handleLeave = async () => {
+        if (isLoading) return;
         setIsLoading(true);
         try {
             const result = await leaveOrganization(organizationSlug);
             
             if (result.success) {
                 toast.success("Você saiu da organização");
-                router.push("/organizations");
-                router.refresh();
+                setOpen(false);
+                router.replace("/organizations?tab=minhas");
             } else {
                 toast.error(result.error || "Erro ao sair da organização");
             }
@@ -51,7 +52,6 @@ export function LeaveOrganizationDialog({
             toast.error("Erro ao sair da organização");
         } finally {
             setIsLoading(false);
-            setOpen(false);
         }
     };
 
@@ -96,7 +96,10 @@ export function LeaveOrganizationDialog({
                         Cancelar
                     </AlertDialogCancel>
                     <AlertDialogAction
-                        onClick={handleLeave}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            void handleLeave();
+                        }}
                         disabled={isLoading}
                         className="bg-destructive hover:bg-destructive/90"
                     >

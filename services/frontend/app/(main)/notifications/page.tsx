@@ -20,13 +20,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useState } from 'react';
+import { PageHeader } from '@/components/layout/page-header';
+import { FilterPanel } from '@/components/layout/filter-panel';
+import { Button } from '@/components/ui/button';
 
 export default function NotificationsPage() {
   const router = useRouter();
   const [clearing, setClearing] = useState(false);
   const [showClearDialog, setShowClearDialog] = useState(false);
   
-  const { notifications, unreadCount, loading, markAsRead, markAllAsRead, clearAllNotifications, fetchNotifications } = useNotifications(true);
+  const { notifications, unreadCount, loading, markAsRead, markAllAsRead, clearAllNotifications, fetchNotifications } =
+    useNotifications(true, false, 30000, false, false);
   
   const showUnreadOnly = useNotificationsStore((state) => state.showUnreadOnly);
 
@@ -54,63 +58,6 @@ export default function NotificationsPage() {
     }
   };
 
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'organization_invite':
-        return '🏢';
-      case 'organization_accepted':
-        return '✅';
-      case 'organization_join_request':
-        return '📥';
-      case 'organization_request_approved':
-        return '🎉';
-      case 'organization_request_rejected':
-        return '❌';
-      case 'organization_member_removed':
-        return '🚪';
-      case 'organization_member_left':
-        return '👋';
-      case 'organization_organizer_added':
-        return '⭐';
-      case 'organization_organizer_removed':
-        return '📉';
-      case 'organization_invite_cancelled':
-        return '🚫';
-      case 'organization_invite_declined':
-        return '👎';
-      case 'organization_ownership_received':
-        return '👑';
-      case 'organization_ownership_transferred':
-        return '🔄';
-      case 'organization_approved':
-        return '✨';
-      case 'organization_suspended':
-        return '⛔';
-      case 'organization_unsuspended':
-        return '🟢';
-      case 'organization_deleted':
-        return '🗑️';
-      case 'follow':
-        return '👤';
-      case 'post_like':
-        return '❤️';
-      case 'post_comment':
-        return '💬';
-      case 'post_share':
-        return '🔄';
-      case 'comment_reply':
-        return '↩️';
-      case 'organization_follow':
-        return '🏢';
-      case 'competition_team_member_joined':
-        return '🏆';
-      case 'general':
-        return '🔔';
-      default:
-        return '🔔';
-    }
-  };
-
   const formatTimeAgo = (dateString: string) => {
     try {
       return formatDistanceToNow(new Date(dateString), {
@@ -124,38 +71,38 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Notificações</h1>
-          <p className="text-gray-600">
-            {unreadCount > 0 
-              ? `Você tem ${unreadCount} notificação${unreadCount > 1 ? 'ões' : ''} não lida${unreadCount > 1 ? 's' : ''}` 
-              : 'Nenhuma notificação não lida'
-            }
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {unreadCount > 0 && (
-            <button
-              onClick={markAllAsRead}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-main hover:bg-main/90 text-white rounded-lg transition-colors font-medium"
-            >
-              <Check className="w-4 h-4" />
-              Marcar todas como lidas
-            </button>
-          )}
-          {notifications.length > 0 && (
-            <button
-              onClick={() => setShowClearDialog(true)}
-              disabled={clearing}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
-            >
-              <Trash2 className="w-4 h-4" />
-              Limpar tudo
-            </button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Notificações"
+        subtitle={
+          unreadCount > 0
+            ? `Você tem ${unreadCount} notificação${unreadCount > 1 ? 'ões' : ''} não lida${unreadCount > 1 ? 's' : ''}`
+            : 'Nenhuma notificação não lida'
+        }
+        actions={
+          <>
+            {unreadCount > 0 && (
+              <Button
+                onClick={markAllAsRead}
+                className="inline-flex items-center gap-2 bg-main hover:bg-main/90 text-white"
+              >
+                <Check className="w-4 h-4" />
+                Marcar todas como lidas
+              </Button>
+            )}
+            {notifications.length > 0 && (
+              <Button
+                variant="destructive"
+                onClick={() => setShowClearDialog(true)}
+                disabled={clearing}
+                className="gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Limpar tudo
+              </Button>
+            )}
+          </>
+        }
+      />
 
       <AlertDialog open={showClearDialog} onOpenChange={setShowClearDialog}>
         <AlertDialogContent>
@@ -178,33 +125,30 @@ export default function NotificationsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-        <div className="flex items-center gap-4">
-          <Filter className="w-5 h-5 text-gray-600" />
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleFilterChange(true)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                showUnreadOnly
-                  ? 'bg-main text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Não lidas ({unreadCount})
-            </button>
-            <button
-              onClick={() => handleFilterChange(false)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                !showUnreadOnly
-                  ? 'bg-main text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Todas
-            </button>
-          </div>
+      <FilterPanel icon={<Filter className="w-5 h-5 text-gray-600" />}>
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleFilterChange(true)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              showUnreadOnly
+                ? 'bg-main text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Não lidas ({unreadCount})
+          </button>
+          <button
+            onClick={() => handleFilterChange(false)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              !showUnreadOnly
+                ? 'bg-main text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Todas
+          </button>
         </div>
-      </div>
+      </FilterPanel>
 
       <div className="space-y-3">
         {loading && notifications.length === 0 ? (
@@ -213,7 +157,7 @@ export default function NotificationsPage() {
             <p className="text-gray-600 mt-4 font-medium">Carregando notificações...</p>
           </div>
         ) : notifications.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-12 text-center">
+          <div className="p-12 text-center">
             <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Bell className="w-10 h-10 text-gray-400" />
             </div>
@@ -238,9 +182,6 @@ export default function NotificationsPage() {
               onClick={() => handleNotificationClick(notification)}
             >
               <div className="flex gap-4">
-                <div className="shrink-0 text-3xl">
-                  {getNotificationIcon(notification.type)}
-                </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-4 mb-2">
                     <h3 className={`text-lg font-semibold text-gray-900 ${
@@ -253,7 +194,7 @@ export default function NotificationsPage() {
                         {formatTimeAgo(notification.created_at)}
                       </span>
                       {!notification.is_read && (
-                        <div className="w-3 h-3 bg-main rounded-full" />
+                        <div className="h-2.5 w-2.5 rounded-full bg-main" />
                       )}
                     </div>
                   </div>

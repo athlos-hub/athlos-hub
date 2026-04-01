@@ -17,6 +17,7 @@ import { LiveStatus } from "@/types/livestream";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/layout/page-header";
 
 function matchStatusLabel(status: string): string {
   const s = status?.toLowerCase() ?? "";
@@ -96,19 +97,25 @@ export default function PartidaPage() {
 
   return (
     <div className="space-y-8 py-6 max-w-4xl mx-auto">
-      <div className="flex flex-wrap items-center gap-3">
-        <Link href={`/competitions/${match.competition_id}`}>
-          <Button variant="ghost" size="sm" className="gap-2">
-            <ArrowLeft className="w-4 h-4" />
-            Competição
-          </Button>
-        </Link>
-        <Link href="/jogos">
-          <Button variant="ghost" size="sm">
-            Jogos e transmissões
-          </Button>
-        </Link>
-      </div>
+      <PageHeader
+        title={`${match.home_team?.name ?? "Time mandante"} × ${match.away_team?.name ?? "Time visitante"}`}
+        subtitle={match.competition_name ? `${match.competition_name}` : undefined}
+        actions={
+          <>
+            <Link href={`/competitions/${match.competition_id}`}>
+              <Button variant="ghost" size="sm" className="gap-2">
+                <ArrowLeft className="w-4 h-4" />
+                Competição
+              </Button>
+            </Link>
+            <Link href="/jogos">
+              <Button variant="ghost" size="sm">
+                Jogos e transmissões
+              </Button>
+            </Link>
+          </>
+        }
+      />
 
       <div>
         <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -117,15 +124,6 @@ export default function PartidaPage() {
             <span className="text-sm text-muted-foreground">{match.round_name}</span>
           )}
         </div>
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-          {match.home_team?.name ?? "Time mandante"} × {match.away_team?.name ?? "Time visitante"}
-        </h1>
-        {match.competition_name && (
-          <p className="text-muted-foreground mt-1 flex items-center gap-2">
-            <Trophy className="w-4 h-4" />
-            {match.competition_name}
-          </p>
-        )}
       </div>
 
       <Card>

@@ -47,7 +47,8 @@ export async function createOrganization(formData: FormData): Promise<Organizati
 export async function getOrganizations(
   privacy?: OrganizationPrivacy,
   limit: number = 50,
-  offset: number = 0
+  offset: number = 0,
+  withAuth: boolean = false
 ): Promise<OrganizationGetPublic[]> {
   try {
     const queryParams: Record<string, string | number> = { limit, offset };
@@ -59,7 +60,7 @@ export async function getOrganizations(
       endpoint: "/organizations",
       method: "GET",
       queryParams,
-      withAuth: false,
+      withAuth,
     });
 
     return response.data;

@@ -78,9 +78,11 @@ class NotificationRepository:
         )
         return int((await self._session.execute(q)).scalar_one())
 
-    async def mark_read(self, n: Notification) -> Notification:
+    async def mark_read(self, n: Notification, action_taken: str | None = None) -> Notification:
         n.is_read = True
         n.read_at = datetime.now(timezone.utc)
+        if action_taken:
+            n.action_taken = action_taken
         n.updated_at = datetime.now(timezone.utc)
         await self._session.commit()
         await self._session.refresh(n)

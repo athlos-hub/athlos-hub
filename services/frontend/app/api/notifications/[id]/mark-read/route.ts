@@ -3,7 +3,7 @@ import axios from 'axios';
 import { notificationsUpstreamAuth, getNotificationsGatewayUrl } from '@/lib/server/notifications-upstream';
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await notificationsUpstreamAuth();
@@ -13,10 +13,11 @@ export async function POST(
 
   try {
     const { id } = await params;
+    const body = await request.json().catch(() => ({}));
 
     const response = await axios.post(
       `${getNotificationsGatewayUrl()}/notifications/${id}/mark-read`,
-      {},
+      { action_taken: body?.action_taken ?? null },
       { headers: auth.headers }
     );
 

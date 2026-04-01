@@ -208,6 +208,14 @@ class OrganizationService:
                 return org
 
             if user_role == OrgRole.NONE and org.privacy == OrganizationPrivacy.PRIVATE:
+                request_enabled_policies = {
+                    OrganizationJoinPolicy.REQUEST_ONLY,
+                    OrganizationJoinPolicy.INVITE_AND_REQUEST,
+                    OrganizationJoinPolicy.REQUEST_AND_LINK,
+                    OrganizationJoinPolicy.ALL,
+                }
+                if org.join_policy in request_enabled_policies:
+                    return org
                 raise OrganizationAccessDeniedError(
                     "Acesso negado à organização privada."
                 )

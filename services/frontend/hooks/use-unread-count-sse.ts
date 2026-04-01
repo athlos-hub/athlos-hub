@@ -7,12 +7,13 @@ import { subscribeUnreadCountStream } from '@/lib/api/unread-stream';
 type Options = {
   onCount: (count: number) => void;
   onError?: (err: Error) => void;
+  enabled?: boolean;
 };
 
 /**
  * Mantém SSE da contagem de não lidas com Bearer (fetch stream), com reconexão simples.
  */
-export function useUnreadCountSse({ onCount, onError }: Options) {
+export function useUnreadCountSse({ onCount, onError, enabled = true }: Options) {
   const { data: session, status } = useSession();
   const onCountRef = useRef(onCount);
   const onErrorRef = useRef(onError);
@@ -20,6 +21,9 @@ export function useUnreadCountSse({ onCount, onError }: Options) {
   onErrorRef.current = onError;
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
     if (status !== 'authenticated' || !session?.accessToken) {
       return;
     }
@@ -54,5 +58,5 @@ export function useUnreadCountSse({ onCount, onError }: Options) {
       cancelled = true;
       controller.abort();
     };
-  }, [status, session?.accessToken]);
+  }, [enabled, status, session?.accessToken]);
 }

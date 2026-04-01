@@ -57,6 +57,7 @@ export interface Notification {
   message: string;
   metadata?: NotificationMetadata;
   action_url?: string;
+  action_taken?: string | null;
   is_read: boolean;
   read_at?: string;
   created_at: string;

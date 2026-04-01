@@ -5,6 +5,7 @@ import { notificationsApi } from '@/lib/api/notifications';
 import { useUnreadCountSse } from '@/hooks/use-unread-count-sse';
 import type { Notification, NotificationListResponse } from '@/types/notification';
 import { useNotificationsStore } from '@/store/notifications';
+import { useSession } from 'next-auth/react';
 
 let backgroundFetchTimeout: NodeJS.Timeout | null = null;
 const BACKGROUND_FETCH_DEBOUNCE = 1000;
@@ -12,8 +13,11 @@ const BACKGROUND_FETCH_DEBOUNCE = 1000;
 export function useNotifications(
   unreadOnlyInitial: boolean = false,
   autoRefresh: boolean = false,
-  refreshInterval: number = 30000
+  refreshInterval: number = 30000,
+  enableInitialFetch: boolean = true,
+  enableSse: boolean = true
 ) {
+  const { status: sessionStatus } = useSession();
   const {
     notifications,
     unreadCount,
@@ -28,6 +32,7 @@ export function useNotifications(
   } = useNotificationsStore();
 
   const unreadOnlyRef = useRef(unreadOnlyInitial);
+  const lastSseCountRef = useRef<number | null>(null);
 
   useEffect(() => {
     unreadOnlyRef.current = showUnreadOnly;
@@ -64,6 +69,7 @@ export function useNotifications(
     try {
       const count = await notificationsApi.getUnreadCount();
       setUnreadCount(count);
+      lastSseCountRef.current = count;
     } catch {
       /* silencioso */
     }
@@ -132,6 +138,7 @@ export function useNotifications(
 
   const handleUnreadCountUpdate = useCallback(
     (count: number) => {
+      lastSseCountRef.current = count;
       setUnreadCount(count);
 
       if (backgroundFetchTimeout) {
@@ -142,6 +149,7 @@ export function useNotifications(
         if (typeof document !== 'undefined' && document.hidden) {
           return;
         }
+        // Atualiza a lista a cada evento SSE (debounced) para garantir tempo real.
         void fetchNotifications(unreadOnlyRef.current, false, true);
       }, BACKGROUND_FETCH_DEBOUNCE);
     },
@@ -151,9 +159,16 @@ export function useNotifications(
   useUnreadCountSse({
     onCount: handleUnreadCountUpdate,
     onError: (err) => setError(err.message),
+    enabled: enableSse,
   });
 
   useEffect(() => {
+    if (!enableInitialFetch) {
+      return;
+    }
+    if (sessionStatus !== 'authenticated') {
+      return;
+    }
     let isMounted = true;
 
     const loadInitialData = async () => {
@@ -179,7 +194,7 @@ export function useNotifications(
         clearTimeout(backgroundFetchTimeout);
       }
     };
-  }, []);
+  }, [enableInitialFetch, sessionStatus, unreadOnlyInitial, fetchNotifications]);
 
   useEffect(() => {
     if (autoRefresh && refreshInterval > 0) {

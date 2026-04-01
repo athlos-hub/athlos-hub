@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { IoMdNotificationsOutline } from "react-icons/io";
@@ -12,17 +12,60 @@ import { toast } from 'sonner';
 import type { Notification } from '@/types/notification';
 
 const seenNotificationIds = new Set<string>();
+const TOASTED_STORAGE_KEY = 'athlos_toasted_notification_ids';
+
+function loadToastedIds(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem(TOASTED_STORAGE_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw) as string[];
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveToastedIds(ids: Set<string>) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(TOASTED_STORAGE_KEY, JSON.stringify(Array.from(ids)));
+  } catch {
+    // ignora indisponibilidade de storage
+  }
+}
 
 export default function NotificationBell() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications(true, true, 30000);
+  const persistedToastedIdsRef = useRef<Set<string>>(new Set());
+  const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications(
+    true,
+    false,
+    30000,
+    false,
+    false
+  );
+  const unreadNotifications = useMemo(
+    () => notifications.filter((n) => !n.is_read),
+    [notifications]
+  );
 
   useEffect(() => {
-    notifications.forEach(notification => {
-      if (!notification.is_read && !seenNotificationIds.has(notification.id)) {
+    persistedToastedIdsRef.current = loadToastedIds();
+  }, []);
+
+  useEffect(() => {
+    let changedPersistedIds = false;
+    unreadNotifications.forEach(notification => {
+      const alreadyToasted =
+        seenNotificationIds.has(notification.id) ||
+        persistedToastedIdsRef.current.has(notification.id);
+      if (!alreadyToasted) {
         seenNotificationIds.add(notification.id);
+        persistedToastedIdsRef.current.add(notification.id);
+        changedPersistedIds = true;
         
         toast.info(notification.title, {
           description: notification.message,
@@ -36,8 +79,11 @@ export default function NotificationBell() {
         });
       }
     });
+    if (changedPersistedIds) {
+      saveToastedIds(persistedToastedIdsRef.current);
+    }
     
-    const currentIds = new Set(notifications.map(n => n.id));
+    const currentIds = new Set(unreadNotifications.map(n => n.id));
     const idsToRemove: string[] = [];
     seenNotificationIds.forEach(id => {
       if (!currentIds.has(id)) {
@@ -45,7 +91,7 @@ export default function NotificationBell() {
       }
     });
     idsToRemove.forEach(id => seenNotificationIds.delete(id));
-  }, [notifications, router]);
+  }, [unreadNotifications, router]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -85,63 +131,6 @@ export default function NotificationBell() {
 
   const handleMarkAllRead = async () => {
     await markAllAsRead();
-  };
-
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'organization_invite':
-        return '🏢';
-      case 'organization_accepted':
-        return '✅';
-      case 'organization_join_request':
-        return '📥';
-      case 'organization_request_approved':
-        return '🎉';
-      case 'organization_request_rejected':
-        return '❌';
-      case 'organization_member_removed':
-        return '🚪';
-      case 'organization_member_left':
-        return '👋';
-      case 'organization_organizer_added':
-        return '⭐';
-      case 'organization_organizer_removed':
-        return '📉';
-      case 'organization_invite_cancelled':
-        return '🚫';
-      case 'organization_invite_declined':
-        return '👎';
-      case 'organization_ownership_received':
-        return '👑';
-      case 'organization_ownership_transferred':
-        return '🔄';
-      case 'organization_approved':
-        return '✨';
-      case 'organization_suspended':
-        return '⛔';
-      case 'organization_unsuspended':
-        return '🟢';
-      case 'organization_deleted':
-        return '🗑️';
-      case 'follow':
-        return '👤';
-      case 'post_like':
-        return '❤️';
-      case 'post_comment':
-        return '💬';
-      case 'post_share':
-        return '🔄';
-      case 'comment_reply':
-        return '↩️';
-      case 'organization_follow':
-        return '🏢';
-      case 'competition_team_member_joined':
-        return '🏆';
-      case 'general':
-        return '🔔';
-      default:
-        return '🔔';
-    }
   };
 
   const formatTimeAgo = (dateString: string) => {
@@ -201,12 +190,12 @@ export default function NotificationBell() {
           </div>
 
           <div className="overflow-y-auto flex-1">
-            {loading && notifications.length === 0 ? (
+            {loading && unreadNotifications.length === 0 ? (
               <div className="p-8 text-center text-gray-500">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-main mx-auto mb-2"></div>
                 <p>Carregando...</p>
               </div>
-            ) : notifications.length === 0 ? (
+            ) : unreadNotifications.length === 0 ? (
               <div className="p-8 text-center text-gray-500">
                 <IoMdNotificationsOutline size={48} className="mx-auto mb-2 opacity-50" />
                 <p className="font-medium">Nenhuma notificação</p>
@@ -214,7 +203,7 @@ export default function NotificationBell() {
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
-                {notifications.map((notification) => (
+                {unreadNotifications.map((notification) => (
                   <div
                     key={notification.id}
                     className={`group relative p-4 hover:bg-gray-50 transition-all cursor-pointer ${
@@ -223,19 +212,16 @@ export default function NotificationBell() {
                     onClick={(e) => handleNotificationClick(notification, e)}
                   >
                     <div className="flex gap-3">
-                      <div className="shrink-0 text-2xl relative">
-                        {getNotificationIcon(notification.type)}
-                        {!notification.is_read && (
-                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-pulse" />
-                        )}
-                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <p className={`text-sm font-medium text-gray-900 ${
-                            !notification.is_read ? 'font-semibold' : ''
+                          <div className={`text-sm font-medium text-gray-900 ${
+                            !notification.is_read ? 'font-semibold flex items-center gap-2' : ''
                           }`}>
-                            {notification.title}
-                          </p>
+                            <span>{notification.title}</span>
+                            {!notification.is_read && (
+                              <div className="h-2 w-2 rounded-full bg-main" />
+                            )}
+                          </div>
                           <div className="flex items-center gap-1 shrink-0">
                             {!notification.is_read && (
                               <button
@@ -275,7 +261,7 @@ export default function NotificationBell() {
               className="block text-center text-sm text-main hover:text-main/80 font-medium py-2 hover:bg-main/5 rounded transition-colors"
               onClick={() => setIsOpen(false)}
             >
-              Ver todas as notificações ({notifications.length})
+              Ver todas as notificações ({unreadNotifications.length})
             </Link>
           </div>
         </div>

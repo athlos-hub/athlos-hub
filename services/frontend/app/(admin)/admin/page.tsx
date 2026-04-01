@@ -641,7 +641,7 @@ export default function AdminPage() {
                                                 <CardContent className="p-6">
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex gap-4">
-                                                            <Avatar className="h-16 w-16">
+                                                            <Avatar className="h-16 w-16 rounded-lg">
                                                                 <AvatarImage src={org.logo_url || undefined} />
                                                                 <AvatarFallback>
                                                                     {org.name.substring(0, 2).toUpperCase()}
@@ -730,7 +730,7 @@ export default function AdminPage() {
                                             <div key={org.id} className="border rounded-lg p-4">
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex items-center gap-4 flex-1">
-                                                        <Avatar className="w-12 h-12">
+                                                        <Avatar className="w-12 h-12 rounded-lg">
                                                             <AvatarImage src={org.logo_url || ""} />
                                                             <AvatarFallback>
                                                                 <Building2 className="w-6 h-6" />
@@ -826,7 +826,7 @@ export default function AdminPage() {
                                             <div key={org.id} className="border rounded-lg p-4 bg-red-50">
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex items-center gap-4 flex-1">
-                                                        <Avatar className="w-12 h-12">
+                                                        <Avatar className="w-12 h-12 rounded-lg">
                                                             <AvatarImage src={org.logo_url || ""} />
                                                             <AvatarFallback>
                                                                 <Building2 className="w-6 h-6" />

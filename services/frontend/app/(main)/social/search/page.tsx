@@ -8,6 +8,7 @@ import { searchPosts } from "@/actions/search";
 import { Post } from "@/types/social";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default function SearchPage() {
   const router = useRouter();
@@ -65,12 +66,11 @@ export default function SearchPage() {
 
   return (
     <div className="container">
-      <div className="flex-1 mb-6">
-        <h1 className="text-3xl font-bold">Buscar</h1>
-        <p className="text-gray-600 mt-2">
-          Busque por postagens na comunidade
-        </p>
-      </div>
+      <PageHeader
+        className="mb-6"
+        title="Buscar"
+        subtitle="Busque por postagens na comunidade"
+      />
 
       <form onSubmit={handleSearch} className="mb-6">
         <div className="relative">

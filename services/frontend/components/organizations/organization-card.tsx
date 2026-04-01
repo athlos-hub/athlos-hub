@@ -36,6 +36,8 @@ export function OrganizationCard({ organization, showRole = false }: Organizatio
                 alt={organization.name}
                 fill
                 className="object-cover"
+                unoptimized
+                referrerPolicy="no-referrer"
               />
             ) : (
               <Building2 className="w-8 h-8 text-white" />

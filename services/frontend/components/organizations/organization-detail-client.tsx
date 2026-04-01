@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Building2, Calendar, Lock, Globe, Trophy, AlertCircle, Users } from "lucide-react";
+import { Building2, Calendar, Lock, Globe, AlertCircle, Users, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -51,8 +51,45 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
             OrganizationJoinPolicy.ALL
         ].includes(organization.join_policy);
 
+    const isPrivate = organization.privacy === "PRIVATE";
+    const hasRestrictedAccess = isPrivate && !isMember;
+
     return (
         <div className="space-y-6">
+            {hasRestrictedAccess && (
+                <Card className="overflow-hidden border border-gray-200">
+                    <div className="h-1 w-full bg-linear-to-r from-main/80 via-main to-main/70" />
+                    <CardHeader className="pt-6 flex justify-between flex-row items-center">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-main/10 border border-main/20">
+                                <ShieldAlert className="h-6 w-6 text-main" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-xl">Organização privada</CardTitle>
+                                <CardDescription>
+                                    Você não tem acesso ao conteúdo desta organização.
+                                </CardDescription>
+                            </div>
+                        </div>
+                        {canRequestToJoin && (
+                            <div>
+                                <RequestToJoinButton 
+                                    organizationSlug={organization.slug}
+                                    organizationName={organization.name}
+                                />
+                            </div>
+                        )}
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                        <div className="rounded-xl border bg-muted/40 p-4 text-sm text-muted-foreground">
+                            Apenas membros podem visualizar informações, competições, equipes e publicações.
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {!hasRestrictedAccess && (
+            <>
             {isPending && isOwner && (
                 <Alert className="bg-yellow-50 border-yellow-300">
                     <AlertCircle className="h-4 w-4 text-yellow-700" />
@@ -68,7 +105,7 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
                 <CardHeader>
                     <div className="flex items-start justify-between">
                         <div className="flex items-center gap-4">
-                            <Avatar className="h-16 w-16">
+                            <Avatar className="h-16 w-16 rounded-lg">
                                 <AvatarImage src={organization.logo_url || ""} alt={organization.name} />
                                 <AvatarFallback>
                                     <Building2 className="h-8 w-8" />
@@ -224,6 +261,8 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
 
             {!isPending && (
                 <OrganizationPostsSection organizationSlug={organization.slug} />
+            )}
+            </>
             )}
         </div>
     );

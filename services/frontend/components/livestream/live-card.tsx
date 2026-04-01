@@ -92,6 +92,9 @@ export function LiveCard({
                     src={matchData.home_team.logo} 
                     alt={matchData.home_team.name}
                     className="w-8 h-8 object-contain shrink-0"
+                    referrerPolicy="no-referrer"
+                    loading="lazy"
+                    decoding="async"
                   />
                 )}
                 <span className="font-semibold text-sm truncate">
@@ -117,6 +120,9 @@ export function LiveCard({
                     src={matchData.away_team.logo} 
                     alt={matchData.away_team.name}
                     className="w-8 h-8 object-contain shrink-0"
+                    referrerPolicy="no-referrer"
+                    loading="lazy"
+                    decoding="async"
                   />
                 )}
                 <span className="font-semibold text-sm truncate">

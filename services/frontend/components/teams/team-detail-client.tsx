@@ -17,6 +17,7 @@ import { canApprove } from "@/lib/teams/utils";
 import { getTeamFollowersCount } from "@/actions/team-follow";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
+import { PageHeader } from "@/components/layout/page-header";
 
 interface TeamDetailClientProps {
   team: TeamDetail;
@@ -114,13 +115,10 @@ export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
 
   return (
     <div className="space-y-6">
-      {/* Header com botão voltar */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Detalhes do Time</h1>
-        <p className="text-muted-foreground mt-1">
-          Acompanhe as informações do time
-        </p>
-      </div>
+      <PageHeader
+        title="Detalhes do Time"
+        subtitle="Acompanhe as informações do time"
+      />
 
       {/* Card principal */}
       <Card>

@@ -11,6 +11,7 @@ from notifications_service.api.deps import (
 from notifications_service.infrastructure.realtime import get_broadcaster, sse_event
 from notifications_service.schemas.notification import (
     MessageOut,
+    MarkReadRequest,
     NotificationCreateInternal,
     NotificationListResponse,
     NotificationResponse,
@@ -105,8 +106,9 @@ async def mark_read(
     user_id: CurrentUserIdDep,
     service: NotificationServiceDep,
     background_tasks: BackgroundTasks,
+    body: MarkReadRequest,
 ):
-    out = await service.mark_as_read(notification_id, user_id)
+    out = await service.mark_as_read(notification_id, user_id, body.action_taken)
     c = await service.count_unread(user_id)
     _schedule_unread_publish(background_tasks, user_id, c)
     return out

@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Building2, Users } from "lucide-react";
+import { Plus, Building2, Users, ChevronLeft, ChevronRight, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { OrganizationCard } from "@/components/organizations/organization-card";
 import { CreateOrganizationDialog } from "@/components/organizations/create-organization-dialog";
@@ -18,48 +18,90 @@ import {
 } from "@/types/organization";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
+import { PageHeader } from "@/components/layout/page-header";
+import { FilterPanel } from "@/components/layout/filter-panel";
 
-type TabType = "public" | "my-organizations";
-
-const TAB_QUERY_MY = "minhas";
+type TabType = "all" | "public" | "private" | "my-organizations";
+const PAGE_SIZE = 12;
+const TAB_QUERY_MAP: Record<TabType, string> = {
+  all: "todas",
+  public: "publicas",
+  private: "privadas",
+  "my-organizations": "minhas",
+};
+const QUERY_TAB_MAP: Record<string, TabType> = {
+  todas: "all",
+  publicas: "public",
+  privadas: "private",
+  minhas: "my-organizations",
+};
 
 function OrganizationsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session } = useSession();
-  const [activeTab, setActiveTab] = useState<TabType>("public");
-  const [publicOrgs, setPublicOrgs] = useState<OrganizationGetPublic[]>([]);
+  const { data: session, status: sessionStatus } = useSession();
+  const [activeTab, setActiveTab] = useState<TabType>("all");
+  const [listedOrgs, setListedOrgs] = useState<OrganizationGetPublic[]>([]);
   const [myOrgs, setMyOrgs] = useState<OrganizationListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasNextPage, setHasNextPage] = useState(false);
 
   useEffect(() => {
-    const tab = searchParams.get("tab");
-    if (tab === TAB_QUERY_MY && session) {
-      setActiveTab("my-organizations");
-    } else {
-      setActiveTab("public");
+    const rawTab = searchParams.get("tab") ?? TAB_QUERY_MAP.all;
+    const parsedTab = QUERY_TAB_MAP[rawTab] ?? "all";
+    if (parsedTab === "my-organizations" && !session) {
+      setActiveTab("all");
+      return;
     }
+    setActiveTab(parsedTab);
   }, [searchParams, session]);
 
   useEffect(() => {
-    loadOrganizations();
+    setPage(0);
   }, [activeTab]);
+
+  useEffect(() => {
+    loadOrganizations();
+  }, [activeTab, page, sessionStatus]);
 
   const loadOrganizations = async () => {
     setIsLoading(true);
     try {
-      if (activeTab === "public") {
-        const orgs = await getOrganizations(OrganizationPrivacy.PUBLIC);
-        setPublicOrgs(orgs);
-      } else if (activeTab === "my-organizations" && session) {
+      if (activeTab === "my-organizations" && session) {
         const orgs = await getMyOrganizations();
         setMyOrgs(orgs);
+        const start = page * PAGE_SIZE;
+        const end = start + PAGE_SIZE;
+        setListedOrgs(orgs.slice(start, end));
+        setHasNextPage(end < orgs.length);
+        return;
       }
+
+      if (activeTab === "private" && !session) {
+        setListedOrgs([]);
+        setHasNextPage(false);
+        return;
+      }
+
+      const offset = page * PAGE_SIZE;
+      const take = PAGE_SIZE + 1;
+      const privacy =
+        activeTab === "public"
+          ? OrganizationPrivacy.PUBLIC
+          : activeTab === "private"
+            ? OrganizationPrivacy.PRIVATE
+            : undefined;
+      const orgs = await getOrganizations(privacy, take, offset, !!session);
+      setListedOrgs(orgs.slice(0, PAGE_SIZE));
+      setHasNextPage(orgs.length > PAGE_SIZE);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Erro ao carregar organizações";
       toast.error(message);
+      setListedOrgs([]);
+      setHasNextPage(false);
     } finally {
       setIsLoading(false);
     }
@@ -72,11 +114,8 @@ function OrganizationsPageContent() {
   const setTab = useCallback(
     (tab: TabType) => {
       setActiveTab(tab);
-      if (tab === "my-organizations") {
-        router.replace(`/organizations?tab=${TAB_QUERY_MY}`, { scroll: false });
-      } else {
-        router.replace("/organizations", { scroll: false });
-      }
+      setPage(0);
+      router.replace(`/organizations?tab=${TAB_QUERY_MAP[tab]}`, { scroll: false });
     },
     [router]
   );
@@ -89,30 +128,36 @@ function OrganizationsPageContent() {
         onCreated={handleOrganizationCreated}
       />
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Organizações</h1>
-          <p className="text-gray-600">
-            Gerencie suas organizações ou descubra novas
-          </p>
-        </div>
+      <PageHeader
+        title="Organizações"
+        subtitle="Gerencie suas organizações ou descubra novas"
+        actions={
+          session ? (
+            <Button
+              type="button"
+              className="bg-main hover:bg-main/90 text-white"
+              onClick={() => setCreateOrgOpen(true)}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Nova Organização
+            </Button>
+          ) : null
+        }
+      />
 
-        {session && (
-          <Button
-            type="button"
-            className="bg-main hover:bg-main/90 text-white"
-            onClick={() => setCreateOrgOpen(true)}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Nova Organização
-          </Button>
-        )}
-      </div>
-
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-        <div className="flex items-center gap-4">
-          <Building2 className="w-5 h-5 text-gray-600" />
-          <div className="flex gap-2">
+      <FilterPanel icon={<Building2 className="w-5 h-5 text-gray-600" />}>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setTab("all")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === "all"
+                  ? "bg-main text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              Todas as organizações
+            </button>
             <button
               type="button"
               onClick={() => setTab("public")}
@@ -122,7 +167,18 @@ function OrganizationsPageContent() {
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              Organizações Públicas
+              Organizações públicas
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("private")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === "private"
+                  ? "bg-main text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              Organizações privadas
             </button>
 
             {session && (
@@ -139,8 +195,7 @@ function OrganizationsPageContent() {
               </button>
             )}
           </div>
-        </div>
-      </div>
+      </FilterPanel>
 
       <div>
         {isLoading ? (
@@ -156,14 +211,53 @@ function OrganizationsPageContent() {
           <>
             {activeTab === "public" && (
               <div className="space-y-4">
-                {publicOrgs.length === 0 ? (
+                {listedOrgs.length === 0 ? (
                   <div className="text-center py-12">
                     <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                     <p className="text-gray-600">Nenhuma organização pública encontrada</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {publicOrgs.map((org) => (
+                    {listedOrgs.map((org) => (
+                      <OrganizationCard key={org.id} organization={org} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === "all" && (
+              <div className="space-y-4">
+                {listedOrgs.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-600">Nenhuma organização encontrada</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {listedOrgs.map((org) => (
+                      <OrganizationCard key={org.id} organization={org} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === "private" && (
+              <div className="space-y-4">
+                {!session ? (
+                  <div className="text-center py-12 rounded-xl border border-dashed">
+                    <Lock className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-700">Faça login para ver organizações privadas.</p>
+                  </div>
+                ) : listedOrgs.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-600">Nenhuma organização privada encontrada</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {listedOrgs.map((org) => (
                       <OrganizationCard key={org.id} organization={org} />
                     ))}
                   </div>
@@ -190,7 +284,7 @@ function OrganizationsPageContent() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {myOrgs.map((org) => (
+                    {listedOrgs.map((org) => (
                       <OrganizationCard
                         key={org.id}
                         organization={org}
@@ -204,6 +298,36 @@ function OrganizationsPageContent() {
           </>
         )}
       </div>
+
+      {!isLoading &&
+        (listedOrgs.length > 0 || page > 0) &&
+        !(activeTab === "private" && !session) && (
+          <div className="flex items-center justify-center gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={page === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Anterior
+            </Button>
+            <span className="text-sm text-muted-foreground tabular-nums px-2">
+              Página {page + 1}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!hasNextPage}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Próxima
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        )}
     </div>
   );
 }

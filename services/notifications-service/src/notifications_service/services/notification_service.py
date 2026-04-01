@@ -56,11 +56,13 @@ class NotificationService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notificação não encontrada")
         return NotificationResponse.model_validate(n)
 
-    async def mark_as_read(self, notification_id: UUID, user_id: UUID) -> NotificationResponse:
+    async def mark_as_read(
+        self, notification_id: UUID, user_id: UUID, action_taken: str | None = None
+    ) -> NotificationResponse:
         n = await self._repo.get_for_user(notification_id, user_id)
         if not n:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notificação não encontrada")
-        updated = await self._repo.mark_read(n)
+        updated = await self._repo.mark_read(n, action_taken)
         return NotificationResponse.model_validate(updated)
 
     async def mark_all_as_read(self, user_id: UUID) -> int:

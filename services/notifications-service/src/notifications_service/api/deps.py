@@ -7,6 +7,7 @@ Do NOT add JWT validation here — it breaks the single-responsibility contract.
 
 from typing import Annotated
 from uuid import UUID
+import time
 
 import httpx
 from fastapi import Depends, Header, HTTPException, status
@@ -17,6 +18,9 @@ from notifications_service.infrastructure.database.dependencies import get_sessi
 from notifications_service.core.config import settings
 from notifications_service.repositories.notification_repository import NotificationRepository
 from notifications_service.services.notification_service import NotificationService
+
+_USER_ID_CACHE_TTL_SECONDS = 60
+_USER_ID_BY_KEYCLOAK: dict[str, tuple[UUID, float]] = {}
 
 async def get_notification_repository(
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -44,6 +48,11 @@ async def get_current_user_id(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Não autenticado (X-Keycloak-Sub ausente).",
         )
+    now = time.time()
+    cached = _USER_ID_BY_KEYCLOAK.get(kid)
+    if cached and cached[1] > now:
+        return cached[0]
+
     url = f"{settings.AUTH_SERVICE_URL.rstrip('/')}/api/users/by-keycloak-id/{kid}"
     try:
         async with httpx.AsyncClient() as client:
@@ -57,7 +66,9 @@ async def get_current_user_id(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sessão inválida")
     data = response.json()
     try:
-        return UUID(str(data["id"]))
+        uid = UUID(str(data["id"]))
+        _USER_ID_BY_KEYCLOAK[kid] = (uid, now + _USER_ID_CACHE_TTL_SECONDS)
+        return uid
     except (KeyError, ValueError):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sessão inválida")
 

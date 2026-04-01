@@ -7,6 +7,8 @@ import { PostCard } from "@/components/social/post-card";
 import { getTrendingPosts, getPopularPosts } from "@/actions/search";
 import { Post } from "@/types/social";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/layout/page-header";
+import { FilterPanel } from "@/components/layout/filter-panel";
 
 export default function ExplorePage() {
   const router = useRouter();
@@ -58,18 +60,14 @@ export default function ExplorePage() {
 
   return (
     <div className="container">
-      <div className="mb-6">
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold">Explorar</h1>
-          <p className="text-gray-600 mt-2">
-            Acompanhe as postagens mais populares
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        className="mb-6"
+        title="Explorar"
+        subtitle="Acompanhe as postagens mais populares"
+      />
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-6">
-        <div className="flex gap-4 items-center">
-          <TrendingUp className="w-5 h-5 text-gray-600" />
+      <FilterPanel icon={<TrendingUp className="w-5 h-5 text-gray-600" />} className="mb-6">
+        <div className="flex flex-wrap gap-2 items-center">
           <button
             onClick={() => setActiveTab("trending")}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -107,7 +105,7 @@ export default function ExplorePage() {
             </span>
           </button>
         </div>
-      </div>
+      </FilterPanel>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">

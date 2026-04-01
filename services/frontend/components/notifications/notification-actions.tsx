@@ -9,8 +9,9 @@ import {
   acceptOrganizationInvite, 
   declineOrganizationInvite,
   approveJoinRequest,
-  rejectJoinRequest
+  rejectJoinRequest,
 } from '@/actions/organizations';
+import { notificationsApi } from '@/lib/api/notifications';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +33,35 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
   const [loading, setLoading] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [actionType, setActionType] = useState<'invite' | 'request' | null>(null);
+  const notificationType = String(notification.type).toLowerCase();
+
+  const resolveTargetHref = (): string | null => {
+    const raw = notification.action_url?.trim();
+    if (raw) {
+      // Aceita path relativo absoluto do app
+      if (raw.startsWith("/")) return raw;
+      // Normaliza URL absoluta para path interno quando for mesmo domínio
+      try {
+        const parsed = new URL(raw);
+        if (parsed.pathname) return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+      } catch {
+        // ignora formato inválido e usa fallback
+      }
+    }
+    if (notification.metadata?.organization_slug) {
+      return `/organizations/${notification.metadata.organization_slug}`;
+    }
+    return null;
+  };
+
+  const navigateToTarget = () => {
+    const href = resolveTargetHref();
+    if (!href) {
+      toast.error("Não foi possível abrir o destino desta notificação.");
+      return;
+    }
+    router.push(href);
+  };
 
   const handleAcceptInvite = async () => {
     if (!notification.metadata?.organization_slug) return;
@@ -42,8 +72,8 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
       
       if (result.success) {
         toast.success('Convite aceito! Bem-vindo à organização.');
+        await notificationsApi.markAsRead(notification.id, 'accepted');
         router.push(`/organizations/${notification.metadata.organization_slug}`);
-        onComplete?.();
       } else {
         toast.error(result.error || 'Erro ao aceitar convite');
       }
@@ -63,6 +93,7 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
       
       if (result.success) {
         toast.success('Convite recusado');
+        await notificationsApi.markAsRead(notification.id, 'declined');
         setShowRejectDialog(false);
         onComplete?.();
       } else {
@@ -79,13 +110,13 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
     if (!notification.metadata?.organization_slug || !notification.metadata?.membership_id) return;
     try {
       setLoading(true);
-      console.log('Aprovar: slug', notification.metadata.organization_slug, 'membership_id', notification.metadata.membership_id);
       const result = await approveJoinRequest(
         notification.metadata.organization_slug,
         notification.metadata.membership_id
       );
       if (result.success) {
         toast.success('Solicitação aprovada!');
+        await notificationsApi.markAsRead(notification.id, 'approved');
         onComplete?.();
       } else {
         toast.error(result.error || 'Erro ao aprovar solicitação');
@@ -101,13 +132,13 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
     if (!notification.metadata?.organization_slug || !notification.metadata?.membership_id) return;
     try {
       setLoading(true);
-      console.log('Rejeitar: slug', notification.metadata.organization_slug, 'membership_id', notification.metadata.membership_id);
       const result = await rejectJoinRequest(
         notification.metadata.organization_slug,
         notification.metadata.membership_id
       );
       if (result.success) {
         toast.success('Solicitação rejeitada');
+        await notificationsApi.markAsRead(notification.id, 'rejected');
         setShowRejectDialog(false);
         onComplete?.();
       } else {
@@ -121,12 +152,7 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
   };
 
   const getActions = () => {
-    console.log('Notification Type:', notification.type);
-    console.log('Notification Metadata:', notification.metadata);
-    console.log('Has organization_slug:', !!notification.metadata?.organization_slug);
-    console.log('Has requester_id:', !!notification.metadata?.requester_id);
-    
-    switch (notification.type) {
+    switch (notificationType) {
       case 'organization_invite':
         return (
           <div className="space-y-3">
@@ -154,7 +180,7 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
         );
 
       case 'organization_join_request':
-        if (notification.metadata?.organization_slug && notification.metadata?.requester_id) {
+        if (notification.metadata?.organization_slug && notification.metadata?.membership_id) {
           return (
             <div className="space-y-3">
               <div className="flex items-center gap-3">
@@ -177,32 +203,16 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
                   Rejeitar
                 </Button>
               </div>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  const slug = notification.metadata?.organization_slug;
-                  if (slug) {
-                    router.push(`/organizations/${slug}/requests`);
-                    onComplete?.();
-                  }
-                }}
-                className="w-full"
-              >
-                Ver Todas as Solicitações
-              </Button>
             </div>
           );
         }
         return null;
 
       case 'organization_request_approved':
-        if (notification.action_url) {
+        if (resolveTargetHref()) {
           return (
             <Button 
-              onClick={() => {
-                router.push(notification.action_url!);
-                onComplete?.();
-              }}
+              onClick={navigateToTarget}
               className="w-full bg-green-600 hover:bg-green-700"
             >
               Ir para Organização
@@ -214,13 +224,10 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
       case 'organization_accepted':
       case 'organization_organizer_added':
       case 'organization_ownership_received':
-        if (notification.action_url) {
+        if (resolveTargetHref()) {
           return (
             <Button 
-              onClick={() => {
-                router.push(notification.action_url!);
-                onComplete?.();
-              }}
+              onClick={navigateToTarget}
               className="w-full"
             >
               Ver Organização
@@ -230,13 +237,10 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
         return null;
 
       case 'organization_approved':
-        if (notification.action_url) {
+        if (resolveTargetHref()) {
           return (
             <Button 
-              onClick={() => {
-                router.push(notification.action_url!);
-                onComplete?.();
-              }}
+              onClick={navigateToTarget}
               className="w-full bg-green-600 hover:bg-green-700"
             >
               Acessar Organização Aprovada
@@ -246,13 +250,10 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
         return null;
 
       case 'organization_member_left':
-        if (notification.action_url) {
+        if (resolveTargetHref()) {
           return (
             <Button 
-              onClick={() => {
-                router.push(notification.action_url!);
-                onComplete?.();
-              }}
+              onClick={navigateToTarget}
               className="w-full" 
               variant="outline"
             >
@@ -263,13 +264,10 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
         return null;
 
       case 'organization_suspended':
-        if (notification.action_url) {
+        if (resolveTargetHref()) {
           return (
             <Button 
-              onClick={() => {
-                router.push(notification.action_url!);
-                onComplete?.();
-              }}
+              onClick={navigateToTarget}
               className="w-full"
               variant="outline"
             >
@@ -280,13 +278,10 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
         return null;
 
       case 'organization_unsuspended':
-        if (notification.action_url) {
+        if (resolveTargetHref()) {
           return (
             <Button 
-              onClick={() => {
-                router.push(notification.action_url!);
-                onComplete?.();
-              }}
+              onClick={navigateToTarget}
               className="w-full bg-green-600 hover:bg-green-700"
             >
               Acessar Organização
@@ -309,13 +304,10 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
         );
 
       default:
-        if (notification.action_url) {
+        if (resolveTargetHref()) {
           return (
             <Button 
-              onClick={() => {
-                router.push(notification.action_url!);
-                onComplete?.();
-              }}
+              onClick={navigateToTarget}
               className="w-full"
             >
               Ver Detalhes
@@ -328,41 +320,56 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
 
   const actions = getActions();
 
+  if (notification.action_taken) {
+    return null;
+  }
+
   if (!actions) {
     return null;
   }
 
-  return (
-    <>
-      <div>
-        <h3 className="text-sm font-medium text-gray-500 mb-3">Ações</h3>
-        {actions}
-      </div>
+  const isActionableType =
+    notificationType !== 'organization_request_rejected'
+    && notificationType !== 'organization_member_removed'
+    && notificationType !== 'organization_organizer_removed'
+    && notificationType !== 'organization_invite_cancelled'
+    && notificationType !== 'organization_invite_declined'
+    && notificationType !== 'organization_ownership_transferred'
+    && notificationType !== 'organization_deleted';
 
-      <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {actionType === 'invite' ? 'Recusar convite?' : 'Rejeitar solicitação?'}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {actionType === 'invite' 
-                ? 'Você tem certeza que deseja recusar este convite? Esta ação não pode ser desfeita.'
-                : 'Você tem certeza que deseja rejeitar esta solicitação? O usuário será notificado.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={loading}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={actionType === 'invite' ? handleDeclineInvite : handleRejectRequest}
-              disabled={loading}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {loading ? 'Processando...' : (actionType === 'invite' ? 'Recusar' : 'Rejeitar')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+  return (
+    isActionableType && !notification.action_taken && (
+      <>
+        <div>
+          <h3 className="text-sm font-medium text-gray-500 mb-3">Ações</h3>
+          {actions}
+        </div>
+  
+        <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {actionType === 'invite' ? 'Recusar convite?' : 'Rejeitar solicitação?'}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {actionType === 'invite' 
+                  ? 'Você tem certeza que deseja recusar este convite? Esta ação não pode ser desfeita.'
+                  : 'Você tem certeza que deseja rejeitar esta solicitação? O usuário será notificado.'}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={loading}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={actionType === 'invite' ? handleDeclineInvite : handleRejectRequest}
+                disabled={loading}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {loading ? 'Processando...' : (actionType === 'invite' ? 'Recusar' : 'Rejeitar')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
+    )
   );
 }

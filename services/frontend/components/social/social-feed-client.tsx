@@ -13,6 +13,7 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { createOrganizationPost, createTeamPost } from "@/actions/social-posts";
 import { Users } from "lucide-react";
+import { FilterPanel } from "@/components/layout/filter-panel";
 
 interface SocialFeedClientProps {
     initialPosts: Post[];
@@ -149,9 +150,8 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
                 onSubmit={handleCreatePost}
             />
 
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <FilterPanel icon={<Users className="w-5 h-5 text-gray-600 shrink-0" />}>
                 <div className="flex flex-wrap gap-4 items-center">
-                    <Users className="w-5 h-5 text-gray-600 shrink-0"/>
                     <button
                         type="button"
                         onClick={() => setFeedType("all")}
@@ -182,7 +182,7 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
                         </span>
                     )}
                 </div>
-            </div>
+            </FilterPanel>
 
             <Feed
                 initialPosts={posts}

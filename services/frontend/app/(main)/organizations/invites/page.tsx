@@ -10,6 +10,8 @@ import { Mail, Send, X, Check, Loader2 } from "lucide-react";
 import { getMyInvites, getMyRequests, acceptOrganizationInvite, declineOrganizationInvite, cancelJoinRequest } from "@/actions/organizations";
 import { OrganizationInviteResponse, OrganizationRequestResponse } from "@/types/organization";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/layout/page-header";
+import { FilterPanel } from "@/components/layout/filter-panel";
 
 type TabType = "invites" | "requests";
 
@@ -105,22 +107,13 @@ export default function OrganizationInvitesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Convites e Solicitações
-          </h1>
-          <p className="text-gray-600">
-            Gerencie seus convites de organizações e solicitações pendentes
-          </p>
-        </div>
+      <PageHeader
+        title="Convites e Solicitações"
+        subtitle="Gerencie seus convites de organizações e solicitações pendentes"
+      />
 
-      </div>
-
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-        <div className="flex items-center gap-4">
-          <Mail className="w-5 h-5 text-gray-600" />
-          <div className="flex gap-2">
+      <FilterPanel icon={<Mail className="w-5 h-5 text-gray-600" />}>
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setActiveTab("invites")}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
@@ -155,8 +148,7 @@ export default function OrganizationInvitesPage() {
               )}
             </button>
           </div>
-        </div>
-      </div>
+      </FilterPanel>
 
       {isLoading ? (
         <div className="flex justify-center py-12">
@@ -178,7 +170,7 @@ export default function OrganizationInvitesPage() {
                   <Card key={invite.id} className="p-6">
                     <div className="flex items-center gap-4">
                       <div className="flex items-start gap-4 flex-1 min-w-0">
-                        <Avatar className="w-14 h-14">
+                        <Avatar className="w-14 h-14 rounded-lg">
                           <AvatarImage src={invite.organization.logo_url || ""} />
                           <AvatarFallback>
                             {invite.organization.name.substring(0, 2).toUpperCase()}
@@ -246,7 +238,7 @@ export default function OrganizationInvitesPage() {
                 requests.map((request) => (
                   <Card key={request.id} className="p-6">
                     <div className="flex items-start gap-4">
-                      <Avatar className="w-14 h-14">
+                      <Avatar className="w-14 h-14 rounded-lg">
                         <AvatarImage src={request.organization.logo_url || ""} />
                         <AvatarFallback>
                           {request.organization.name.substring(0, 2).toUpperCase()}

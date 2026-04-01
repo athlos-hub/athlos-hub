@@ -216,7 +216,11 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
                     }
                     className="shrink-0"
                 >
-                    <Avatar className="h-12 w-12 cursor-pointer hover:opacity-80 transition-opacity">
+                    <Avatar
+                        className={`h-12 w-12 cursor-pointer hover:opacity-80 transition-opacity ${
+                            post.profileType === ProfileType.ORGANIZATION ? "rounded-lg" : ""
+                        }`}
+                    >
                         <AvatarImage src={profileInfo.logoUrl || profileInfo.avatarUrl} />
                         <AvatarFallback>{profileInfo.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
@@ -331,6 +335,9 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
                                 src={url}
                                 alt={`Media ${index + 1}`}
                                 className="rounded-lg w-full object-cover max-h-64"
+                                referrerPolicy="no-referrer"
+                                loading="lazy"
+                                decoding="async"
                             />
                         ))}
                     </div>

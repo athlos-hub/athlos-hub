@@ -24,7 +24,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { listCompetitions } from "@/actions/competitions";
-import { getOrganizationBySlug, getMyOrganizations } from "@/actions/organizations";
+import {
+  getOrganizationBySlug,
+  getMyOrganizations,
+  getOrganizations,
+} from "@/actions/organizations";
 import { getMyFollowedOrganizations } from "@/actions/follow";
 import type { Competition, CompetitionStatus, CompetitionPhase } from "@/types/competition";
 import type { OrganizationGetPublic, OrganizationListItem } from "@/types/organization";
@@ -32,9 +36,13 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { PageHeader } from "@/components/layout/page-header";
+import { FilterPanel } from "@/components/layout/filter-panel";
 
 const COMPETITIONS_PAGE_SIZE = 12;
 const PER_ORG_FETCH_LIMIT = 500;
+const PUBLIC_ORGS_PAGE_SIZE = 100;
+const PUBLIC_ORGS_MAX_PAGES = 30;
 
 type OrgScope = "all" | "mine" | "following";
 
@@ -55,6 +63,25 @@ async function fetchAllFollowedSlugs(): Promise<string[]> {
     if (res.totalPages != null && p >= res.totalPages - 1) break;
     p += 1;
     if (p > 50) break;
+  }
+  return slugs;
+}
+
+async function fetchAllPublicOrganizationSlugs(): Promise<string[]> {
+  const slugs: string[] = [];
+  for (let p = 0; p < PUBLIC_ORGS_MAX_PAGES; p += 1) {
+    const offset = p * PUBLIC_ORGS_PAGE_SIZE;
+    const rows = await getOrganizations(
+      undefined,
+      PUBLIC_ORGS_PAGE_SIZE,
+      offset,
+      true
+    );
+    for (const org of rows) {
+      if (org.privacy !== "PUBLIC") continue;
+      if (!slugs.includes(org.slug)) slugs.push(org.slug);
+    }
+    if (rows.length < PUBLIC_ORGS_PAGE_SIZE) break;
   }
   return slugs;
 }
@@ -110,15 +137,44 @@ export default function CompetitionsPage() {
 
     try {
       if (orgScope === "all") {
-        mergedListRef.current = null;
-        const skip = page * COMPETITIONS_PAGE_SIZE;
-        // Busca PAGE_SIZE + 1: se vier mais que PAGE_SIZE, existe próxima página.
-        // Só comparar length === PAGE_SIZE erra quando o total é múltiplo exato de PAGE_SIZE.
-        const take = COMPETITIONS_PAGE_SIZE + 1;
-        const raw = await listCompetitions(skip, take, undefined, statusFilter);
-        setCompetitions(raw.slice(0, COMPETITIONS_PAGE_SIZE));
-        setMergedTotalCount(null);
-        setHasNextPage(raw.length > COMPETITIONS_PAGE_SIZE);
+        const mergedKey = `${orgScope}::${selectedStatus}`;
+        if (mergedListRef.current && mergedKeyRef.current === mergedKey) {
+          const merged = mergedListRef.current;
+          setMergedTotalCount(merged.length);
+          const slice = merged.slice(
+            page * COMPETITIONS_PAGE_SIZE,
+            page * COMPETITIONS_PAGE_SIZE + COMPETITIONS_PAGE_SIZE
+          );
+          setCompetitions(slice);
+          setHasNextPage((page + 1) * COMPETITIONS_PAGE_SIZE < merged.length);
+          return;
+        }
+
+        const publicSlugs = await fetchAllPublicOrganizationSlugs();
+        if (publicSlugs.length === 0) {
+          mergedListRef.current = [];
+          mergedKeyRef.current = mergedKey;
+          setCompetitions([]);
+          setMergedTotalCount(0);
+          setHasNextPage(false);
+          return;
+        }
+
+        const lists = await Promise.all(
+          publicSlugs.map((slug) =>
+            listCompetitions(0, PER_ORG_FETCH_LIMIT, slug, statusFilter).catch(() => [])
+          )
+        );
+        const merged = mergeCompetitionsFromOrgs(lists);
+        mergedListRef.current = merged;
+        mergedKeyRef.current = mergedKey;
+        setMergedTotalCount(merged.length);
+        const slice = merged.slice(
+          page * COMPETITIONS_PAGE_SIZE,
+          page * COMPETITIONS_PAGE_SIZE + COMPETITIONS_PAGE_SIZE
+        );
+        setCompetitions(slice);
+        setHasNextPage((page + 1) * COMPETITIONS_PAGE_SIZE < merged.length);
         return;
       }
 
@@ -206,7 +262,7 @@ export default function CompetitionsPage() {
     Promise.all(
       slugs.map(async (slug) => {
         try {
-          const o = await getOrganizationBySlug(slug, false);
+          const o = await getOrganizationBySlug(slug, sessionStatus === "authenticated");
           return [slug, o as OrganizationGetPublic] as const;
         } catch {
           return [slug, null] as const;
@@ -223,7 +279,7 @@ export default function CompetitionsPage() {
     return () => {
       cancelled = true;
     };
-  }, [competitions]);
+  }, [competitions, sessionStatus]);
 
   const getStatusLabel = (status: CompetitionStatus): string => {
     const labels = {
@@ -284,19 +340,12 @@ export default function CompetitionsPage() {
   return (
     <div className="container min-w-0">
       <div className="space-y-6 min-w-0">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Competições</h1>
-          <p className="text-muted-foreground mt-1">
-            Explore competições públicas e veja a organização responsável por cada uma.
-          </p>
-        </div>
+        <PageHeader
+          title="Competições"
+          subtitle="Explore competições públicas e veja a organização responsável por cada uma."
+        />
 
-        <Card className="p-6">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-              <Filter className="w-4 h-4 text-gray-500" />
-              Filtros
-            </div>
+        <FilterPanel icon={<Filter className="w-4 h-4 text-gray-500" />}>
 
             <div className="w-full sm:w-64">
               <Select value={orgScope} onValueChange={(v) => onScopeChange(v as OrgScope)}>
@@ -348,8 +397,7 @@ export default function CompetitionsPage() {
             >
               Limpar filtros
             </Button>
-          </div>
-        </Card>
+        </FilterPanel>
 
         {isLoading && (
           <div className="flex justify-center py-16">
@@ -430,6 +478,9 @@ export default function CompetitionsPage() {
                           src={org.logo_url}
                           alt=""
                           className="w-9 h-9 rounded-md object-cover border shrink-0"
+                          referrerPolicy="no-referrer"
+                          loading="lazy"
+                          decoding="async"
                         />
                       ) : (
                         <div className="w-9 h-9 rounded-md bg-main/10 flex items-center justify-center shrink-0 border border-main/15">

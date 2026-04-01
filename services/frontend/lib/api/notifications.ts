@@ -34,8 +34,13 @@ export const notificationsApi = {
     return response.data;
   },
 
-  async markAsRead(notificationId: string): Promise<Notification> {
-    const response = await axios.post(`${API_BASE}/${notificationId}/mark-read`);
+  async markAsRead(
+    notificationId: string,
+    actionTaken?: 'accepted' | 'declined' | 'approved' | 'rejected'
+  ): Promise<Notification> {
+    const response = await axios.post(`${API_BASE}/${notificationId}/mark-read`, {
+      action_taken: actionTaken ?? null,
+    });
     return response.data;
   },
 

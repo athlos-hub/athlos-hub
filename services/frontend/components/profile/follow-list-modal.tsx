@@ -307,7 +307,7 @@ export function FollowListModal({
                         className="flex items-center gap-3 flex-1"
                         onClick={onClose}
                       >
-                        <Avatar className="h-12 w-12">
+                        <Avatar className="h-12 w-12 rounded-lg">
                           <AvatarImage src={org.orgInfo?.logo_url || undefined} />
                           <AvatarFallback>
                             <Building2 className="h-6 w-6" />

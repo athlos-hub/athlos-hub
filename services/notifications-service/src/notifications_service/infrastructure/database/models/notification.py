@@ -50,6 +50,7 @@ class Notification(Base):
     message: Mapped[str] = mapped_column(Text, nullable=False)
     extra_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     action_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    action_taken: Mapped[str | None] = mapped_column(String(32), nullable=True)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(

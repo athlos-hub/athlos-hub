@@ -23,6 +23,7 @@ class NotificationResponse(BaseModel):
     title: str
     message: str
     action_url: str | None = None
+    action_taken: str | None = None
     is_read: bool
     read_at: datetime | None = None
     created_at: datetime
@@ -46,3 +47,7 @@ class UnreadCountResponse(BaseModel):
 
 class MessageOut(BaseModel):
     message: str
+
+
+class MarkReadRequest(BaseModel):
+    action_taken: str | None = None

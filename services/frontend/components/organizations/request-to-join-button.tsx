@@ -83,6 +83,7 @@ export function RequestToJoinButton({ organizationSlug, organizationName }: Requ
   if (hasPendingRequest) {
     return (
       <Button
+        size="sm"
         variant="outline"
         onClick={handleCancelRequest}
         disabled={isLoading}
@@ -104,7 +105,7 @@ export function RequestToJoinButton({ organizationSlug, organizationName }: Requ
   }
 
   return (
-    <Button onClick={handleRequest} disabled={isLoading} className="bg-main hover:bg-main/90">
+    <Button size="sm" onClick={handleRequest} disabled={isLoading} className="bg-main hover:bg-main/90">
       {isLoading ? (
         <>
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />

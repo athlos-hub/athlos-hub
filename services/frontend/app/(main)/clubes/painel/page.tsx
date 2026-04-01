@@ -13,7 +13,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -40,6 +39,8 @@ import { OrganizationPrivacy } from "@/types/organization";
 import type { Competition } from "@/types/competition";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
+import { PageHeader } from "@/components/layout/page-header";
+import { FilterPanel } from "@/components/layout/filter-panel";
 
 const PAGE_SIZE = 12;
 const MAX_PUBLIC_ORGS_FOR_TEAMS = 36;
@@ -372,32 +373,24 @@ export default function ClubesPainelPage() {
 
   return (
     <div className="space-y-6 min-w-0">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Painel de clubes</h1>
-          <p className="text-muted-foreground mt-1">
-            Explore os clubes de competições públicas
-          </p>
-        </div>
+      <PageHeader
+        title="Painel de clubes"
+        subtitle="Explore os clubes de competições públicas"
+        actions={
+          canCreateTeam ? (
+            <Button
+              type="button"
+              className="bg-main hover:bg-main/90 text-white shrink-0"
+              onClick={() => setCreateOpen(true)}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Novo time
+            </Button>
+          ) : null
+        }
+      />
 
-        {canCreateTeam && (
-          <Button
-            type="button"
-            className="bg-main hover:bg-main/90 text-white shrink-0"
-            onClick={() => setCreateOpen(true)}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Novo time
-          </Button>
-        )}
-      </div>
-
-      <Card className="p-6">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-            <Filter className="w-4 h-4 text-gray-500" />
-            Filtros
-          </div>
+      <FilterPanel icon={<Filter className="w-4 h-4 text-gray-500" />}>
 
           <div className="w-full sm:w-56">
             <Select value={orgScope} onValueChange={(v) => onOrgScopeChange(v as OrgScope)}>
@@ -459,8 +452,7 @@ export default function ClubesPainelPage() {
           >
             Limpar filtros
           </Button>
-        </div>
-      </Card>
+      </FilterPanel>
 
       <div>
         {isLoading ? (
