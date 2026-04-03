@@ -1,22 +1,31 @@
-logLevel: debug
+logLevel: info
 
 api: yes
 apiAddress: :9997
 
+metrics: yes
+metricsAddress: :9998
+
+writeQueueSize: 1024
+
 hls: yes
 hlsAddress: :8888
-hlsAlwaysRemux: yes
+hlsAllowOrigins: ["*"]
+hlsAlwaysRemux: false
 hlsVariant: lowLatency
 hlsSegmentCount: 7
 hlsSegmentDuration: 1s
 hlsPartDuration: 200ms
 
 authMethod: http
-authHTTPAddress: http://host.docker.internal:8004/api/webhooks/mediamtx-auth
+authHTTPAddress: http://live-service:8004/api/webhooks/mediamtx-auth
 authHTTPExclude:
   - action: api
   - action: metrics
+  - action: read
+  - action: playback
 
 paths:
   "~^live/.+$":
     source: publisher
+    runOnNotReady: sh /mediamtx-hooks/on-publish-ended.sh

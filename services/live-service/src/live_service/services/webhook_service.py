@@ -2,6 +2,7 @@
 
 import logging
 import re
+from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -79,8 +80,6 @@ class WebhookService:
 
         if live.status == LiveStatus.SCHEDULED.value:
             live.status = LiveStatus.LIVE.value
-            from datetime import datetime, timezone
-
             live.started_at = datetime.now(timezone.utc)
             await self._repo.save_entity(live)
             logger.info("Live %s iniciada automaticamente", live.id)
@@ -93,10 +92,9 @@ class WebhookService:
         )
 
     async def on_publish_done(self, body: OnPublishDoneBody) -> None:
-        path = body.path.lstrip("/")
-        stream_key = path
+        stream_key = extract_stream_key(body.path)
         if not stream_key:
-            logger.warning("Stream key vazia recebida no onPublishDone")
+            logger.warning("Stream key vazia recebida no onPublishDone (path=%s)", body.path)
             return
 
         r = rc.redis_client.client()
@@ -116,8 +114,6 @@ class WebhookService:
         if live.status != LiveStatus.LIVE.value:
             logger.info("Live %s não está ativa, ignorando finalização automática", live_id)
             return
-
-        from datetime import datetime, timezone
 
         live.status = LiveStatus.FINISHED.value
         live.ended_at = datetime.now(timezone.utc)

@@ -508,7 +508,7 @@ export default function LivesPageClient() {
             ))}
           </div>
         ) : lives.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-12 text-center">
+          <div className="bg-white p-12 text-center">
             <p className="text-muted-foreground text-lg mb-4">
               Nenhum jogo {statusFilter !== "all" ? `com status "${statusFilter}"` : ""} encontrado
             </p>

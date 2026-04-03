@@ -21,8 +21,8 @@ ENV PYTHONPATH=/app/services/live-service/src
 
 USER appuser
 
-EXPOSE 3333
+EXPOSE 8004
 
 WORKDIR /app/services/live-service
 
-CMD ["uvicorn", "live_service.main:asgi_app", "--host", "0.0.0.0", "--port", "3333"]
+CMD ["uvicorn", "live_service.main:asgi_app", "--host", "0.0.0.0", "--port", "8004"]

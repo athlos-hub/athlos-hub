@@ -26,8 +26,15 @@ services:
       - "8888:8888" # HLS
       - "8889:8889" # WebRTC
       - "9997:9997" # API
+      - "9998:9998" # Prometheus metrics
     volumes:
       - ./mediamtx.yml:/mediamtx.yml:ro
+      - ./scripts/mediamtx-on-publish-ended.sh:/mediamtx-hooks/on-publish-ended.sh:ro
+    environment:
+      # App no host (uvicorn :8004): use host.docker.internal.
+      # Com live-service no mesmo compose/rede: defina MEDIAMTX_WEBHOOK_BASE=http://live-service:8004
+      MEDIAMTX_WEBHOOK_BASE: ${MEDIAMTX_WEBHOOK_BASE:-http://host.docker.internal:8004}
+      MTX_AUTHHTTPADDRESS: ${MTX_AUTHHTTPADDRESS:-http://host.docker.internal:8004/api/webhooks/mediamtx-auth}
     networks:
       - athlos-network
     extra_hosts:

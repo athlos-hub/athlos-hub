@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import Hls from "hls.js";
 
 interface HLSPlayerProps {
@@ -9,11 +9,14 @@ interface HLSPlayerProps {
   autoPlay?: boolean;
 }
 
-const HLS_BASE_URL = process.env.NEXT_PUBLIC_HLS_URL || "https://athloshub.com.br";
-const baseUrl = HLS_BASE_URL.endsWith('/live') ? HLS_BASE_URL : `${HLS_BASE_URL}/live`;
+function buildHlsBasePath(): string {
+  const raw = process.env.NEXT_PUBLIC_HLS_URL || "https://athloshub.com.br";
+  return raw.endsWith("/live") ? raw : `${raw}/live`;
+}
 
 
 export function HLSPlayer({ streamKey, isLive, autoPlay = true }: HLSPlayerProps) {
+  const hlsBasePath = useMemo(() => buildHlsBasePath(), []);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -46,12 +49,7 @@ export function HLSPlayer({ streamKey, isLive, autoPlay = true }: HLSPlayerProps
     if (!videoRef.current || !isLive) return;
 
     const video = videoRef.current;
-    const streamUrl = `${baseUrl}/${streamKey}/index.m3u8`;
-    
-    console.log('=== DEBUG HLS ===');
-    console.log('HLS_BASE_URL:', HLS_BASE_URL);
-    console.log('Stream Key:', streamKey);
-    console.log('URL completa:', streamUrl);
+    const streamUrl = `${hlsBasePath}/${streamKey}/index.m3u8`;
 
     const loadStream = (attempt: number = 0) => {
       if (retryTimeoutRef.current) {
@@ -64,27 +62,18 @@ export function HLSPlayer({ streamKey, isLive, autoPlay = true }: HLSPlayerProps
         hlsRef.current = null;
       }
 
-      if (video.canPlayType("application/vnd.apple.mpegurl")) {
-        video.src = streamUrl;
-        setIsLoading(false);
-        
-        if (autoPlay) {
-          video.play().catch((err) => {
-            if (err.name === "NotAllowedError") {
-              setError("Clique no vídeo para iniciar a reprodução");
-            } else {
-              setError("Erro ao iniciar reprodução. Clique para tentar novamente.");
-            }
-          });
-        }
-      } 
-      else if (Hls.isSupported()) {
+      // Preferir hls.js em Chromium: alguns browsers reportam canPlayType(apple mpegurl) mas não reproduzem LL-HLS fmp4.
+      if (Hls.isSupported()) {
         const hls = new Hls({
           enableWorker: true,
           lowLatencyMode: true,
-          backBufferLength: 90,
-          maxBufferLength: 30,
-          maxMaxBufferLength: 60,
+          liveDurationInfinity: true,
+          // LL-HLS no MediaMTX: buffers menores reduzem latência e uso de memória
+          backBufferLength: 30,
+          liveBackBufferLength: 0,
+          maxBufferLength: 12,
+          maxMaxBufferLength: 24,
+          liveSyncDurationCount: 3,
           startLevel: -1,
           manifestLoadingTimeOut: 10000,
           manifestLoadingMaxRetry: 3,
@@ -111,14 +100,10 @@ export function HLSPlayer({ streamKey, isLive, autoPlay = true }: HLSPlayerProps
           }
         });
 
-        hls.on(Hls.Events.ERROR, (event, data) => {
-          console.error('=== ERRO HLS ===');
-          console.error('Fatal?', data.fatal);
-          console.error('Type:', data.type);
-          console.error('Details:', data.details);
-          console.error('Error:', data.error);
-          console.error('Response:', data.response);
-          
+        hls.on(Hls.Events.ERROR, (_event, data) => {
+          if (process.env.NODE_ENV === "development" && data.fatal) {
+            console.warn("[HLS]", data.type, data.details, data.error);
+          }
           if (!data.fatal) {
             return;
           }
@@ -155,6 +140,19 @@ export function HLSPlayer({ streamKey, isLive, autoPlay = true }: HLSPlayerProps
               break;
           }
         });
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = streamUrl;
+        setIsLoading(false);
+
+        if (autoPlay) {
+          video.play().catch((err) => {
+            if (err.name === "NotAllowedError") {
+              setError("Clique no vídeo para iniciar a reprodução");
+            } else {
+              setError("Erro ao iniciar reprodução. Clique para tentar novamente.");
+            }
+          });
+        }
       } else {
         setError("Seu navegador não suporta HLS");
         setIsLoading(false);
@@ -166,7 +164,7 @@ export function HLSPlayer({ streamKey, isLive, autoPlay = true }: HLSPlayerProps
     return () => {
       cleanupHls();
     };
-  }, [streamKey, isLive, autoPlay, retryTrigger, cleanupHls]);
+  }, [streamKey, isLive, autoPlay, retryTrigger, cleanupHls, hlsBasePath]);
 
   if (!isLive) {
     return (
@@ -177,12 +175,14 @@ export function HLSPlayer({ streamKey, isLive, autoPlay = true }: HLSPlayerProps
   }
 
   const handleVideoClick = useCallback(() => {
-    if (videoRef.current && error?.includes("Clique")) {
-      videoRef.current.play().then(() => {
-        setError(null);
-      }).catch(console.error);
-    }
-  }, [error]);
+    const v = videoRef.current;
+    if (!v || !v.paused) return;
+    v.play()
+      .then(() => setError(null))
+      .catch(() => {
+        /* autoplay / policy: utilizador pode precisar interagir de novo */
+      });
+  }, []);
 
   return (
     <div className="relative w-full h-full bg-black">
