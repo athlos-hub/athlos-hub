@@ -1,32 +1,15 @@
 #!/bin/bash
-set -a
+set -euo pipefail
 
-if [ -f "../../.env" ]; then
-    echo "📦 Carregando variáveis de ../../.env"
-    source ../../.env
-fi
-
-if [ -f "../../.env.development" ]; then
-    echo "📦 Carregando variáveis de ../../.env.development"
-    source ../../.env.development
-fi
+cd "$(dirname "$0")"
 
 if [ -f ".env" ]; then
-    echo "📦 Carregando variáveis de .env (local)"
-    source .env
+  set -a
+  # shellcheck source=/dev/null
+  source .env
+  set +a
 fi
 
-set +a
-
-export SPRING_PROFILES_ACTIVE=dev
-
-echo ""
-echo "🚀 Iniciando social-service em modo desenvolvimento..."
-echo "   Profile ativo: dev"
-echo "   Database: ${DATABASE_NAME:-social_db}"
-echo "   Redis: ${REDIS_HOST:-localhost}:${REDIS_PORT:-6379}"
-echo "   Auth Service: ${AUTH_SERVICE_URL:-http://localhost:8000}"
-echo "   Porta: ${SERVER_PORT:-8083}"
-echo ""
-
-./mvnw spring-boot:run
+PORT="${API_PORT:-8083}"
+echo "Iniciando social-service (FastAPI) na porta ${PORT}..."
+exec poetry run uvicorn src.main:app --reload --host 0.0.0.0 --port "$PORT"

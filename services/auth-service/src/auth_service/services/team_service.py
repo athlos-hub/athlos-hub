@@ -8,6 +8,7 @@ import httpx
 from fastapi import UploadFile
 
 from auth_service.core.config import settings
+from auth_service.infrastructure.competitions_team_import import send_team_import_rpc
 from auth_service.core.exceptions import (
     AlreadyTeamMemberError,
     CompetitionServiceError,
@@ -812,8 +813,13 @@ class TeamService:
                 await self._team_repo.update(team)
 
     async def _send_to_competitions_service(self, payload: TeamApprovalPayload) -> UUID:
-        """Envia time aprovado para o competitions-service."""
-        # URL do competitions-service (usar variável de ambiente)
+        """Envia time aprovado para o competitions-service (RabbitMQ RPC ou HTTP)."""
+        if settings.RABBITMQ_URL:
+            try:
+                return await send_team_import_rpc(payload)
+            except Exception as e:
+                logger.warning("teams.import via RabbitMQ falhou, tentando HTTP: %s", e)
+
         competitions_url = getattr(
             settings, "COMPETITIONS_SERVICE_URL", "http://localhost:8100"
         )
@@ -845,6 +851,19 @@ class TeamService:
         self, external_team_id: UUID, logo_url: Optional[str]
     ) -> None:
         """Propaga escudo do auth para o registro do time no competitions-service."""
+        if settings.RABBITMQ_URL:
+            try:
+                from auth_service.infrastructure.team_logo_publisher import (
+                    publish_team_logo_sync,
+                )
+
+                await publish_team_logo_sync(external_team_id, logo_url)
+                return
+            except Exception as e:
+                logger.warning(
+                    "teams.logo.sync via RabbitMQ falhou, tentando HTTP: %s", e
+                )
+
         competitions_url = getattr(
             settings, "COMPETITIONS_SERVICE_URL", "http://localhost:8100"
         )

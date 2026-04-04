@@ -2,11 +2,11 @@ services:
   social-pg:
     image: bitnami/postgresql:latest
     ports:
-      - "5436:5432"
+      - "5437:5432"
     environment:
-      POSTGRES_USER: ${DATABASE_USER}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_DB: ${DATABASE_NAME}
+      POSTGRESQL_USERNAME: ${DATABASE_USER}
+      POSTGRESQL_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRESQL_DATABASE: ${DATABASE_NAME}
     volumes:
       - ./docker:/docker-entrypoint-initdb.d:ro
       - social_pg_data:/bitnami/postgresql

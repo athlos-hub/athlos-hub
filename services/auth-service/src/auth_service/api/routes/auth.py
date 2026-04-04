@@ -93,7 +93,7 @@ async def register(
     token = AuthenticationService.generate_email_token(result["id"])
     activation_link = f"{settings.FRONTEND_URL}/verify?token={token}"
 
-    MailService.send_email_background(
+    await MailService.schedule_email(
         background,
         to=email,
         subject="Ative sua conta AthlosHub",
@@ -143,7 +143,7 @@ async def resend_verification_email(
     token = AuthenticationService.generate_email_token(user_info["user_id"])
     verification_link = f"{settings.FRONTEND_URL}/verify?token={token}"
 
-    MailService.send_email_background(
+    await MailService.schedule_email(
         background,
         to=user_info["email"],
         subject="Reenvio do link de verificação - AthlosHub",
@@ -187,7 +187,7 @@ async def request_reset_password(
         raise
     token = AuthenticationService.generate_reset_password_token(user_info["user_id"])
     reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
-    MailService.send_email_background(
+    await MailService.schedule_email(
         background,
         to=user_info["email"],
         subject="Redefinição de senha - AthlosHub",

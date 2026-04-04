@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -9,6 +10,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from auth_service.api.router import api_router
 from auth_service.core.config import settings
+from auth_service.infrastructure.email_consumer import email_consumer_loop
+from auth_service.infrastructure.email_publisher import close_email_publisher
+from auth_service.infrastructure.notification_publisher import close_notification_publisher
+from auth_service.infrastructure.team_logo_publisher import close_team_logo_publisher
 
 logger = logging.getLogger(__name__)
 
@@ -21,13 +26,17 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Gerenciador de contexto para o ciclo de vida da aplicação."""
 
-    setup_logging(log_level_str=settings.LOG_LEVEL, env=settings.ENV)
+    setup_logging(
+        service_name="auth-service",
+        log_level_str=settings.LOG_LEVEL,
+        env=settings.ENV,
+        log_format=settings.LOG_FORMAT,
+        show_banner=settings.LOG_STARTUP_BANNER,
+    )
 
     startup_logger = logging.getLogger("app.startup")
 
     try:
-        startup_logger.info("Inicializando conexão com banco de dados...")
-
         db.init(
             url=settings.database_url,
             pool_min=settings.DB_POOL_MIN_SIZE,
@@ -35,21 +44,43 @@ async def lifespan(app: FastAPI):
             timeout=settings.DB_POOL_TIMEOUT,
         )
         await db.check_health()
-
-        startup_logger.info("Banco de dados conectado com sucesso")
+        startup_logger.info("Base de dados conectada.")
 
     except Exception as e:
-        startup_logger.critical(f"Falha crítica no startup: {e}")
-        raise e
+        startup_logger.critical("Falha crítica no startup: %s", e)
+        raise
+
+    stop_mail = asyncio.Event()
+    email_consumer_task: asyncio.Task | None = None
+    if settings.RABBITMQ_URL:
+        email_consumer_task = asyncio.create_task(email_consumer_loop(stop_mail))
 
     yield
 
     startup_logger.info("Encerrando aplicação...")
+    if email_consumer_task:
+        stop_mail.set()
+        email_consumer_task.cancel()
+        try:
+            await email_consumer_task
+        except asyncio.CancelledError:
+            pass
+    try:
+        await close_team_logo_publisher()
+    except Exception as e:
+        startup_logger.error("Erro ao fechar publisher de escudo: %s", e)
+    try:
+        await close_email_publisher()
+    except Exception as e:
+        startup_logger.error("Erro ao fechar publisher de e-mail: %s", e)
+    try:
+        await close_notification_publisher()
+    except Exception as e:
+        startup_logger.error("Erro ao fechar RabbitMQ publisher: %s", e)
     try:
         await db.close()
-        startup_logger.info("Conexões fechadas.")
     except Exception as e:
-        startup_logger.error(f"Erro ao fechar recursos: {e}")
+        startup_logger.error("Erro ao fechar recursos: %s", e)
 
 
 def create_app() -> FastAPI:
@@ -70,7 +101,11 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    app.add_middleware(RequestLoggerMiddleware, always_log_paths=["/auth", "/login"])
+    app.add_middleware(
+        RequestLoggerMiddleware,
+        service_name="auth-service",
+        always_log_paths=["/auth", "/login"],
+    )
 
     register_exception_handlers(app)
 

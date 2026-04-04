@@ -41,6 +41,7 @@ class Settings(BaseSettings):
 
     NOTIFICATIONS_SERVICE_URL: str = Field(default="http://localhost:8100")
     NOTIFICATIONS_INTERNAL_API_KEY: str = Field(default="")
+    RABBITMQ_URL: str = Field(default="")
     
     FRONTEND_URL: str = Field(default="https://athloshub.com.br")
 
@@ -51,6 +52,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS_RAW: str = Field(default="", alias="CORS_ORIGINS")
     LOG_LEVEL: str = Field(default="INFO")
     LOG_FORMAT: str = Field(default="json")
+    LOG_STARTUP_BANNER: bool = Field(default=False)
 
     @property
     def CORS_ORIGINS(self) -> List[str]:

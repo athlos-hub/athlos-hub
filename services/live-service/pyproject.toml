@@ -30,6 +30,7 @@ pydantic-settings = ">=2.6.0,<3.0.0"
 python-multipart = ">=0.0.9"
 psycopg2-binary = ">=2.9.0,<3.0.0"
 python-dotenv = ">=1.0.0,<2.0.0"
+aio-pika = "^9.4.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.0.0"

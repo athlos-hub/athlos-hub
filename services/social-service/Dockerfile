@@ -1,43 +1,48 @@
-FROM maven:3.9-eclipse-temurin-21-alpine AS builder
+FROM python:3.12-slim AS builder
+
 WORKDIR /app
 
-COPY pom.xml .
-RUN mvn dependency:go-offline -B
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY src ./src
+RUN pip install --no-cache-dir poetry==2.1.2
 
-RUN echo "=== Verificando migrations ===" && \
-    ls -la src/main/resources/db/migration/ || echo "AVISO: Pasta de migrations não encontrada!"
-    
-RUN mvn clean package -DskipTests -B
+WORKDIR /app/services/social-service
+COPY services/social-service/pyproject.toml services/social-service/poetry.lock* ./
+RUN poetry config virtualenvs.create false && poetry install --no-interaction --no-ansi --only main
 
-RUN echo "=== Verificando JAR ===" && \
-    JAR_FILE=$(find target -name "*.jar" -type f | head -n 1) && \
-    unzip -l "$JAR_FILE" | grep "db/migration" || echo "AVISO: Migrations não encontradas no JAR!"
+COPY services/social-service/src ./src
 
-FROM eclipse-temurin:21-jre-alpine
+FROM python:3.12-slim AS runtime
+
 WORKDIR /app
 
-RUN apk add --no-cache curl netcat-openbsd
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --shell /bin/bash appuser
 
-RUN addgroup -S spring && adduser -S spring -G spring
+COPY --from=builder --chown=appuser:appuser /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder --chown=appuser:appuser /usr/local/bin /usr/local/bin
+COPY --from=builder --chown=appuser:appuser /app/services/social-service/src ./src
+COPY --chown=appuser:appuser services/social-service/entrypoint.sh ./entrypoint.sh
+COPY --chown=appuser:appuser services/social-service/alembic.ini ./alembic.ini
+COPY --chown=appuser:appuser services/social-service/alembic ./alembic
+COPY --chown=appuser:appuser services/social-service/scripts ./services/social-service/scripts
 
-COPY --from=builder /app/target/*.jar app.jar
+RUN chown -R appuser:appuser /app
 
-COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh && chown spring:spring /app/entrypoint.sh
+USER appuser
 
-RUN echo "=== Conteúdo do JAR - db/migration ===" && \
-    unzip -l app.jar | grep -E "(db/migration|V1__)" || echo "Migrations não encontradas no JAR"
-
-USER spring:spring
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONPATH=/app:/app/src
 
 EXPOSE 8083
 
-ENV SPRING_PROFILES_ACTIVE=prod \
-    JAVA_OPTS="-Xmx384m -Xms192m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
-
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=40s \
-    CMD curl -f http://localhost:8083/actuator/health || exit 1
+RUN chmod +x /app/entrypoint.sh /app/services/social-service/scripts/*.sh || true
 
 ENTRYPOINT ["/app/entrypoint.sh"]

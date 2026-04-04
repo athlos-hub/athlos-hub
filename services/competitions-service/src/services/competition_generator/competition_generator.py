@@ -17,6 +17,7 @@ from .generate_group import GenerateGroupCompetitionService as GroupService
 from ..livestream_client import LivestreamClient, LivestreamClientError
 from ..live_creation_service import LiveCreationService
 from src.config.settings import settings
+from src.infrastructure.messaging.live_match_publisher import publish_live_creates_for_matches
 
 logger = logging.getLogger(__name__)
 
@@ -119,109 +120,127 @@ class StructureGeneratorService:
                 detail="Mínimo de 2 times necessários."
             )
         
-        # 5. Inicializar cliente do livestream
-        async with LivestreamClient(
-            base_url=settings.LIVESTREAM_SERVICE_URL,
-            timeout=settings.LIVESTREAM_SERVICE_TIMEOUT
-        ) as livestream_client:
-            
-            # 6. Validar disponibilidade do live-service
-            is_available = await livestream_client.health_check()
-            if not is_available:
-                logger.warning(
-                    f"Livestream service indisponível em {settings.LIVESTREAM_SERVICE_URL}. "
-                    "Continuando sem criar lives."
-                )
-                # Aqui você pode decidir: falhar ou continuar sem lives
-                # Por ora, vou fazer falhar para garantir consistência
+        try:
+            await initialize_standings(self.session, competition, teams)
+
+            matches: list[MatchModel] = []
+
+            if competition.system == CompetitionSystem.POINTS:
+                league_service = LeagueService(self.session)
+                await league_service.generate_league_system(competition, teams)
+                matches = await self._get_competition_matches(competition_id)
+
+            elif competition.system == CompetitionSystem.ELIMINATION:
+                elimination_service = EliminationService(self.session)
+                await elimination_service.generate_elimination_system(competition, teams)
+                matches = await self._get_competition_matches(competition_id)
+
+            elif competition.system == CompetitionSystem.MIXED:
+                group_service = GroupService(self.session)
+                await group_service.generate_groups_elimination_system(competition, teams)
+                matches = await self._get_competition_matches(competition_id)
+
+            else:
                 raise HTTPException(
-                    status_code=503,
-                    detail="Livestream service indisponível. Tente novamente mais tarde."
+                    status_code=501,
+                    detail="Sistema de disputa ainda não implementado.",
                 )
-            
-            try:
-                # 7. Iniciar transação para geração da estrutura
-                await initialize_standings(self.session, competition, teams)
-                
-                # 8. Gerar estrutura de acordo com o sistema
-                matches: list[MatchModel] = []
-                
-                if competition.system == CompetitionSystem.POINTS:
-                    league_service = LeagueService(self.session)
-                    await league_service.generate_league_system(competition, teams)
-                    matches = await self._get_competition_matches(competition_id)
-                    
-                elif competition.system == CompetitionSystem.ELIMINATION:
-                    elimination_service = EliminationService(self.session)
-                    await elimination_service.generate_elimination_system(competition, teams)
-                    matches = await self._get_competition_matches(competition_id)
-                    
-                elif competition.system == CompetitionSystem.MIXED:
-                    group_service = GroupService(self.session)
-                    await group_service.generate_groups_elimination_system(competition, teams)
-                    matches = await self._get_competition_matches(competition_id)
-                    
-                else:
+
+            competition.status = (
+                CompetitionStatus.STARTED
+                if hasattr(CompetitionStatus, "STARTED")
+                else "STARTED"
+            )
+            self.session.add(competition)
+
+            if settings.RABBITMQ_URL:
+                await self.session.commit()
+                logger.info(
+                    "Estrutura persistida; enfileirando %s lives (RabbitMQ) para competição %s",
+                    len(matches),
+                    competition_id,
+                )
+                try:
+                    n = await publish_live_creates_for_matches(matches, organization_id)
+                except Exception as e:
+                    logger.error("Falha ao enfileirar criação de lives: %s", e)
                     raise HTTPException(
-                        status_code=501, 
-                        detail="Sistema de disputa ainda não implementado."
+                        status_code=502,
+                        detail=(
+                            "Estrutura salva, mas falha ao enfileirar criação de lives no broker. "
+                            "Verifique o RabbitMQ."
+                        ),
+                    ) from e
+                return {
+                    "message": "Estrutura gerada com sucesso; lives enfileiradas para o live-service",
+                    "system": competition.system,
+                    "matches_created": len(matches),
+                    "lives_created": 0,
+                    "lives_queued": n,
+                    "lives": [],
+                }
+
+            async with LivestreamClient(
+                base_url=settings.LIVESTREAM_SERVICE_URL,
+                timeout=settings.LIVESTREAM_SERVICE_TIMEOUT,
+            ) as livestream_client:
+                is_available = await livestream_client.health_check()
+                if not is_available:
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Livestream service indisponível. Tente novamente mais tarde.",
                     )
-                
-                # 9. Criar lives para as partidas
-                logger.info(f"Criando {len(matches)} lives para competição {competition_id}")
-                
+
+                logger.info(
+                    "Criando %s lives (HTTP) para competição %s",
+                    len(matches),
+                    competition_id,
+                )
                 live_service = LiveCreationService(
                     session=self.session,
                     livestream_client=livestream_client,
-                    organization_id=organization_id
+                    organization_id=organization_id,
                 )
-                
-                created_lives = await live_service.create_lives_for_matches(
-                    matches=matches,
-                    competition=competition
-                )
-                
-                # 10. Atualizar status da competição
-                competition.status = (
-                    CompetitionStatus.STARTED 
-                    if hasattr(CompetitionStatus, 'STARTED') 
-                    else "STARTED"
-                )
-                self.session.add(competition)
-                
-                # 11. Commit final
+                try:
+                    created_lives = await live_service.create_lives_for_matches(
+                        matches=matches,
+                        competition=competition,
+                    )
+                except LivestreamClientError as e:
+                    logger.error("Erro ao criar lives: %s", e)
+                    await self.session.rollback()
+                    raise HTTPException(
+                        status_code=502,
+                        detail=f"Falha ao criar lives no live service: {str(e)}",
+                    )
+
                 await self.session.commit()
-                
+
                 logger.info(
-                    f"Estrutura gerada com sucesso para competição {competition_id}. "
-                    f"Lives criadas: {len(created_lives)}"
+                    "Estrutura gerada com sucesso para competição %s. Lives criadas: %s",
+                    competition_id,
+                    len(created_lives),
                 )
-                
+
                 return {
                     "message": "Estrutura gerada com sucesso",
                     "system": competition.system,
                     "matches_created": len(matches),
                     "lives_created": len(created_lives),
-                    "lives": created_lives
+                    "lives_queued": 0,
+                    "lives": created_lives,
                 }
-                
-            except LivestreamClientError as e:
-                # Erro específico do livestream - fazer rollback
-                logger.error(f"Erro ao criar lives: {e}")
-                await self.session.rollback()
-                raise HTTPException(
-                    status_code=502,
-                    detail=f"Falha ao criar lives no live service: {str(e)}"
-                )
-                
-            except Exception as e:
-                # Qualquer outro erro - fazer rollback
-                logger.error(f"Erro ao gerar estrutura: {e}")
-                await self.session.rollback()
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Erro ao gerar estrutura da competição: {str(e)}"
-                )
+
+        except HTTPException:
+            await self.session.rollback()
+            raise
+        except Exception as e:
+            logger.error("Erro ao gerar estrutura: %s", e)
+            await self.session.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Erro ao gerar estrutura da competição: {str(e)}",
+            )
     
     async def _get_competition_matches(self, competition_id: UUID) -> list[MatchModel]:
         """

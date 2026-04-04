@@ -6,9 +6,9 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from fastapi import BackgroundTasks, HTTPException, status
-from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from auth_service.core.config import settings
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 logger = logging.getLogger(__name__)
 
@@ -64,4 +64,29 @@ class MailService:
         template_name: str,
         context: dict,
     ):
+        background.add_task(MailService.send_email, to, subject, template_name, context)
+
+    @staticmethod
+    async def schedule_email(
+        background: BackgroundTasks,
+        to: str,
+        subject: str,
+        template_name: str,
+        context: dict,
+    ) -> None:
+        if settings.RABBITMQ_URL:
+            try:
+                from auth_service.infrastructure.email_publisher import publish_mail_task
+
+                await publish_mail_task(
+                    to=to,
+                    subject=subject,
+                    template_name=template_name,
+                    context=context,
+                )
+                return
+            except Exception as e:
+                logger.warning(
+                    "E-mail: fila indisponível, usando BackgroundTasks: %s", e
+                )
         background.add_task(MailService.send_email, to, subject, template_name, context)

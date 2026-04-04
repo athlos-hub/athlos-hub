@@ -45,6 +45,12 @@ class Settings(BaseSettings):
     AUTH_SERVICE_URL: str = "http://localhost:8100"
     COMPETITIONS_SERVICE_URL: str = "http://localhost:8100"
 
+    rabbitmq_url: str = Field(default="", alias="RABBITMQ_URL")
+
+    LOG_LEVEL: str = Field(default="INFO", alias="LOG_LEVEL")
+    LOG_FORMAT: str = Field(default="text", alias="LOG_FORMAT")
+    LOG_STARTUP_BANNER: bool = Field(default=False, alias="LOG_STARTUP_BANNER")
+
     @field_validator("ENV", mode="before")
     @classmethod
     def _normalize_env(cls, v: object) -> str:

@@ -4,11 +4,11 @@ import logging
 from typing import Optional, Sequence
 from uuid import UUID
 
-import httpx
 from fastapi import UploadFile
 from slugify import slugify
 
 from auth_service.core.config import settings
+from auth_service.infrastructure.notification_publisher import send_internal_notification
 from auth_service.core.exceptions import (
     AlreadyOwnerError,
     CannotRemoveOwnerError,
@@ -89,43 +89,22 @@ class OrganizationService:
         action_url: str = None
     ):
         """Helper para enviar notificações de forma consistente."""
-        endpoint = f"{settings.NOTIFICATIONS_SERVICE_URL.rstrip('/')}/api/notifications/internal"
-        try:
-            base_extra_data = {
-                "organization_id": str(organization.id),
-                "organization_name": organization.name,
-                "organization_slug": organization.slug,
-            }
-            
-            if extra_data:
-                base_extra_data.update(extra_data)
+        base_extra_data = {
+            "organization_id": str(organization.id),
+            "organization_name": organization.name,
+            "organization_slug": organization.slug,
+        }
+        if extra_data:
+            base_extra_data.update(extra_data)
 
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    endpoint,
-                    headers={
-                        "X-Internal-API-Key": settings.NOTIFICATIONS_INTERNAL_API_KEY,
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "user_id": str(user_id),
-                        "type": notification_type,
-                        "title": title,
-                        "message": message,
-                        "extra_data": base_extra_data,
-                        "action_url": action_url or f"/organizations/{organization.slug}",
-                    },
-                    timeout=5.0,
-                )
-
-                # Agora a variável existe e o raise_for_status vai funcionar
-                response.raise_for_status()
-
-                logger.info(f"Notificação {notification_type} enviada para {user_id}")
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Erro HTTP ao enviar notificação {notification_type}: {e.response.text}")
-        except Exception as e:
-            logger.error(f"Erro ao conectar no serviço de notificação ({endpoint}): {e}")
+        await send_internal_notification(
+            user_id=user_id,
+            notification_type=notification_type,
+            title=title,
+            message=message,
+            extra_data=base_extra_data,
+            action_url=action_url or f"/organizations/{organization.slug}",
+        )
 
     async def create_organization(
         self,

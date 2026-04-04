@@ -6,7 +6,8 @@ from typing import Optional, Dict, Any
 from enum import Enum
 
 import httpx
-from fastapi import HTTPException
+
+from src.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -67,17 +68,36 @@ class SocialServiceClient:
         Returns:
             True se a notificação foi bem sucedida
         """
-        url = f"{self.base_url}/api/social/achievements/notify"
-        
         payload = {
             "targetId": target_id,
             "targetType": target_type.value,
             "achievementType": achievement_type.value,
             "competitionId": competition_id,
             "competitionName": competition_name,
-            "metadata": metadata or {}
+            "metadata": metadata or {},
         }
-        
+
+        if settings.RABBITMQ_URL:
+            try:
+                from src.infrastructure.messaging.social_achievement_publisher import (
+                    publish_achievement_event,
+                )
+
+                await publish_achievement_event(payload)
+                logger.info(
+                    "Conquista %s enfileirada (athlos.social) para %s (%s)",
+                    achievement_type.value,
+                    target_id,
+                    target_type.value,
+                )
+                return True
+            except Exception as e:
+                logger.warning(
+                    "RabbitMQ (conquistas) indisponível, tentando HTTP: %s", e
+                )
+
+        url = f"{self.base_url}/api/social/achievements/notify"
+
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 logger.info(

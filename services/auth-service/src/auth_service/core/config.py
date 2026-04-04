@@ -77,12 +77,14 @@ class Settings(BaseSettings):
     RATE_LIMIT_ENABLED: bool = False
     RATE_LIMIT_PER_MINUTE: int = 60
 
-    # Logging
+    # Logging: "text" (linha legível Athlos) ou "json" (uma linha JSON por evento)
     LOG_LEVEL: str = "INFO"
-    LOG_FORMAT: str = "%(levelname)s:%(name)s:%(message)s"
+    LOG_FORMAT: str = "text"
+    LOG_STARTUP_BANNER: bool = Field(default=False)
 
     NOTIFICATIONS_SERVICE_URL: str = "http://localhost:8100"
     NOTIFICATIONS_INTERNAL_API_KEY: str = "dev-notifications-internal-key"
+    RABBITMQ_URL: str = ""
     COMPETITIONS_SERVICE_URL: str = "http://localhost:8100"
 
     # Bucket S3

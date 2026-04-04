@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     )
 
     LOG_LEVEL: str = Field(default="INFO", alias="LOG_LEVEL")
+    LOG_FORMAT: str = Field(default="text", alias="LOG_FORMAT")
+    LOG_STARTUP_BANNER: bool = Field(default=False, alias="LOG_STARTUP_BANNER")
+
+    rabbitmq_url: str = Field(default="", alias="RABBITMQ_URL")
 
     @field_validator("ENV", mode="before")
     @classmethod

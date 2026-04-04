@@ -1,9 +1,11 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
 from notifications_service.common.api.handlers import register_exception_handlers
 from notifications_service.common.logging import RequestLoggerMiddleware, setup_logging
 from notifications_service.infrastructure.database.client import db
+from notifications_service.infrastructure.messaging.consumer import notification_consumer_loop
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -19,10 +21,15 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    setup_logging(log_level_str=settings.LOG_LEVEL, env=settings.ENV)
+    setup_logging(
+        service_name=settings.service_name,
+        log_level_str=settings.LOG_LEVEL,
+        env=settings.ENV,
+        log_format=settings.LOG_FORMAT,
+        show_banner=settings.LOG_STARTUP_BANNER,
+    )
     startup_logger = logging.getLogger("app.startup")
     try:
-        startup_logger.info("Inicializando banco de notificações...")
         db.init(
             url=settings.database_url,
             pool_min=5,
@@ -30,12 +37,26 @@ async def lifespan(app: FastAPI):
             timeout=30,
         )
         await db.check_health()
-        startup_logger.info("Banco conectado.")
+        startup_logger.info("Base de dados conectada.")
     except Exception as e:
         startup_logger.critical("Falha no startup: %s", e)
         raise
+
+    stop_consumer = asyncio.Event()
+    consumer_task: asyncio.Task | None = None
+    if settings.rabbitmq_url:
+        consumer_task = asyncio.create_task(notification_consumer_loop(stop_consumer))
+        startup_logger.info("Consumer RabbitMQ: notificações ativo.")
+
     yield
-    startup_logger.info("Encerrando...")
+
+    if consumer_task:
+        stop_consumer.set()
+        consumer_task.cancel()
+        try:
+            await consumer_task
+        except asyncio.CancelledError:
+            pass
     try:
         await db.close()
     except Exception as e:
@@ -57,7 +78,11 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.add_middleware(RequestLoggerMiddleware)
+    app.add_middleware(
+        RequestLoggerMiddleware,
+        service_name=settings.service_name,
+        always_log_paths=["/api"],
+    )
     register_exception_handlers(app)
     app.include_router(api_router, prefix="/api")
     return app

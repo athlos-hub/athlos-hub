@@ -37,7 +37,7 @@ jobs:
             context: .
             dockerfile: services/notifications-service/Dockerfile
           - name: social-service
-            context: services/social-service
+            context: .
             dockerfile: services/social-service/Dockerfile
 
     steps:

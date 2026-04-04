@@ -443,38 +443,36 @@ jobs:
             echo "run=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Set up Java
+      - name: Set up Python
         if: steps.should_run.outputs.run == 'true'
-        uses: actions/setup-java@v4
+        uses: actions/setup-python@v4
         with:
-          distribution: 'temurin'
-          java-version: '21'
-          cache: 'maven'
+          python-version: '3.12.12'
+
+      - name: Install Poetry
+        if: steps.should_run.outputs.run == 'true'
+        run: pip install poetry
+
+      - name: Install Deps
+        if: steps.should_run.outputs.run == 'true'
+        working-directory: ./services/social-service
+        run: poetry install
 
       - name: Run Tests
         if: steps.should_run.outputs.run == 'true'
         working-directory: ./services/social-service
-        run: ./mvnw clean test jacoco:report
+        run: poetry run pytest --junitxml=test-results.xml --cov=src --cov-report=term --cov-report=xml --cov-report=json -v
 
       - name: Extract Test Results
         if: steps.should_run.outputs.run == 'true' && always()
         id: test-results
         working-directory: ./services/social-service
         run: |
-          if ls target/surefire-reports/TEST-*.xml 1> /dev/null 2>&1; then
-            # Agregar valores de todos os XMLs
-            TOTAL=$(grep -h 'testsuite' target/surefire-reports/TEST-*.xml | grep -oP 'tests="\K[0-9]+' | awk '{s+=$1} END {print s}')
-            FAILURES=$(grep -h 'testsuite' target/surefire-reports/TEST-*.xml | grep -oP 'failures="\K[0-9]+' | awk '{s+=$1} END {print s}')
-            ERRORS=$(grep -h 'testsuite' target/surefire-reports/TEST-*.xml | grep -oP 'errors="\K[0-9]+' | awk '{s+=$1} END {print s}')
-            SKIPPED=$(grep -h 'testsuite' target/surefire-reports/TEST-*.xml | grep -oP 'skipped="\K[0-9]+' | awk '{s+=$1} END {print s}')
-            
-            # Garantir valores padrão se grep não encontrar nada
-            TOTAL=${TOTAL:-0}
-            FAILURES=${FAILURES:-0}
-            ERRORS=${ERRORS:-0}
-            SKIPPED=${SKIPPED:-0}
-            
-            PASSED=$((TOTAL - FAILURES - ERRORS - SKIPPED))
+          if [ -f test-results.xml ]; then
+            TOTAL=$(grep -oP 'tests="\K[0-9]+' test-results.xml | head -1)
+            FAILURES=$(grep -oP 'failures="\K[0-9]+' test-results.xml | head -1)
+            ERRORS=$(grep -oP 'errors="\K[0-9]+' test-results.xml | head -1)
+            PASSED=$((TOTAL - FAILURES - ERRORS))
             echo "total=$TOTAL" >> $GITHUB_OUTPUT
             echo "passed=$PASSED" >> $GITHUB_OUTPUT
             echo "failed=$((FAILURES + ERRORS))" >> $GITHUB_OUTPUT
@@ -489,14 +487,9 @@ jobs:
         id: coverage
         working-directory: ./services/social-service
         run: |
-          if [ -f target/site/jacoco/index.html ]; then
-            # Extrair cobertura do HTML do jacoco
-            COVERAGE=$(grep -oP 'Total[^>]*>.*?([0-9]+)%' target/site/jacoco/index.html | grep -oP '[0-9]+%' | head -1 | tr -d '%')
-            echo "coverage=${COVERAGE:-0}" >> $GITHUB_OUTPUT
-          elif [ -f target/site/jacoco/jacoco.csv ]; then
-            # Extrair do CSV se disponível
-            COVERAGE=$(awk -F',' 'NR==2 {covered=$5; missed=$4; if(covered+missed>0) print int(covered/(covered+missed)*100); else print 0}' target/site/jacoco/jacoco.csv)
-            echo "coverage=${COVERAGE:-0}" >> $GITHUB_OUTPUT
+          if [ -f coverage.json ]; then
+            COVERAGE=$(python -c "import json; print(round(json.load(open('coverage.json'))['totals']['percent_covered'], 1))")
+            echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
           else
             echo "coverage=0" >> $GITHUB_OUTPUT
           fi
@@ -506,14 +499,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: social-service-coverage
-          path: services/social-service/target/site/jacoco/
+          path: services/social-service/coverage.xml
           retention-days: 7
 
       - name: Publish Test Results
         if: steps.should_run.outputs.run == 'true' && always()
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
-          files: 'services/social-service/target/surefire-reports/*.xml'
+          files: 'services/social-service/test-results.xml'
           check_name: 'Social Service Test Results'
           comment_mode: off
 
