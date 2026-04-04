@@ -10,6 +10,7 @@ from shared.database.client import db
 from shared.logging import RequestLoggerMiddleware, setup_logging
 from src.config.settings import settings
 from src.infrastructure.messaging.achievement_consumer import achievement_consumer_loop
+from src.infrastructure.messaging.profile_consumer import profile_consumer_loop
 from src.infrastructure.notifications import close_notification_publisher
 from src.routes.router import router
 
@@ -44,20 +45,25 @@ async def lifespan(app: FastAPI):
         raise
 
     stop_mq = asyncio.Event()
-    mq_task: asyncio.Task | None = None
+    mq_tasks: list[asyncio.Task] = []
     if settings.RABBITMQ_URL.strip():
-        mq_task = asyncio.create_task(achievement_consumer_loop(stop_mq))
-        startup_logger.info("Consumer RabbitMQ: conquistas (social) ativo.")
+        mq_tasks.append(asyncio.create_task(achievement_consumer_loop(stop_mq)))
+        mq_tasks.append(asyncio.create_task(profile_consumer_loop(stop_mq)))
+        startup_logger.info(
+            "Consumers RabbitMQ: conquistas + perfis (social) ativos."
+        )
 
     yield
 
-    if mq_task:
+    if mq_tasks:
         stop_mq.set()
-        mq_task.cancel()
-        try:
-            await mq_task
-        except asyncio.CancelledError:
-            pass
+        for t in mq_tasks:
+            t.cancel()
+        for t in mq_tasks:
+            try:
+                await t
+            except asyncio.CancelledError:
+                pass
     try:
         await close_notification_publisher()
     except Exception as e:

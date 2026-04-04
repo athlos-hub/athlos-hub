@@ -13,7 +13,13 @@ from auth_service.core.config import settings
 from auth_service.infrastructure.email_consumer import email_consumer_loop
 from auth_service.infrastructure.email_publisher import close_email_publisher
 from auth_service.infrastructure.notification_publisher import close_notification_publisher
+from auth_service.infrastructure.social_profile_publisher import (
+    close_social_profile_publisher,
+)
 from auth_service.infrastructure.team_logo_publisher import close_team_logo_publisher
+from auth_service.startup.realm_role_user_bootstrap import (
+    bootstrap_local_users_from_realm_role,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +52,13 @@ async def lifespan(app: FastAPI):
         await db.check_health()
         startup_logger.info("Base de dados conectada.")
 
+        try:
+            await bootstrap_local_users_from_realm_role()
+        except Exception as e:
+            startup_logger.warning(
+                "Bootstrap de usuários (realm role) não concluído: %s", e
+            )
+
     except Exception as e:
         startup_logger.critical("Falha crítica no startup: %s", e)
         raise
@@ -77,6 +90,10 @@ async def lifespan(app: FastAPI):
         await close_notification_publisher()
     except Exception as e:
         startup_logger.error("Erro ao fechar RabbitMQ publisher: %s", e)
+    try:
+        await close_social_profile_publisher()
+    except Exception as e:
+        startup_logger.error("Erro ao fechar publisher social profiles: %s", e)
     try:
         await db.close()
     except Exception as e:

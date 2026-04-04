@@ -20,7 +20,7 @@ from src.infrastructure.messaging.constants import (
     QUEUE_SOCIAL_FAILED,
     RK_ACHIEVEMENT_NOTIFY,
 )
-from src.services.achievements_service import process_achievement_notification
+from src.services.posts.achievements_service import process_achievement_notification
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,9 @@ async def _handle_message(message: IncomingMessage) -> None:
     async with message.process(requeue=False):
         raw = json.loads(message.body.decode("utf-8"))
         async with db.session() as session:
-            await process_achievement_notification(session, raw)
+            result = await process_achievement_notification(session, raw)
+        if result is None:
+            return
 
 
 async def achievement_consumer_loop(stop: asyncio.Event) -> None:

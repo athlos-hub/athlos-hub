@@ -53,6 +53,9 @@ class OrganizationProfile(Base):
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     is_private: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     social_links: Mapped[Optional[dict]] = mapped_column(JSONB)
+    approved_for_social: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.current_timestamp()
     )
@@ -76,6 +79,9 @@ class TeamProfile(Base):
     is_private: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     social_links: Mapped[Optional[dict]] = mapped_column(JSONB)
     achievements: Mapped[Optional[dict]] = mapped_column(JSONB)
+    approved_for_social: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.current_timestamp()
     )

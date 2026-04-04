@@ -9,11 +9,16 @@ export default async function ProfileRedirectPage() {
     redirect("/auth/login?callbackUrl=%2Fprofile");
   }
 
-  const keycloakId = (session.user as any).keycloakId;
+  const username = (session.user as any).username;
 
-  if (!keycloakId) {
+  if (!username) {
+    // Fallback para keycloakId se username não estiver disponível
+    const keycloakId = (session.user as any).keycloakId;
+    if (keycloakId) {
+      redirect(`/profile/${keycloakId}`);
+    }
     redirect("/auth/login?callbackUrl=%2Fprofile");
   }
 
-  redirect(`/profile/${keycloakId}`);
+  redirect(`/profile/${username}`);
 }

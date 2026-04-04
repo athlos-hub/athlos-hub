@@ -81,7 +81,7 @@ export async function getOrganizationPosts(
   organizationSlug: string,
   page: number = 0,
   size: number = 10
-): Promise<{ content: Post[]; totalPages: number; totalElements: number }> {
+): Promise<{ content: Post[]; totalPages: number; totalElements: number } | null> {
   try {
     const session = await getServerSession(authOptions);
 
@@ -100,9 +100,8 @@ export async function getOrganizationPosts(
     });
 
     return response.data.data;
-  } catch (error) {
-    console.error("Failed to get organization posts:", error);
-    throw error;
+  } catch {
+    return null;
   }
 }
 
@@ -110,7 +109,7 @@ export async function getTeamPosts(
   teamId: string,
   page: number = 0,
   size: number = 10
-): Promise<{ content: Post[]; totalPages: number; totalElements: number }> {
+): Promise<{ content: Post[]; totalPages: number; totalElements: number } | null> {
   try {
     const session = await getServerSession(authOptions);
 
@@ -129,8 +128,7 @@ export async function getTeamPosts(
     });
 
     return response.data.data;
-  } catch (error) {
-    console.error("Failed to get team posts:", error);
-    throw error;
+  } catch {
+    return null;
   }
 }

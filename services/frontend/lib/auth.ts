@@ -69,6 +69,7 @@ export const authOptions: NextAuthOptions = {
                                 name: userData?.first_name || userData?.username,
                                 email: userData?.email,
                                 image: userData?.avatar_url || userData?.avatarUrl,
+                                username: userData?.username,
                                 accessToken: (data as BackendLoginResponse).access_token,
                                 refreshToken: (data as BackendLoginResponse).refresh_token,
                             } as User;
@@ -146,6 +147,7 @@ export const authOptions: NextAuthOptions = {
                         email: userProfile.email,
                         name: userProfile.firstName || userProfile.first_name || userProfile.username,
                         image: userProfile.avatar_url || userProfile.avatarUrl,
+                        username: userProfile.username,
                         accessToken: tokens.access_token,
                         refreshToken: tokens.refresh_token,
                     } as User;

@@ -77,6 +77,21 @@ export async function getAthletePostsByKeycloakId(
   return response.data.data || response.data as unknown as PageResponse<Post>;
 }
 
+export async function getAthletePostsByUsername(
+  username: string,
+  page: number = 0,
+  size: number = 10
+): Promise<PageResponse<Post>> {
+  const response = await axiosAPI<ApiResponse<PageResponse<Post>>>({
+    endpoint: `/social/athlete/posts-by-username/${username}`,
+    method: "GET",
+    queryParams: { page, size },
+    withAuth: false,
+  });
+
+  return response.data.data || response.data as unknown as PageResponse<Post>;
+}
+
 export async function deleteAthletePost(postId: string): Promise<void> {
   const session = await getServerSession(authOptions);
   

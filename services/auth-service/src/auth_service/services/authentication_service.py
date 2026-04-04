@@ -38,6 +38,9 @@ from auth_service.core.exceptions import (
     UserNotFoundError,
 )
 from auth_service.core.keycloak_provider import get_keycloak_admin_client
+from auth_service.infrastructure.social_profile_publisher import (
+    publish_profile_athlete_ensure,
+)
 from auth_service.infrastructure.database.models.user_model import User
 from auth_service.repositories.user_repository import UserRepositoryContract
 from auth_service.schemas.auth import KeycloakTokenResponse, TokenResponse
@@ -399,7 +402,7 @@ class AuthenticationService:
                             "email": email,
                             "firstName": first_name,
                             "lastName": last_name,
-                            "attributes": {"avatar_url": avatar_url},  # 👈 junto com o resto
+                            "attributes": {"avatar_url": [avatar_url]},
                         },
                     )
                 except Exception as exc:
@@ -473,6 +476,32 @@ class AuthenticationService:
             "email": str(user.email),
             "name": user.first_name or user.username,
         }
+
+    @staticmethod
+    def keycloak_admin_rep_to_token_payload(rep: dict[str, Any]) -> dict[str, Any]:
+        """UserRepresentation do Admin API → claims usados em get_or_create_user_from_keycloak_token."""
+        attrs = rep.get("attributes") or {}
+        avatar_val = attrs.get("avatar_url")
+        if isinstance(avatar_val, list) and avatar_val:
+            picture = avatar_val[0]
+        elif isinstance(avatar_val, str):
+            picture = avatar_val
+        else:
+            picture = None
+        return {
+            "sub": rep.get("id"),
+            "email": rep.get("email"),
+            "preferred_username": rep.get("username"),
+            "given_name": rep.get("firstName") or "",
+            "family_name": rep.get("lastName") or "",
+            "email_verified": bool(rep.get("emailVerified", False)),
+            "enabled": rep.get("enabled", True),
+            "picture": picture,
+        }
+
+    async def sync_local_user_from_keycloak_admin_rep(self, rep: dict[str, Any]) -> User:
+        payload = self.keycloak_admin_rep_to_token_payload(rep)
+        return await self.get_or_create_user_from_keycloak_token(payload)
 
     async def get_or_create_user_from_keycloak_token(self, token_payload: dict[str, Any]) -> User:
         keycloak_id = token_payload.get("sub")
@@ -590,16 +619,35 @@ class AuthenticationService:
         last_name: str,
         keycloak_id: str,
     ) -> str:
-        base = (
-            username
-            or f"{first_name or ''} {last_name or ''}".strip()
-            or (email.split("@")[0] if email else "")
-            or "user"
-        )
-        normalized = slugify(base, lowercase=True)
-        if not normalized:
-            normalized = slugify(f"user-{keycloak_id[:8]}", lowercase=True)
-        return normalized
+        """
+        Normaliza o username com a seguinte prioridade:
+        1. Username fornecido (se não for um email)
+        2. Nome + Sobrenome
+        3. Parte antes do @ do email (sem incluir o domínio)
+        4. Fallback com keycloak_id
+        """
+        # Se tem username e não é um email, use diretamente
+        if username and "@" not in username:
+            normalized = slugify(username, lowercase=True)
+            if normalized:
+                return normalized
+        
+        # Se tem nome + sobrenome, use
+        full_name = f"{first_name or ''} {last_name or ''}".strip()
+        if full_name:
+            normalized = slugify(full_name, lowercase=True)
+            if normalized:
+                return normalized
+        
+        # Se tem email, extraia apenas a parte antes do @
+        if email:
+            email_part = email.split("@")[0]
+            normalized = slugify(email_part, lowercase=True)
+            if normalized:
+                return normalized
+        
+        # Fallback: use keycloak_id
+        return slugify(f"user-{keycloak_id[:8]}", lowercase=True)
 
     async def _create_new_user(
         self,
@@ -621,6 +669,12 @@ class AuthenticationService:
             keycloak_id=keycloak_id,
         )
 
+        # Validar se username já existe; se sim, adicionar sufixo
+        existing_user = await self._user_repo.get_by_username(normalized_username)
+        if existing_user:
+            # Adicionar sufixo único baseado em keycloak_id
+            normalized_username = f"{normalized_username}-{keycloak_id[:6]}"
+
         new_user = User(
             id=uuid.uuid4(),
             keycloak_id=keycloak_id,
@@ -636,6 +690,7 @@ class AuthenticationService:
         try:
             await self._user_repo.create(new_user)
             await self._user_repo.commit()
+            await publish_profile_athlete_ensure(keycloak_id)
             return new_user
         except IntegrityError as exc:
             await self._user_repo.rollback()

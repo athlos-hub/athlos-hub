@@ -1,40 +1,26 @@
 from fastapi import APIRouter
 
-from src.routes import (
-    athlete_posts,
-    comments,
-    context as context_routes,
-    feed,
-    follow_athletes,
-    follow_organization,
-    follow_team,
-    health,
-    likes,
-    organization_posts,
-    posts_read,
-    profiles,
-    shares,
-    team_posts,
-)
+from src.routes import health
+from src.routes.context.router import router as context_router
 from src.routes.deps import get_session
+from src.routes.feed.router import router as feed_router
+from src.routes.follows.router import router as follows_router
+from src.routes.interactions.router import router as interactions_router
+from src.routes.posts.router import router as posts_router
+from src.routes.posts_read.router import router as posts_read_router
+from src.routes.profiles.router import router as profiles_router
 
 router = APIRouter(prefix="/api/social", tags=["social"])
 
 for sub in (
     health.router,
-    feed.router,
-    posts_read.router,
-    profiles.router,
-    context_routes.router,
-    athlete_posts.router,
-    organization_posts.router,
-    team_posts.router,
-    comments.router,
-    likes.router,
-    shares.router,
-    follow_athletes.router,
-    follow_organization.router,
-    follow_team.router,
+    profiles_router,
+    feed_router,
+    posts_router,
+    posts_read_router,
+    interactions_router,
+    follows_router,
+    context_router,
 ):
     router.include_router(sub)
 

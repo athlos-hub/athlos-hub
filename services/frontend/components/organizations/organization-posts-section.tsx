@@ -15,6 +15,7 @@ interface OrganizationPostsSectionProps {
 
 export function OrganizationPostsSection({ organizationSlug }: OrganizationPostsSectionProps) {
     const [posts, setPosts] = useState<Post[]>([]);
+    const [socialUnavailable, setSocialUnavailable] = useState(false);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
@@ -33,13 +34,22 @@ export function OrganizationPostsSection({ organizationSlug }: OrganizationPosts
             }
 
             const response = await getOrganizationPosts(organizationSlug, pageNumber, 10);
-            
+
+            if (!response) {
+                setSocialUnavailable(true);
+                setPosts([]);
+                setTotalPages(0);
+                setPage(0);
+                return;
+            }
+            setSocialUnavailable(false);
+
             if (pageNumber === 0) {
                 setPosts(response.content);
             } else {
-                setPosts(prev => [...prev, ...response.content]);
+                setPosts((prev) => [...prev, ...response.content]);
             }
-            
+
             setTotalPages(response.totalPages);
             setPage(pageNumber);
         } catch (error) {
@@ -68,6 +78,25 @@ export function OrganizationPostsSection({ organizationSlug }: OrganizationPosts
                 <CardContent className="py-8 text-center">
                     <Loader2 className="h-8 w-8 animate-spin mx-auto text-main" />
                     <p className="text-sm text-muted-foreground mt-2">Carregando posts...</p>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    if (socialUnavailable) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <MessageSquare className="h-5 w-5 text-main" />
+                        Posts da Organização
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                    <p>
+                        A área social desta organização fica disponível após a aprovação pela
+                        plataforma.
+                    </p>
                 </CardContent>
             </Card>
         );

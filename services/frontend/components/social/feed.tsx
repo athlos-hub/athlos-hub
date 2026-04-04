@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Post } from "@/types/social";
 import { PostCard } from "./post-card";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 
 interface FeedProps {
@@ -58,19 +58,20 @@ export function Feed({ initialPosts, loadMore, onLike, onComment, hasMore = true
 
     if (isLoading) {
         return (
-            <div className="text-center py-12">
+            <div className="py-12 text-center">
                 <Loader2 className="h-8 w-8 animate-spin mx-auto text-main" />
-                <p className="text-muted-foreground mt-2">Carregando posts...</p>
+                <p className="text-sm text-muted-foreground mt-3">Carregando publicações…</p>
             </div>
         );
     }
 
     if (posts.length === 0) {
         return (
-            <div className="text-center py-12">
-                <p className="text-muted-foreground">Nenhum post encontrado</p>
-                <p className="text-sm text-muted-foreground mt-2">
-                    Seja o primeiro a postar algo!
+            <div className="py-12 text-center text-muted-foreground">
+                <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-40 text-main" />
+                <p className="font-medium text-foreground">Nenhuma publicação no feed</p>
+                <p className="text-sm mt-2 max-w-sm mx-auto">
+                    Quando houver posts da comunidade, eles aparecerão aqui.
                 </p>
             </div>
         );

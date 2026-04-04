@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Search, Loader2, ArrowLeft, X } from "lucide-react";
+import { Search, Loader2, X } from "lucide-react";
 import { PostCard } from "@/components/social/post-card";
 import { searchPosts } from "@/actions/search";
 import { Post } from "@/types/social";
@@ -65,19 +65,21 @@ export default function SearchPage() {
   };
 
   return (
-    <div className="container">
+    <div className="space-y-6">
       <PageHeader
-        className="mb-6"
         title="Buscar"
         subtitle="Busque por postagens na comunidade"
       />
 
-      <form onSubmit={handleSearch} className="mb-6">
+      <form
+        onSubmit={handleSearch}
+        className="rounded-2xl border border-gray-200 bg-card p-6 shadow-sm"
+      >
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="text"
-            placeholder="Buscar posts..."
+            placeholder="Buscar publicações…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="pl-10 pr-10"
@@ -87,7 +89,7 @@ export default function SearchPage() {
               type="button"
               variant="ghost"
               size="icon"
-              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
               onClick={() => setQuery("")}
             >
               <X className="h-4 w-4" />
@@ -97,24 +99,28 @@ export default function SearchPage() {
       </form>
 
       {!searchQuery ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>Digite algo para buscar posts</p>
+        <div className="rounded-xl border border-dashed border-border bg-muted/20 py-12 text-center text-muted-foreground">
+          <Search className="h-12 w-12 mx-auto mb-3 opacity-40 text-main" />
+          <p className="font-medium text-foreground">Digite um termo para buscar</p>
+          <p className="text-sm mt-2 max-w-sm mx-auto">
+            Encontre publicações por palavras-chave.
+          </p>
         </div>
       ) : isLoading ? (
-        <div className="flex items-center justify-center py-12">
+        <div className="rounded-xl border border-border bg-muted/20 py-12 flex flex-col items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-main" />
+          <p className="text-sm text-muted-foreground mt-3">Buscando…</p>
         </div>
       ) : posts.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>Nenhum post encontrado para "{searchQuery}"</p>
-          <p className="text-sm mt-2">Tente pesquisar com outros termos</p>
+        <div className="rounded-xl border border-dashed border-border bg-muted/20 py-12 text-center text-muted-foreground">
+          <Search className="h-12 w-12 mx-auto mb-3 opacity-40 text-main" />
+          <p className="font-medium text-foreground">Nenhum resultado para &quot;{searchQuery}&quot;</p>
+          <p className="text-sm mt-2 max-w-sm mx-auto">Tente outros termos ou uma busca mais ampla.</p>
         </div>
       ) : (
         <>
-          <div className="mb-4 text-sm text-muted-foreground">
-            Resultados para "{searchQuery}"
+          <div className="text-sm text-muted-foreground">
+            Resultados para &quot;{searchQuery}&quot;
           </div>
           <div className="space-y-4">
             {posts.map((post) => (

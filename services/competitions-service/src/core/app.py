@@ -15,6 +15,9 @@ from src.infrastructure.messaging.logo_sync_consumer import logo_sync_consumer_l
 from src.infrastructure.messaging.social_achievement_publisher import (
     close_social_achievement_publisher,
 )
+from src.infrastructure.messaging.social_team_profile_publisher import (
+    close_social_team_profile_publisher,
+)
 from src.infrastructure.messaging.teams_import_consumer import teams_import_consumer_loop
 from src.infrastructure.notification_publisher import close_notification_publisher
 
@@ -79,6 +82,10 @@ async def lifespan(app: FastAPI):
         await close_social_achievement_publisher()
     except Exception as e:
         startup_logger.error("Erro ao fechar publisher social (conquistas): %s", e)
+    try:
+        await close_social_team_profile_publisher()
+    except Exception as e:
+        startup_logger.error("Erro ao fechar publisher social (perfis de time): %s", e)
     try:
         await close_live_match_publisher()
     except Exception as e:

@@ -31,6 +31,18 @@ async def get_user_by_keycloak_id(keycloak_id: str, authorization: str) -> dict[
     return await _get_json(f"/api/users/by-keycloak-id/{keycloak_id}", authorization)
 
 
+async def get_user_by_username(username: str) -> dict[str, Any]:
+    """Busca usuário por username (sem autenticação necessária)."""
+    base = settings.AUTH_SERVICE_URL.rstrip("/")
+    url = f"{base}/api/users/by-username/{username}"
+    async with httpx.AsyncClient(timeout=settings.AUTH_SERVICE_TIMEOUT) as client:
+        r = await client.get(url)
+        if r.status_code == 404:
+            raise AuthClientError("not_found")
+        r.raise_for_status()
+        return r.json()
+
+
 async def get_organization_by_slug(slug: str, authorization: str) -> dict[str, Any]:
     return await _get_json(f"/api/organizations/{slug}", authorization)
 

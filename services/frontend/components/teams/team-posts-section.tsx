@@ -15,6 +15,7 @@ interface TeamPostsSectionProps {
 
 export function TeamPostsSection({ teamId }: TeamPostsSectionProps) {
   const [posts, setPosts] = useState<Post[]>([]);
+  const [socialUnavailable, setSocialUnavailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -33,6 +34,15 @@ export function TeamPostsSection({ teamId }: TeamPostsSectionProps) {
       }
 
       const response = await getTeamPosts(teamId, pageNumber, 10);
+
+      if (!response) {
+        setSocialUnavailable(true);
+        setPosts([]);
+        setTotalPages(0);
+        setPage(0);
+        return;
+      }
+      setSocialUnavailable(false);
 
       if (pageNumber === 0) {
         setPosts(response.content);
@@ -68,6 +78,25 @@ export function TeamPostsSection({ teamId }: TeamPostsSectionProps) {
         <CardContent className="py-8 text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto text-main" />
           <p className="text-sm text-muted-foreground mt-2">Carregando posts...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (socialUnavailable) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5 text-main" />
+            Posts da Equipe
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="py-8 text-center text-muted-foreground">
+          <p>
+            A área social desta equipe fica disponível após a consolidação na competição e
+            sincronização com a rede social.
+          </p>
         </CardContent>
       </Card>
     );

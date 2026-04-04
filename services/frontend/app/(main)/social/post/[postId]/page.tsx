@@ -84,10 +84,8 @@ export default async function PostPage({ params }: PostPageProps) {
   const { postId } = await params;
 
   return (
-    <div className="container">
-      <Suspense fallback={<PostSkeleton />}>
-        <PostContent postId={postId} />
-      </Suspense>
-    </div>
+    <Suspense fallback={<PostSkeleton />}>
+      <PostContent postId={postId} />
+    </Suspense>
   );
 }

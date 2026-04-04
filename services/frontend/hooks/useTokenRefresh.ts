@@ -75,7 +75,13 @@ export function useTokenRefresh(minutesBeforeExpiry: number = 5, checkIntervalSe
         const interval = setInterval(checkAndRefresh, checkIntervalSeconds * 1000);
 
         return () => clearInterval(interval);
-    }, [session, minutesBeforeExpiry, checkIntervalSeconds, update]);
+    }, [
+        session?.accessToken,
+        session?.refreshToken,
+        minutesBeforeExpiry,
+        checkIntervalSeconds,
+        update,
+    ]);
 
     return {
         isRefreshing: refreshingRef.current,

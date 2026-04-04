@@ -11,6 +11,7 @@ RK_LIVE_MATCH_REQUESTED = "match.live.requested"
 RK_TEAMS_IMPORT_REQUESTED = "teams.import.requested"
 RK_TEAMS_LOGO_SYNC = "teams.logo.sync"
 RK_ACHIEVEMENT_NOTIFY = "achievement.notify"
+RK_PROFILE_TEAM_ENSURE = "profile.team.ensure"
 
 QUEUE_TEAMS_IMPORT = "competitions.teams_import_rpc"
 QUEUE_LOGO_SYNC = "competitions.team_logo_sync"

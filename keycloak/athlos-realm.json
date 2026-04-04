@@ -2009,6 +2009,29 @@
     "acr.loa.map" : "{}",
     "shortVerificationUri" : ""
   },
+  "users" : [ {
+    "username" : "admin",
+    "enabled" : true,
+    "emailVerified" : true,
+    "firstName" : "Admin",
+    "lastName" : "Athlos",
+    "email" : "admin@athlos.com",
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "AthlosAdminDev1!",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "default-roles-athlos", "admin" ]
+  }, {
+    "username" : "service-account-auth-client",
+    "enabled" : true,
+    "serviceAccountClientId" : "auth-client",
+    "totp" : false,
+    "emailVerified" : false,
+    "clientRoles" : {
+      "realm-management" : [ "query-users", "view-users", "view-realm" ]
+    }
+  } ],
   "keycloakVersion" : "26.5.6",
   "userManagedAccessAllowed" : false,
   "organizationsEnabled" : false,

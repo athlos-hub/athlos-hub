@@ -61,6 +61,16 @@ export async function getAthleteProfileByKeycloakId(keycloakId: string): Promise
   return response.data.data || response.data as unknown as AthleteProfile;
 }
 
+export async function getAthleteProfileByUsername(username: string): Promise<AthleteProfile> {
+  const response = await axiosAPI<ApiResponse<AthleteProfile>>({
+    endpoint: `/social/profile-by-username/${username}`,
+    method: "GET",
+    withAuth: false,
+  });
+
+  return response.data.data || response.data as unknown as AthleteProfile;
+}
+
 export async function updateAthleteProfile(updates: Partial<AthleteProfile>): Promise<AthleteProfile> {
   const session = await getServerSession(authOptions);
   

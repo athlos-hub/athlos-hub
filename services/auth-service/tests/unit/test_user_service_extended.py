@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 from auth_service.core.exceptions import (
+    KeycloakCommunicationError,
     UserNotFoundError,
     UsernameAlreadyInUseError,
 )
@@ -36,7 +37,16 @@ class TestUserServiceUpdateUserProfile:
         )
 
         assert result == mock_user
+        mock_keycloak_service.get_user.assert_called_once_with(mock_user.keycloak_id)
         mock_keycloak_service.update_user.assert_called_once()
+        call_args = mock_keycloak_service.update_user.call_args[0]
+        assert call_args[0] == mock_user.keycloak_id
+        assert set(call_args[1].keys()) <= {
+            "username",
+            "email",
+            "firstName",
+            "lastName",
+        }
         mock_user_repository.update.assert_called_once()
 
     @pytest.mark.asyncio
@@ -111,13 +121,13 @@ class TestUserServiceUpdateUserProfile:
     async def test_update_user_profile_no_keycloak_service(
         self, mock_user_repository, mock_user
     ):
-        """Test ValueError when keycloak_service is not provided."""
+        """Test KeycloakCommunicationError when keycloak_service is not provided."""
         service = UserService(
             user_repository=mock_user_repository,
             keycloak_service=None,
         )
 
-        with pytest.raises(ValueError, match="KeycloakService é necessário"):
+        with pytest.raises(KeycloakCommunicationError):
             await service.update_user_profile(
                 user=mock_user,
                 first_name="NewName",
@@ -195,6 +205,7 @@ class TestUserServiceUpdateUserProfile:
 
             assert result == mock_user
             mock_upload.assert_called_once()
+            mock_keycloak_service.update_user.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_update_user_profile_no_updates(

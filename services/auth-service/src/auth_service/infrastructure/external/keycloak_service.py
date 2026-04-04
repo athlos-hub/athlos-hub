@@ -38,6 +38,10 @@ class KeycloakAdminService(IKeycloakService):
             f"Usuário {keycloak_id} atualizado no Keycloak: {list(data.keys())}"
         )
 
+    async def get_user(self, keycloak_id: str) -> dict[str, Any]:
+        keycloak_admin = get_keycloak_admin_client()
+        return await run_in_threadpool(keycloak_admin.get_user, keycloak_id)
+
     async def get_users_by_email(self, email: str) -> list[dict[str, Any]]:
         """Obtém usuários por email do Keycloak."""
         keycloak_admin = get_keycloak_admin_client()

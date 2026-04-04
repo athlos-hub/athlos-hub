@@ -9,6 +9,9 @@ from slugify import slugify
 
 from auth_service.core.config import settings
 from auth_service.infrastructure.notification_publisher import send_internal_notification
+from auth_service.infrastructure.social_profile_publisher import (
+    publish_profile_organization_ensure,
+)
 from auth_service.core.exceptions import (
     AlreadyOwnerError,
     CannotRemoveOwnerError,
@@ -154,6 +157,9 @@ class OrganizationService:
         await self._org_repo.refresh(created_org)
 
         logger.info(f"Organização criada: {created_org.slug} por usuário {owner.id}")
+        await publish_profile_organization_ensure(
+            created_org.slug, approved_for_social=False
+        )
         return created_org
 
     async def get_organization_by_slug(
@@ -1212,7 +1218,9 @@ class OrganizationService:
             action_text = "excluída"
 
         await self._org_repo.commit()
-        
+
+        await publish_profile_organization_ensure(org.slug, approved_for_social=False)
+
         await self._send_notification(
             user_id=org.owner_id,
             notification_type="organization_deleted",
@@ -1263,6 +1271,8 @@ class OrganizationService:
         await self._org_repo.refresh(org)
 
         logger.info(f"Organização {slug} aceita por admin")
+
+        await publish_profile_organization_ensure(org.slug, approved_for_social=True)
         
         await self._send_notification(
             user_id=org.owner_id,
@@ -1296,6 +1306,8 @@ class OrganizationService:
         await self._org_repo.commit()
 
         logger.info(f"Organização {slug} suspensa por admin")
+
+        await publish_profile_organization_ensure(org.slug, approved_for_social=False)
         
         await self._send_notification(
             user_id=org.owner_id,
@@ -1339,6 +1351,8 @@ class OrganizationService:
         await self._org_repo.commit()
 
         logger.info(f"Organização {slug} reativada por admin")
+
+        await publish_profile_organization_ensure(org.slug, approved_for_social=True)
         
         await self._send_notification(
             user_id=org.owner_id,

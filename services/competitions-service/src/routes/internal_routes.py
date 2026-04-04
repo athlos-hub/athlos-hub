@@ -7,10 +7,12 @@ Rotas para comunicação entre serviços (não expostas ao público).
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Response
 
-from src.routes.routes import get_session
+from shared.database.client import db
+from src.infrastructure.messaging.social_team_profile_publisher import (
+    publish_team_profile_ensure,
+)
 from src.schemas.internal_teams import (
     TeamCreatedResponse,
     TeamFromAuthPayload,
@@ -29,21 +31,26 @@ router = APIRouter(prefix="/internal", tags=["Internal"])
 @router.post("/teams", response_model=TeamCreatedResponse, status_code=201)
 async def receive_approved_team(
     payload: TeamFromAuthPayload,
-    session: AsyncSession = Depends(get_session),
 ):
     """Recebe um time aprovado do auth-service (HTTP)."""
-    return await import_team_from_auth(session, payload)
+    async with db.session() as session:
+        result = await import_team_from_auth(session, payload)
+    await publish_team_profile_ensure(
+        team_id=str(result.id),
+        organization_slug=payload.organization_slug,
+        approved_for_social=True,
+    )
+    return result
 
 
 @router.patch("/teams/{team_id}/logo", status_code=204)
 async def sync_team_logo(
     team_id: UUID,
     payload: TeamLogoSyncPayload,
-    session: AsyncSession = Depends(get_session),
 ):
     """Sincroniza URL do escudo (chamado pelo auth-service após upload/remoção)."""
-    await sync_team_logo_by_id(session, team_id, payload.logo_url)
-    await session.commit()
+    async with db.session() as session:
+        await sync_team_logo_by_id(session, team_id, payload.logo_url)
     return Response(status_code=204)
 
 

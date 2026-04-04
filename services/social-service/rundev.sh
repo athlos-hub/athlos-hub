@@ -11,5 +11,4 @@ if [ -f ".env" ]; then
 fi
 
 PORT="${API_PORT:-8083}"
-echo "Iniciando social-service (FastAPI) na porta ${PORT}..."
 exec poetry run uvicorn src.main:app --reload --host 0.0.0.0 --port "$PORT"

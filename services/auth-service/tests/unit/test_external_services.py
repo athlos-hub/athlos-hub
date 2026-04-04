@@ -90,6 +90,28 @@ class TestKeycloakAdminService:
             )
 
     @pytest.mark.asyncio
+    async def test_get_user(self, mock_keycloak_admin):
+        """Test get_user delegates to Keycloak admin."""
+        from auth_service.infrastructure.external.keycloak_service import (
+            KeycloakAdminService,
+        )
+
+        mock_keycloak_admin.get_user.return_value = {
+            "id": "user-123",
+            "email": "a@b.com",
+        }
+
+        with patch(
+            "auth_service.infrastructure.external.keycloak_service.get_keycloak_admin_client",
+            return_value=mock_keycloak_admin,
+        ):
+            service = KeycloakAdminService()
+            result = await service.get_user("user-123")
+
+            assert result["id"] == "user-123"
+            mock_keycloak_admin.get_user.assert_called_once_with("user-123")
+
+    @pytest.mark.asyncio
     async def test_get_users_by_email(self, mock_keycloak_admin):
         """Test get_users_by_email."""
         from auth_service.infrastructure.external.keycloak_service import (

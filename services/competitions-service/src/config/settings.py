@@ -51,7 +51,7 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS_RAW: str = Field(default="", alias="CORS_ORIGINS")
     LOG_LEVEL: str = Field(default="INFO")
-    LOG_FORMAT: str = Field(default="json")
+    LOG_FORMAT: str = Field(default="text")
     LOG_STARTUP_BANNER: bool = Field(default=False)
 
     @property

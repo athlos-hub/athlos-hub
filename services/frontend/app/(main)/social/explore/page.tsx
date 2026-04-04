@@ -59,16 +59,16 @@ export default function ExplorePage() {
   };
 
   return (
-    <div className="container">
+    <div className="space-y-6">
       <PageHeader
-        className="mb-6"
         title="Explorar"
         subtitle="Acompanhe as postagens mais populares"
       />
 
-      <FilterPanel icon={<TrendingUp className="w-5 h-5 text-gray-600" />} className="mb-6">
+      <FilterPanel icon={<TrendingUp className="w-5 h-5 text-gray-600" />}>
         <div className="flex flex-wrap gap-2 items-center">
           <button
+            type="button"
             onClick={() => setActiveTab("trending")}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               activeTab === "trending"
@@ -81,6 +81,7 @@ export default function ExplorePage() {
             </span>
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab("today")}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               activeTab === "today"
@@ -93,6 +94,7 @@ export default function ExplorePage() {
             </span>
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab("week")}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               activeTab === "week"
@@ -108,13 +110,17 @@ export default function ExplorePage() {
       </FilterPanel>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-12">
+        <div className="rounded-xl border border-border bg-muted/20 py-12 flex flex-col items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-main" />
+          <p className="text-sm text-muted-foreground mt-3">Carregando publicações…</p>
         </div>
       ) : posts.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>Nenhum post popular ainda</p>
+        <div className="rounded-xl border border-dashed border-border bg-muted/20 py-12 text-center text-muted-foreground">
+          <TrendingUp className="h-12 w-12 mx-auto mb-3 opacity-40 text-main" />
+          <p className="font-medium text-foreground">Nenhuma publicação popular ainda</p>
+          <p className="text-sm mt-2 max-w-sm mx-auto">
+            Volte mais tarde ou experimente outro período nos filtros.
+          </p>
         </div>
       ) : (
         <>

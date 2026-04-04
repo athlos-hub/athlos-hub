@@ -62,6 +62,21 @@ export async function getUserPublicInfo(keycloakId: string): Promise<User | null
   }
 }
 
+export async function getUserByUsername(username: string): Promise<User | null> {
+  try {
+    const response = await axiosAPI<User>({
+      endpoint: `/users/by-username/${username}`,
+      method: "GET",
+      withAuth: false,
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error("Failed to fetch user by username:", error);
+    return null;
+  }
+}
+
 export async function getUsersPublicInfo(keycloakIds: string[]): Promise<Map<string, User>> {
   const userMap = new Map<string, User>();
   

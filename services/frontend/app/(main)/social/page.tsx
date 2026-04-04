@@ -22,34 +22,49 @@ async function SocialFeedContent() {
 
 export default function SocialPage() {
     return (
-        <div className="container">
-            <Suspense fallback={<FeedSkeleton />}>
-                <SocialFeedContent />
-            </Suspense>
-        </div>
+        <Suspense fallback={<FeedSkeleton />}>
+            <SocialFeedContent />
+        </Suspense>
     );
 }
 
 function FeedSkeleton() {
     return (
-        <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-                <div key={i} className="border rounded-xl p-6 space-y-4">
-                    <div className="flex items-center gap-4">
-                        <Skeleton className="h-12 w-12 rounded-full" />
-                        <div className="space-y-2 flex-1">
-                            <Skeleton className="h-4 w-32" />
-                            <Skeleton className="h-3 w-24" />
+        <div className="space-y-6">
+            <div className="space-y-2">
+                <Skeleton className="h-9 w-48 max-w-full" />
+                <Skeleton className="h-5 w-full max-w-md" />
+            </div>
+            <div className="rounded-2xl border border-gray-200 bg-card p-6 shadow-sm">
+                <div className="flex flex-wrap items-center gap-4">
+                    <Skeleton className="h-5 w-5 rounded" />
+                    <Skeleton className="h-5 w-16" />
+                    <Skeleton className="h-9 w-28 rounded-lg" />
+                    <Skeleton className="h-9 w-28 rounded-lg" />
+                </div>
+            </div>
+            <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                    <div
+                        key={i}
+                        className="rounded-xl border border-gray-200 bg-card p-6 shadow-sm space-y-4"
+                    >
+                        <div className="flex items-center gap-4">
+                            <Skeleton className="h-12 w-12 rounded-full" />
+                            <div className="space-y-2 flex-1 min-w-0">
+                                <Skeleton className="h-4 w-32" />
+                                <Skeleton className="h-3 w-24" />
+                            </div>
+                        </div>
+                        <Skeleton className="h-20 w-full rounded-lg" />
+                        <div className="flex gap-4">
+                            <Skeleton className="h-8 w-20 rounded-md" />
+                            <Skeleton className="h-8 w-20 rounded-md" />
+                            <Skeleton className="h-8 w-20 rounded-md" />
                         </div>
                     </div>
-                    <Skeleton className="h-20 w-full" />
-                    <div className="flex gap-4">
-                        <Skeleton className="h-8 w-20" />
-                        <Skeleton className="h-8 w-20" />
-                        <Skeleton className="h-8 w-20" />
-                    </div>
-                </div>
-            ))}
+                ))}
+            </div>
         </div>
     );
 }

@@ -41,6 +41,7 @@ def org_profile_to_camel(o: OrganizationProfile) -> dict[str, Any]:
         "isVerified": o.is_verified,
         "isPrivate": o.is_private,
         "socialLinks": o.social_links,
+        "approvedForSocial": o.approved_for_social,
         "createdAt": iso_datetime(o.created_at),
         "updatedAt": iso_datetime(o.updated_at),
     }
@@ -58,6 +59,7 @@ def team_profile_to_camel(t: TeamProfile) -> dict[str, Any]:
         "isPrivate": t.is_private,
         "socialLinks": t.social_links,
         "achievements": t.achievements,
+        "approvedForSocial": t.approved_for_social,
         "createdAt": iso_datetime(t.created_at),
         "updatedAt": iso_datetime(t.updated_at),
     }

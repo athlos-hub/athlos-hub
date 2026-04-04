@@ -16,6 +16,10 @@ class IKeycloakService(ABC):
         ...
 
     @abstractmethod
+    async def get_user(self, keycloak_id: str) -> dict[str, Any]:
+        ...
+
+    @abstractmethod
     async def get_users_by_email(self, email: str) -> list[dict[str, Any]]:
         ...
 

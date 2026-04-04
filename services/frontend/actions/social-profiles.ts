@@ -11,6 +11,8 @@ export interface OrganizationProfile {
   achievementsCount: number;
   achievements?: any[];
   socialLinks?: any;
+  /** Perfil visível no social (organização aprovada na plataforma). */
+  approvedForSocial?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -26,6 +28,8 @@ export interface TeamProfile {
   achievementsCount: number;
   achievements?: any[];
   socialLinks?: any;
+  /** Perfil visível no social (equipe consolidada/aprovada na competição). */
+  approvedForSocial?: boolean;
   createdAt: string;
   updatedAt: string;
 }

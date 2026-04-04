@@ -17,6 +17,7 @@ export function OrganizationPosts({ organizationSlug }: OrganizationPostsProps) 
   const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [socialUnavailable, setSocialUnavailable] = useState(false);
 
   useEffect(() => {
     loadPosts(0);
@@ -31,13 +32,22 @@ export function OrganizationPosts({ organizationSlug }: OrganizationPostsProps) 
       }
 
       const result = await getOrganizationPosts(organizationSlug, pageNum, 10);
-      
+
+      if (!result) {
+        setSocialUnavailable(true);
+        setPosts([]);
+        setTotalPages(0);
+        setPage(0);
+        return;
+      }
+      setSocialUnavailable(false);
+
       if (pageNum === 0) {
         setPosts(result.content);
       } else {
         setPosts((prev) => [...prev, ...result.content]);
       }
-      
+
       setTotalPages(result.totalPages);
       setPage(pageNum);
     } catch (error) {
@@ -57,6 +67,14 @@ export function OrganizationPosts({ organizationSlug }: OrganizationPostsProps) 
     return (
       <div className="flex justify-center items-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-main" />
+      </div>
+    );
+  }
+
+  if (socialUnavailable) {
+    return (
+      <div className="text-center py-12 text-muted-foreground text-sm">
+        A área social desta organização fica disponível após a aprovação pela plataforma.
       </div>
     );
   }

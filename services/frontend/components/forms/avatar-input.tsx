@@ -6,11 +6,31 @@ import Cropper, { Area, Point } from "react-easy-crop";
 import "react-easy-crop/react-easy-crop.css";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Loader2, Upload, Maximize2 } from "lucide-react";
+import { toast } from "sonner";
 import {
     AVATAR_LIMIT_EXCEEDED_MESSAGE,
     MAX_FINAL_AVATAR_BYTES,
     resizeAvatarImage,
 } from "@/lib/image/resize-avatar";
+
+/** Converte URL (https, blob: ou mesma origem) em File para o fluxo de crop/redimensionar. */
+async function imageUrlToFile(url: string): Promise<File> {
+    const useProxy =
+        url.startsWith("http://") || url.startsWith("https://");
+    const fetchUrl = useProxy
+        ? `/api/avatar-fetch?url=${encodeURIComponent(url)}`
+        : url;
+
+    const res = await fetch(fetchUrl);
+    if (!res.ok) {
+        throw new Error(`Falha ao carregar imagem (${res.status})`);
+    }
+    const blob = await res.blob();
+    const type = blob.type.startsWith("image/") ? blob.type : "image/jpeg";
+    const ext = type.includes("png") ? "png" : type.includes("webp") ? "webp" : "jpg";
+    return new File([blob], `avatar.${ext}`, { type });
+}
 
 interface AvatarInputProps {
     name?: string;
@@ -23,7 +43,8 @@ export default function AvatarInput({ name = "avatar", currentAvatar }: AvatarIn
     const [isNewFile, setIsNewFile] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [originalFile, setOriginalFile] = useState<File | null>(null);
+    /** Fonte completa para o crop: não substituir pelo ficheiro já recortado/redimensionado. */
+    const [masterSourceFile, setMasterSourceFile] = useState<File | null>(null);
 
     const [editorOpen, setEditorOpen] = useState(false);
     const [sourceFile, setSourceFile] = useState<File | null>(null);
@@ -31,10 +52,12 @@ export default function AvatarInput({ name = "avatar", currentAvatar }: AvatarIn
     const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+    const [isOpeningEditor, setIsOpeningEditor] = useState(false);
 
     useEffect(() => {
         if (!isNewFile) {
             setPreview(currentAvatar || null);
+            setMasterSourceFile(null);
         }
     }, [currentAvatar, isNewFile]);
 
@@ -70,15 +93,38 @@ export default function AvatarInput({ name = "avatar", currentAvatar }: AvatarIn
         const input = e.currentTarget;
         const file = input.files?.[0];
         if (!file) return;
-        setOriginalFile(file);
+        setMasterSourceFile(file);
         openEditorForFile(file);
     }
 
-    function handleImageClick() {
-        if (originalFile) {
-            openEditorForFile(originalFile);
+    const handleImageClick = useCallback(async () => {
+        if (masterSourceFile) {
+            openEditorForFile(masterSourceFile);
             return;
         }
+
+        const urlToEdit = currentAvatar || null;
+        if (urlToEdit) {
+            setIsOpeningEditor(true);
+            try {
+                const file = await imageUrlToFile(urlToEdit);
+                setMasterSourceFile(file);
+                openEditorForFile(file);
+            } catch {
+                toast.error(
+                    "Não foi possível abrir a foto para redimensionar. Envie uma nova imagem."
+                );
+                inputRef.current?.click();
+            } finally {
+                setIsOpeningEditor(false);
+            }
+            return;
+        }
+
+        inputRef.current?.click();
+    }, [currentAvatar, openEditorForFile, masterSourceFile]);
+
+    function handlePickNewFileClick() {
         inputRef.current?.click();
     }
 
@@ -123,50 +169,90 @@ export default function AvatarInput({ name = "avatar", currentAvatar }: AvatarIn
     }
 
     const displayAvatar = preview || currentAvatar;
+    const hasImage = Boolean(displayAvatar);
+    const useNativeImg =
+        Boolean(displayAvatar) &&
+        (displayAvatar!.startsWith("blob:") || displayAvatar!.startsWith("data:"));
 
     return (
         <div className="flex flex-col items-center gap-3">
+            <input
+                ref={inputRef}
+                type="file"
+                accept="image/*"
+                name={name}
+                className="sr-only"
+                tabIndex={-1}
+                aria-hidden
+                onChange={handleChange}
+            />
+
             <button
                 type="button"
                 onClick={handleImageClick}
-                className="group w-28 h-28 rounded-full overflow-hidden border shadow bg-gray-100 relative focus:outline-none focus:ring-2 focus:ring-main/40"
-                aria-label="Editar avatar"
+                disabled={isOpeningEditor || isProcessing}
+                className="group relative h-28 w-28 shrink-0 overflow-hidden rounded-full border border-gray-200 bg-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-main/40 disabled:opacity-70"
+                aria-label={hasImage ? "Redimensionar avatar" : "Enviar imagem do avatar"}
             >
                 {displayAvatar ? (
-                    <Image
-                        src={displayAvatar}
-                        alt="Prévia do avatar"
-                        fill
-                        className="object-cover"
-                        unoptimized
-                    />
+                    useNativeImg ? (
+                        <img
+                            src={displayAvatar}
+                            alt="Prévia do avatar"
+                            className="absolute inset-0 h-full w-full object-cover"
+                        />
+                    ) : (
+                        <Image
+                            src={displayAvatar}
+                            alt="Prévia do avatar"
+                            fill
+                            className="object-cover"
+                            unoptimized
+                        />
+                    )
                 ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-500">
+                    <div className="flex h-full w-full items-center justify-center text-gray-500">
                         Foto
                     </div>
                 )}
-                <div className="absolute inset-0 bg-black/45 opacity-0 transition-opacity group-hover:opacity-100 flex items-center justify-center">
-                    <span className="text-[11px] font-medium text-white text-center px-2">
-                        {displayAvatar ? "Redimensionar imagem" : "Carregar imagem"}
-                    </span>
+                {isOpeningEditor && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                        <Loader2 className="h-8 w-8 animate-spin text-white" />
+                    </div>
+                )}
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/50 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                    {hasImage ? (
+                        <>
+                            <Maximize2 className="h-5 w-5 text-white" aria-hidden />
+                            <span className="text-center text-[11px] font-semibold uppercase tracking-wide text-white">
+                                Redimensionar
+                            </span>
+                        </>
+                    ) : (
+                        <>
+                            <Upload className="h-5 w-5 text-white" aria-hidden />
+                            <span className="text-center text-[11px] font-semibold uppercase tracking-wide text-white">
+                                Enviar imagem
+                            </span>
+                        </>
+                    )}
                 </div>
             </button>
 
-            <label className="cursor-pointer text-main font-medium">
-                {isProcessing
-                    ? "Aplicando redimensionamento..."
-                    : displayAvatar
-                        ? "Alterar avatar"
-                        : "Selecionar avatar"}
-                <input
-                    ref={inputRef}
-                    type="file"
-                    accept="image/*"
-                    name={name}
-                    className="hidden"
-                    onChange={handleChange}
-                />
-            </label>
+            {hasImage && (
+                <button
+                    type="button"
+                    onClick={handlePickNewFileClick}
+                    disabled={isOpeningEditor || isProcessing}
+                    className="text-sm font-medium text-main underline-offset-4 hover:underline disabled:opacity-50"
+                >
+                    Enviar nova imagem
+                </button>
+            )}
+
+            {isProcessing && (
+                <p className="text-xs text-muted-foreground">Aplicando redimensionamento…</p>
+            )}
             {error && (
                 <p className="text-xs text-red-600 text-center max-w-64">{error}</p>
             )}
@@ -175,7 +261,6 @@ export default function AvatarInput({ name = "avatar", currentAvatar }: AvatarIn
                 open={editorOpen}
                 onOpenChange={(open) => {
                     if (!open) {
-                        if (inputRef.current) inputRef.current.value = "";
                         closeEditor();
                     }
                 }}

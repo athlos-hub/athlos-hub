@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     # Admin creds for Keycloak (optional for runtime; Keycloak itself may manage admin user)
     KEYCLOAK_ADMIN_USERNAME: Optional[str] = None
     KEYCLOAK_ADMIN_PASSWORD: Optional[str] = None
+    # Opcional: ao subir, sincroniza para o Postgres usuários com esta realm role (ex.: admin).
+    BOOTSTRAP_SYNC_LOCAL_USERS_REALM_ROLE: Optional[str] = None
     ALGORITHM: str
 
     # Google OAuth

@@ -21,6 +21,9 @@ from src.infrastructure.messaging.constants import (
     RK_TEAMS_IMPORT_REQUESTED,
 )
 from src.schemas.internal_teams import TeamFromAuthPayload
+from src.infrastructure.messaging.social_team_profile_publisher import (
+    publish_team_profile_ensure,
+)
 from src.services.internal_teams_import_service import import_team_from_auth
 from shared.database.client import db
 
@@ -83,6 +86,11 @@ async def _handle_message(channel: aio_pika.abc.AbstractChannel, message: Incomi
         try:
             async with db.session() as session:
                 result = await import_team_from_auth(session, payload)
+            await publish_team_profile_ensure(
+                team_id=str(result.id),
+                organization_slug=payload.organization_slug,
+                approved_for_social=True,
+            )
             await reply(
                 {
                     "ok": True,

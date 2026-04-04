@@ -9,12 +9,14 @@ import { toggleFollow, checkIsFollowing } from "@/actions/follow";
 import { Post } from "@/types/social";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { 
-  MapPin, 
-  Trophy, 
+import { PageHeader } from "@/components/layout/page-header";
+import { FilterPanel } from "@/components/layout/filter-panel";
+import {
+  MapPin,
+  Trophy,
   UserPlus,
   UserMinus,
   Settings,
@@ -22,7 +24,9 @@ import {
   X,
   Check,
   Edit2,
-  Filter
+  MessageSquare,
+  Info,
+  Filter,
 } from "lucide-react";
 import { PostCard } from "@/components/social/post-card";
 import { updateBio } from "@/actions/athlete-profile";
@@ -53,6 +57,13 @@ interface UnifiedProfileProps {
   isOwnProfile: boolean;
 }
 
+type ProfileContentTab = "posts" | "shared" | "achievements" | "about";
+
+const filterButtonClass = (active: boolean) =>
+  `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+    active ? "bg-main text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+  }`;
+
 export function UnifiedProfileClient({ 
   athleteProfile, 
   initialPosts, 
@@ -64,7 +75,7 @@ export function UnifiedProfileClient({
   const [posts] = useState<Post[]>(initialPosts);
   const [sharedPosts, setSharedPosts] = useState<Share[]>([]);
   const [isLoadingShares, setIsLoadingShares] = useState(false);
-  const [activeTab, setActiveTab] = useState<"posts" | "shared" | "achievements" | "about">("posts");
+  const [activeTab, setActiveTab] = useState<ProfileContentTab>("posts");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isEditSocialModalOpen, setIsEditSocialModalOpen] = useState(false);
   const [isEditingBio, setIsEditingBio] = useState(false);
@@ -189,112 +200,114 @@ export function UnifiedProfileClient({
     }
   };
 
+  const profileActions = isOwnProfile ? (
+    <>
+      <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)}>
+        <Settings className="h-4 w-4 mr-2" />
+        Editar perfil
+      </Button>
+      <Button variant="outline" size="sm" onClick={() => setIsEditSocialModalOpen(true)}>
+        <Edit2 className="h-4 w-4 mr-2" />
+        Dados sociais
+      </Button>
+      <ShareProfileButton keycloakId={athleteProfile.keycloakId} />
+    </>
+  ) : (
+    <>
+      <Button
+        size="sm"
+        variant={isFollowing ? "outline" : "default"}
+        className={
+          isFollowing
+            ? "border-destructive/40 text-destructive hover:bg-destructive/10"
+            : "bg-main text-white hover:bg-main/90"
+        }
+        onClick={handleToggleFollow}
+        disabled={isLoadingFollow}
+      >
+        {isLoadingFollow ? (
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+        ) : isFollowing ? (
+          <UserMinus className="h-4 w-4 mr-2" />
+        ) : (
+          <UserPlus className="h-4 w-4 mr-2" />
+        )}
+        {isFollowing ? "Deixar de seguir" : "Seguir"}
+      </Button>
+      <ShareProfileButton keycloakId={athleteProfile.keycloakId} />
+    </>
+  );
+
   return (
-    <div className="container">
-      <Card className="mb-6">
-        <CardHeader className="relative pb-0">
-          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-r from-[#00924B] to-main/90 rounded-t-lg flex items-center justify-center">
-            <span className="text-white/30 text-4xl font-bold tracking-wider">AthlosHub</span>
-          </div>
-          
-          <div className="relative flex flex-col md:flex-row items-start md:items-end gap-4 pt-20 pb-4">
-            <Avatar className="h-32 w-32 border-4 border-background">
-              <AvatarImage src={getAvatarUrl()} />
-              <AvatarFallback className="text-3xl">
-                {getUserInitials()}
-              </AvatarFallback>
-            </Avatar>
+    <div className="space-y-6">
+      <PageHeader
+        title="Perfil"
+        subtitle="Publicações, conquistas e informações públicas do atleta."
+        actions={<div className="flex flex-wrap gap-2">{profileActions}</div>}
+      />
 
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <h1 className="text-3xl font-bold">{getUserDisplayName()}</h1>
-                {athleteProfile.isVerified && (
-                  <Badge variant="secondary" className="gap-1">
-                    <Trophy className="h-3 w-3" />
-                    Verificado
-                  </Badge>
-                )}
-              </div>
-              
-              {currentAuthData?.username && (
-                <p className="text-muted-foreground mb-2">@{currentAuthData.username}</p>
-              )}
-              
-              {(currentProfile.city || currentProfile.state) && (
-                <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4" />
-                    <span>
-                      {[currentProfile.city, currentProfile.state].filter(Boolean).join(", ")}
-                    </span>
-                  </div>
+      <Card className="overflow-hidden border-border">
+        <div className="h-1 w-full bg-linear-to-r from-main/80 via-main to-main/70" />
+        <CardHeader className="pb-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-4 min-w-0">
+              <Avatar className="h-20 w-20 shrink-0 rounded-lg border border-border">
+                <AvatarImage src={getAvatarUrl()} alt={getUserDisplayName()} />
+                <AvatarFallback className="rounded-lg text-xl">{getUserInitials()}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2 gap-y-1">
+                  <CardTitle className="text-2xl">{getUserDisplayName()}</CardTitle>
+                  {athleteProfile.isVerified && (
+                    <Badge variant="outline" className="border-main/30 text-main gap-1">
+                      <Trophy className="h-3 w-3" />
+                      Verificado
+                    </Badge>
+                  )}
                 </div>
-              )}
-            </div>
-
-            <div className="flex gap-2">
-              {isOwnProfile ? (
-                <>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setIsEditModalOpen(true)}
-                  >
-                    <Settings className="h-4 w-4 mr-2" />
-                    Editar Perfil
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setIsEditSocialModalOpen(true)}
-                  >
-                    <Edit2 className="h-4 w-4 mr-2" />
-                    Completar Perfil
-                  </Button>
-                  <ShareProfileButton keycloakId={athleteProfile.keycloakId} />
-                </>
-              ) : (
-                <>
-                  <Button 
-                    className={!isFollowing ? "bg-main text-white hover:bg-main/90" : "bg-red-600 hover:bg-red-600"}
-                    size="sm"
-                    onClick={handleToggleFollow}
-                    disabled={isLoadingFollow}
-                  >
-                    {isLoadingFollow ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : isFollowing ? (
-                      <UserMinus className="h-4 w-4 mr-2" />
-                    ) : (
-                      <UserPlus className="h-4 w-4 mr-2" />
-                    )}
-                    {isFollowing ? "Deixar de Seguir" : "Seguir"}
-                  </Button>
-                  <ShareProfileButton keycloakId={athleteProfile.keycloakId} />
-                </>
-              )}
+                <div className="mt-2 space-y-1.5 text-sm text-muted-foreground">
+                  {currentAuthData?.username && (
+                    <span className="block">@{currentAuthData.username}</span>
+                  )}
+                  {(currentProfile.city || currentProfile.state) && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 shrink-0 text-main" />
+                      <span>{[currentProfile.city, currentProfile.state].filter(Boolean).join(", ")}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </CardHeader>
 
-        <CardContent className="pt-4">
-          <div className="mb-4">
+        <CardContent className="space-y-6 pt-0">
+          <div className="rounded-xl border border-border bg-muted/30 p-4">
             {isOwnProfile && isEditingBio ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Textarea
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   placeholder="Escreva uma bio..."
-                  className="min-h-[100px]"
+                  className="min-h-[100px] bg-background"
                 />
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={handleSaveBio} disabled={isSubmitting} className="bg-main hover:bg-main/90">
-                    {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    onClick={handleSaveBio}
+                    disabled={isSubmitting}
+                    className="bg-main hover:bg-main/90"
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Check className="h-4 w-4" />
+                    )}
                     <span className="ml-2">Salvar</span>
                   </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
+                  <Button
+                    size="sm"
+                    variant="outline"
                     onClick={() => {
                       setIsEditingBio(false);
                       setBio(savedBio);
@@ -307,15 +320,14 @@ export function UnifiedProfileClient({
               </div>
             ) : (
               <div className="flex items-start gap-2">
-                <p className="text-muted-foreground flex-1">
-                  {savedBio || (isOwnProfile ? "Adicione uma bio para que outros atletas possam conhecer você melhor." : "Este atleta ainda não adicionou uma bio.")}
+                <p className="text-sm text-muted-foreground flex-1 leading-relaxed">
+                  {savedBio ||
+                    (isOwnProfile
+                      ? "Adicione uma bio para que outros atletas possam conhecer você melhor."
+                      : "Este atleta ainda não adicionou uma bio.")}
                 </p>
                 {isOwnProfile && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => setIsEditingBio(true)}
-                  >
+                  <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setIsEditingBio(true)}>
                     <Edit2 className="h-4 w-4" />
                   </Button>
                 )}
@@ -323,108 +335,101 @@ export function UnifiedProfileClient({
             )}
           </div>
 
-          <div className="flex gap-6 text-sm border-t pt-4">
-            <button className="flex flex-col items-center px-4 py-2 rounded-lg transition-colors">
-              <span className="text-2xl font-bold">{totalPosts}</span>
-              <span className="text-muted-foreground">Posts</span>
-            </button>
-            <button
-              onClick={() => {
-                setFollowListTab("followers");
-                setIsFollowListModalOpen(true);
-              }}
-              className="flex flex-col items-center hover:bg-gray-50 px-4 py-2 rounded-lg transition-colors cursor-pointer"
-            >
-              <span className="text-2xl font-bold">{currentProfile.followersCount}</span>
-              <span className="text-muted-foreground">Seguidores</span>
-            </button>
-            <button
-              onClick={() => {
-                setFollowListTab("following");
-                setIsFollowListModalOpen(true);
-              }}
-              className="flex flex-col items-center hover:bg-gray-50 px-4 py-2 rounded-lg transition-colors cursor-pointer"
-            >
-              <span className="text-2xl font-bold">{totalFollowing}</span>
-              <span className="text-muted-foreground">Seguindo</span>
-            </button>
-            <button className="flex flex-col items-center px-4 py-2 rounded-lg transition-colors">
-              <span className="text-2xl font-bold">{currentProfile.achievementsCount}</span>
-              <span className="text-muted-foreground">Conquistas</span>
-            </button>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
+              Resumo
+            </p>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-card px-3 py-3 text-center">
+                <span className="text-2xl font-bold tabular-nums text-foreground">{totalPosts}</span>
+                <span className="text-xs text-muted-foreground">Posts</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setFollowListTab("followers");
+                  setIsFollowListModalOpen(true);
+                }}
+                className="flex flex-col items-center justify-center rounded-lg border border-border bg-card px-3 py-3 text-center transition-colors hover:bg-muted/60"
+              >
+                <span className="text-2xl font-bold tabular-nums text-foreground">
+                  {currentProfile.followersCount}
+                </span>
+                <span className="text-xs text-muted-foreground">Seguidores</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFollowListTab("following");
+                  setIsFollowListModalOpen(true);
+                }}
+                className="flex flex-col items-center justify-center rounded-lg border border-border bg-card px-3 py-3 text-center transition-colors hover:bg-muted/60"
+              >
+                <span className="text-2xl font-bold tabular-nums text-foreground">{totalFollowing}</span>
+                <span className="text-xs text-muted-foreground">Seguindo</span>
+              </button>
+              <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-card px-3 py-3 text-center">
+                <span className="text-2xl font-bold tabular-nums text-foreground">
+                  {currentProfile.achievementsCount}
+                </span>
+                <span className="text-xs text-muted-foreground">Conquistas</span>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Seção de Conquistas */}
       {currentProfile.achievementsCount > 0 && (
-        <div className="mb-6">
-          <AchievementsSection
-            achievements={currentProfile.achievements}
-            achievementsCount={currentProfile.achievementsCount}
-            maxDisplay={6}
-          />
-        </div>
+        <AchievementsSection
+          achievements={currentProfile.achievements}
+          achievementsCount={currentProfile.achievementsCount}
+          maxDisplay={6}
+        />
       )}
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-6">
-        <div className="flex items-center gap-4">
-          <Filter className="w-5 h-5 text-gray-600"/>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setActiveTab("posts")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === "posts"
-                  ? "bg-main text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              Posts
-            </button>
-            <button
-              onClick={() => setActiveTab("shared")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === "shared"
-                  ? "bg-main text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              Compartilhados
-            </button>
-            <button
-              onClick={() => setActiveTab("achievements")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === "achievements"
-                  ? "bg-main text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              Conquistas
-            </button>
-            <button
-              onClick={() => setActiveTab("about")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === "about"
-                  ? "bg-main text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              Sobre
-            </button>
-          </div>
+      <FilterPanel icon={<Filter className="w-5 h-5 text-gray-600" />}>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab("posts")}
+            className={filterButtonClass(activeTab === "posts")}
+          >
+            Posts
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("shared")}
+            className={filterButtonClass(activeTab === "shared")}
+          >
+            Compartilhados
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("achievements")}
+            className={filterButtonClass(activeTab === "achievements")}
+          >
+            Conquistas
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("about")}
+            className={filterButtonClass(activeTab === "about")}
+          >
+            Sobre
+          </button>
         </div>
-      </div>
+      </FilterPanel>
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+      <div className="space-y-4">
         {activeTab === "posts" && (
-          <div className="space-y-4">
+          <>
             {posts.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground">
-                <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhum post ainda.</p>
+                <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-40 text-main" />
+                <p className="font-medium text-foreground">Nenhum post ainda</p>
                 {isOwnProfile && (
-                  <p className="text-sm mt-2">
-                    Compartilhe suas conquistas e experiências!
+                  <p className="text-sm mt-2 max-w-sm mx-auto">
+                    Compartilhe suas conquistas e experiências na rede.
                   </p>
                 )}
               </div>
@@ -439,18 +444,18 @@ export function UnifiedProfileClient({
                 />
               ))
             )}
-          </div>
+          </>
         )}
 
         {activeTab === "achievements" && (
-          <div>
+          <>
             {currentProfile.achievementsCount === 0 ? (
               <div className="py-12 text-center text-muted-foreground">
-                <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhuma conquista desbloqueada ainda.</p>
+                <Trophy className="h-12 w-12 mx-auto mb-3 opacity-40 text-main" />
+                <p className="font-medium text-foreground">Nenhuma conquista ainda</p>
                 {isOwnProfile && (
-                  <p className="text-sm mt-2">
-                    Participe de competições e desbloqueie conquistas!
+                  <p className="text-sm mt-2 max-w-sm mx-auto">
+                    Participe de competições para desbloquear conquistas.
                   </p>
                 )}
               </div>
@@ -461,55 +466,61 @@ export function UnifiedProfileClient({
                 maxDisplay={999}
               />
             )}
-          </div>
+          </>
         )}
 
         {activeTab === "shared" && (
-          <div className="space-y-4">
+          <>
             {isLoadingShares ? (
               <div className="py-12 text-center">
                 <Loader2 className="h-8 w-8 mx-auto animate-spin text-main" />
-                <p className="text-muted-foreground mt-2">Carregando...</p>
+                <p className="text-sm text-muted-foreground mt-2">Carregando compartilhamentos…</p>
               </div>
             ) : sharedPosts.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground">
-                <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhum post compartilhado ainda.</p>
+                <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-40 text-main" />
+                <p className="font-medium text-foreground">Nenhum post compartilhado</p>
               </div>
             ) : (
               sharedPosts.map((share) => (
                 <div key={share.id} className="space-y-2">
                   {share.comment && (
-                    <div className="bg-gray-50 rounded-lg p-3 text-sm text-muted-foreground italic">
-                      "{share.comment}"
+                    <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground italic">
+                      &ldquo;{share.comment}&rdquo;
                     </div>
                   )}
                   <PostCard
                     post={share.post}
                     isSharedByMe={isOwnProfile}
                     onUnshare={() => {
-                      setSharedPosts(sharedPosts.filter(s => s.id !== share.id));
+                      setSharedPosts(sharedPosts.filter((s) => s.id !== share.id));
                     }}
                   />
                 </div>
               ))
             )}
-          </div>
+          </>
         )}
 
         {activeTab === "about" && (
-          <div className="space-y-4">
+          <div className="rounded-xl border border-border bg-muted/20 p-6 space-y-6">
             {currentProfile.specialization && (
               <div>
-                <h4 className="font-medium mb-1">Especialização</h4>
-                <p className="text-muted-foreground">{currentProfile.specialization}</p>
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-2">
+                  <Trophy className="h-4 w-4 text-main" />
+                  Especialização
+                </h4>
+                <p className="text-sm text-muted-foreground">{currentProfile.specialization}</p>
               </div>
             )}
-            
+
             {(currentProfile.city || currentProfile.state || currentProfile.country) && (
               <div>
-                <h4 className="font-medium mb-1">Localização</h4>
-                <p className="text-muted-foreground">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-2">
+                  <MapPin className="h-4 w-4 text-main" />
+                  Localização
+                </h4>
+                <p className="text-sm text-muted-foreground">
                   {[currentProfile.city, currentProfile.state, currentProfile.country].filter(Boolean).join(", ")}
                 </p>
               </div>
@@ -517,27 +528,35 @@ export function UnifiedProfileClient({
 
             {currentProfile.statistics && Object.keys(currentProfile.statistics).length > 0 && (
               <div>
-                <h4 className="font-medium mb-1">Estatísticas</h4>
-                <div className="grid grid-cols-2 gap-4 mt-2">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-2">
+                  <Info className="h-4 w-4 text-main" />
+                  Estatísticas
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {Object.entries(currentProfile.statistics).map(([key, value]) => (
-                    <div key={key} className="text-sm">
-                      <span className="text-muted-foreground">{key}: </span>
-                      <span className="font-medium">{String(value)}</span>
+                    <div
+                      key={key}
+                      className="flex justify-between gap-4 rounded-lg border border-border bg-card px-3 py-2 text-sm"
+                    >
+                      <span className="text-muted-foreground">{key}</span>
+                      <span className="font-medium tabular-nums">{String(value)}</span>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {(!currentProfile.specialization && !currentProfile.city && !currentProfile.state && !currentProfile.country && 
-              (!currentProfile.statistics || Object.keys(currentProfile.statistics).length === 0)) && (
-              <p className="text-muted-foreground text-center py-8">
-                {isOwnProfile 
-                  ? "Complete seu perfil para que outros atletas possam conhecer você melhor."
-                  : "Este atleta ainda não completou seu perfil."
-                }
-              </p>
-            )}
+            {!currentProfile.specialization &&
+              !currentProfile.city &&
+              !currentProfile.state &&
+              !currentProfile.country &&
+              (!currentProfile.statistics || Object.keys(currentProfile.statistics).length === 0) && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  {isOwnProfile
+                    ? "Complete seu perfil para que outros atletas possam conhecer você melhor."
+                    : "Este atleta ainda não completou o perfil."}
+                </p>
+              )}
           </div>
         )}
       </div>

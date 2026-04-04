@@ -12,8 +12,13 @@ import { getMyTeams } from "@/actions/teams";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { createOrganizationPost, createTeamPost } from "@/actions/social-posts";
-import { Users } from "lucide-react";
+import { Filter } from "lucide-react";
 import { FilterPanel } from "@/components/layout/filter-panel";
+
+const feedFilterButtonClass = (active: boolean) =>
+    `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+        active ? "bg-main text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+    }`;
 
 interface SocialFeedClientProps {
     initialPosts: Post[];
@@ -150,34 +155,30 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
                 onSubmit={handleCreatePost}
             />
 
-            <FilterPanel icon={<Users className="w-5 h-5 text-gray-600 shrink-0" />}>
-                <div className="flex flex-wrap gap-4 items-center">
+            <FilterPanel icon={<Filter className="w-5 h-5 text-gray-600 shrink-0" />}>
+                <div className="flex flex-wrap gap-2 items-center">
                     <button
                         type="button"
                         onClick={() => setFeedType("all")}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                            feedType === "all"
-                                ? "bg-main text-white"
-                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                        }`}
+                        className={feedFilterButtonClass(feedType === "all")}
                     >
-                        Para Você
+                        Para você
                     </button>
                     <button
                         type="button"
                         disabled={!session}
-                        title={!session ? "Entre na conta para ver publicações de quem você segue" : undefined}
+                        title={
+                            !session
+                                ? "Entre na conta para ver publicações de quem você segue"
+                                : undefined
+                        }
                         onClick={() => session && setFeedType("following")}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                            feedType === "following"
-                                ? "bg-main text-white"
-                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                        }`}
+                        className={`${feedFilterButtonClass(feedType === "following")} disabled:cursor-not-allowed disabled:opacity-50`}
                     >
                         Seguindo
                     </button>
                     {!session && (
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-gray-600">
                             O feed &quot;Seguindo&quot; requer login.
                         </span>
                     )}

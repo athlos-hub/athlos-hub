@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { getOrganizationProfile, type OrganizationProfile } from "@/actions/social-profiles";
 import { Building2, Calendar, Lock, Globe, AlertCircle, Users, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,12 @@ interface OrganizationDetailClientProps {
 }
 
 export function OrganizationDetailClient({ organization }: OrganizationDetailClientProps) {
+    const [socialOrgProfile, setSocialOrgProfile] = useState<OrganizationProfile | null>(null);
+
+    useEffect(() => {
+        getOrganizationProfile(organization.slug).then(setSocialOrgProfile);
+    }, [organization.slug]);
+
     const userRole = 'role' in organization ? organization.role : null;
     const isOwner = userRole === OrgRole.OWNER;
     const isOrganizer = userRole === OrgRole.ORGANIZER;
@@ -137,7 +144,7 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
                                 <CardDescription>{organization.description}</CardDescription>
                             </div>
                         </div>
-                        {!isPending && (
+                        {!isPending && socialOrgProfile?.approvedForSocial === true && (
                             <FollowOrganizationButton organizationSlug={organization.slug} />
                         )}
                     </div>

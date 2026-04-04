@@ -18,6 +18,9 @@ services:
       - "8103:8443"
       - "8104:8444"
 
+  # Realm athlos: import em keycloak/athlos-realm.json (start-dev --import-realm).
+  # Usuário da aplicação admin@athlos.com / AthlosAdminDev1! (realm roles: admin + default).
+  # Troque a senha no JSON em produção ou recrie o volume do Keycloak após alterar.
   keycloak:
     image: keycloak/keycloak:26.5
     platform: linux/amd64
@@ -66,7 +69,10 @@ services:
       RABBITMQ_DEFAULT_USER: athlos
       RABBITMQ_DEFAULT_PASS: athlos
       # Cookie fixo evita estado inconsistente; alinhar com qualquer nó extra em cluster.
+      # Aviso "Overriding Erlang cookie" no boot é esperado quando esta var está definida.
       RABBITMQ_ERLANG_COOKIE: athlos_erlang_cookie_dev
+    volumes:
+      - ./docker/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
     # tmpfs evita eacces em .erlang.cookie com volume nomeado antigo/permissões no host.
     # Para persistir filas entre `docker compose down`, troque por volume nomeado e:
     #   docker compose down -v   # uma vez, para recriar o volume limpo

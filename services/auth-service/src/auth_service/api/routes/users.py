@@ -54,6 +54,7 @@ async def update_user_info(
     first_name: Optional[str] = Form(None),
     last_name: Optional[str] = Form(None),
     username: Optional[str] = Form(None),
+    email: Optional[str] = Form(None),
     avatar: Optional[UploadFile] = File(None),
 ):
     """Atualiza informações do usuário atual."""
@@ -63,6 +64,7 @@ async def update_user_info(
         first_name=first_name,
         last_name=last_name,
         username=username,
+        email=email,
         avatar=avatar,
     )
 
@@ -93,6 +95,17 @@ async def get_user_public_info(keycloak_id: str, user_service: UserServiceDep):
     """Obtém informações públicas de um usuário pelo Keycloak ID (sem autenticação)."""
 
     user = await user_service.get_user_by_keycloak_id(keycloak_id)
+    if not user:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    return user
+
+
+@router.get("/by-username/{username}", response_model=UserPublic)
+async def get_user_by_username(username: str, user_service: UserServiceDep):
+    """Obtém informações de um usuário pelo username (sem autenticação)."""
+
+    user = await user_service.get_user_by_username(username)
     if not user:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Usuário não encontrado")

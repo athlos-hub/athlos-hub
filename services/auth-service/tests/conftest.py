@@ -189,7 +189,15 @@ def mock_keycloak_service():
     mock_service = AsyncMock()
     mock_service.add_role = AsyncMock()
     mock_service.remove_role = AsyncMock()
-    mock_service.get_user = AsyncMock()
+    mock_service.get_user = AsyncMock(
+        return_value={
+            "id": "keycloak-user-123",
+            "username": "testuser",
+            "email": "user@example.com",
+            "firstName": "Test",
+            "lastName": "User",
+        }
+    )
     return mock_service
 
 

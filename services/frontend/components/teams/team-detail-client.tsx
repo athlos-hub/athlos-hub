@@ -14,6 +14,7 @@ import { TeamStatus } from "@/types/team";
 import type { TeamDetail } from "@/types/team";
 import { requestTeamApproval } from "@/actions/teams";
 import { canApprove } from "@/lib/teams/utils";
+import { getTeamProfile, type TeamProfile as TeamSocialProfile } from "@/actions/social-profiles";
 import { getTeamFollowersCount } from "@/actions/team-follow";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
@@ -32,16 +33,33 @@ export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
   const [isApproving, setIsApproving] = useState(false);
   const [followersCount, setFollowersCount] = useState<number>(0);
   const [editOpen, setEditOpen] = useState(false);
+  const [teamSocialProfile, setTeamSocialProfile] = useState<TeamSocialProfile | null>(null);
 
   useEffect(() => {
-    getTeamFollowersCount(team.id).then(setFollowersCount);
+    let cancelled = false;
+    getTeamProfile(team.id).then((p) => {
+      if (cancelled) return;
+      setTeamSocialProfile(p);
+      if (p?.approvedForSocial) {
+        getTeamFollowersCount(team.id)
+          .then(setFollowersCount)
+          .catch(() => setFollowersCount(0));
+      } else {
+        setFollowersCount(0);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [team.id]);
 
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (detail?.teamId === team.id) {
-        getTeamFollowersCount(team.id).then(setFollowersCount);
+        getTeamFollowersCount(team.id)
+          .then(setFollowersCount)
+          .catch(() => setFollowersCount(0));
       }
     };
     window.addEventListener("team:follow-changed", handler);
@@ -150,7 +168,9 @@ export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
               {isCaptain && (
                 <EditTeamDialogTrigger onClick={() => setEditOpen(true)} />
               )}
-              <FollowTeamButton teamId={team.id} />
+              {teamSocialProfile?.approvedForSocial === true && (
+                <FollowTeamButton teamId={team.id} />
+              )}
             </div>
           </div>
           <div className="flex items-center gap-4 mt-1">

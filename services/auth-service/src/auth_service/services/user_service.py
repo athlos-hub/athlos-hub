@@ -7,15 +7,31 @@ from uuid import UUID
 from fastapi import UploadFile
 
 from auth_service.core.config import settings
-from auth_service.core.exceptions import UsernameAlreadyInUseError, UserNotFoundError
+from auth_service.core.exceptions import (
+    AvatarUploadError,
+    EmailAlreadyInUseError,
+    KeycloakCommunicationError,
+    UsernameAlreadyInUseError,
+    UserNotFoundError,
+)
 from auth_service.core.ports.keycloak_service import IKeycloakService
 from auth_service.infrastructure.database.models.user_model import User
 from auth_service.repositories.user_repository import UserRepositoryContract
 from auth_service.schemas.user import UserAdmin
 from auth_service.services.authentication_service import AuthenticationService
+from auth_service.utils.keycloak_identity import build_keycloak_identity_update
 from auth_service.utils.upload_image import upload_image
 
 logger = logging.getLogger(__name__)
+
+_AVATAR_URL_MAX_LEN = 255
+
+
+def _has_real_upload(avatar: Optional[UploadFile]) -> bool:
+    if avatar is None:
+        return False
+    name = getattr(avatar, "filename", None) or ""
+    return bool(str(name).strip())
 
 
 class UserService:
@@ -43,6 +59,9 @@ class UserService:
 
     async def get_user_by_keycloak_id(self, keycloak_id: str) -> Optional[User]:
         return await self._user_repo.get_by_keycloak_id(keycloak_id)
+
+    async def get_user_by_username(self, username: str) -> Optional[User]:
+        return await self._user_repo.get_by_username(username)
 
     async def get_all_enabled_users(self) -> Sequence[User]:
         return await self._user_repo.get_all_enabled()
@@ -107,10 +126,13 @@ class UserService:
         first_name: Optional[str] = None,
         last_name: Optional[str] = None,
         username: Optional[str] = None,
+        email: Optional[str] = None,
         avatar: Optional[UploadFile] = None,
     ) -> User:
         if not self._keycloak_service:
-            raise ValueError("KeycloakService é necessário para atualizações de perfil")
+            raise KeycloakCommunicationError(
+                "Serviço de autenticação indisponível para atualizar perfil"
+            )
 
         db_user = await self._user_repo.get_by_id(user.id)
         if not db_user:
@@ -118,42 +140,80 @@ class UserService:
         if not db_user:
             raise UserNotFoundError(str(user.id))
 
-        updates_keycloak: dict[str, Any] = {}
+        updates_keycloak_identity: dict[str, Any] = {}
         updates_db: dict[str, Any] = {}
 
         if first_name is not None:
-            updates_keycloak["firstName"] = first_name
-            updates_db["first_name"] = first_name
+            fn = first_name.strip()
+            updates_keycloak_identity["firstName"] = fn
+            updates_db["first_name"] = fn or None
         if last_name is not None:
-            updates_keycloak["lastName"] = last_name
-            updates_db["last_name"] = last_name
+            ln = last_name.strip()
+            updates_keycloak_identity["lastName"] = ln
+            updates_db["last_name"] = ln or None
 
         if username is not None and username.strip():
             username_exists = await self._keycloak_service.check_username_exists(
-                username, exclude_keycloak_id=user.keycloak_id
+                username.strip(), exclude_keycloak_id=user.keycloak_id
             )
             if username_exists:
-                raise UsernameAlreadyInUseError(username)
-            updates_keycloak["username"] = username
-            updates_db["username"] = username
+                raise UsernameAlreadyInUseError(username.strip())
+            updates_keycloak_identity["username"] = username.strip()
+            updates_db["username"] = username.strip()
 
-        if avatar:
-            result = upload_image(
-                avatar,
-                user_id=user.keycloak_id,
-                aws_access_key_id=settings.AWS_BUCKET_ACCESS_KEY_ID,
-                aws_secret_access_key=settings.AWS_BUCKET_SECRET_ACCESS_KEY,
-                aws_region=settings.AWS_BUCKET_REGION,
-                aws_bucket=settings.AWS_BUCKET_NAME,
-                prefix="avatars",
-            )
+        if email is not None:
+            em = email.strip()
+            if em and em != (db_user.email or ""):
+                other = await self._user_repo.get_by_email(em)
+                if other and other.id != db_user.id:
+                    raise EmailAlreadyInUseError(em)
+                kc_with_email = await self._keycloak_service.get_users_by_email(em)
+                if any(u.get("id") != user.keycloak_id for u in kc_with_email):
+                    raise EmailAlreadyInUseError(em)
+                updates_keycloak_identity["email"] = em
+                updates_db["email"] = em
+
+        if _has_real_upload(avatar):
+            try:
+                result = upload_image(
+                    avatar,
+                    user_id=user.keycloak_id,
+                    aws_access_key_id=settings.AWS_BUCKET_ACCESS_KEY_ID,
+                    aws_secret_access_key=settings.AWS_BUCKET_SECRET_ACCESS_KEY,
+                    aws_region=settings.AWS_BUCKET_REGION,
+                    aws_bucket=settings.AWS_BUCKET_NAME,
+                    prefix="avatars",
+                )
+            except AvatarUploadError:
+                raise
+            except Exception as exc:
+                logger.exception("Falha no upload de avatar")
+                raise AvatarUploadError(
+                    "Não foi possível enviar a imagem. Tente novamente."
+                ) from exc
+
             avatar_url = result["url"]
+            if len(avatar_url) > _AVATAR_URL_MAX_LEN:
+                raise AvatarUploadError(
+                    "URL do avatar excede o limite do sistema; use uma imagem com nome mais curto "
+                    "ou ajuste o bucket/região."
+                )
             updates_db["avatar_url"] = avatar_url
-            updates_keycloak.setdefault("attributes", {})
-            updates_keycloak["attributes"]["avatar_url"] = avatar_url
 
-        if updates_keycloak:
-            await self._keycloak_service.update_user(user.keycloak_id, updates_keycloak)
+        if updates_keycloak_identity:
+            try:
+                existing_kc = await self._keycloak_service.get_user(user.keycloak_id)
+                kc_payload = build_keycloak_identity_update(
+                    existing_kc, updates_keycloak_identity
+                )
+                await self._keycloak_service.update_user(user.keycloak_id, kc_payload)
+            except Exception as exc:
+                logger.exception(
+                    "Keycloak update_user falhou para subject %s", user.keycloak_id
+                )
+                raise KeycloakCommunicationError(
+                    "Não foi possível sincronizar o perfil com o servidor de autenticação."
+                ) from exc
 
         if updates_db:
             updated_user = await self._user_repo.update(db_user.id, updates_db)
