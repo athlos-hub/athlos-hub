@@ -5,8 +5,6 @@ import { axiosAPI } from "@/lib/api/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-const SOCIAL_API_URL = process.env.API_BASE_URL || "http://localhost:8100/api";
-
 interface ApiResponse<T> {
   success: boolean;
   data: T;
@@ -29,60 +27,42 @@ export async function getFollowingFeed(page: number = 0, size: number = 10): Pro
   return response.data.data || response.data as unknown as PageResponse<Post>;
 }
 
+/**
+ * Feed “Para você”: público para anônimos; logado inclui posts FOLLOWERS/MEMBERS_ONLY
+ * de organizações e times dos quais o usuário é membro (ex.: org privada).
+ */
 export async function getPublicFeed(page: number = 0, size: number = 10): Promise<PageResponse<Post>> {
-  try {
-    const url = `${SOCIAL_API_URL}/social/feed/public?page=${page}&size=${size}`;
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      cache: 'no-store',
-    });
+  const session = await getServerSession(authOptions);
+  const authenticated = Boolean(session?.accessToken);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to fetch public feed: ${response.status}`);
-    }
+  const response = await axiosAPI<ApiResponse<PageResponse<Post>>>({
+    endpoint: "/social/feed/public",
+    method: "GET",
+    queryParams: { page, size },
+    withAuth: authenticated,
+  });
 
-    const text = await response.text();
-    
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (parseError) {
-      throw parseError;
-    }
-    
-    const pageData = data.data || data;
-    
-    if (pageData.content) {
-      return pageData;
-    }
-    
-    if (Array.isArray(pageData)) {
-      return {
-        content: pageData,
-        last: true,
-        first: true,
-        totalPages: 1,
-        totalElements: pageData.length,
-        size: pageData.length,
-        number: 0,
-      };
-    }
-    
-    return {
-      content: [],
-      last: true,
-      first: true,
-      totalPages: 0,
-      totalElements: 0,
-      size: 0,
-      number: 0,
-    };
-  } catch (error) {
-    throw error;
+  const body = response.data as ApiResponse<PageResponse<Post>> | PageResponse<Post>;
+  const pageData =
+    typeof body === "object" &&
+    body !== null &&
+    "success" in body &&
+    body.success &&
+    "data" in body
+      ? body.data
+      : (body as PageResponse<Post>);
+
+  if (pageData?.content) {
+    return pageData;
   }
+
+  return {
+    content: [],
+    last: true,
+    first: true,
+    totalPages: 0,
+    totalElements: 0,
+    size: 0,
+    number: 0,
+  };
 }

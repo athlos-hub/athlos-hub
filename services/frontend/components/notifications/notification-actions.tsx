@@ -263,6 +263,7 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
         return null;
 
       case 'organization_unsuspended':
+      case 'organization_restored':
         if (resolveNotificationTargetHref(notification)) {
           return (
             <Button 
@@ -306,7 +307,7 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
           return (
             <Button 
               onClick={navigateToTarget}
-              className="w-full"
+              className="w-full bg-green-600 hover:bg-green-700"
             >
               Ver Detalhes
             </Button>

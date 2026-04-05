@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import { createOrganizationPost, createTeamPost } from "@/actions/social-posts";
 import { Filter } from "lucide-react";
 import { FilterPanel } from "@/components/layout/filter-panel";
+import { OrganizationPrivacy } from "@/types/organization";
+import { PostVisibility } from "@/types/social";
 
 const feedFilterButtonClass = (active: boolean) =>
     `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -26,13 +28,15 @@ interface SocialFeedClientProps {
 }
 
 export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProps) {
-    const { data: session } = useSession();
+    const { data: session, status: sessionStatus } = useSession();
     const [showCreatePost, setShowCreatePost] = useState(false);
     const [feedType, setFeedType] = useState<"all" | "following">("all");
     const [posts, setPosts] = useState<Post[]>(initialPosts);
     const [hasMorePosts, setHasMorePosts] = useState(hasMore);
     const [isLoadingFeed, setIsLoadingFeed] = useState(false);
-    const [organizations, setOrganizations] = useState<Array<{ slug: string; name: string }>>([]);
+    const [organizations, setOrganizations] = useState<
+        Array<{ slug: string; name: string; privacy: OrganizationPrivacy }>
+    >([]);
     const [teams, setTeams] = useState<Array<{ id: string; name: string }>>([]);
     const [selectedProfile, setSelectedProfile] = useState<ProfileContext>({
         type: 'athlete',
@@ -51,10 +55,13 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
                         return role === 'OWNER' || role === 'ADMIN' || role === 'ORGANIZER';
                     });
                     
-                    setOrganizations(canPostOrgs.map(org => ({
-                        slug: org.slug,
-                        name: org.name
-                    })));
+                    setOrganizations(
+                        canPostOrgs.map((org) => ({
+                            slug: org.slug,
+                            name: org.name,
+                            privacy: org.privacy,
+                        }))
+                    );
                     
                     const myTeams = await getMyTeams();
                     setTeams(myTeams.map(team => ({
@@ -77,11 +84,20 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
 
     useEffect(() => {
         async function loadFeed() {
+            if (feedType === "following" && sessionStatus !== "authenticated") {
+                return;
+            }
+            // "Para você": esperar sessão estabilizar; senão getPublicFeed roda sem token e
+            // some posts só de membro (ex.: org privada).
+            if (feedType === "all" && sessionStatus === "loading") {
+                return;
+            }
             setIsLoadingFeed(true);
             try {
-                const result = feedType === "following" 
-                    ? await getFollowingFeed(0, 10)
-                    : await getPublicFeed(0, 10);
+                const result =
+                    feedType === "following"
+                        ? await getFollowingFeed(0, 10)
+                        : await getPublicFeed(0, 10);
                 setPosts(result.content);
                 setHasMorePosts(!result.last);
             } catch (error) {
@@ -91,7 +107,7 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
             }
         }
         loadFeed();
-    }, [feedType]);
+    }, [feedType, sessionStatus, session?.accessToken]);
 
     const loadMore = async (page: number): Promise<Post[]> => {
         const result = feedType === "following"
@@ -102,15 +118,25 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
     const handleLike = async (_postId: string) => {
     };
 
+    const selectedOrgPrivacy =
+        selectedProfile.type === "organization"
+            ? organizations.find((o) => o.slug === selectedProfile.id)?.privacy
+            : undefined;
+    const isPrivateOrganization =
+        selectedOrgPrivacy === OrganizationPrivacy.PRIVATE;
+
     const handleCreatePost = async (payload: CreatePostPayload) => {
         if (selectedProfile.type === 'organization') {
+            const visibility = isPrivateOrganization
+                ? PostVisibility.MEMBERS_ONLY
+                : payload.visibility;
             await createOrganizationPost(
                 selectedProfile.id, 
                 payload.content, 
                 payload.mediaUrls, 
                 payload.metadata,
                 payload.type,
-                payload.visibility
+                visibility
             );
         } else if (selectedProfile.type === 'team') {
             await createTeamPost(
@@ -152,6 +178,11 @@ export function SocialFeedClient({ initialPosts, hasMore }: SocialFeedClientProp
                 profileType={selectedProfile.type as 'organization' | 'team'}
                 profileId={selectedProfile.id}
                 profileName={selectedProfile.name}
+                organizationPrivacy={
+                    selectedProfile.type === "organization"
+                        ? selectedOrgPrivacy
+                        : undefined
+                }
                 onSubmit={handleCreatePost}
             />
 

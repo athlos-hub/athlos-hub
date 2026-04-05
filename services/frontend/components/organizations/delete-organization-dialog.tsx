@@ -47,8 +47,7 @@ export function DeleteOrganizationDialog({
             if (result.success) {
                 toast.success("Organização deletada com sucesso!");
                 setOpen(false);
-                router.push("/organizations");
-                router.refresh();
+                router.replace("/organizations?tab=minhas");
             } else {
                 toast.error(result.error || "Erro ao deletar organização");
             }

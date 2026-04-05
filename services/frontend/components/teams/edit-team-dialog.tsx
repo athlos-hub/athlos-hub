@@ -22,20 +22,13 @@ import { updateTeam } from "@/actions/teams";
 import type { TeamDetail } from "@/types/team";
 import { TeamStatus } from "@/types/team";
 
-const schema = z
-  .object({
-    name: z.string().min(2, "Nome é obrigatório").max(100),
-    abbreviation: z
-      .string()
-      .min(1, "Sigla é obrigatória")
-      .max(3, "Máximo 3 caracteres"),
-    min_members: z.number().int().min(1),
-    max_members: z.number().int().min(1),
-  })
-  .refine((d) => d.max_members >= d.min_members, {
-    message: "O máximo deve ser maior ou igual ao mínimo",
-    path: ["max_members"],
-  });
+const schema = z.object({
+  name: z.string().min(2, "Nome é obrigatório").max(100),
+  abbreviation: z
+    .string()
+    .min(1, "Sigla é obrigatória")
+    .max(3, "Máximo 3 caracteres"),
+});
 
 type FormValues = z.infer<typeof schema>;
 
@@ -68,8 +61,6 @@ export function EditTeamDialog({
     defaultValues: {
       name: team.name,
       abbreviation: team.abbreviation,
-      min_members: team.min_members,
-      max_members: team.max_members,
     },
   });
 
@@ -78,8 +69,6 @@ export function EditTeamDialog({
       reset({
         name: team.name,
         abbreviation: team.abbreviation,
-        min_members: team.min_members,
-        max_members: team.max_members,
       });
       setLogoFile(null);
       setRemoveLogo(false);
@@ -93,8 +82,6 @@ export function EditTeamDialog({
       if (!approved) {
         fd.set("name", values.name.trim());
         fd.set("abbreviation", values.abbreviation.trim().toUpperCase().slice(0, 3));
-        fd.set("min_members", String(values.min_members));
-        fd.set("max_members", String(values.max_members));
       }
       if (logoFile) {
         fd.set("logo", logoFile);
@@ -122,7 +109,7 @@ export function EditTeamDialog({
           <DialogDescription>
             {approved
               ? "Este time já está aprovado na competição. Você só pode alterar o escudo."
-              : "Atualize nome, sigla, limites de jogadores e o escudo do time."}
+              : "Atualize nome, sigla e o escudo. O mínimo e o máximo de jogadores vêm da competição."}
           </DialogDescription>
         </DialogHeader>
 
@@ -174,29 +161,6 @@ export function EditTeamDialog({
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="min-m">Mín. jogadores</Label>
-              <Input
-                id="min-m"
-                type="number"
-                min={1}
-                {...register("min_members", { valueAsNumber: true })}
-                disabled={approved}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="max-m">Máx. jogadores</Label>
-              <Input
-                id="max-m"
-                type="number"
-                min={1}
-                {...register("max_members", { valueAsNumber: true })}
-                disabled={approved}
-              />
-            </div>
-          </div>
-
           <div className="flex justify-end gap-2 pt-2">
             <Button
               type="button"
@@ -230,7 +194,7 @@ export function EditTeamDialogTrigger({
 }) {
   return (
     <Button type="button" variant="outline" size="sm" onClick={onClick}>
-      <Pencil className="h-4 w-4 mr-2" />
+      <Pencil className="h-4 w-4" />
       Editar equipe
     </Button>
   );

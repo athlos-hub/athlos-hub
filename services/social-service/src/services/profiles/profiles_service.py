@@ -3,11 +3,18 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import HTTPException, status
+from sqlalchemy import delete as sql_delete
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infrastructure.http.auth_client import AuthClientError, get_user_by_username
-from src.models import AthleteProfile, OrganizationProfile, TeamProfile
+from src.models import (
+    AthleteProfile,
+    OrganizationProfile,
+    Post,
+    TeamFollow,
+    TeamProfile,
+)
 
 
 async def get_or_create_athlete(session: AsyncSession, keycloak_id: str) -> AthleteProfile:
@@ -122,6 +129,24 @@ async def update_team_profile(
     if "isPrivate" in updates and updates["isPrivate"] is not None:
         p.is_private = bool(updates["isPrivate"])
     return p
+
+
+async def delete_team_social_data(session: AsyncSession, team_id: str) -> None:
+    """
+    Remove dados sociais ligados ao time (ID do time no competitions-service):
+    posts TEAM, seguidores e linha em team_profiles.
+    """
+    tid = team_id.strip()
+    if not tid:
+        return
+    await session.execute(
+        sql_delete(Post).where(
+            Post.profile_type == "TEAM",
+            Post.profile_id == tid,
+        )
+    )
+    await session.execute(sql_delete(TeamFollow).where(TeamFollow.team_id == tid))
+    await session.execute(sql_delete(TeamProfile).where(TeamProfile.team_id == tid))
 
 
 async def update_bio(session: AsyncSession, keycloak_id: str, bio: str | None) -> AthleteProfile:

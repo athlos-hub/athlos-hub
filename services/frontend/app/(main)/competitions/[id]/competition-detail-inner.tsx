@@ -87,6 +87,7 @@ import { CompetitionManagementDialogs } from "@/components/organizations/competi
 import { CompetitionTeamCard } from "@/components/teams/competition-team-card";
 import { TeamLogo } from "@/components/teams/team-logo";
 import { CreateTeamDialog } from "@/components/teams/create-team-dialog";
+import { CompetitionPendingTeamsSection } from "@/components/competitions/competition-pending-teams-section";
 import { getMyTeams } from "@/actions/teams";
 import type { TeamListItem } from "@/types/team";
 import { toast } from "sonner";
@@ -106,7 +107,7 @@ export function CompetitionDetailPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const competitionId = params?.id as string;
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
 
   const tabParam = searchParams.get("tab");
   const activeTab: CompetitionTab = COMPETITION_TABS.includes(tabParam as CompetitionTab)
@@ -197,6 +198,52 @@ export function CompetitionDetailPageInner() {
     }
   }, [competitionId]);
 
+  /** Papel na organização depende da sessão; na URL direta a sessão costuma chegar depois do 1º load. */
+  useEffect(() => {
+    const slug = competition?.organization_slug;
+    if (!slug) {
+      setOrganizationName(null);
+      setUserRole(null);
+      return;
+    }
+
+    if (sessionStatus === "loading") {
+      return;
+    }
+
+    if (sessionStatus !== "authenticated" || !session) {
+      setUserRole(null);
+      setOrganizationName(null);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const orgData = await getOrganizationBySlug(slug, true);
+        if (cancelled) return;
+        if ("name" in orgData && typeof orgData.name === "string") {
+          setOrganizationName(orgData.name);
+        } else {
+          setOrganizationName(null);
+        }
+        if ("role" in orgData) {
+          setUserRole(orgData.role as string);
+        } else {
+          setUserRole(null);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Erro ao verificar role do usuário:", error);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [competition?.organization_slug, sessionStatus, session?.user?.id]);
+
   const loadCompetitionData = async () => {
     setIsLoading(true);
     try {
@@ -209,23 +256,6 @@ export function CompetitionDetailPageInner() {
         setMyTeams(mine);
       } catch {
         setMyTeams([]);
-      }
-
-      // Verificar role do usuário na organização
-      if (session && compData.organization_slug) {
-        try {
-          const orgData = await getOrganizationBySlug(compData.organization_slug, true);
-          if ("name" in orgData && typeof orgData.name === "string") {
-            setOrganizationName(orgData.name);
-          }
-          if ("role" in orgData) {
-            setUserRole(orgData.role);
-          }
-        } catch (error) {
-          console.error("Erro ao verificar role do usuário:", error);
-        }
-      } else {
-        setOrganizationName(null);
       }
 
       // Carregar standings
@@ -281,6 +311,15 @@ export function CompetitionDetailPageInner() {
       toast.error(message);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const reloadCompetitionTeams = async () => {
+    try {
+      const teamsData = await getCompetitionTeamsWithPlayers(competitionId);
+      setTeams(teamsData);
+    } catch {
+      setTeams([]);
     }
   };
 
@@ -1029,43 +1068,64 @@ export function CompetitionDetailPageInner() {
             </TabsContent>
 
             {/* Times */}
-            <TabsContent value="teams" className="mt-6">
-              {hasTeams ? (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {teams.map((team) => (
-                    <CompetitionTeamCard
-                      key={team.id}
-                      team={team}
-                      organizationSlug={competition.organization_slug}
-                      organizationName={organizationName ?? undefined}
-                    />
-                  ))}
+            <TabsContent value="teams" className="mt-6 space-y-10">
+              {canManageCompetition && competition.organization_slug && (
+                <CompetitionPendingTeamsSection
+                  organizationSlug={competition.organization_slug}
+                  competitionId={competitionId}
+                  competitionName={competition.name}
+                  isAdmin={!!canManageCompetition}
+                  onChanged={reloadCompetitionTeams}
+                />
+              )}
+
+              <section className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Equipes na competição
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Times já aprovados e registrados neste campeonato.
+                  </p>
                 </div>
-              ) : (
-                <div className="py-16 text-center">
-                  <div className="flex flex-col items-center gap-4">
-                    <Shield className="w-16 h-16 text-gray-300" />
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        Nenhum time inscrito
-                      </h3>
-                      <p className="text-gray-600 mb-4">
-                        Os times serão exibidos quando se inscreverem na competição
-                      </p>
-                      {canShowPlayerCreateTeam && (
-                        <Button
-                          type="button"
-                          className="bg-main hover:bg-main/90 text-white"
-                          onClick={() => setCreateTeamOpen(true)}
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          Criar time nesta competição
-                        </Button>
-                      )}
+                {hasTeams ? (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {teams.map((team) => (
+                      <CompetitionTeamCard
+                        key={team.id}
+                        team={team}
+                        organizationSlug={competition.organization_slug}
+                        organizationName={organizationName ?? undefined}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-12 text-center rounded-xl border ">
+                    <div className="flex flex-col items-center gap-4">
+                      <Shield className="w-14 h-14 text-gray-300" />
+                      <div>
+                        <h4 className="text-base font-semibold text-gray-900 mb-1">
+                          Nenhuma equipe inscrita ainda
+                        </h4>
+                        <p className="text-sm text-gray-600 mb-4 max-w-md mx-auto">
+                          Após aprovação, as equipes aparecem aqui. Jogadores podem criar um time
+                          nesta competição quando houver vagas.
+                        </p>
+                        {canShowPlayerCreateTeam && (
+                          <Button
+                            type="button"
+                            className="bg-main hover:bg-main/90 text-white"
+                            onClick={() => setCreateTeamOpen(true)}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Criar time nesta competição
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </section>
             </TabsContent>
 
             {/* Estatísticas */}

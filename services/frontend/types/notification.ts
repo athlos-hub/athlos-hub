@@ -21,7 +21,8 @@ export enum NotificationType {
   ORGANIZATION_SUSPENDED = 'organization_suspended',
   ORGANIZATION_UNSUSPENDED = 'organization_unsuspended',
   ORGANIZATION_DELETED = 'organization_deleted',
-  
+  ORGANIZATION_RESTORED = 'organization_restored',
+
   FOLLOW = 'follow',
   POST_LIKE = 'post_like',
   POST_COMMENT = 'post_comment',
@@ -30,6 +31,9 @@ export enum NotificationType {
   ORGANIZATION_FOLLOW = 'organization_follow',
 
   COMPETITION_TEAM_MEMBER_JOINED = 'competition_team_member_joined',
+
+  /** Dono/organizadores: equipe pediu aprovação para a competição */
+  ORGANIZATION_TEAM_APPROVAL_REQUEST = 'organization_team_approval_request',
 
   GENERAL = 'general',
 }
@@ -44,6 +48,8 @@ export interface NotificationMetadata {
   requester_id?: string;
   competition_id?: string;
   competition_name?: string;
+  team_id?: string;
+  team_name?: string;
   livestream_id?: string;
   livestream_title?: string;
   /** UUID do post (curtida, comentário, partilha) */

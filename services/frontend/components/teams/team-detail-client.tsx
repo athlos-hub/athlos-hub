@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Users, Calendar, Trophy, Building2, CheckCircle, Loader2, UserPlus, XCircle, Clock } from "lucide-react";
+import { Users, Calendar, Trophy, Building2, CheckCircle, Loader2, UserPlus, XCircle, Clock, Trash2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,8 @@ import { FollowTeamButton } from "./follow-team-button";
 import { TeamPostsSection } from "./team-posts-section";
 import { TeamStatus } from "@/types/team";
 import type { TeamDetail } from "@/types/team";
-import { requestTeamApproval } from "@/actions/teams";
+import { deleteTeam, requestTeamApproval } from "@/actions/teams";
+import { APIException } from "@/lib/api/errors";
 import { canApprove } from "@/lib/teams/utils";
 import { getTeamProfile, type TeamProfile as TeamSocialProfile } from "@/actions/social-profiles";
 import { getTeamFollowersCount } from "@/actions/team-follow";
@@ -21,27 +22,50 @@ import { useSession } from "next-auth/react";
 import { PageHeader } from "@/components/layout/page-header";
 import { TeamLogo } from "@/components/teams/team-logo";
 import { EditTeamDialog, EditTeamDialogTrigger } from "@/components/teams/edit-team-dialog";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface TeamDetailClientProps {
   team: TeamDetail;
+  /** Campeonato ainda não começou (competição *pending*): capitão pode excluir a equipe. */
+  competitionPendingForDeletion?: boolean;
 }
 
-export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
+export function TeamDetailClient({
+  team: initialTeam,
+  competitionPendingForDeletion = false,
+}: TeamDetailClientProps) {
   const router = useRouter();
   const { data: session } = useSession();
   const [team, setTeam] = useState(initialTeam);
   const [isApproving, setIsApproving] = useState(false);
   const [followersCount, setFollowersCount] = useState<number>(0);
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [teamSocialProfile, setTeamSocialProfile] = useState<TeamSocialProfile | null>(null);
+
+  /** Social usa o ID do time no competitions-service (auth: external_team_id). */
+  const socialTeamId = useMemo(() => {
+    const ext = team.external_team_id?.trim();
+    if (ext) return ext;
+    return team.id;
+  }, [team.external_team_id, team.id]);
 
   useEffect(() => {
     let cancelled = false;
-    getTeamProfile(team.id).then((p) => {
+    getTeamProfile(socialTeamId).then((p) => {
       if (cancelled) return;
       setTeamSocialProfile(p);
       if (p?.approvedForSocial) {
-        getTeamFollowersCount(team.id)
+        getTeamFollowersCount(socialTeamId)
           .then(setFollowersCount)
           .catch(() => setFollowersCount(0));
       } else {
@@ -51,20 +75,20 @@ export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
     return () => {
       cancelled = true;
     };
-  }, [team.id]);
+  }, [socialTeamId]);
 
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail;
-      if (detail?.teamId === team.id) {
-        getTeamFollowersCount(team.id)
+      if (detail?.teamId === socialTeamId || detail?.teamId === team.id) {
+        getTeamFollowersCount(socialTeamId)
           .then(setFollowersCount)
           .catch(() => setFollowersCount(0));
       }
     };
     window.addEventListener("team:follow-changed", handler);
     return () => window.removeEventListener("team:follow-changed", handler);
-  }, [team.id]);
+  }, [socialTeamId, team.id]);
   
   // Verifica se o usuário logado é capitão
   const isCaptain = team.members?.some(
@@ -113,6 +137,31 @@ export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
 
   const statusConfig = getStatusConfig(team.status);
   const StatusIcon = statusConfig.icon;
+
+  /** Só há perfil e posts sociais consolidados após aprovação na competição. */
+  const showTeamPosts =
+    team.status === TeamStatus.APPROVED || team.status === TeamStatus.ACTIVE;
+
+  const handleDeleteTeam = async () => {
+    setDeleting(true);
+    try {
+      await deleteTeam(team.id);
+      toast.success("Equipe excluída.");
+      setDeleteOpen(false);
+      setDeleting(false);
+      // Navegação completa evita soft-navigation presa após server action + estado do dialog.
+      window.location.assign("/clubes/painel");
+    } catch (error) {
+      const message =
+        error instanceof APIException
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Não foi possível excluir a equipe";
+      toast.error(message);
+      setDeleting(false);
+    }
+  };
 
   const handleApprove = async () => {
     setIsApproving(true);
@@ -165,11 +214,22 @@ export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
               </div>
             </div>
             <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
+              {isCaptain && competitionPendingForDeletion && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Excluir equipe
+                </Button>
+              )}
               {isCaptain && (
                 <EditTeamDialogTrigger onClick={() => setEditOpen(true)} />
               )}
               {teamSocialProfile?.approvedForSocial === true && (
-                <FollowTeamButton teamId={team.id} />
+                <FollowTeamButton teamId={socialTeamId} />
               )}
             </div>
           </div>
@@ -196,7 +256,7 @@ export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
             </div>
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-main" />
-              {memberCount} / {team.min_members}-{team.max_members} jogadores
+              {memberCount} membro{memberCount !== 1 ? "s" : ""}
             </div>
           </div>
 
@@ -227,13 +287,19 @@ export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
           {isCaptain && (
             <>
               <hr className="my-4 border-border" />
+              {!competitionPendingForDeletion && (
+                <p className="text-xs text-muted-foreground mb-3">
+                  A exclusão da equipe só é permitida antes do início do campeonato (competição ainda
+                  em preparação). Apenas o capitão pode excluir.
+                </p>
+              )}
               <div className="flex flex-wrap gap-3">
                 {team.status !== TeamStatus.APPROVED && team.status !== TeamStatus.REJECTED && (
                   <TeamInviteDialog teamId={team.id} teamName={team.name} />
                 )}
                 
-                {(team.status === TeamStatus.READY || (team.status === TeamStatus.RECRUITING && memberCount >= team.min_members) || (team.status === TeamStatus.PENDING && memberCount >= team.min_members)) && (
-                  <Button 
+                {canRequestApproval && (
+                  <Button
                     onClick={handleApprove}
                     disabled={isApproving}
                     size="sm"
@@ -263,8 +329,7 @@ export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
         members={team.members ?? []}
       />
 
-      {/* Posts da equipe */}
-      <TeamPostsSection teamId={team.id} />
+      {showTeamPosts && <TeamPostsSection teamId={socialTeamId} />}
 
       {isCaptain && (
         <EditTeamDialog
@@ -277,6 +342,41 @@ export function TeamDetailClient({ team: initialTeam }: TeamDetailClientProps) {
           }}
         />
       )}
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir equipe?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Todos os membros serão removidos do time e o registro
+              na competição será apagado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting} type="button">
+              Cancelar
+            </AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-white"
+              onClick={() => {
+                void handleDeleteTeam();
+              }}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin inline" />
+                  Excluindo...
+                </>
+              ) : (
+                "Excluir"
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

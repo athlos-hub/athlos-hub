@@ -115,6 +115,15 @@ class CompetitionServiceError(TeamError):
         super().__init__(message)
 
 
+class CompetitionAlreadyStartedError(TeamError):
+    """Competição já iniciou ou terminou; não é permitido excluir o time."""
+
+    def __init__(self):
+        super().__init__(
+            "Não é possível excluir a equipe: o campeonato já começou ou foi encerrado."
+        )
+
+
 class TeamProfileEditRestrictedError(TeamError):
     """Time aprovado: só permite alterar logo/escudo."""
 

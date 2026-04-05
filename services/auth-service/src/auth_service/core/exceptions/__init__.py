@@ -40,6 +40,7 @@ from auth_service.core.exceptions.organization import (
 )
 from auth_service.core.exceptions.team import (
     AlreadyTeamMemberError,
+    CompetitionAlreadyStartedError,
     CompetitionServiceError,
     NotTeamCaptainError,
     NotTeamMemberError,
@@ -137,4 +138,5 @@ __all__ = [
     "TeamProfileEditRestrictedError",
     "PlayerAlreadyInCompetitionError",
     "CompetitionServiceError",
+    "CompetitionAlreadyStartedError",
 ]

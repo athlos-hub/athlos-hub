@@ -9,7 +9,11 @@ import logging
 import aio_pika
 
 from src.config.settings import settings
-from src.infrastructure.messaging.constants import EXCHANGE_SOCIAL, RK_PROFILE_TEAM_ENSURE
+from src.infrastructure.messaging.constants import (
+    EXCHANGE_SOCIAL,
+    RK_PROFILE_TEAM_DELETE,
+    RK_PROFILE_TEAM_ENSURE,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,29 +59,89 @@ async def publish_team_profile_ensure(
     organization_slug: str,
     approved_for_social: bool = True,
 ) -> None:
-    if not settings.RABBITMQ_URL:
-        return
+    rabbit = (settings.RABBITMQ_URL or "").strip()
+    if rabbit:
+        try:
+            body = json.dumps(
+                {
+                    "team_id": team_id,
+                    "organization_slug": organization_slug,
+                    "approved_for_social": approved_for_social,
+                },
+                default=str,
+            ).encode("utf-8")
+            exchange = await _ensure_exchange()
+            await exchange.publish(
+                aio_pika.Message(
+                    body=body,
+                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                    content_type="application/json",
+                ),
+                routing_key=RK_PROFILE_TEAM_ENSURE,
+            )
+            return
+        except Exception as e:
+            logger.warning(
+                "Fila social indisponível (team_id=%s), fallback HTTP: %s",
+                team_id,
+                e,
+            )
+
+    # Sem RabbitMQ (dev) ou fallback se publish falhar
     try:
-        body = json.dumps(
-            {
-                "team_id": team_id,
-                "organization_slug": organization_slug,
-                "approved_for_social": approved_for_social,
-            },
-            default=str,
-        ).encode("utf-8")
-        exchange = await _ensure_exchange()
-        await exchange.publish(
-            aio_pika.Message(
-                body=body,
-                delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
-                content_type="application/json",
-            ),
-            routing_key=RK_PROFILE_TEAM_ENSURE,
+        from src.services.social_client import SocialServiceClient
+
+        client = SocialServiceClient(settings.SOCIAL_SERVICE_URL)
+        ok = await client.create_team_profile(
+            team_id,
+            organization_slug,
+            approved_for_social=approved_for_social,
         )
+        if not ok:
+            logger.error(
+                "Falha HTTP ao garantir perfil social do time %s (slug=%s)",
+                team_id,
+                organization_slug,
+            )
+    except Exception as e:
+        logger.error(
+            "Erro HTTP ao garantir perfil social do time %s: %s",
+            team_id,
+            e,
+            exc_info=True,
+        )
+
+
+async def publish_team_profile_delete(*, team_id: str) -> None:
+    """Mensagem durável profile.team.delete → social-service (ou HTTP se sem RabbitMQ)."""
+    rabbit = (settings.RABBITMQ_URL or "").strip()
+    if rabbit:
+        try:
+            body = json.dumps({"team_id": team_id}, default=str).encode("utf-8")
+            exchange = await _ensure_exchange()
+            await exchange.publish(
+                aio_pika.Message(
+                    body=body,
+                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                    content_type="application/json",
+                ),
+                routing_key=RK_PROFILE_TEAM_DELETE,
+            )
+            return
+        except Exception as e:
+            logger.warning(
+                "Fila profile.team.delete indisponível (team_id=%s), fallback HTTP: %s",
+                team_id,
+                e,
+            )
+
+    try:
+        from src.services.social_client import SocialServiceClient
+
+        await SocialServiceClient(settings.SOCIAL_SERVICE_URL).delete_team_profile(team_id)
     except Exception as e:
         logger.warning(
-            "Falha ao enfileirar perfil de time no social (team_id=%s): %s",
+            "Falha HTTP ao remover perfil social team_id=%s: %s",
             team_id,
             e,
         )

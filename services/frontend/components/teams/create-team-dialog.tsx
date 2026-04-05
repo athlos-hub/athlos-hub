@@ -6,6 +6,7 @@ import { Loader2, Users, Trophy, Building2, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LogoUpload } from "@/components/organizations/logo-upload";
 import {
   Select,
   SelectContent,
@@ -22,7 +23,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { useSession } from "next-auth/react";
 import { getMyOrganizations } from "@/actions/organizations";
 import { listCompetitions } from "@/actions/competitions";
 import { createTeam, getMyTeams } from "@/actions/teams";
@@ -55,7 +55,6 @@ export function CreateTeamDialog({
   fixedContext,
   onSuccess,
 }: CreateTeamDialogProps) {
-  const { data: session } = useSession();
   const router = useRouter();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -69,6 +68,7 @@ export function CreateTeamDialog({
   const [selectedCompetition, setSelectedCompetition] = useState("");
   const [teamName, setTeamName] = useState("");
   const [abbreviation, setAbbreviation] = useState("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
 
   const selectedComp = competitions.find(
     (c) => String(c.id) === selectedCompetition
@@ -81,6 +81,7 @@ export function CreateTeamDialog({
 
     setTeamName("");
     setAbbreviation("");
+    setLogoFile(null);
 
     if (locked && fixedContext) {
       setSelectedOrg(fixedContext.organizationSlug);
@@ -190,17 +191,25 @@ export function CreateTeamDialog({
 
     setIsSubmitting(true);
     try {
-      const team = await createTeam({
-        organization_slug: orgSlug,
-        competition_id: compId,
-        competition_name: effectiveComp.name,
-        name: teamName,
-        abbreviation: abbreviation.toUpperCase(),
-        min_members: effectiveComp.min_members_per_team || 1,
-        max_members: effectiveComp.max_members_per_team || 20,
-        captain_keycloak_id: session?.user?.keycloakId || "",
-        players: [{ keycloak_id: session?.user?.keycloakId || "" }],
-      });
+      const fd = new FormData();
+      fd.set("organization_slug", orgSlug);
+      fd.set("competition_id", compId);
+      fd.set("competition_name", effectiveComp.name);
+      fd.set("name", teamName.trim());
+      fd.set("abbreviation", abbreviation.toUpperCase().slice(0, 3));
+      fd.set(
+        "min_members",
+        String(effectiveComp.min_members_per_team || 1)
+      );
+      fd.set(
+        "max_members",
+        String(effectiveComp.max_members_per_team || 20)
+      );
+      if (logoFile) {
+        fd.set("logo", logoFile);
+      }
+
+      const team = await createTeam(fd);
 
       toast.success(
         "Time criado com sucesso! Agora você pode convidar jogadores."
@@ -312,6 +321,17 @@ export function CreateTeamDialog({
 
             {showForm && (locked || selectedOrg) && (
               <>
+                <div className="space-y-2">
+                  <LogoUpload
+                    label="Escudo do time (opcional)"
+                    value={logoFile}
+                    onChange={setLogoFile}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Sem imagem, usamos a sigla no padrão da plataforma.
+                  </p>
+                </div>
+
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <Users className="w-4 h-4" />

@@ -19,6 +19,9 @@ from src.infrastructure.messaging.social_team_profile_publisher import (
     close_social_team_profile_publisher,
 )
 from src.infrastructure.messaging.teams_import_consumer import teams_import_consumer_loop
+from src.infrastructure.messaging.teams_mirror_delete_consumer import (
+    teams_mirror_delete_consumer_loop,
+)
 from src.infrastructure.notification_publisher import close_notification_publisher
 
 # JWT validation is handled exclusively by Kong Gateway.
@@ -53,12 +56,18 @@ async def lifespan(app: FastAPI):
         raise
 
     stop_teams = asyncio.Event()
+    stop_mirror_delete = asyncio.Event()
     stop_logo = asyncio.Event()
     teams_consumer_task: asyncio.Task | None = None
+    mirror_delete_consumer_task: asyncio.Task | None = None
     logo_consumer_task: asyncio.Task | None = None
     if settings.RABBITMQ_URL:
         teams_consumer_task = asyncio.create_task(teams_import_consumer_loop(stop_teams))
         startup_logger.info("Consumer RabbitMQ: teams-import ativo.")
+        mirror_delete_consumer_task = asyncio.create_task(
+            teams_mirror_delete_consumer_loop(stop_mirror_delete)
+        )
+        startup_logger.info("Consumer RabbitMQ: teams-mirror-delete ativo.")
         logo_consumer_task = asyncio.create_task(logo_sync_consumer_loop(stop_logo))
         startup_logger.info("Consumer RabbitMQ: logo-sync ativo.")
 
@@ -69,6 +78,13 @@ async def lifespan(app: FastAPI):
         teams_consumer_task.cancel()
         try:
             await teams_consumer_task
+        except asyncio.CancelledError:
+            pass
+    if mirror_delete_consumer_task:
+        stop_mirror_delete.set()
+        mirror_delete_consumer_task.cancel()
+        try:
+            await mirror_delete_consumer_task
         except asyncio.CancelledError:
             pass
     if logo_consumer_task:

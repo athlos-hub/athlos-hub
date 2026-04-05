@@ -21,12 +21,23 @@ import { getPendingTeams, approveTeam, rejectTeam } from "@/actions/teams";
 import type { TeamDetail } from "@/types/team";
 import { TeamLogo } from "@/components/teams/team-logo";
 
-interface PendingTeamsSectionProps {
+interface CompetitionPendingTeamsSectionProps {
   organizationSlug: string;
+  competitionId: string;
+  /** Nome da competição (contexto na UI) */
+  competitionName?: string;
   isAdmin: boolean;
+  /** Após aprovar/rejeitar, atualiza a lista de times na competição */
+  onChanged?: () => void | Promise<void>;
 }
 
-export function PendingTeamsSection({ organizationSlug, isAdmin }: PendingTeamsSectionProps) {
+export function CompetitionPendingTeamsSection({
+  organizationSlug,
+  competitionId,
+  competitionName,
+  isAdmin,
+  onChanged,
+}: CompetitionPendingTeamsSectionProps) {
   const [teams, setTeams] = useState<TeamDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTeam, setSelectedTeam] = useState<TeamDetail | null>(null);
@@ -35,21 +46,22 @@ export function PendingTeamsSection({ organizationSlug, isAdmin }: PendingTeamsS
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    if (isAdmin) {
-      loadPendingTeams();
+    if (!isAdmin || !organizationSlug || !competitionId) {
+      setIsLoading(false);
+      return;
     }
-  }, [isAdmin]);
+    void loadPendingTeams();
+  }, [isAdmin, organizationSlug, competitionId]);
 
   async function loadPendingTeams() {
     try {
       setIsLoading(true);
-      const data = await getPendingTeams(organizationSlug);
+      const data = await getPendingTeams(organizationSlug, competitionId);
       setTeams(data);
     } catch (error) {
-      console.error("Erro ao carregar times pendentes:", error);
-      // Não mostrar toast de erro se não houver permissão
+      console.error("Erro ao carregar equipes aguardando aprovação:", error);
       if (error instanceof Error && !error.message.includes("organizadores")) {
-        toast.error("Erro ao carregar times pendentes");
+        toast.error("Erro ao carregar equipes aguardando aprovação");
       }
     } finally {
       setIsLoading(false);
@@ -60,11 +72,11 @@ export function PendingTeamsSection({ organizationSlug, isAdmin }: PendingTeamsS
     setIsProcessing(true);
     try {
       await approveTeam(team.id);
-      toast.success(`Time "${team.name}" aprovado com sucesso!`);
-      // Remove da lista
-      setTeams(prev => prev.filter(t => t.id !== team.id));
+      toast.success(`Equipe "${team.name}" aprovada.`);
+      setTeams((prev) => prev.filter((t) => t.id !== team.id));
+      await onChanged?.();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Erro ao aprovar time";
+      const message = error instanceof Error ? error.message : "Erro ao aprovar equipe";
       toast.error(message);
     } finally {
       setIsProcessing(false);
@@ -83,12 +95,12 @@ export function PendingTeamsSection({ organizationSlug, isAdmin }: PendingTeamsS
     setIsProcessing(true);
     try {
       await rejectTeam(selectedTeam.id, rejectReason);
-      toast.success(`Time "${selectedTeam.name}" rejeitado.`);
-      // Remove da lista
-      setTeams(prev => prev.filter(t => t.id !== selectedTeam.id));
+      toast.success(`Equipe "${selectedTeam.name}" rejeitada.`);
+      setTeams((prev) => prev.filter((t) => t.id !== selectedTeam.id));
       setIsRejectDialogOpen(false);
+      await onChanged?.();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Erro ao rejeitar time";
+      const message = error instanceof Error ? error.message : "Erro ao rejeitar equipe";
       toast.error(message);
     } finally {
       setIsProcessing(false);
@@ -103,14 +115,17 @@ export function PendingTeamsSection({ organizationSlug, isAdmin }: PendingTeamsS
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-base">
             <Clock className="h-5 w-5" />
-            Times Aguardando Aprovação
+            Equipes aguardando aprovação
           </CardTitle>
+          {competitionName && (
+            <CardDescription>{competitionName}</CardDescription>
+          )}
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         </CardContent>
       </Card>
@@ -118,22 +133,24 @@ export function PendingTeamsSection({ organizationSlug, isAdmin }: PendingTeamsS
   }
 
   if (teams.length === 0) {
-    return null; // Não mostrar nada se não houver times pendentes
+    return null;
   }
 
   return (
     <>
-      <Card className="border-orange-200 bg-orange-50/50">
+      <Card className="border-amber-200 bg-amber-50/50">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-orange-900">
+          <CardTitle className="flex items-center gap-2 text-amber-950">
             <AlertCircle className="h-5 w-5" />
-            Times Aguardando Aprovação
-            <Badge variant="secondary" className="ml-2">
+            Equipes aguardando aprovação
+            <Badge variant="secondary" className="ml-1">
               {teams.length}
             </Badge>
           </CardTitle>
           <CardDescription>
-            Aprove ou rejeite os times que solicitaram participação nas competições
+            {competitionName
+              ? `Pedidos de inscrição nesta competição (${competitionName}). Aprove ou rejeite para liberar na disputa.`
+              : "Aprove ou rejeite as equipes que solicitaram inscrição nesta competição."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -141,10 +158,10 @@ export function PendingTeamsSection({ organizationSlug, isAdmin }: PendingTeamsS
             {teams.map((team) => (
               <div
                 key={team.id}
-                className="bg-white rounded-lg border border-gray-200 p-4 hover:border-orange-300 transition-colors"
+                className="rounded-lg border border-border bg-card p-4 hover:border-amber-300/80 transition-colors"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 flex gap-3 min-w-0">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex min-w-0 flex-1 gap-3">
                     <TeamLogo
                       name={team.name}
                       abbreviation={team.abbreviation}
@@ -153,51 +170,54 @@ export function PendingTeamsSection({ organizationSlug, isAdmin }: PendingTeamsS
                       textClassName="text-sm"
                     />
                     <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                      <Link
-                        href={`/clubes/${team.id}`}
-                        className="font-semibold text-gray-900 hover:text-main hover:underline"
-                      >
-                        {team.name}
-                      </Link>
-                      <span className="text-sm text-gray-500">({team.abbreviation})</span>
-                    </div>
-                    <div className="text-sm text-gray-600 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4" />
-                        <span>
-                          {team.member_count} jogador{team.member_count !== 1 ? "es" : ""} 
-                          {" "} (mínimo: {team.min_members}, máximo: {team.max_members})
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <Link
+                          href={`/clubes/${team.id}`}
+                          className="font-semibold text-foreground hover:text-main hover:underline"
+                        >
+                          {team.name}
+                        </Link>
+                        <span className="text-sm text-muted-foreground">
+                          ({team.abbreviation})
                         </span>
                       </div>
-                      <div className="text-sm font-medium text-orange-700">
-                        Competição: {team.competition_name}
+                      <div className="space-y-1 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4 shrink-0" />
+                          <span>
+                            {team.member_count} jogador
+                            {team.member_count !== 1 ? "es" : ""} (mín. {team.min_members}, máx.{" "}
+                            {team.max_members})
+                          </span>
+                        </div>
+                        <div className="font-medium text-amber-900/90">
+                          Competição: {team.competition_name}
+                        </div>
                       </div>
-                    </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex shrink-0 flex-wrap gap-2 sm:flex-col sm:items-stretch lg:flex-row">
                     <Button
                       size="sm"
                       variant="outline"
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
+                      className="border-destructive/40 text-destructive hover:bg-destructive/10"
                       onClick={() => openRejectDialog(team)}
                       disabled={isProcessing}
                     >
-                      <XCircle className="w-4 h-4 mr-1" />
+                      <XCircle className="mr-1 h-4 w-4" />
                       Rejeitar
                     </Button>
                     <Button
                       size="sm"
-                      className="bg-green-600 hover:bg-green-700 text-white"
+                      className="bg-green-600 text-white hover:bg-green-700"
                       onClick={() => handleApprove(team)}
                       disabled={isProcessing}
                     >
                       {isProcessing ? (
-                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        <Loader2 className="mr-1 h-4 w-4 animate-spin" />
                       ) : (
-                        <CheckCircle className="w-4 h-4 mr-1" />
+                        <CheckCircle className="mr-1 h-4 w-4" />
                       )}
                       Aprovar
                     </Button>
@@ -209,25 +229,23 @@ export function PendingTeamsSection({ organizationSlug, isAdmin }: PendingTeamsS
         </CardContent>
       </Card>
 
-      {/* Dialog de Rejeição */}
       <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rejeitar Time</DialogTitle>
+            <DialogTitle>Rejeitar equipe</DialogTitle>
             <DialogDescription>
-              Você está prestes a rejeitar o time "{selectedTeam?.name}". 
-              Forneça um motivo (opcional).
+              Você está prestes a rejeitar a equipe &quot;{selectedTeam?.name}&quot;. Motivo opcional.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="reason">Motivo da rejeição (opcional)</Label>
+              <Label htmlFor="reject-reason">Motivo (opcional)</Label>
               <Textarea
-                id="reason"
+                id="reject-reason"
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="Ex: Time não atingiu o mínimo de jogadores..."
+                placeholder="Ex.: equipe não atende ao regulamento..."
                 rows={4}
               />
             </div>
@@ -236,23 +254,20 @@ export function PendingTeamsSection({ organizationSlug, isAdmin }: PendingTeamsS
           <DialogFooter>
             <Button
               variant="outline"
+              type="button"
               onClick={() => setIsRejectDialogOpen(false)}
               disabled={isProcessing}
             >
               Cancelar
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleReject}
-              disabled={isProcessing}
-            >
+            <Button variant="destructive" type="button" onClick={handleReject} disabled={isProcessing}>
               {isProcessing ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Rejeitando...
                 </>
               ) : (
-                "Rejeitar Time"
+                "Rejeitar equipe"
               )}
             </Button>
           </DialogFooter>

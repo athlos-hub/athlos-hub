@@ -37,6 +37,7 @@ class NotificationType(str, Enum):
     COMMENT_REPLY = "comment_reply"
     ORGANIZATION_FOLLOW = "organization_follow"
     COMPETITION_TEAM_MEMBER_JOINED = "competition_team_member_joined"
+    ORGANIZATION_TEAM_APPROVAL_REQUEST = "organization_team_approval_request"
     GENERAL = "general"
 
 

@@ -146,3 +146,23 @@ export async function unsuspendOrganization(slug: string): Promise<ActionRespons
     return { success: false, error: "Erro ao reativar organização" };
   }
 }
+
+/** Reativa organização em EXCLUDED (ex.: excluída pelo dono). */
+export async function restoreExcludedOrganization(slug: string): Promise<ActionResponse> {
+  try {
+    await axiosAPI({
+      endpoint: `/admin/organizations/restore/${slug}`,
+      method: "PATCH",
+      withAuth: true,
+    });
+    return { success: true };
+  } catch (error) {
+    if (error instanceof APIException) {
+      return {
+        success: false,
+        error: error.message || "Erro ao restaurar organização excluída",
+      };
+    }
+    return { success: false, error: "Erro ao restaurar organização excluída" };
+  }
+}

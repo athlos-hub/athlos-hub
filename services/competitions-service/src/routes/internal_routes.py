@@ -11,6 +11,7 @@ from fastapi import APIRouter, Response
 
 from shared.database.client import db
 from src.infrastructure.messaging.social_team_profile_publisher import (
+    publish_team_profile_delete,
     publish_team_profile_ensure,
 )
 from src.schemas.internal_teams import (
@@ -19,13 +20,29 @@ from src.schemas.internal_teams import (
     TeamLogoSyncPayload,
 )
 from src.services.internal_teams_import_service import (
+    delete_team_by_auth_team_id,
+    delete_team_by_competition_team_id,
     import_team_from_auth,
     sync_team_logo_by_id,
 )
-
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/internal", tags=["Internal"])
+
+
+async def _remove_team_profiles_from_social(competition_team_ids: list[UUID]) -> None:
+    """Enfileira profile.team.delete (durável) ou HTTP se não houver RabbitMQ."""
+    if not competition_team_ids:
+        return
+    for tid in competition_team_ids:
+        try:
+            await publish_team_profile_delete(team_id=str(tid))
+        except Exception as e:
+            logger.warning(
+                "Falha ao publicar remoção de perfil social do time %s: %s",
+                tid,
+                e,
+            )
 
 
 @router.post("/teams", response_model=TeamCreatedResponse, status_code=201)
@@ -51,6 +68,33 @@ async def sync_team_logo(
     """Sincroniza URL do escudo (chamado pelo auth-service após upload/remoção)."""
     async with db.session() as session:
         await sync_team_logo_by_id(session, team_id, payload.logo_url)
+    return Response(status_code=204)
+
+
+@router.delete("/teams/by-auth/{auth_team_id}", status_code=204)
+async def delete_team_by_auth(auth_team_id: UUID):
+    """
+    Remove o espelho do time no competitions (UUID do time no auth-service).
+    Chamado pelo auth ao excluir equipe; só permitido com competição *pending*.
+    """
+    removed: list[UUID] = []
+    async with db.session() as session:
+        removed = await delete_team_by_auth_team_id(session, auth_team_id)
+    await _remove_team_profiles_from_social(removed)
+    return Response(status_code=204)
+
+
+@router.delete("/teams/{competition_team_id}", status_code=204)
+async def delete_team_by_competition_uuid(competition_team_id: UUID):
+    """
+    Remove o time pelo ID no competitions (fallback quando by-auth não encontra linha).
+    """
+    removed: list[UUID] = []
+    async with db.session() as session:
+        removed = await delete_team_by_competition_team_id(
+            session, competition_team_id
+        )
+    await _remove_team_profiles_from_social(removed)
     return Response(status_code=204)
 
 

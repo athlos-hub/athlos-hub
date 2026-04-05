@@ -11,9 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.infrastructure.messaging.constants import (
     RK_PROFILE_ATHLETE_ENSURE,
     RK_PROFILE_ORGANIZATION_ENSURE,
+    RK_PROFILE_TEAM_DELETE,
     RK_PROFILE_TEAM_ENSURE,
 )
 from src.services.profiles.profiles_service import (
+    delete_team_social_data,
     get_or_create_athlete,
     get_or_create_org,
     get_or_create_team,
@@ -66,6 +68,14 @@ async def process_profile_message(
             session, team_id, org_slug if org_slug else None
         )
         team.approved_for_social = approved
+        return
+
+    if rk == RK_PROFILE_TEAM_DELETE:
+        team_id = str(payload.get("team_id") or payload.get("teamId") or "").strip()
+        if not team_id:
+            logger.warning("profile.team.delete sem team_id: %s", payload)
+            return
+        await delete_team_social_data(session, team_id)
         return
 
     logger.warning("Routing key de perfil desconhecida: %s", rk)

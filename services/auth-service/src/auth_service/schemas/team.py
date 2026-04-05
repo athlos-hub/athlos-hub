@@ -28,8 +28,6 @@ class TeamUpdateRequest(BaseModel):
     """Request para atualizar um time."""
     name: Optional[str] = Field(None, max_length=100)
     abbreviation: Optional[str] = Field(None, max_length=3)
-    min_members: Optional[int] = Field(None, ge=1)
-    max_members: Optional[int] = Field(None, ge=1)
 
 
 class TeamMemberUser(BaseModel):

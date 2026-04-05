@@ -3,6 +3,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CreatePostForm } from "./create-post-form";
 import { CreatePostPayload } from "@/types/social";
+import type { OrganizationPrivacy } from "@/types/organization";
 
 interface CreatePostDialogProps {
   open: boolean;
@@ -10,6 +11,8 @@ interface CreatePostDialogProps {
   profileType: "organization" | "team";
   profileId: string;
   profileName: string;
+  /** Quando a org é privada, o formulário fixa visibilidade em apenas membros. */
+  organizationPrivacy?: OrganizationPrivacy;
   onSubmit: (payload: CreatePostPayload) => Promise<void>;
 }
 
@@ -19,6 +22,7 @@ export function CreatePostDialog({
   profileType,
   profileId,
   profileName,
+  organizationPrivacy,
   onSubmit,
 }: CreatePostDialogProps) {
   const handleSubmit = async (payload: CreatePostPayload) => {
@@ -42,6 +46,7 @@ export function CreatePostDialog({
             profileType={profileType}
             profileId={profileId}
             profileName={profileName}
+            organizationPrivacy={organizationPrivacy}
             onSubmit={handleSubmit}
             onCancel={() => onOpenChange(false)}
           />

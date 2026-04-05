@@ -17,6 +17,7 @@ export async function axiosAPI<TypeResponse = unknown>({
                                                            withAttachment = false,
                                                            bearerToken,
                                                            service,
+                                                           signal,
                                                        }: APIProps): Promise<APIResponse<TypeResponse>> {
     try {
         const baseURL = service ? getServiceURL(service) : getBaseURL();
@@ -27,6 +28,7 @@ export async function axiosAPI<TypeResponse = unknown>({
             url: endpoint,
             params: queryParams,
             timeout: 30000,
+            signal,
         };
 
         if (method !== "GET" && data) {
@@ -75,6 +77,16 @@ export async function axiosAPI<TypeResponse = unknown>({
 
     } catch (error) {
         const axiosError = error as AxiosError<unknown>;
+
+        if (axios.isCancel(error) || axiosError.code === "ERR_CANCELED") {
+            return Promise.reject(
+                new APIException(
+                    "A requisição demorou demais ou foi cancelada. Verifique se os serviços estão no ar e tente de novo.",
+                    0,
+                    "CANCELED"
+                )
+            );
+        }
 
         if (!axiosError.response) {
             return Promise.reject(new APIException(

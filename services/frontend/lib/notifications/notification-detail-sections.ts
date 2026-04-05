@@ -18,6 +18,7 @@ export function getNotificationDetailRows(
   add('Membro', metadata.member_name);
   add('Convidado por', metadata.inviter_name);
   add('Competição', metadata.competition_name);
+  add('Equipe', metadata.team_name);
   add('Transmissão', metadata.livestream_title);
   // Notificações novas já trazem o excerto na mensagem; só repetimos aqui em legado (postContent sem postPreview).
   const legacyPost =
@@ -95,6 +96,7 @@ export function shouldShowNotificationActions(notification: Notification): boole
     case 'organization_member_left':
     case 'organization_suspended':
     case 'organization_unsuspended':
+    case 'organization_restored':
       hasContent = !!href;
       break;
     case 'organization_request_rejected':

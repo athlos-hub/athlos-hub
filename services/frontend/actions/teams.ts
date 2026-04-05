@@ -11,7 +11,6 @@ import {
   InviteValidationResponse,
   AcceptInviteResponse,
   TeamRole,
-  TeamCreateRequest,
   TeamCreateResponse,
   TeamApprovalResponse,
 } from "@/types/team";
@@ -24,15 +23,18 @@ interface ActionResponse {
 }
 
 /**
- * Cria um novo time (no auth-service)
+ * Cria um novo time no auth-service (multipart: campos do formulário + logo opcional).
+ * Campos: organization_slug, competition_id, competition_name, name, abbreviation,
+ * min_members, max_members; opcional: logo (arquivo).
  */
-export async function createTeam(data: TeamCreateRequest): Promise<TeamCreateResponse> {
+export async function createTeam(formData: FormData): Promise<TeamCreateResponse> {
   try {
     const response = await axiosAPI<TeamCreateResponse>({
       endpoint: "/teams/",
       method: "POST",
-      data: data as unknown as Record<string, unknown>,
+      data: formData,
       withAuth: true,
+      withAttachment: true,
       service: "auth",
     });
 
@@ -130,6 +132,32 @@ export async function updateTeam(teamId: string, formData: FormData): Promise<Te
       throw error;
     }
     throw new Error("Erro ao atualizar time");
+  }
+}
+
+/**
+ * Exclui o time (apenas capitão; só permitido enquanto a competição estiver *pending*).
+ * Aborta após 45s para não deixar a UI em loading infinito se o backend travar.
+ */
+export async function deleteTeam(teamId: string): Promise<void> {
+  const controller = new AbortController();
+  const timeoutMs = 45_000;
+  const tid = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    await axiosAPI<unknown>({
+      endpoint: `/teams/${teamId}`,
+      method: "DELETE",
+      withAuth: true,
+      service: "auth",
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof APIException) {
+      throw error;
+    }
+    throw new Error("Erro ao excluir time");
+  } finally {
+    clearTimeout(tid);
   }
 }
 
@@ -351,12 +379,19 @@ export async function rejectTeam(
  * Busca times pendentes de aprovação de uma organização (apenas organizador/owner)
  */
 export async function getPendingTeams(
-  organizationSlug: string
+  organizationSlug: string,
+  competitionId?: string
 ): Promise<TeamDetail[]> {
   try {
+    const queryParams: Record<string, string> = {};
+    if (competitionId?.trim()) {
+      queryParams.competition_id = competitionId.trim();
+    }
     const response = await axiosAPI<TeamDetail[]>({
       endpoint: `/teams/organization/${organizationSlug}/pending`,
       method: "GET",
+      queryParams:
+        Object.keys(queryParams).length > 0 ? queryParams : undefined,
       withAuth: true,
       service: "auth",
     });

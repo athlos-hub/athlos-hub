@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getCompetition } from "@/actions/competitions";
 import { getTeamById } from "@/actions/teams";
 import { TeamDetailClient } from "@/components/teams/team-detail-client";
 import { SITE_NAME, buildPageMetadata } from "@/lib/seo/site";
+import { CompetitionStatus } from "@/types/competition";
 
 /** Evita cache de RSC com escudo antigo após troca de logo. */
 export const dynamic = "force-dynamic";
@@ -43,7 +45,20 @@ export default async function TeamPage({ params }: TeamPageProps) {
         notFound();
     }
 
+    let competitionPendingForDeletion = false;
+    try {
+      const comp = await getCompetition(team.competition_id);
+      competitionPendingForDeletion = comp.status === CompetitionStatus.PENDING;
+    } catch {
+      competitionPendingForDeletion = false;
+    }
+
     // `id` pode ser o UUID do auth ou o do competitions (external_team_id);
     // o `team` retornado é sempre o do auth, com logo_url e nome corretos.
-    return <TeamDetailClient team={team} />;
+    return (
+      <TeamDetailClient
+        team={team}
+        competitionPendingForDeletion={competitionPendingForDeletion}
+      />
+    );
 }

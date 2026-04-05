@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { CreatePostPayload, PostType, PostVisibility } from "@/types/social";
+import { OrganizationPrivacy } from "@/types/organization";
 import { ImagePlus, Info, Loader2, Send, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { uploadSocialPostImage } from "@/actions/social-post-media";
@@ -33,6 +34,7 @@ interface CreatePostFormProps {
   profileType: "organization" | "team";
   profileId: string;
   profileName: string;
+  organizationPrivacy?: OrganizationPrivacy;
   onSubmit: (payload: CreatePostPayload) => Promise<void>;
   onCancel?: () => void;
 }
@@ -41,9 +43,14 @@ export function CreatePostForm({
   profileType,
   profileId: _profileId,
   profileName,
+  organizationPrivacy,
   onSubmit,
   onCancel,
 }: CreatePostFormProps) {
+  const isPrivateOrganization =
+    profileType === "organization" &&
+    organizationPrivacy === OrganizationPrivacy.PRIVATE;
+
   const fileInputId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [content, setContent] = useState("");
@@ -64,6 +71,12 @@ export function CreatePostForm({
       localImages.forEach((img) => revokePreview(img.preview));
     };
   }, [localImages, revokePreview]);
+
+  useEffect(() => {
+    if (isPrivateOrganization) {
+      setVisibility(PostVisibility.MEMBERS_ONLY);
+    }
+  }, [isPrivateOrganization]);
 
   const addFiles = (files: FileList | null) => {
     if (!files?.length) return;
@@ -137,7 +150,9 @@ export function CreatePostForm({
       await onSubmit({
         content: content.trim(),
         type: submitType,
-        visibility,
+        visibility: isPrivateOrganization
+          ? PostVisibility.MEMBERS_ONLY
+          : visibility,
         mediaUrls: mediaUrls.length ? mediaUrls : undefined,
       });
 
@@ -145,7 +160,11 @@ export function CreatePostForm({
       setLocalImages([]);
       setContent("");
       setType(PostType.TEXT);
-      setVisibility(PostVisibility.PUBLIC);
+      setVisibility(
+        isPrivateOrganization
+          ? PostVisibility.MEMBERS_ONLY
+          : PostVisibility.PUBLIC
+      );
       toast.success("Post criado com sucesso!");
     } catch (error: unknown) {
       const msg =
@@ -265,6 +284,17 @@ export function CreatePostForm({
 
       <Separator className="bg-border/60" />
 
+      {isPrivateOrganization && (
+        <Alert className="border-amber-200 bg-amber-50/90 text-amber-950">
+          <Info className="h-4 w-4 text-amber-800" />
+          <AlertTitle className="text-amber-950">Organização privada</AlertTitle>
+          <AlertDescription className="text-amber-900/90">
+            Publicações desta organização ficam visíveis só para membros. Não é possível escolher
+            visibilidade pública ou só seguidores.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label className="text-sm font-medium">Tipo</Label>
@@ -288,20 +318,26 @@ export function CreatePostForm({
 
         <div className="space-y-2">
           <Label className="text-sm font-medium">Quem pode ver</Label>
-          <Select
-            value={visibility}
-            onValueChange={(value) => setVisibility(value as PostVisibility)}
-            disabled={busy}
-          >
-            <SelectTrigger className="border-border/80 bg-background">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={PostVisibility.PUBLIC}>Público</SelectItem>
-              <SelectItem value={PostVisibility.FOLLOWERS}>Seguidores</SelectItem>
-              <SelectItem value={PostVisibility.MEMBERS_ONLY}>Apenas membros</SelectItem>
-            </SelectContent>
-          </Select>
+          {isPrivateOrganization ? (
+            <div className="flex h-10 items-center rounded-md border border-border/80 bg-muted/60 px-3 text-sm text-muted-foreground">
+              Apenas membros da organização
+            </div>
+          ) : (
+            <Select
+              value={visibility}
+              onValueChange={(value) => setVisibility(value as PostVisibility)}
+              disabled={busy}
+            >
+              <SelectTrigger className="border-border/80 bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={PostVisibility.PUBLIC}>Público</SelectItem>
+                <SelectItem value={PostVisibility.FOLLOWERS}>Seguidores</SelectItem>
+                <SelectItem value={PostVisibility.MEMBERS_ONLY}>Apenas membros</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </div>
 

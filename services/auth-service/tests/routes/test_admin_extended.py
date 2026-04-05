@@ -113,3 +113,13 @@ class TestAdminEndpointsDeleteOrganization:
         """Test delete organization requires admin role."""
         response = await client.delete("/api/admin/organizations/delete/test-org")
         assert response.status_code in [401, 403]
+
+
+class TestAdminEndpointsRestoreExcludedOrganization:
+    """Tests for admin restore EXCLUDED organization endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_restore_excluded_organization_requires_admin(self, client):
+        """Test restore excluded organization requires admin role."""
+        response = await client.patch("/api/admin/organizations/restore/test-org")
+        assert response.status_code in [401, 403]

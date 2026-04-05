@@ -1,11 +1,20 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.deps import get_bearer_authorization, get_current_keycloak_id
+from src.api.deps import (
+    get_bearer_authorization,
+    get_current_keycloak_id,
+    get_optional_bearer_authorization,
+    get_optional_keycloak_id,
+)
 from src.routes.deps import get_session
 from src.schemas import api_success, post_to_camel, spring_page
 from src.services.feed.feed_service import following_feed
-from src.services.posts.posts_service import list_public_feed, popular_posts, search_posts
+from src.services.posts.posts_service import (
+    list_for_you_feed,
+    popular_posts,
+    search_posts,
+)
 
 router = APIRouter(tags=["social"])
 
@@ -15,8 +24,23 @@ async def feed_public(
     session: AsyncSession = Depends(get_session),
     page: int = Query(0, ge=0),
     size: int = Query(10, ge=1, le=100),
+    kid: str | None = Depends(get_optional_keycloak_id),
+    authorization: str | None = Depends(get_optional_bearer_authorization),
 ):
-    rows, total = await list_public_feed(session, page, size)
+    # Bearer basta para resolver membros via auth-service; Kong pode não enviar X-Keycloak-Sub
+    # em chamadas server-to-server (ex.: Next server actions).
+    auth = (
+        authorization.strip()
+        if authorization and authorization.strip()
+        else None
+    )
+    rows, total = await list_for_you_feed(
+        session,
+        page,
+        size,
+        viewer_keycloak_id=kid,
+        viewer_authorization=auth,
+    )
     content = [post_to_camel(p) for p in rows]
     return api_success(spring_page(content, total_elements=total, page=page, size=size))
 

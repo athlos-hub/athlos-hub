@@ -20,6 +20,7 @@ from src.infrastructure.messaging.constants import (
     QUEUE_SOCIAL_PROFILES,
     RK_PROFILE_ATHLETE_ENSURE,
     RK_PROFILE_ORGANIZATION_ENSURE,
+    RK_PROFILE_TEAM_DELETE,
     RK_PROFILE_TEAM_ENSURE,
 )
 from src.services.profiles.profile_provision_service import process_profile_message
@@ -44,6 +45,7 @@ async def _declare_topology(channel: aio_pika.abc.AbstractChannel) -> aio_pika.a
     await queue.bind(soc_ex, routing_key=RK_PROFILE_ATHLETE_ENSURE)
     await queue.bind(soc_ex, routing_key=RK_PROFILE_ORGANIZATION_ENSURE)
     await queue.bind(soc_ex, routing_key=RK_PROFILE_TEAM_ENSURE)
+    await queue.bind(soc_ex, routing_key=RK_PROFILE_TEAM_DELETE)
     return queue
 
 

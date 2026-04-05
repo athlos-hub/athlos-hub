@@ -99,7 +99,10 @@ class TeamRepository(TeamRepositoryContract):
         return result.scalars().all()
 
     async def get_by_organization(
-        self, organization_id: UUID, status: Optional[TeamStatus] = None
+        self,
+        organization_id: UUID,
+        status: Optional[TeamStatus] = None,
+        competition_id: Optional[UUID] = None,
     ) -> Sequence[Team]:
         stmt = (
             select(Team)
@@ -111,6 +114,8 @@ class TeamRepository(TeamRepositoryContract):
         )
         if status:
             stmt = stmt.where(Team.status == status)
+        if competition_id is not None:
+            stmt = stmt.where(Team.competition_id == competition_id)
         stmt = stmt.order_by(Team.created_at.desc())
         result = await self._session.execute(stmt)
         return result.scalars().all()

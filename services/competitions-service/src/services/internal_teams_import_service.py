@@ -5,11 +5,13 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.competition import CompetitionModel, CompetitionStatus
-from src.models.teams import PlayerModel, TeamModel, TeamStatus
+from src.models.matches import MatchModel
+from src.models.standings import ClassificationModel
+from src.models.teams import PlayerModel, TeamInviteModel, TeamModel, TeamStatus
 from src.schemas.internal_teams import TeamCreatedResponse, TeamFromAuthPayload
 
 logger = logging.getLogger(__name__)
@@ -41,6 +43,29 @@ async def import_team_from_auth(
         raise HTTPException(
             status_code=400,
             detail="Competição não está aberta para inscrições",
+        )
+
+    # Idempotente: aprovação dupla / RPC+HTTP / reenvio não cria segundo registro
+    existing_auth = await session.execute(
+        select(TeamModel).where(
+            TeamModel.competition_id == payload.competition_id,
+            TeamModel.auth_team_id == payload.auth_team_id,
+        )
+    )
+    already = existing_auth.scalar_one_or_none()
+    if already:
+        logger.info(
+            "Importação idempotente: time auth_team_id=%s já existe na competição (team_id=%s)",
+            payload.auth_team_id,
+            already.id,
+        )
+        st = already.status
+        status_val = st.value if hasattr(st, "value") else str(st)
+        return TeamCreatedResponse(
+            id=already.id,
+            name=already.name,
+            status=status_val,
+            competition_id=already.competition_id,
         )
 
     num_players = len(payload.players)
@@ -152,3 +177,108 @@ async def sync_team_logo_by_id(
     if not team:
         raise HTTPException(status_code=404, detail="Time não encontrado")
     team.logo_url = logo_url
+
+
+async def _purge_competition_team_row(session: AsyncSession, team: TeamModel) -> None:
+    """Remove uma linha de time e vínculos (classificação, jogos, jogadores)."""
+    tid = team.id
+    team.team_captain = None
+    await session.flush()
+
+    await session.execute(
+        delete(ClassificationModel).where(ClassificationModel.team_id == tid)
+    )
+    await session.execute(
+        update(MatchModel)
+        .where(MatchModel.home_team_id == tid)
+        .values(home_team_id=None)
+    )
+    await session.execute(
+        update(MatchModel)
+        .where(MatchModel.away_team_id == tid)
+        .values(away_team_id=None)
+    )
+    await session.execute(
+        update(MatchModel)
+        .where(MatchModel.winner_team_id == tid)
+        .values(winner_team_id=None)
+    )
+    await session.execute(delete(TeamInviteModel).where(TeamInviteModel.team_id == tid))
+    await session.execute(delete(PlayerModel).where(PlayerModel.team_id == tid))
+    await session.delete(team)
+    await session.flush()
+
+
+async def delete_team_by_auth_team_id(
+    session: AsyncSession, auth_team_id: UUID
+) -> list[UUID]:
+    """
+    Remove todo espelho do time no competitions (pode haver mais de uma linha por corrida na importação).
+    Retorna os UUIDs de time no competitions removidos (para limpar social).
+
+    Só permitido com competição ainda *pending*.
+    """
+    result = await session.execute(
+        select(TeamModel).where(TeamModel.auth_team_id == auth_team_id)
+    )
+    teams = list(result.scalars().all())
+    if not teams:
+        raise HTTPException(status_code=404, detail="Time não encontrado nesta competição")
+
+    competition = await session.get(CompetitionModel, teams[0].competition_id)
+    if not competition:
+        raise HTTPException(status_code=404, detail="Competição não encontrada")
+
+    if competition.status != CompetitionStatus.PENDING:
+        raise HTTPException(
+            status_code=400,
+            detail="A competição já começou ou foi encerrada; não é possível excluir o time.",
+        )
+
+    deleted_ids: list[UUID] = []
+    for team in teams:
+        if team.competition_id != competition.id:
+            raise HTTPException(
+                status_code=409,
+                detail="Inconsistência: time ligado a mais de uma competição.",
+            )
+        tid = team.id
+        await _purge_competition_team_row(session, team)
+        deleted_ids.append(tid)
+
+    logger.info(
+        "Removido(s) %s registro(s) no competitions para auth_team_id=%s: %s",
+        len(deleted_ids),
+        auth_team_id,
+        deleted_ids,
+    )
+    return deleted_ids
+
+
+async def delete_team_by_competition_team_id(
+    session: AsyncSession, competition_team_id: UUID
+) -> list[UUID]:
+    """
+    Remove um time pelo ID no competitions-service (fallback quando by-auth não encontra linha).
+    """
+    team = await session.get(TeamModel, competition_team_id)
+    if not team:
+        raise HTTPException(status_code=404, detail="Time não encontrado nesta competição")
+
+    competition = await session.get(CompetitionModel, team.competition_id)
+    if not competition:
+        raise HTTPException(status_code=404, detail="Competição não encontrada")
+
+    if competition.status != CompetitionStatus.PENDING:
+        raise HTTPException(
+            status_code=400,
+            detail="A competição já começou ou foi encerrada; não é possível excluir o time.",
+        )
+
+    tid = team.id
+    await _purge_competition_team_row(session, team)
+    logger.info(
+        "Time competition_team_id=%s removido do competitions-service (competição pending)",
+        competition_team_id,
+    )
+    return [tid]

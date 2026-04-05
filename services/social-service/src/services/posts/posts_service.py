@@ -374,15 +374,76 @@ async def list_profile_posts(
     return list(rows), total
 
 
-async def list_public_feed(session: AsyncSession, page: int, size: int) -> tuple[list[Post], int]:
-    stmt = (
-        select(Post)
-        .where(_public_posts_visibility_clause())
-        .order_by(Post.created_at.desc())
+async def list_for_you_feed(
+    session: AsyncSession,
+    page: int,
+    size: int,
+    *,
+    viewer_keycloak_id: str | None = None,
+    viewer_authorization: str | None = None,
+) -> tuple[list[Post], int]:
+    """
+    Feed “Para você”: posts públicos globais +
+    posts FOLLOWERS/MEMBERS_ONLY de organizações e times em que o viewer é membro
+    (ex.: org privada com posts só para membros).
+    """
+    from src.infrastructure.http import auth_client
+    from src.services.context.context_service import list_user_org_slugs
+    from src.services.posts.post_visibility import VIS_FOLLOWERS, VIS_MEMBERS_ONLY
+
+    clauses: list = [_public_posts_visibility_clause()]
+
+    # Só precisamos do Bearer: slugs/times vêm do auth-service. kid (X-Keycloak-Sub) é opcional aqui.
+    if viewer_authorization:
+        try:
+            member_slugs = list(await list_user_org_slugs(viewer_authorization))
+        except Exception:
+            member_slugs = []
+
+        if member_slugs:
+            # Membro já implica acesso a FOLLOWERS/MEMBERS_ONLY; não exigir
+            # approved_for_social aqui (evita sumir posts se o mirror social desincronizar).
+            clauses.append(
+                and_(
+                    Post.profile_type == "ORGANIZATION",
+                    Post.profile_id.in_(member_slugs),
+                    Post.visibility.in_((VIS_FOLLOWERS, VIS_MEMBERS_ONLY)),
+                )
+            )
+
+        try:
+            teams = await auth_client.get_my_teams(viewer_authorization)
+            member_team_ids = [str(t.get("id")) for t in teams if t.get("id")]
+        except Exception:
+            member_team_ids = []
+
+        if member_team_ids:
+            clauses.append(
+                and_(
+                    Post.profile_type == "TEAM",
+                    Post.profile_id.in_(member_team_ids),
+                    Post.visibility.in_((VIS_FOLLOWERS, VIS_MEMBERS_ONLY)),
+                )
+            )
+
+    combined = or_(*clauses)
+    stmt = select(Post).where(combined).order_by(Post.created_at.desc())
+    total = int(
+        await session.scalar(select(func.count()).select_from(Post).where(combined)) or 0
     )
-    total = int(await session.scalar(select(func.count()).select_from(stmt.subquery())) or 0)
     rows = (await session.scalars(stmt.offset(page * size).limit(size))).all()
     return list(rows), total
+
+
+async def list_public_feed(session: AsyncSession, page: int, size: int) -> tuple[list[Post], int]:
+    """Compat: sem identidade — apenas o que `list_for_you` mostraria a anônimos."""
+    return await list_for_you_feed(
+        session,
+        page,
+        size,
+        viewer_keycloak_id=None,
+        viewer_authorization=None,
+    )
 
 
 async def search_posts(

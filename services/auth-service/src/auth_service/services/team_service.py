@@ -11,6 +11,7 @@ from auth_service.core.config import settings
 from auth_service.infrastructure.competitions_team_import import send_team_import_rpc
 from auth_service.core.exceptions import (
     AlreadyTeamMemberError,
+    CompetitionAlreadyStartedError,
     CompetitionServiceError,
     NotTeamCaptainError,
     NotTeamMemberError,
@@ -54,6 +55,7 @@ from auth_service.schemas.team import (
     TeamCreateRequest,
 )
 from auth_service.utils.upload_image import upload_image
+from auth_service.infrastructure.notification_publisher import send_internal_notification
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +87,7 @@ class TeamService:
         self,
         data: TeamCreateRequest,
         creator_keycloak_id: str,
+        logo: Optional[UploadFile] = None,
     ) -> Team:
         """
         Cria um novo time.
@@ -147,6 +150,22 @@ class TeamService:
         )
         await self._member_repo.create(captain)
 
+        if logo and getattr(logo, "filename", None):
+            try:
+                result = upload_image(
+                    logo,
+                    aws_access_key_id=settings.AWS_BUCKET_ACCESS_KEY_ID,
+                    aws_secret_access_key=settings.AWS_BUCKET_SECRET_ACCESS_KEY,
+                    aws_region=settings.AWS_BUCKET_REGION,
+                    aws_bucket=settings.AWS_BUCKET_NAME,
+                    prefix="teams",
+                    team_id=str(team.id),
+                )
+                team.logo_url = result["url"]
+                await self._team_repo.update(team)
+            except AvatarUploadError as exc:
+                raise exc
+
         logger.info(
             f"Time '{team.name}' criado por {creator.email} na competição {data.competition_id}"
         )
@@ -160,8 +179,6 @@ class TeamService:
         captain_keycloak_id: str,
         name: Optional[str] = None,
         abbreviation: Optional[str] = None,
-        min_members: Optional[int] = None,
-        max_members: Optional[int] = None,
         logo: Optional[UploadFile] = None,
         remove_logo: bool = False,
     ) -> Team:
@@ -197,10 +214,6 @@ class TeamService:
                 raise TeamProfileEditRestrictedError()
             if abbreviation is not None and abbreviation.upper() != team.abbreviation:
                 raise TeamProfileEditRestrictedError()
-            if min_members is not None and min_members != team.min_members:
-                raise TeamProfileEditRestrictedError()
-            if max_members is not None and max_members != team.max_members:
-                raise TeamProfileEditRestrictedError()
         else:
             if name is not None:
                 existing = await self._team_repo.get_by_organization_competition_name(
@@ -212,19 +225,6 @@ class TeamService:
 
             if abbreviation is not None:
                 team.abbreviation = abbreviation.upper()
-
-            if min_members is not None:
-                team.min_members = min_members
-
-            if max_members is not None:
-                team.max_members = max_members
-
-            if team.min_members > team.max_members:
-                raise TeamError("O mínimo de membros não pode ser maior que o máximo.")
-
-            current = await self._member_repo.count_by_team(team.id)
-            if team.max_members < current:
-                raise TeamFullError(team.max_members)
 
         if remove_logo:
             team.logo_url = None
@@ -285,9 +285,11 @@ class TeamService:
         self,
         organization_slug: str,
         requester_keycloak_id: str,
+        competition_id: Optional[UUID] = None,
     ) -> Sequence[Team]:
         """
         Obtém times pendentes de aprovação (status READY) de uma organização.
+        Opcionalmente filtra pela competição (UUID no competitions-service).
         Apenas owner/organizer podem ver.
         """
         org = await self._org_repo.get_by_slug(organization_slug)
@@ -305,7 +307,9 @@ class TeamService:
         if not is_owner and not is_organizer:
             raise NotTeamCaptainError()  # Reutilizando exceção
 
-        return await self._team_repo.get_by_organization(org.id, TeamStatus.READY)
+        return await self._team_repo.get_by_organization(
+            org.id, TeamStatus.READY, competition_id=competition_id
+        )
 
     # ==================== Convites ====================
 
@@ -649,7 +653,55 @@ class TeamService:
 
         logger.info(f"Time '{team.name}' solicitou aprovação. Status: READY")
 
+        await self._notify_team_approval_requested(team)
+
         return team
+
+    async def _notify_team_approval_requested(self, team: Team) -> None:
+        """Notifica dono e organizadores sobre pedido de aprovação (exceto o capitão)."""
+        org = team.organization
+        if not org:
+            return
+
+        captain = team.captain
+        captain_user_id = captain.user_id if captain else None
+
+        recipient_ids: set[UUID] = {org.owner_id}
+        organizers = await self._org_organizer_repo.get_organizers_by_org(org.id)
+        for row in organizers:
+            recipient_ids.add(row.user_id)
+
+        if captain_user_id is not None:
+            recipient_ids.discard(captain_user_id)
+
+        if not recipient_ids:
+            return
+
+        action_url = f"/competitions/{team.competition_id}?tab=teams"
+        title = "Pedido de aprovação de equipe"
+        message = (
+            f'O time "{team.name}" solicitou aprovação para participar '
+            f'da competição "{team.competition_name}".'
+        )
+        extra = {
+            "organization_id": str(org.id),
+            "organization_name": org.name,
+            "organization_slug": org.slug,
+            "team_id": str(team.id),
+            "team_name": team.name,
+            "competition_id": str(team.competition_id),
+            "competition_name": team.competition_name,
+        }
+
+        for uid in recipient_ids:
+            await send_internal_notification(
+                user_id=uid,
+                notification_type="organization_team_approval_request",
+                title=title,
+                message=message,
+                extra_data=extra,
+                action_url=action_url,
+            )
 
     async def approve_team(
         self,
@@ -767,32 +819,112 @@ class TeamService:
         deleter_keycloak_id: str,
     ) -> None:
         """
-        Deleta um time.
-        Apenas o capitão ou owner/organizer pode deletar.
-        Não pode deletar time aprovado.
+        Deleta um time. Apenas o capitão pode excluir.
+        Só é permitido enquanto a competição estiver com status *pending*
+        (campeonato ainda não começou).
         """
         team = await self._team_repo.resolve_team_with_members(team_id)
         if not team:
             raise TeamNotFoundError(str(team_id))
-
-        if team.status == TeamStatus.APPROVED:
-            raise TeamAlreadyApprovedError()
 
         user = await self._user_repo.get_by_keycloak_id(deleter_keycloak_id)
         if not user:
             raise UserNotFoundError(deleter_keycloak_id)
 
         captain = team.captain
-        is_captain = captain and captain.user_id == user.id
-        is_owner = team.organization.owner_id == user.id if team.organization else False
-        is_organizer = await self._org_organizer_repo.is_organizer(team.organization_id, user.id)
-
-        if not is_captain and not is_owner and not is_organizer:
+        if not captain or captain.user_id != user.id:
             raise NotTeamCaptainError()
+
+        comp_status = await self._fetch_competition_status(team.competition_id)
+        if comp_status is None:
+            raise CompetitionServiceError(
+                "Não foi possível verificar o status da competição. Tente novamente."
+            )
+        if str(comp_status).strip().lower() != "pending":
+            raise CompetitionAlreadyStartedError()
+
+        await self._delete_competition_team_mirror(team.id, team.external_team_id)
 
         await self._team_repo.delete(team)
 
-        logger.info(f"Time '{team.name}' deletado por {user.email}")
+        logger.info(f"Time '{team.name}' deletado por {user.email} (capitão)")
+
+    async def _fetch_competition_status(self, competition_id: UUID) -> Optional[str]:
+        """Consulta status da competição no competitions-service (JSON)."""
+        competitions_url = getattr(
+            settings, "COMPETITIONS_SERVICE_URL", "http://localhost:8100"
+        )
+        url = f"{competitions_url.rstrip('/')}/api/competitions/{competition_id}"
+        try:
+            timeout = httpx.Timeout(12.0, connect=5.0)
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.get(url)
+                if response.status_code != 200:
+                    return None
+                data = response.json()
+                status = data.get("status")
+                if status is None:
+                    return None
+                if hasattr(status, "value"):
+                    return str(status.value)
+                return str(status)
+        except httpx.RequestError:
+            return None
+
+    async def _delete_competition_team_mirror(
+        self,
+        auth_team_id: UUID,
+        external_team_id: Optional[UUID] = None,
+    ) -> None:
+        """
+        Remove o espelho no competitions (e enfileira limpeza no social).
+        Com RabbitMQ: RPC durável teams.mirror.delete (igual import de time).
+        Sem fila: HTTP interno (dev).
+        """
+        if (settings.RABBITMQ_URL or "").strip():
+            try:
+                from auth_service.infrastructure.competitions_mirror_delete import (
+                    send_team_mirror_delete_rpc,
+                )
+
+                await send_team_mirror_delete_rpc(
+                    auth_team_id, external_team_id, timeout=30.0
+                )
+                return
+            except CompetitionServiceError:
+                raise
+            except Exception as e:
+                logger.warning(
+                    "RPC teams.mirror.delete falhou, tentando HTTP: %s", e
+                )
+
+        base = getattr(
+            settings, "COMPETITIONS_SERVICE_URL", "http://localhost:8100"
+        ).rstrip("/")
+        url_by_auth = f"{base}/api/internal/teams/by-auth/{auth_team_id}"
+        try:
+            timeout = httpx.Timeout(15.0, connect=5.0)
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.delete(url_by_auth)
+                if response.status_code in (200, 204):
+                    return
+                if response.status_code == 404 and external_team_id:
+                    url_by_ext = f"{base}/api/internal/teams/{external_team_id}"
+                    response = await client.delete(url_by_ext)
+                    if response.status_code in (200, 204):
+                        return
+                if response.status_code == 404:
+                    return
+                detail = response.text
+                logger.error(
+                    "Falha ao remover time no competitions-service: %s %s",
+                    response.status_code,
+                    detail,
+                )
+                raise CompetitionServiceError(detail or "resposta inválida")
+        except httpx.RequestError as e:
+            logger.error("Erro de conexão ao remover time no competitions: %s", e)
+            raise CompetitionServiceError(str(e)) from e
 
     # ==================== Helpers ====================
 

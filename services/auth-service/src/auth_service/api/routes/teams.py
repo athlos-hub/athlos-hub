@@ -12,6 +12,7 @@ from auth_service.core.config import settings
 from auth_service.core.exceptions import (
     AlreadyTeamMemberError,
     AvatarUploadError,
+    CompetitionAlreadyStartedError,
     CompetitionServiceError,
     NotTeamCaptainError,
     NotTeamMemberError,
@@ -189,17 +190,36 @@ def _build_invite_response(invite) -> TeamInviteResponse:
 
 @router.post("/", response_model=TeamDetailResponse, status_code=status.HTTP_201_CREATED)
 async def create_team(
-    data: TeamCreateRequest,
+    organization_slug: str = Form(...),
+    competition_id: UUID = Form(...),
+    competition_name: str = Form(...),
+    name: str = Form(...),
+    abbreviation: str = Form(...),
+    min_members: int = Form(1),
+    max_members: int = Form(20),
+    logo: UploadFile | None = File(None),
     current_user: User = Depends(get_current_db_user),
     service: TeamService = Depends(get_team_service),
 ):
     """
-    Cria um novo time.
-    
+    Cria um novo time (multipart). Limites de elenco vêm da competição no cliente;
+    escudo é opcional.
+
     O usuário deve ser membro da organização.
     """
+    data = TeamCreateRequest(
+        organization_slug=organization_slug.strip(),
+        competition_id=competition_id,
+        competition_name=competition_name.strip(),
+        name=name.strip(),
+        abbreviation=abbreviation.strip(),
+        min_members=min_members,
+        max_members=max_members,
+    )
     try:
-        team = await service.create_team(data, str(current_user.keycloak_id))
+        team = await service.create_team(
+            data, str(current_user.keycloak_id), logo=logo
+        )
         return _build_team_detail_response(team)
     except OrganizationNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -252,15 +272,21 @@ async def get_organization_teams(
 @router.get("/organization/{slug}/pending", response_model=list[TeamDetailResponse])
 async def get_pending_teams(
     slug: str,
+    competition_id: Optional[UUID] = Query(
+        None, description="Filtra pedidos apenas desta competição (UUID)"
+    ),
     current_user: User = Depends(get_current_db_user),
     service: TeamService = Depends(get_team_service),
 ):
     """
     Lista times pendentes de aprovação de uma organização (status READY).
+    Opcional: `competition_id` restringe à competição (página da competição).
     Apenas owner/organizer podem acessar.
     """
     try:
-        teams = await service.get_pending_teams(slug, str(current_user.keycloak_id))
+        teams = await service.get_pending_teams(
+            slug, str(current_user.keycloak_id), competition_id=competition_id
+        )
         return [_build_team_detail_response(t) for t in teams]
     except OrganizationNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -289,12 +315,11 @@ async def update_team(
     service: TeamService = Depends(get_team_service),
     name: Optional[str] = Form(None),
     abbreviation: Optional[str] = Form(None),
-    min_members: Optional[int] = Form(None),
-    max_members: Optional[int] = Form(None),
     remove_logo: str = Form("false"),
     logo: UploadFile | None = File(None),
 ):
-    """Atualiza dados do time (apenas capitão). Multipart: campos opcionais + logo."""
+    """Atualiza dados do time (apenas capitão). Multipart: nome/sigla opcionais + logo.
+    Mínimo/máximo de jogadores vêm da competição, não são editáveis aqui."""
     remove_flag = remove_logo.strip().lower() in ("true", "1", "yes", "on")
     try:
         team = await service.update_team(
@@ -302,8 +327,6 @@ async def update_team(
             captain_keycloak_id=str(current_user.keycloak_id),
             name=name,
             abbreviation=abbreviation,
-            min_members=min_members,
-            max_members=max_members,
             logo=logo,
             remove_logo=remove_flag,
         )
@@ -573,15 +596,17 @@ async def delete_team(
 ):
     """
     Deleta um time.
-    Apenas o capitão ou owner/organizer pode deletar.
-    Não pode deletar time já aprovado.
+    Apenas o capitão pode excluir, e somente enquanto a competição estiver *pending*
+    (campeonato ainda não começou).
     """
     try:
         await service.delete_team(team_id, str(current_user.keycloak_id))
     except TeamNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except TeamAlreadyApprovedError as e:
+    except CompetitionAlreadyStartedError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except CompetitionServiceError as e:
+        raise HTTPException(status_code=502, detail=str(e))
     except NotTeamCaptainError as e:
         raise HTTPException(status_code=403, detail=str(e))
 

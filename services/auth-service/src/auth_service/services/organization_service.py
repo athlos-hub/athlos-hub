@@ -1376,6 +1376,53 @@ class OrganizationService:
                 action_url=f"/organizations/{org.slug}"
             )
 
+    async def admin_restore_excluded_organization(self, slug: str) -> None:
+        """
+        Reativa organização em EXCLUDED (ex.: excluída pelo dono) para ACTIVE.
+
+        Raises:
+            OrganizationNotFoundError: Se a organização não for encontrada.
+            OrganizationStatusConflictError: Se o status não for EXCLUDED.
+        """
+        org = await self._org_repo.get_by_slug(slug)
+
+        if not org:
+            raise OrganizationNotFoundError(slug)
+
+        if org.status != OrganizationStatus.EXCLUDED:
+            raise OrganizationStatusConflictError(
+                "Apenas organizações excluídas podem ser restauradas."
+            )
+
+        org.status = OrganizationStatus.ACTIVE
+        await self._org_repo.commit()
+
+        logger.info(f"Organização {slug} restaurada de EXCLUDED por admin")
+
+        await publish_profile_organization_ensure(org.slug, approved_for_social=True)
+
+        await self._send_notification(
+            user_id=org.owner_id,
+            notification_type="organization_restored",
+            title="Organização reativada",
+            message=f"A organização {org.name} foi reativada pela plataforma.",
+            organization=org,
+            extra_data={},
+            action_url=f"/organizations/{org.slug}",
+        )
+
+        organizers = await self._organizer_repo.get_organizers_by_org(org.id)
+        for organizer in organizers:
+            await self._send_notification(
+                user_id=organizer.user_id,
+                notification_type="organization_restored",
+                title="Organização reativada",
+                message=f"A organização {org.name} foi reativada pela plataforma.",
+                organization=org,
+                extra_data={},
+                action_url=f"/organizations/{org.slug}",
+            )
+
     async def get_all_organizations_admin(
         self, status_filter: Optional[OrganizationStatus] = None
     ) -> Sequence[Organization]:

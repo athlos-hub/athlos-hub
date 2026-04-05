@@ -10,6 +10,8 @@ export interface APIProps {
     withAttachment?: boolean;
     bearerToken?: string;
     service?: ServiceType;
+    /** Cancela a requisição (ex.: timeout manual via AbortController). */
+    signal?: AbortSignal;
 }
 
 export interface APIResponse<T> {

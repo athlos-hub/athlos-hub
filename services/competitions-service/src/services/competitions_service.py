@@ -363,7 +363,18 @@ class CompetitionService:
             .order_by(TeamModel.name)
         )
         result = await self.session.execute(query)
-        return result.scalars().all()
+        teams = list(result.scalars().all())
+        # Evita lista duplicada se houver linhas órfãs com o mesmo auth_team_id (corrida na aprovação)
+        seen_auth: set[UUID] = set()
+        deduped: List[TeamModel] = []
+        for t in teams:
+            aid = getattr(t, "auth_team_id", None)
+            if aid is not None:
+                if aid in seen_auth:
+                    continue
+                seen_auth.add(aid)
+            deduped.append(t)
+        return deduped
     
     async def finalize_competition(self, competition_id: UUID) -> dict:
         """

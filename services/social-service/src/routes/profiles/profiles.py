@@ -126,7 +126,7 @@ async def org_profile_get(slug: str, session: AsyncSession = Depends(get_session
 
 @router.post("/team-profiles", status_code=status.HTTP_200_OK)
 async def team_profile_create(
-    body: dict[str, str],
+    body: dict[str, Any],
     session: AsyncSession = Depends(get_session),
 ):
     tid = (body.get("teamId") or "").strip()
@@ -135,6 +135,11 @@ async def team_profile_create(
     p = await get_or_create_team(
         session, tid, body.get("organizationSlug")
     )
+    # competitions-service envia True após aprovar equipe na competição
+    if body.get("approvedForSocial") is True:
+        p.approved_for_social = True
+    elif body.get("approvedForSocial") is False:
+        p.approved_for_social = False
     return api_success(team_profile_to_camel(p), "Perfil de time criado/obtido com sucesso")
 
 

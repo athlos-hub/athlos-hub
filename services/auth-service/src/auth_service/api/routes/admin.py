@@ -129,6 +129,23 @@ async def unsuspend_organization(
     return
 
 
+@router.patch(
+    "/organizations/restore/{org_slug}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_role(["admin"]))],
+)
+async def restore_excluded_organization(
+    org_slug: str,
+    org_service: OrganizationServiceDep,
+    user: CurrentUserDep,
+):
+    """Reativa organização em EXCLUDED (ex.: excluída pelo dono)."""
+
+    await org_service.admin_restore_excluded_organization(org_slug)
+    logger.info(f"Organização {org_slug} restaurada de EXCLUDED por admin {user.id}")
+    return
+
+
 @router.get(
     "/organizations",
     dependencies=[Depends(require_role(["admin"]))],

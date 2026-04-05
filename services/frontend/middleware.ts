@@ -1,20 +1,8 @@
 import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getRealmRolesFromAccessToken } from "@/lib/auth/access-token-roles";
 import { requiresAuthPath } from "@/lib/auth/route-access";
-
-function getRolesFromAccessToken(accessToken: string): string[] {
-  try {
-    const base64 = accessToken.split(".")[1];
-    const json = atob(base64.replace(/-/g, "+").replace(/_/g, "/"));
-    const payload = JSON.parse(json) as {
-      realm_access?: { roles?: string[] };
-    };
-    return payload?.realm_access?.roles || [];
-  } catch {
-    return [];
-  }
-}
 
 export async function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
@@ -37,7 +25,7 @@ export async function middleware(req: NextRequest) {
     }
     if (token) {
       const roles = token.accessToken
-        ? getRolesFromAccessToken(token.accessToken as string)
+        ? getRealmRolesFromAccessToken(token.accessToken as string)
         : [];
       const isAdmin = roles.includes("admin");
       return NextResponse.redirect(
@@ -49,7 +37,7 @@ export async function middleware(req: NextRequest) {
 
   if (token) {
     const roles = token.accessToken
-      ? getRolesFromAccessToken(token.accessToken as string)
+      ? getRealmRolesFromAccessToken(token.accessToken as string)
       : [];
     const isAdmin = roles.includes("admin");
 
@@ -68,8 +56,9 @@ export async function middleware(req: NextRequest) {
       return NextResponse.next();
     }
 
-    // Comportamento legado: usuários com papel admin só utilizam o painel /admin
-    if (isAdmin) {
+    // Admin padrão → /admin, exceto /organizations/* (dono pode gerir org mesmo com role admin;
+    // evita loop middleware ↔ layout quando o JWT decodifica diferente no servidor).
+    if (isAdmin && !pathname.startsWith("/organizations")) {
       return NextResponse.redirect(new URL("/admin", req.url));
     }
   } else {

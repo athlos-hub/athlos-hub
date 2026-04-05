@@ -125,7 +125,9 @@ class SocialServiceClient:
     async def create_team_profile(
         self,
         team_id: str,
-        organization_slug: str
+        organization_slug: str,
+        *,
+        approved_for_social: bool = True,
     ) -> bool:
         """
         Cria ou obtém perfil de time no Social Service
@@ -133,6 +135,7 @@ class SocialServiceClient:
         Args:
             team_id: ID do time
             organization_slug: Slug da organização
+            approved_for_social: Libera visibilidade social (times aprovados na competição)
             
         Returns:
             True se o perfil foi criado/obtido com sucesso
@@ -141,7 +144,8 @@ class SocialServiceClient:
         
         payload = {
             "teamId": team_id,
-            "organizationSlug": organization_slug
+            "organizationSlug": organization_slug,
+            "approvedForSocial": approved_for_social,
         }
         
         try:
@@ -161,4 +165,33 @@ class SocialServiceClient:
                     
         except Exception as e:
             logger.error(f"Erro ao criar perfil de time: {str(e)}", exc_info=True)
+            return False
+
+    async def delete_team_profile(self, team_id: str) -> bool:
+        """
+        Remove perfil do time no social (posts do time, follows, linha em team_profiles).
+        team_id: UUID do time no competitions-service.
+        """
+        url = f"{self.base_url}/api/social/internal/team-profiles/{team_id}"
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.delete(url)
+                if response.status_code in (204, 200):
+                    logger.info("Perfil social do time %s removido", team_id)
+                    return True
+                if response.status_code == 404:
+                    logger.info(
+                        "Perfil social do time %s já ausente (404)", team_id
+                    )
+                    return True
+                logger.error(
+                    "Erro ao remover perfil de time: %s - %s",
+                    response.status_code,
+                    response.text,
+                )
+                return False
+        except Exception as e:
+            logger.error(
+                "Erro ao remover perfil de time: %s", str(e), exc_info=True
+            )
             return False

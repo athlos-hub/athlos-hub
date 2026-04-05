@@ -81,7 +81,7 @@ export function OrganizationCard({ organization, showRole = false }: Organizatio
               </span>
               
               {showRole && organization.role && (
-                <Badge variant={getRoleBadge(organization.role).variant}>
+                <Badge variant={getRoleBadge(organization.role).variant} className={getRoleBadge(organization.role).variant === "default" ? "bg-main hover:bg-main/90 text-white" : ""}>
                   {getRoleBadge(organization.role).label}
                 </Badge>
               )}

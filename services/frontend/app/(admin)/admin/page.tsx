@@ -39,9 +39,16 @@ import {
     rejectOrganization,
     suspendOrganization,
     unsuspendOrganization,
+    restoreExcludedOrganization,
 } from "@/actions/admin";
 
-type TabType = "users" | "suspended-users" | "organizations" | "pending-orgs" | "suspended-orgs";
+type TabType =
+    | "users"
+    | "suspended-users"
+    | "organizations"
+    | "pending-orgs"
+    | "suspended-orgs"
+    | "excluded-orgs";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -64,6 +71,7 @@ export default function AdminPage() {
     const [organizations, setOrganizations] = useState<OrganizationResponse[]>([]);
     const [pendingOrgs, setPendingOrgs] = useState<OrganizationResponse[]>([]);
     const [suspendedOrgs, setSuspendedOrgs] = useState<OrganizationResponse[]>([]);
+    const [excludedOrgs, setExcludedOrgs] = useState<OrganizationResponse[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     
     const [searchUsers, setSearchUsers] = useState("");
@@ -71,17 +79,27 @@ export default function AdminPage() {
     const [searchOrganizations, setSearchOrganizations] = useState("");
     const [searchPendingOrgs, setSearchPendingOrgs] = useState("");
     const [searchSuspendedOrgs, setSearchSuspendedOrgs] = useState("");
+    const [searchExcludedOrgs, setSearchExcludedOrgs] = useState("");
     
     const [currentPageUsers, setCurrentPageUsers] = useState(1);
     const [currentPageSuspendedUsers, setCurrentPageSuspendedUsers] = useState(1);
     const [currentPageOrganizations, setCurrentPageOrganizations] = useState(1);
     const [currentPagePendingOrgs, setCurrentPagePendingOrgs] = useState(1);
     const [currentPageSuspendedOrgs, setCurrentPageSuspendedOrgs] = useState(1);
+    const [currentPageExcludedOrgs, setCurrentPageExcludedOrgs] = useState(1);
     
     const [actioningId, setActioningId] = useState<string | null>(null);
     const [confirmDialog, setConfirmDialog] = useState<{
         open: boolean;
-        type: "suspend-user" | "unsuspend-user" | "accept-org" | "reject-org" | "suspend-org" | "unsuspend-org" | null;
+        type:
+            | "suspend-user"
+            | "unsuspend-user"
+            | "accept-org"
+            | "reject-org"
+            | "suspend-org"
+            | "unsuspend-org"
+            | "restore-excluded-org"
+            | null;
         id: string;
         name: string;
     }>({
@@ -103,12 +121,14 @@ export default function AdminPage() {
         setIsLoading(true);
         try {
             if (!tab) {
-                const [usersData, orgsActive, orgsPending, orgsSuspended] = await Promise.all([
-                    getAllUsers(),
-                    getAllOrganizations(OrganizationStatus.ACTIVE),
-                    getAllOrganizations(OrganizationStatus.PENDING),
-                    getAllOrganizations(OrganizationStatus.SUSPENDED),
-                ]);
+                const [usersData, orgsActive, orgsPending, orgsSuspended, orgsExcluded] =
+                    await Promise.all([
+                        getAllUsers(),
+                        getAllOrganizations(OrganizationStatus.ACTIVE),
+                        getAllOrganizations(OrganizationStatus.PENDING),
+                        getAllOrganizations(OrganizationStatus.SUSPENDED),
+                        getAllOrganizations(OrganizationStatus.EXCLUDED),
+                    ]);
 
                 const activeUsers = usersData.filter(u => u.enabled);
                 activeUsers.sort((a, b) => {
@@ -125,6 +145,7 @@ export default function AdminPage() {
                 setOrganizations(orgsActive);
                 setPendingOrgs(orgsPending);
                 setSuspendedOrgs(orgsSuspended);
+                setExcludedOrgs(orgsExcluded);
                 return;
             }
 
@@ -150,6 +171,9 @@ export default function AdminPage() {
             } else if (tab === "suspended-orgs") {
                 const orgs = await getAllOrganizations(OrganizationStatus.SUSPENDED);
                 setSuspendedOrgs(orgs);
+            } else if (tab === "excluded-orgs") {
+                const orgs = await getAllOrganizations(OrganizationStatus.EXCLUDED);
+                setExcludedOrgs(orgs);
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : "Erro ao carregar dados";
@@ -213,6 +237,15 @@ export default function AdminPage() {
         });
     };
 
+    const handleRestoreExcludedOrg = (slug: string, name: string) => {
+        setConfirmDialog({
+            open: true,
+            type: "restore-excluded-org",
+            id: slug,
+            name,
+        });
+    };
+
     const confirmAction = async () => {
         const { type, id, name } = confirmDialog;
         setActioningId(id);
@@ -243,6 +276,14 @@ export default function AdminPage() {
                     await unsuspendOrganization(id);
                     toast.success(`Organização ${name} reativada`);
                     break;
+                case "restore-excluded-org": {
+                    const r = await restoreExcludedOrganization(id);
+                    if (!r.success) {
+                        throw new Error(r.error || "Erro ao restaurar organização");
+                    }
+                    toast.success(`Organização ${name} restaurada (ativa novamente)`);
+                    break;
+                }
             }
             await fetchData(activeTab);
         } catch (error) {
@@ -286,6 +327,12 @@ export default function AdminPage() {
         org.description?.toLowerCase().includes(searchSuspendedOrgs.toLowerCase())
     );
 
+    const filteredExcludedOrgs = excludedOrgs.filter((org) =>
+        org.name?.toLowerCase().includes(searchExcludedOrgs.toLowerCase()) ||
+        org.slug?.toLowerCase().includes(searchExcludedOrgs.toLowerCase()) ||
+        org.description?.toLowerCase().includes(searchExcludedOrgs.toLowerCase())
+    );
+
     const paginateUsers = filteredUsers.slice(
         (currentPageUsers - 1) * ITEMS_PER_PAGE,
         currentPageUsers * ITEMS_PER_PAGE
@@ -311,11 +358,17 @@ export default function AdminPage() {
         currentPageSuspendedOrgs * ITEMS_PER_PAGE
     );
 
+    const paginateExcludedOrgs = filteredExcludedOrgs.slice(
+        (currentPageExcludedOrgs - 1) * ITEMS_PER_PAGE,
+        currentPageExcludedOrgs * ITEMS_PER_PAGE
+    );
+
     const totalPagesUsers = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
     const totalPagesSuspendedUsers = Math.ceil(filteredSuspendedUsers.length / ITEMS_PER_PAGE);
     const totalPagesOrganizations = Math.ceil(filteredOrganizations.length / ITEMS_PER_PAGE);
     const totalPagesPendingOrgs = Math.ceil(filteredPendingOrgs.length / ITEMS_PER_PAGE);
     const totalPagesSuspendedOrgs = Math.ceil(filteredSuspendedOrgs.length / ITEMS_PER_PAGE);
+    const totalPagesExcludedOrgs = Math.ceil(filteredExcludedOrgs.length / ITEMS_PER_PAGE);
 
     return (
         <div className="space-y-6">
@@ -376,6 +429,15 @@ export default function AdminPage() {
                                 }`}
                             >
                                 Organizações Suspensas ({suspendedOrgs.length})
+                            </button>
+
+                            <button
+                                onClick={() => setActiveTab('excluded-orgs')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                    activeTab === 'excluded-orgs' ? 'bg-main text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                            >
+                                Organizações excluídas ({excludedOrgs.length})
                             </button>
                         </div>
                     </div>
@@ -874,6 +936,104 @@ export default function AdminPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
+
+                <TabsContent value="excluded-orgs" className="space-y-4 mt-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-2xl">Organizações excluídas</CardTitle>
+                            <CardDescription className="text-md">
+                                Organizações que foram excluídas pelo dono
+                            </CardDescription>
+                            <div className="relative mt-4">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                <Input
+                                    placeholder="Buscar por nome, slug ou descrição..."
+                                    value={searchExcludedOrgs}
+                                    onChange={(e) => {
+                                        setSearchExcludedOrgs(e.target.value);
+                                        setCurrentPageExcludedOrgs(1);
+                                    }}
+                                    className="pl-10"
+                                />
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            {isLoading ? (
+                                <div className="flex justify-center py-12">
+                                    <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                                </div>
+                            ) : filteredExcludedOrgs.length === 0 ? (
+                                <div className="text-center py-12 text-gray-500">
+                                    Nenhuma organização excluída encontrada
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="space-y-4">
+                                        {paginateExcludedOrgs.map((org) => (
+                                            <div key={org.id} className="border rounded-lg p-4 bg-amber-50/80">
+                                                <div className="flex items-center justify-between gap-4 flex-wrap">
+                                                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                                                        <Avatar className="w-12 h-12 rounded-lg shrink-0">
+                                                            <AvatarImage src={org.logo_url || ""} />
+                                                            <AvatarFallback>
+                                                                <Building2 className="w-6 h-6" />
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                        <div className="flex-1 min-w-0">
+                                                            <h3 className="font-semibold text-lg">{org.name}</h3>
+                                                            <p className="text-sm text-gray-600 truncate">@{org.slug}</p>
+                                                            {org.description && (
+                                                                <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                                                                    {org.description}
+                                                                </p>
+                                                            )}
+                                                            <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 flex-wrap">
+                                                                <span>
+                                                                    Atualizada em{" "}
+                                                                    {new Date(org.updated_at).toLocaleDateString("pt-BR")}
+                                                                </span>
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className="bg-amber-100 text-amber-900 border-amber-300"
+                                                                >
+                                                                    Excluída
+                                                                </Badge>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <Button
+                                                        size="sm"
+                                                        className="bg-main hover:bg-main/90 text-white shrink-0"
+                                                        onClick={() =>
+                                                            handleRestoreExcludedOrg(org.slug, org.name)
+                                                        }
+                                                        disabled={!!actioningId}
+                                                    >
+                                                        {actioningId === org.slug ? (
+                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                        ) : (
+                                                            <Check className="h-4 w-4 mr-1" />
+                                                        )}
+                                                        Restaurar
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <Pagination
+                                        currentPage={currentPageExcludedOrgs}
+                                        totalPages={totalPagesExcludedOrgs}
+                                        totalItems={filteredExcludedOrgs.length}
+                                        itemsPerPage={ITEMS_PER_PAGE}
+                                        onPageChange={setCurrentPageExcludedOrgs}
+                                        itemName="organizações excluídas"
+                                    />
+                                </>
+                            )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
             </Tabs>
 
             <AlertDialog open={confirmDialog.open} onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}>
@@ -886,6 +1046,8 @@ export default function AdminPage() {
                             {confirmDialog.type === "reject-org" && "Rejeitar Organização"}
                             {confirmDialog.type === "suspend-org" && "Suspender Organização"}
                             {confirmDialog.type === "unsuspend-org" && "Reativar Organização"}
+                            {confirmDialog.type === "restore-excluded-org" &&
+                                "Restaurar organização excluída"}
                         </AlertDialogTitle>
                         <AlertDialogDescription>
                             {confirmDialog.type === "suspend-user" &&
@@ -900,6 +1062,8 @@ export default function AdminPage() {
                                 `Tem certeza que deseja suspender a organização "${confirmDialog.name}"? Ela será ocultada da plataforma.`}
                             {confirmDialog.type === "unsuspend-org" &&
                                 `Tem certeza que deseja reativar a organização "${confirmDialog.name}"? Ela ficará visível na plataforma novamente.`}
+                            {confirmDialog.type === "restore-excluded-org" &&
+                                `Restaurar "${confirmDialog.name}"? O status volta para ativo e a organização pode ser listada novamente.`}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -909,7 +1073,9 @@ export default function AdminPage() {
                             className={
                                 confirmDialog.type === "accept-org"
                                     ? "bg-green-600 hover:bg-green-700"
-                                    : confirmDialog.type === "unsuspend-org" || confirmDialog.type === "unsuspend-user"
+                                    : confirmDialog.type === "unsuspend-org" ||
+                                        confirmDialog.type === "unsuspend-user" ||
+                                        confirmDialog.type === "restore-excluded-org"
                                     ? "bg-main hover:bg-main/90"
                                     : "bg-destructive hover:bg-destructive/90"
                             }

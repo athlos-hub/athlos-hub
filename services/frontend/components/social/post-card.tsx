@@ -69,7 +69,9 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
         async function fetchProfileInfo() {
             try {
                 if (post.profileType === ProfileType.ORGANIZATION) {
-                    const org = await getOrganizationBySlug(post.profileId, false);
+                    // Org privada exige GET autenticado para nome/logo; pública funciona sem sessão.
+                    const withAuth = Boolean(session?.accessToken);
+                    const org = await getOrganizationBySlug(post.profileId, withAuth);
                     setProfileInfo({
                         name: org.name,
                         logoUrl: org.logo_url || undefined,
@@ -80,6 +82,7 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
                     if (team) {
                         setProfileInfo({
                             name: team.name,
+                            logoUrl: team.logo_url || undefined,
                         });
                     }
                 }
@@ -87,7 +90,7 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
             }
         }
         fetchProfileInfo();
-    }, [post.profileId, post.profileType]);
+    }, [post.profileId, post.profileType, session?.accessToken]);
 
     useEffect(() => {
         async function fetchLikeStatus() {
