@@ -57,12 +57,14 @@ export function CompetitionTeamCard({
               <h3 className="text-base font-semibold text-foreground transition-colors group-hover:text-main sm:text-lg">
                 {team.name}
               </h3>
+            </div>
+            <div className="flex items-center gap-1">
+              <p className="text-sm text-muted-foreground">{team.abbreviation}</p>
               <ArrowUpRight
                 className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-70"
                 aria-hidden
               />
             </div>
-            <p className="text-sm text-muted-foreground">{team.abbreviation}</p>
           </div>
         </Link>
 

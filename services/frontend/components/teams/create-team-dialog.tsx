@@ -38,6 +38,25 @@ function sameCompetitionId(
   return String(a) === String(b);
 }
 
+/** Resposta do POST /teams/ ou envelope `{ data: { id } }` após passar pelo gateway. */
+function resolveCreatedTeamId(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const o = payload as Record<string, unknown>;
+  const fromObj = (x: Record<string, unknown>): string | null => {
+    const id = x.id;
+    if (typeof id === "string" && id.trim()) return id.trim();
+    if (typeof id === "number" && Number.isFinite(id)) return String(id);
+    return null;
+  };
+  const direct = fromObj(o);
+  if (direct) return direct;
+  const data = o.data;
+  if (data && typeof data === "object") {
+    return fromObj(data as Record<string, unknown>);
+  }
+  return null;
+}
+
 export interface CreateTeamDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -46,6 +65,7 @@ export interface CreateTeamDialogProps {
     organizationSlug: string;
     competition: Competition;
   };
+  /** Opcional: efeitos após criar (ex.: invalidar listas). O perfil abre em `/clubes/[id]` sempre. */
   onSuccess?: (teamId: string) => void;
 }
 
@@ -210,16 +230,21 @@ export function CreateTeamDialog({
       }
 
       const team = await createTeam(fd);
+      const teamId = resolveCreatedTeamId(team);
+      if (!teamId) {
+        toast.error(
+          "Time criado, mas não foi possível obter o identificador para abrir o perfil."
+        );
+        onOpenChange(false);
+        return;
+      }
 
       toast.success(
         "Time criado com sucesso! Agora você pode convidar jogadores."
       );
       onOpenChange(false);
-      if (onSuccess) {
-        onSuccess(team.id);
-      } else {
-        router.push(`/clubes/${team.id}`);
-      }
+      onSuccess?.(teamId);
+      router.push(`/clubes/${teamId}`);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Erro ao criar time";

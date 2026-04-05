@@ -61,33 +61,26 @@ async def publish_team_profile_ensure(
 ) -> None:
     rabbit = (settings.RABBITMQ_URL or "").strip()
     if rabbit:
-        try:
-            body = json.dumps(
-                {
-                    "team_id": team_id,
-                    "organization_slug": organization_slug,
-                    "approved_for_social": approved_for_social,
-                },
-                default=str,
-            ).encode("utf-8")
-            exchange = await _ensure_exchange()
-            await exchange.publish(
-                aio_pika.Message(
-                    body=body,
-                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
-                    content_type="application/json",
-                ),
-                routing_key=RK_PROFILE_TEAM_ENSURE,
-            )
-            return
-        except Exception as e:
-            logger.warning(
-                "Fila social indisponível (team_id=%s), fallback HTTP: %s",
-                team_id,
-                e,
-            )
+        body = json.dumps(
+            {
+                "team_id": team_id,
+                "organization_slug": organization_slug,
+                "approved_for_social": approved_for_social,
+            },
+            default=str,
+        ).encode("utf-8")
+        exchange = await _ensure_exchange()
+        await exchange.publish(
+            aio_pika.Message(
+                body=body,
+                delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                content_type="application/json",
+            ),
+            routing_key=RK_PROFILE_TEAM_ENSURE,
+        )
+        return
 
-    # Sem RabbitMQ (dev) ou fallback se publish falhar
+    # Sem RabbitMQ (dev)
     try:
         from src.services.social_client import SocialServiceClient
 
@@ -116,24 +109,17 @@ async def publish_team_profile_delete(*, team_id: str) -> None:
     """Mensagem durável profile.team.delete → social-service (ou HTTP se sem RabbitMQ)."""
     rabbit = (settings.RABBITMQ_URL or "").strip()
     if rabbit:
-        try:
-            body = json.dumps({"team_id": team_id}, default=str).encode("utf-8")
-            exchange = await _ensure_exchange()
-            await exchange.publish(
-                aio_pika.Message(
-                    body=body,
-                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
-                    content_type="application/json",
-                ),
-                routing_key=RK_PROFILE_TEAM_DELETE,
-            )
-            return
-        except Exception as e:
-            logger.warning(
-                "Fila profile.team.delete indisponível (team_id=%s), fallback HTTP: %s",
-                team_id,
-                e,
-            )
+        body = json.dumps({"team_id": team_id}, default=str).encode("utf-8")
+        exchange = await _ensure_exchange()
+        await exchange.publish(
+            aio_pika.Message(
+                body=body,
+                delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                content_type="application/json",
+            ),
+            routing_key=RK_PROFILE_TEAM_DELETE,
+        )
+        return
 
     try:
         from src.services.social_client import SocialServiceClient

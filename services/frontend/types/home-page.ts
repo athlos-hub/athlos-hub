@@ -37,6 +37,8 @@ export interface HomeFeedPost {
   id: string;
   authorName: string;
   authorAvatarUrl?: string;
+  /** true = logo de organização/equipe (object-contain); false/undefined = pessoa */
+  authorAvatarIsBrand?: boolean;
   authorInitials: string;
   relativeTime: string;
   body: string;

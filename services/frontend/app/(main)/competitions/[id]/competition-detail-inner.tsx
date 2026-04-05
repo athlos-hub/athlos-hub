@@ -1592,9 +1592,8 @@ export function CompetitionDetailPageInner() {
             organizationSlug: competition.organization_slug,
             competition,
           }}
-          onSuccess={(teamId) => {
+          onSuccess={() => {
             loadCompetitionData();
-            router.push(`/clubes/${teamId}`);
           }}
         />
       )}

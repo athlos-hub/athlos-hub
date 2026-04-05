@@ -1,5 +1,7 @@
 "use server";
 
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { axiosAPI } from "@/lib/api/client";
 import { APIException } from "@/lib/api/errors";
 import {
@@ -110,6 +112,67 @@ export async function getTeamById(teamId: string): Promise<TeamDetail> {
     }
     throw new Error("Erro ao buscar time");
   }
+}
+
+export interface TeamSocialPostDisplay {
+  name: string;
+  logoUrl?: string | null;
+  /** Preferir em links `/clubes/[id]` (ID do auth quando a sessão permite resolver). */
+  clubPathId: string;
+}
+
+/**
+ * Nome e escudo para cards de post de equipe (`profileId` = espelho no competitions ou time no auth).
+ * Competitions pode responder sem sessão; com sessão, o auth completa logo e o ID do clube.
+ */
+function pickTeamLogoFromPayload(data: unknown): string | undefined {
+  if (!data || typeof data !== "object") return undefined;
+  const o = data as Record<string, unknown>;
+  const a = o.logo_url;
+  const b = o.logoUrl;
+  const s =
+    (typeof a === "string" ? a : "") || (typeof b === "string" ? b : "");
+  const t = s.trim();
+  return t || undefined;
+}
+
+export async function getTeamDisplayForSocialPost(
+  teamId: string
+): Promise<TeamSocialPostDisplay> {
+  const session = await getServerSession(authOptions);
+  let name = teamId;
+  let logoUrl: string | null | undefined;
+  let clubPathId = teamId;
+
+  try {
+    const comp = await axiosAPI<Record<string, unknown>>({
+      endpoint: `/teams/${teamId}`,
+      method: "GET",
+      withAuth: !!session?.accessToken,
+      bearerToken: session?.accessToken,
+      service: "competitions",
+    });
+    const d = comp.data;
+    if (typeof d?.name === "string" && d.name) name = d.name;
+    const fromComp = pickTeamLogoFromPayload(d);
+    if (fromComp) logoUrl = fromComp;
+  } catch {
+    // ID pode existir só no auth ou competição indisponível
+  }
+
+  try {
+    const team = await getTeamById(teamId);
+    name = team.name;
+    clubPathId = team.id;
+    const merged =
+      pickTeamLogoFromPayload(team as unknown as Record<string, unknown>) ||
+      team.logo_url?.trim();
+    if (merged) logoUrl = merged;
+  } catch {
+    // visitante ou só competitions
+  }
+
+  return { name, logoUrl: logoUrl ?? undefined, clubPathId };
 }
 
 /**

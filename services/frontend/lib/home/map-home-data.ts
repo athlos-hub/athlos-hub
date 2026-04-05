@@ -86,6 +86,18 @@ export function matchAndLiveToUpcoming(
   };
 }
 
+/** Gateway/API podem devolver `logo_url` ou `logoUrl`. */
+export function pickOrganizationLogoUrl(org: {
+  logo_url?: string | null;
+  logoUrl?: string | null;
+}): string | null {
+  const a = org.logo_url;
+  const b = org.logoUrl;
+  const s =
+    (typeof a === "string" ? a : "") || (typeof b === "string" ? b : "");
+  return s.trim() || null;
+}
+
 export function socialPostToHomeFeedPost(
   post: SocialPost,
   author: { name: string; avatarUrl?: string; initials: string }
@@ -99,10 +111,14 @@ export function socialPostToHomeFeedPost(
   } catch {
     relativeTime = "";
   }
+  const brand =
+    post.profileType === ProfileType.ORGANIZATION ||
+    post.profileType === ProfileType.TEAM;
   return {
     id: post.id,
     authorName: author.name,
     authorAvatarUrl: author.avatarUrl,
+    authorAvatarIsBrand: brand,
     authorInitials: author.initials.slice(0, 3),
     relativeTime,
     body: post.content,

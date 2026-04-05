@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -7,7 +8,11 @@ from sqlalchemy import delete as sql_delete
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.infrastructure.http.auth_client import AuthClientError, get_user_by_username
+from src.infrastructure.http.auth_client import (
+    AuthClientError,
+    get_auth_team,
+    get_user_by_username,
+)
 from src.models import (
     AthleteProfile,
     OrganizationProfile,
@@ -111,17 +116,61 @@ async def require_org_social_visible(
     return p
 
 
-async def require_team_social_visible(session: AsyncSession, team_id: str) -> TeamProfile:
-    p = await session.scalar(select(TeamProfile).where(TeamProfile.team_id == team_id))
+async def resolve_team_profile_for_url(
+    session: AsyncSession,
+    team_id: str,
+    *,
+    authorization: str | None,
+) -> TeamProfile | None:
+    """
+    Resolve a linha em team_profiles. `team_id` na URL pode ser o UUID do competitions-service
+    (espelho aprovado) ou o UUID do time no auth-service; neste caso é preciso Bearer para
+    obter external_team_id e encontrar o perfil social.
+    """
+    tid = (team_id or "").strip()
+    if not tid:
+        return None
+    p = await session.scalar(select(TeamProfile).where(TeamProfile.team_id == tid))
+    if p:
+        return p
+    if not authorization:
+        return None
+    try:
+        uid = uuid.UUID(tid)
+    except ValueError:
+        return None
+    try:
+        team = await get_auth_team(uid, authorization)
+        ext = team.get("external_team_id")
+        if not ext:
+            return None
+        return await session.scalar(
+            select(TeamProfile).where(TeamProfile.team_id == str(ext))
+        )
+    except AuthClientError:
+        return None
+
+
+async def require_team_social_visible(
+    session: AsyncSession,
+    team_id: str,
+    *,
+    authorization: str | None = None,
+) -> TeamProfile:
+    p = await resolve_team_profile_for_url(session, team_id, authorization=authorization)
     if not p or not p.approved_for_social:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Perfil de time não encontrado")
     return p
 
 
 async def update_team_profile(
-    session: AsyncSession, team_id: str, updates: dict[str, Any]
+    session: AsyncSession,
+    team_id: str,
+    updates: dict[str, Any],
+    *,
+    authorization: str | None = None,
 ) -> TeamProfile:
-    p = await require_team_social_visible(session, team_id)
+    p = await require_team_social_visible(session, team_id, authorization=authorization)
     if "description" in updates and updates["description"] is not None:
         p.description = str(updates["description"])
     if "socialLinks" in updates and updates["socialLinks"] is not None:

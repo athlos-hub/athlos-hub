@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import uuid
 from typing import Optional
 from uuid import UUID
 
 import aio_pika
+from aio_pika.abc import AbstractIncomingMessage
 
 from auth_service.core.config import settings
 from auth_service.core.exceptions import CompetitionServiceError
@@ -16,6 +18,9 @@ from auth_service.infrastructure.messaging_constants import (
     EXCHANGE_COMPETITIONS,
     RK_TEAMS_MIRROR_DELETE_REQUESTED,
 )
+
+logger = logging.getLogger(__name__)
+
 
 async def send_team_mirror_delete_rpc(
     auth_team_id: UUID,
@@ -42,22 +47,33 @@ async def send_team_mirror_delete_rpc(
             exchange = await channel.declare_exchange(
                 EXCHANGE_COMPETITIONS, aio_pika.ExchangeType.TOPIC, durable=True
             )
-            await exchange.publish(
-                aio_pika.Message(
-                    body=body,
-                    reply_to=reply_q.name,
-                    correlation_id=correlation_id,
-                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
-                    content_type="application/json",
-                ),
-                routing_key=RK_TEAMS_MIRROR_DELETE_REQUESTED,
-            )
 
-            message = await asyncio.wait_for(reply_q.get(fail=False), timeout=timeout)
-            if message is None:
-                raise CompetitionServiceError(
-                    "Sem resposta do competitions-service (teams.mirror.delete)."
+            loop = asyncio.get_running_loop()
+            response_future: asyncio.Future[AbstractIncomingMessage] = loop.create_future()
+
+            async def on_message(message: AbstractIncomingMessage) -> None:
+                if not response_future.done():
+                    response_future.set_result(message)
+
+            consumer_tag = await reply_q.consume(on_message)
+            try:
+                await exchange.publish(
+                    aio_pika.Message(
+                        body=body,
+                        reply_to=reply_q.name,
+                        correlation_id=correlation_id,
+                        delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                        content_type="application/json",
+                    ),
+                    routing_key=RK_TEAMS_MIRROR_DELETE_REQUESTED,
                 )
+                message = await asyncio.wait_for(response_future, timeout=timeout)
+            finally:
+                try:
+                    await reply_q.cancel(consumer_tag)
+                except Exception as e:
+                    logger.warning("cancel consumer reply teams.mirror.delete: %s", e)
+
             async with message.process():
                 data = json.loads(message.body.decode("utf-8"))
             if data.get("ok"):

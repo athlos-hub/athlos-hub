@@ -3,7 +3,11 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.deps import get_current_keycloak_id
+from src.api.deps import (
+    get_bearer_authorization,
+    get_current_keycloak_id,
+    get_optional_bearer_authorization,
+)
 from src.routes.deps import get_session
 from src.schemas import (
     api_success,
@@ -144,8 +148,12 @@ async def team_profile_create(
 
 
 @router.get("/team-profiles/{team_id}")
-async def team_profile_get(team_id: str, session: AsyncSession = Depends(get_session)):
-    p = await require_team_social_visible(session, team_id)
+async def team_profile_get(
+    team_id: str,
+    session: AsyncSession = Depends(get_session),
+    authorization: str | None = Depends(get_optional_bearer_authorization),
+):
+    p = await require_team_social_visible(session, team_id, authorization=authorization)
     return api_success(team_profile_to_camel(p))
 
 
@@ -154,6 +162,7 @@ async def team_profile_put(
     team_id: str,
     updates: dict[str, Any],
     session: AsyncSession = Depends(get_session),
+    authorization: str = Depends(get_bearer_authorization),
 ):
-    p = await update_team_profile(session, team_id, updates)
+    p = await update_team_profile(session, team_id, updates, authorization=authorization)
     return api_success(team_profile_to_camel(p), "Perfil atualizado com sucesso")

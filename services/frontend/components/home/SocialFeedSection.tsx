@@ -14,9 +14,20 @@ function PostCard({ post }: { post: HomeFeedPost }) {
     <Card className="h-full transition-shadow hover:shadow-md">
       <CardContent className="pt-6">
         <div className="flex items-start gap-3">
-          <Avatar className="size-10 border border-border">
+          <Avatar
+            className={cn(
+              "size-10 border border-border",
+              post.authorAvatarIsBrand && "rounded-lg"
+            )}
+          >
             {post.authorAvatarUrl ? (
-              <AvatarImage src={post.authorAvatarUrl} alt="" />
+              <AvatarImage
+                src={post.authorAvatarUrl}
+                alt=""
+                className={
+                  post.authorAvatarIsBrand ? "object-contain p-1" : "object-cover"
+                }
+              />
             ) : null}
             <AvatarFallback className="text-xs font-semibold">
               {post.authorInitials}

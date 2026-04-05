@@ -314,6 +314,40 @@ async def list_my_followed_org_entities(
     return list(rows), total
 
 
+async def list_my_followed_team_entities(
+    session: AsyncSession, follower: str, page: int, size: int
+) -> tuple[list[TeamFollow], int]:
+    stmt = (
+        select(TeamFollow)
+        .join(
+            TeamProfile,
+            TeamProfile.team_id == TeamFollow.team_id,
+        )
+        .where(
+            TeamFollow.follower_keycloak_id == follower,
+            TeamProfile.approved_for_social.is_(True),
+        )
+        .order_by(TeamFollow.created_at.desc())
+    )
+    total = int(
+        await session.scalar(
+            select(func.count())
+            .select_from(TeamFollow)
+            .join(
+                TeamProfile,
+                TeamProfile.team_id == TeamFollow.team_id,
+            )
+            .where(
+                TeamFollow.follower_keycloak_id == follower,
+                TeamProfile.approved_for_social.is_(True),
+            )
+        )
+        or 0
+    )
+    rows = (await session.scalars(stmt.offset(page * size).limit(size))).all()
+    return list(rows), total
+
+
 async def list_my_org_slugs(session: AsyncSession, follower: str) -> list[str]:
     rows = (
         await session.scalars(

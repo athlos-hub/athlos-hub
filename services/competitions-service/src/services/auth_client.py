@@ -235,6 +235,41 @@ class AuthClient:
                 f"Erro ao verificar organização: {e.response.text}"
             ) from e
 
+    async def check_auth_team_exists(self, auth_team_id: UUID) -> bool:
+        """
+        True se o time com esse ID interno (auth.teams.id) ainda existe no auth-service.
+        Usado para detectar espelho órfão no competitions.
+        """
+        if not self._client:
+            raise RuntimeError("Cliente não inicializado. Use async with AuthClient()")
+
+        try:
+            response = await self._client.get(
+                f"/api/internal/teams/{auth_team_id}/exists"
+            )
+            response.raise_for_status()
+            data = response.json()
+            return bool(data.get("exists"))
+        except httpx.ConnectError as e:
+            logger.error("Falha na conexão com auth-service: %s", e)
+            raise AuthServiceUnavailable(
+                "Auth Service não está disponível. Tente novamente mais tarde."
+            ) from e
+        except httpx.TimeoutException as e:
+            logger.error("Timeout na conexão com auth-service: %s", e)
+            raise AuthServiceUnavailable(
+                "Auth Service demorou muito para responder. Tente novamente."
+            ) from e
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                "Erro HTTP do auth-service: %s - %s",
+                e.response.status_code,
+                e.response.text,
+            )
+            raise AuthClientError(
+                f"Erro ao verificar time no auth: {e.response.text}"
+            ) from e
+
     async def check_user_permission(
         self,
         keycloak_id: UUID,

@@ -1,4 +1,4 @@
-"""Envio de notificações internas: RabbitMQ (preferencial) ou HTTP (fallback)."""
+"""Envio de notificações internas: RabbitMQ se configurado; senão HTTP."""
 
 from __future__ import annotations
 
@@ -104,12 +104,9 @@ async def send_competition_notification(
         payload["action_url"] = action_url
 
     if settings.RABBITMQ_URL:
-        try:
-            await _publish_rabbit(payload)
-            logger.debug("Notificação de competição enfileirada para %s", user_id)
-            return
-        except Exception as e:
-            logger.warning("RabbitMQ indisponível, usando HTTP: %s", e)
+        await _publish_rabbit(payload)
+        logger.debug("Notificação de competição enfileirada para %s", user_id)
+        return
 
     try:
         await _publish_http(payload)

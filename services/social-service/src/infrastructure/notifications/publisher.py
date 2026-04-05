@@ -107,11 +107,8 @@ async def send_notification(
         payload["action_url"] = action_url.strip()
 
     if settings.RABBITMQ_URL:
-        try:
-            await _publish_rabbit(payload)
-            return
-        except Exception as e:
-            logger.warning("RabbitMQ notificações indisponível, HTTP: %s", e)
+        await _publish_rabbit(payload)
+        return
 
     try:
         await _publish_http(payload)

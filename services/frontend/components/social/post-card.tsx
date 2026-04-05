@@ -33,6 +33,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { TeamLogo } from "../teams/team-logo";
 
 interface PostCardProps {
     post: Post;
@@ -48,6 +49,8 @@ interface ProfileInfo {
     name: string;
     logoUrl?: string;
     avatarUrl?: string;
+    /** TEAM: preferir em links /clubes/[id] */
+    clubPathId?: string;
 }
 
 export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked = false, isSharedByMe = false }: PostCardProps) {
@@ -77,14 +80,13 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
                         logoUrl: org.logo_url || undefined,
                     });
                 } else if (post.profileType === ProfileType.TEAM) {
-                    const { getTeamById } = await import("@/actions/teams");
-                    const team = await getTeamById(post.profileId);
-                    if (team) {
-                        setProfileInfo({
-                            name: team.name,
-                            logoUrl: team.logo_url || undefined,
-                        });
-                    }
+                    const { getTeamDisplayForSocialPost } = await import("@/actions/teams");
+                    const team = await getTeamDisplayForSocialPost(post.profileId);
+                    setProfileInfo({
+                        name: team.name,
+                        logoUrl: team.logoUrl || undefined,
+                        clubPathId: team.clubPathId,
+                    });
                 }
             } catch (error) {
             }
@@ -192,10 +194,10 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
             case ProfileType.ORGANIZATION:
                 return <Badge variant="secondary">Organização</Badge>;
             case ProfileType.TEAM:
-                return <Badge variant="outline">Equipe</Badge>;
+                return <Badge variant="secondary">Equipe</Badge>;
             case ProfileType.ATHLETE:
                 if (post.type === PostType.ACHIEVEMENT) {
-                    return <Badge variant="default">🏆 Conquista</Badge>;
+                    return <Badge variant="default">Conquista</Badge>;
                 }
                 return null;
             default:
@@ -203,20 +205,11 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
         }
     };
 
-    const getPostTypeIcon = () => {
-        switch (post.type) {
-            case PostType.ACHIEVEMENT:
-                return "🏆";
-            case PostType.ANNOUNCEMENT:
-                return "📢";
-            case PostType.EVENT:
-                return "📅";
-            case PostType.TRAINING:
-                return "💪";
-            default:
-                return null;
-        }
-    };
+    const teamClubHref =
+        post.profileType === ProfileType.TEAM
+            ? `/clubes/${profileInfo.clubPathId ?? post.profileId}`
+            : null;
+
 
     return (
         <>
@@ -228,7 +221,7 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
                             ? `/profile/${post.profileId}` 
                             : post.profileType === ProfileType.ORGANIZATION
                             ? `/organizations/${post.profileId}`
-                            : `/clubes/${post.profileId}`
+                            : teamClubHref ?? `/clubes/${post.profileId}`
                     }
                     className="shrink-0"
                 >
@@ -246,7 +239,30 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
                                     : "object-cover"
                             }
                         />
-                        <AvatarFallback>{profileInfo.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                        <AvatarFallback
+                            className={
+                                post.profileType === ProfileType.ORGANIZATION ||
+                                post.profileType === ProfileType.TEAM
+                                    ? "rounded-lg bg-transparent p-0"
+                                    : undefined
+                            }
+                        >
+                            {post.profileType === ProfileType.ORGANIZATION ||
+                            post.profileType === ProfileType.TEAM ? (
+                                <TeamLogo
+                                    name={profileInfo.name}
+                                    abbreviation={profileInfo.name.slice(0, 3)}
+                                    logoUrl=""
+                                    className="h-12 w-12"
+                                    textClassName="text-xs"
+                                />
+                            ) : (
+                                <span className="text-sm font-semibold">
+                                    {profileInfo.name.replace(/[^a-zA-ZÀ-ÿ0-9]/g, "").slice(0, 2).toUpperCase() ||
+                                        "?"}
+                                </span>
+                            )}
+                        </AvatarFallback>
                     </Avatar>
                 </Link>
                 <div className="flex-1">
@@ -257,7 +273,7 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
                                     ? `/profile/${post.profileId}` 
                                     : post.profileType === ProfileType.ORGANIZATION
                                     ? `/organizations/${post.profileId}`
-                                    : `/teams/${post.profileId}`
+                                    : teamClubHref ?? `/clubes/${post.profileId}`
                             }
                             className="hover:underline"
                         >

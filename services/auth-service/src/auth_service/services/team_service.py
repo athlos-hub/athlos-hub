@@ -820,8 +820,9 @@ class TeamService:
     ) -> None:
         """
         Deleta um time. Apenas o capitão pode excluir.
-        Só é permitido enquanto a competição estiver com status *pending*
-        (campeonato ainda não começou).
+        Se o time já estiver aprovado no competitions (tem ``external_team_id``),
+        só é permitido enquanto a competição estiver *pending* e remove o espelho lá.
+        Times ainda não aprovados são removidos só no auth, sem chamar o competitions.
         """
         team = await self._team_repo.resolve_team_with_members(team_id)
         if not team:
@@ -835,15 +836,18 @@ class TeamService:
         if not captain or captain.user_id != user.id:
             raise NotTeamCaptainError()
 
-        comp_status = await self._fetch_competition_status(team.competition_id)
-        if comp_status is None:
-            raise CompetitionServiceError(
-                "Não foi possível verificar o status da competição. Tente novamente."
-            )
-        if str(comp_status).strip().lower() != "pending":
-            raise CompetitionAlreadyStartedError()
+        # Só fala com o competitions se o time já foi aprovado e espelhado lá.
+        # Time ainda PENDING/RECRUITING/READY não tem registro no competitions — evita erro ao excluir.
+        if team.external_team_id is not None:
+            comp_status = await self._fetch_competition_status(team.competition_id)
+            if comp_status is None:
+                raise CompetitionServiceError(
+                    "Não foi possível verificar o status da competição. Tente novamente."
+                )
+            if str(comp_status).strip().lower() != "pending":
+                raise CompetitionAlreadyStartedError()
 
-        await self._delete_competition_team_mirror(team.id, team.external_team_id)
+            await self._delete_competition_team_mirror(team.id, team.external_team_id)
 
         await self._team_repo.delete(team)
 
@@ -878,25 +882,18 @@ class TeamService:
     ) -> None:
         """
         Remove o espelho no competitions (e enfileira limpeza no social).
-        Com RabbitMQ: RPC durável teams.mirror.delete (igual import de time).
+        Com RabbitMQ: apenas RPC durável teams.mirror.delete.
         Sem fila: HTTP interno (dev).
         """
         if (settings.RABBITMQ_URL or "").strip():
-            try:
-                from auth_service.infrastructure.competitions_mirror_delete import (
-                    send_team_mirror_delete_rpc,
-                )
+            from auth_service.infrastructure.competitions_mirror_delete import (
+                send_team_mirror_delete_rpc,
+            )
 
-                await send_team_mirror_delete_rpc(
-                    auth_team_id, external_team_id, timeout=30.0
-                )
-                return
-            except CompetitionServiceError:
-                raise
-            except Exception as e:
-                logger.warning(
-                    "RPC teams.mirror.delete falhou, tentando HTTP: %s", e
-                )
+            await send_team_mirror_delete_rpc(
+                auth_team_id, external_team_id, timeout=30.0
+            )
+            return
 
         base = getattr(
             settings, "COMPETITIONS_SERVICE_URL", "http://localhost:8100"
@@ -945,12 +942,9 @@ class TeamService:
                 await self._team_repo.update(team)
 
     async def _send_to_competitions_service(self, payload: TeamApprovalPayload) -> UUID:
-        """Envia time aprovado para o competitions-service (RabbitMQ RPC ou HTTP)."""
+        """Envia time aprovado: RabbitMQ RPC se houver fila; senão HTTP (dev)."""
         if settings.RABBITMQ_URL:
-            try:
-                return await send_team_import_rpc(payload)
-            except Exception as e:
-                logger.warning("teams.import via RabbitMQ falhou, tentando HTTP: %s", e)
+            return await send_team_import_rpc(payload)
 
         competitions_url = getattr(
             settings, "COMPETITIONS_SERVICE_URL", "http://localhost:8100"
@@ -982,19 +976,14 @@ class TeamService:
     async def _sync_team_logo_to_competitions(
         self, external_team_id: UUID, logo_url: Optional[str]
     ) -> None:
-        """Propaga escudo do auth para o registro do time no competitions-service."""
+        """Propaga escudo do auth para o competitions (fila se houver; senão HTTP)."""
         if settings.RABBITMQ_URL:
-            try:
-                from auth_service.infrastructure.team_logo_publisher import (
-                    publish_team_logo_sync,
-                )
+            from auth_service.infrastructure.team_logo_publisher import (
+                publish_team_logo_sync,
+            )
 
-                await publish_team_logo_sync(external_team_id, logo_url)
-                return
-            except Exception as e:
-                logger.warning(
-                    "teams.logo.sync via RabbitMQ falhou, tentando HTTP: %s", e
-                )
+            await publish_team_logo_sync(external_team_id, logo_url)
+            return
 
         competitions_url = getattr(
             settings, "COMPETITIONS_SERVICE_URL", "http://localhost:8100"

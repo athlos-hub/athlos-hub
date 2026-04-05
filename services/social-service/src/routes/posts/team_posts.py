@@ -31,11 +31,11 @@ async def team_post_create(
     kid: str = Depends(get_current_keycloak_id),
     authorization: str = Depends(get_bearer_authorization),
 ):
-    await can_post_as_team(session, team_id, kid, authorization)
+    canonical_team_id = await can_post_as_team(session, team_id, kid, authorization)
     p = await create_post_org_or_team(
         session,
         profile_type="TEAM",
-        profile_id=team_id,
+        profile_id=canonical_team_id,
         keycloak_id=kid,
         content=str(body.get("content") or ""),
         media_urls=body.get("mediaUrls"),
@@ -55,11 +55,11 @@ async def team_posts_list(
     page: int = Query(0, ge=0),
     size: int = Query(10, ge=1, le=100),
 ):
-    await require_team_social_visible(session, team_id)
+    tprof = await require_team_social_visible(session, team_id, authorization=viewer_auth)
     rows, total = await list_profile_posts(
         session,
         "TEAM",
-        team_id,
+        str(tprof.team_id),
         page,
         size,
         viewer_keycloak_id=viewer_kid,

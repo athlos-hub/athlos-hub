@@ -14,13 +14,17 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, UserPlus, UserMinus, Building2 } from "lucide-react";
+import { Loader2, UserPlus, UserMinus } from "lucide-react";
+import { TeamLogo } from "@/components/teams/team-logo";
 import { getFollowers, getFollowing, toggleFollow } from "@/actions/follow";
 import { getUserPublicInfo, getUsersPublicInfoBatch } from "@/actions/auth";
 import { getFollowedOrganizations, toggleFollowOrganization } from "@/actions/organization-follow";
+import { getFollowedTeams, toggleFollowTeam } from "@/actions/team-follow";
+import { getTeamDisplayForSocialPost } from "@/actions/teams";
 import { getOrganizationBySlug } from "@/actions/organizations";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSession } from "next-auth/react";
+import { pickOrganizationLogoUrl } from "@/lib/home/map-home-data";
 
 interface FollowListModalProps {
   isOpen: boolean;
@@ -58,6 +62,15 @@ interface FollowWithOrg {
   isFollowing?: boolean;
 }
 
+interface FollowWithTeam {
+  id: string;
+  teamId: string;
+  name: string;
+  logoUrl?: string | null;
+  clubPathId: string;
+  isFollowing?: boolean;
+}
+
 export function FollowListModal({
   isOpen,
   onClose,
@@ -71,6 +84,7 @@ export function FollowListModal({
   const [followers, setFollowers] = useState<FollowWithUser[]>([]);
   const [following, setFollowing] = useState<FollowWithUser[]>([]);
   const [followingOrgs, setFollowingOrgs] = useState<FollowWithOrg[]>([]);
+  const [followingTeams, setFollowingTeams] = useState<FollowWithTeam[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingFollow, setLoadingFollow] = useState<string | null>(null);
 
@@ -78,7 +92,7 @@ export function FollowListModal({
     if (isOpen) {
       loadData();
     }
-  }, [isOpen, activeTab, keycloakId]);
+  }, [isOpen, activeTab, keycloakId, session?.accessToken]);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -151,14 +165,19 @@ export function FollowListModal({
           const followingWithOrgs = await Promise.all(
             orgData.content.map(async (follow) => {
               try {
-                const orgInfo = await getOrganizationBySlug(follow.organizationSlug);
+                const orgInfo = await getOrganizationBySlug(
+                  follow.organizationSlug,
+                  !!session?.accessToken
+                );
                 return {
                   id: follow.id,
                   organizationSlug: follow.organizationSlug,
                   orgInfo: {
                     slug: orgInfo.slug,
                     name: orgInfo.name,
-                    logo_url: orgInfo.logo_url || null,
+                    logo_url: pickOrganizationLogoUrl(
+                      orgInfo as { logo_url?: string | null; logoUrl?: string | null }
+                    ),
                   },
                   isFollowing: true,
                 };
@@ -175,6 +194,36 @@ export function FollowListModal({
           setFollowingOrgs(followingWithOrgs);
         } catch {
           setFollowingOrgs([]);
+        }
+
+        try {
+          const teamsData = await getFollowedTeams(keycloakId);
+          const followingWithTeams = await Promise.all(
+            teamsData.content.map(async (f) => {
+              try {
+                const d = await getTeamDisplayForSocialPost(f.teamId);
+                return {
+                  id: f.id,
+                  teamId: f.teamId,
+                  name: d.name,
+                  logoUrl: d.logoUrl,
+                  clubPathId: d.clubPathId,
+                  isFollowing: true,
+                };
+              } catch {
+                return {
+                  id: f.id,
+                  teamId: f.teamId,
+                  name: f.teamId,
+                  clubPathId: f.teamId,
+                  isFollowing: true,
+                };
+              }
+            })
+          );
+          setFollowingTeams(followingWithTeams);
+        } catch {
+          setFollowingTeams([]);
         }
       }
     } catch (error) {
@@ -246,6 +295,25 @@ export function FollowListModal({
         toast.success("Deixou de seguir esta organização");
       }
     } catch (error) {
+      toast.error("Erro ao atualizar");
+    } finally {
+      setLoadingFollow(null);
+    }
+  };
+
+  const handleToggleTeamFollow = async (competitionTeamId: string) => {
+    setLoadingFollow(competitionTeamId);
+    try {
+      const isNowFollowing = await toggleFollowTeam(competitionTeamId);
+      if (!isNowFollowing) {
+        setFollowingTeams((prev) => prev.filter((t) => t.teamId !== competitionTeamId));
+      }
+      if (isNowFollowing) {
+        toast.success("Agora você está seguindo esta equipe");
+      } else {
+        toast.success("Deixou de seguir esta equipe");
+      }
+    } catch {
       toast.error("Erro ao atualizar");
     } finally {
       setLoadingFollow(null);
@@ -359,7 +427,9 @@ export function FollowListModal({
               <div className="flex justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-main" />
               </div>
-            ) : following.length === 0 && followingOrgs.length === 0 ? (
+            ) : following.length === 0 &&
+              followingOrgs.length === 0 &&
+              followingTeams.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <p>Nenhum perfil sendo seguido</p>
               </div>
@@ -367,9 +437,9 @@ export function FollowListModal({
               <>
                 {following.length > 0 && (
                   <>
-                    {following.length > 0 && <div className="mt-6 mb-3">
+                    <div className="mb-3">
                       <h3 className="text-sm font-semibold text-muted-foreground">Usuários</h3>
-                    </div>}
+                    </div>
                     <div className="space-y-3">
                       {following.map((user) => (
                         <div
@@ -419,12 +489,16 @@ export function FollowListModal({
                     </div>
                   </>
                 )}
-                
+
                 {followingOrgs.length > 0 && (
                   <>
-                    {following.length > 0 && <div className="mt-6 mb-3">
-                      <h3 className="text-sm font-semibold text-muted-foreground">Organizações</h3>
-                    </div>}
+                    <div
+                      className={`mb-3 ${following.length > 0 ? "mt-6" : ""}`}
+                    >
+                      <h3 className="text-sm font-semibold text-muted-foreground">
+                        Organizações
+                      </h3>
+                    </div>
                     <div className="space-y-3">
                       {followingOrgs.map((org) => (
                         <div
@@ -436,12 +510,13 @@ export function FollowListModal({
                             className="flex items-center gap-3 flex-1"
                             onClick={onClose}
                           >
-                            <Avatar className="h-12 w-12 rounded-lg">
-                              <AvatarImage src={org.orgInfo?.logo_url || undefined} />
-                              <AvatarFallback>
-                                <Building2 className="h-6 w-6" />
-                              </AvatarFallback>
-                            </Avatar>
+                            <TeamLogo
+                              name={org.orgInfo?.name || org.organizationSlug}
+                              abbreviation={(org.orgInfo?.name || org.organizationSlug).slice(0, 3)}
+                              logoUrl={org.orgInfo?.logo_url || null}
+                              className="h-12 w-12"
+                              textClassName="text-xs"
+                            />
                             <div>
                               <p className="font-medium">{org.orgInfo?.name || org.organizationSlug}</p>
                               <p className="text-sm text-muted-foreground">Organização</p>
@@ -454,6 +529,59 @@ export function FollowListModal({
                             disabled={loadingFollow === org.organizationSlug}
                           >
                             {loadingFollow === org.organizationSlug ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <UserMinus className="h-4 w-4 mr-2" />
+                                Seguindo
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {followingTeams.length > 0 && (
+                  <>
+                    <div
+                      className={`mb-3 ${
+                        following.length > 0 || followingOrgs.length > 0 ? "mt-6" : ""
+                      }`}
+                    >
+                      <h3 className="text-sm font-semibold text-muted-foreground">Equipes</h3>
+                    </div>
+                    <div className="space-y-3">
+                      {followingTeams.map((t) => (
+                        <div
+                          key={t.teamId}
+                          className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors"
+                        >
+                          <Link
+                            href={`/clubes/${t.clubPathId}`}
+                            className="flex items-center gap-3 flex-1"
+                            onClick={onClose}
+                          >
+                            <TeamLogo
+                              name={t.name}
+                              abbreviation={t.name.slice(0, 3)}
+                              logoUrl={t.logoUrl || null}
+                              className="h-12 w-12"
+                              textClassName="text-xs"
+                            />
+                            <div>
+                              <p className="font-medium">{t.name}</p>
+                              <p className="text-sm text-muted-foreground">Equipe</p>
+                            </div>
+                          </Link>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleToggleTeamFollow(t.teamId)}
+                            disabled={loadingFollow === t.teamId}
+                          >
+                            {loadingFollow === t.teamId ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
                               <>

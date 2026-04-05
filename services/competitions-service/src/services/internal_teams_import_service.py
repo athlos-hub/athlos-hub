@@ -13,6 +13,7 @@ from src.models.matches import MatchModel
 from src.models.standings import ClassificationModel
 from src.models.teams import PlayerModel, TeamInviteModel, TeamModel, TeamStatus
 from src.schemas.internal_teams import TeamCreatedResponse, TeamFromAuthPayload
+from src.services.auth_client import AuthClient, AuthClientError, AuthServiceUnavailable
 
 logger = logging.getLogger(__name__)
 
@@ -92,18 +93,84 @@ async def import_team_from_auth(
         raise HTTPException(status_code=400, detail="Capitão deve estar na lista de jogadores")
 
     player_keycloak_ids = [p.keycloak_id for p in payload.players]
-    existing_players_query = (
-        select(PlayerModel)
-        .join(TeamModel, PlayerModel.team_id == TeamModel.id)
-        .where(
-            TeamModel.competition_id == payload.competition_id,
-            PlayerModel.keycloak_id.in_(player_keycloak_ids),
+    _max_reconcile_rounds = 5
+    _round = 0
+    while True:
+        existing_players_query = (
+            select(PlayerModel)
+            .join(TeamModel, PlayerModel.team_id == TeamModel.id)
+            .where(
+                TeamModel.competition_id == payload.competition_id,
+                PlayerModel.keycloak_id.in_(player_keycloak_ids),
+            )
         )
-    )
-    result = await session.execute(existing_players_query)
-    existing_players = result.scalars().all()
+        result = await session.execute(existing_players_query)
+        existing_players = list(result.scalars().all())
+        if not existing_players:
+            break
 
-    if existing_players:
+        team_ids = {p.team_id for p in existing_players}
+        teams_result = await session.execute(
+            select(TeamModel).where(TeamModel.id.in_(team_ids))
+        )
+        conflicting_by_id = {t.id: t for t in teams_result.scalars().all()}
+
+        has_team_without_auth_link = False
+        purge_candidates: list[TeamModel] = []
+        for p in existing_players:
+            tm = conflicting_by_id.get(p.team_id)
+            if not tm:
+                continue
+            if tm.auth_team_id is None:
+                has_team_without_auth_link = True
+            elif tm.auth_team_id != payload.auth_team_id:
+                purge_candidates.append(tm)
+
+        purge_unique = list({t.id: t for t in purge_candidates}.values())
+
+        if has_team_without_auth_link:
+            duplicates = [str(p.keycloak_id) for p in existing_players]
+            logger.warning("Jogadores já inscritos na competição: %s", duplicates)
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": "Alguns jogadores já estão em outros times desta competição",
+                    "duplicate_players": duplicates,
+                },
+            )
+
+        purged_any = False
+        async with AuthClient() as auth_client:
+            for tm in purge_unique:
+                try:
+                    still_in_auth = await auth_client.check_auth_team_exists(tm.auth_team_id)
+                except (AuthClientError, AuthServiceUnavailable) as e:
+                    logger.warning(
+                        "Não foi possível verificar no auth o time %s: %s — mantendo espelho",
+                        tm.auth_team_id,
+                        e,
+                    )
+                    still_in_auth = True
+                if not still_in_auth:
+                    logger.info(
+                        "Removendo espelho órfão no competitions (competition_team=%s "
+                        "auth_team_id=%s inexistente no auth)",
+                        tm.id,
+                        tm.auth_team_id,
+                    )
+                    await _purge_competition_team_row(session, tm)
+                    purged_any = True
+
+        if purged_any:
+            await session.flush()
+            _round += 1
+            if _round > _max_reconcile_rounds:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Falha ao reconciliar inscrições com o auth após várias tentativas",
+                )
+            continue
+
         duplicates = [str(p.keycloak_id) for p in existing_players]
         logger.warning("Jogadores já inscritos na competição: %s", duplicates)
         raise HTTPException(

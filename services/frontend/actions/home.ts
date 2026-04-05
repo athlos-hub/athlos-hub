@@ -4,39 +4,46 @@ import { listLives } from "@/actions/lives";
 import { getMatchesByIds } from "@/actions/matches";
 import { getPublicFeed } from "@/actions/social-feed";
 import { getOrganizationBySlug } from "@/actions/organizations";
-import { getTeamById } from "@/actions/teams";
+import { getTeamDisplayForSocialPost } from "@/actions/teams";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { getUserPublicInfo } from "@/actions/users";
 import {
   matchAndLiveToHomeGame,
   matchAndLiveToUpcoming,
+  pickOrganizationLogoUrl,
   socialPostToHomeFeedPost,
   initialsFromName,
 } from "@/lib/home/map-home-data";
 import type { HomePageData } from "@/types/home-page";
 import { LiveStatus } from "@/types/livestream";
 import type { Post as SocialPost } from "@/types/social";
-import { ProfileType } from "@/types/social";
+import { PostVisibility, ProfileType } from "@/types/social";
 
-async function resolvePostAuthor(post: SocialPost): Promise<{
+async function resolvePostAuthor(
+  post: SocialPost,
+  withAuth: boolean
+): Promise<{
   name: string;
   avatarUrl?: string;
   initials: string;
 }> {
   try {
     if (post.profileType === ProfileType.ORGANIZATION) {
-      const org = await getOrganizationBySlug(post.profileId, false);
+      const org = await getOrganizationBySlug(post.profileId, withAuth);
       return {
         name: org.name,
-        avatarUrl: org.logo_url ?? undefined,
+        avatarUrl: pickOrganizationLogoUrl(org as { logo_url?: string | null; logoUrl?: string | null }) ?? undefined,
         initials: initialsFromName(org.name),
       };
     }
     if (post.profileType === ProfileType.TEAM) {
       try {
-        const team = await getTeamById(post.profileId);
+        const d = await getTeamDisplayForSocialPost(post.profileId);
         return {
-          name: team.name,
-          initials: initialsFromName(team.name),
+          name: d.name,
+          avatarUrl: d.logoUrl ?? undefined,
+          initials: initialsFromName(d.name),
         };
       } catch {
         return { name: "Time", initials: "TM" };
@@ -124,11 +131,16 @@ export async function getHomePageData(): Promise<HomePageData> {
 
     let feedPosts: HomePageData["feedPosts"] = [];
     try {
-      const feed = await getPublicFeed(0, 3);
-      const slice = (feed.content ?? []).slice(0, 3);
+      const session = await getServerSession(authOptions);
+      const withAuth = Boolean(session?.accessToken);
+      const feed = await getPublicFeed(0, 24);
+      const publicOnly = (feed.content ?? []).filter(
+        (p) => p.visibility === PostVisibility.PUBLIC
+      );
+      const slice = publicOnly.slice(0, 3);
       feedPosts = await Promise.all(
         slice.map(async (post) => {
-          const author = await resolvePostAuthor(post);
+          const author = await resolvePostAuthor(post, withAuth);
           return socialPostToHomeFeedPost(post, author);
         })
       );

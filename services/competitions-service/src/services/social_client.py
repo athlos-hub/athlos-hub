@@ -78,23 +78,18 @@ class SocialServiceClient:
         }
 
         if settings.RABBITMQ_URL:
-            try:
-                from src.infrastructure.messaging.social_achievement_publisher import (
-                    publish_achievement_event,
-                )
+            from src.infrastructure.messaging.social_achievement_publisher import (
+                publish_achievement_event,
+            )
 
-                await publish_achievement_event(payload)
-                logger.info(
-                    "Conquista %s enfileirada (athlos.social) para %s (%s)",
-                    achievement_type.value,
-                    target_id,
-                    target_type.value,
-                )
-                return True
-            except Exception as e:
-                logger.warning(
-                    "RabbitMQ (conquistas) indisponível, tentando HTTP: %s", e
-                )
+            await publish_achievement_event(payload)
+            logger.info(
+                "Conquista %s enfileirada (athlos.social) para %s (%s)",
+                achievement_type.value,
+                target_id,
+                target_type.value,
+            )
+            return True
 
         url = f"{self.base_url}/api/social/achievements/notify"
 

@@ -4,9 +4,12 @@ import logging
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_service.api.deps import OrganizationServiceDep
+from auth_service.infrastructure.database.dependencies import get_session
+from auth_service.repositories.team_repository import TeamRepository
 from auth_service.schemas.internal import (
     ValidateMembersRequest,
     ValidateMembersResponse,
@@ -79,6 +82,25 @@ async def check_organization_exists(
         "organization_id": None,
         "organization_name": None,
     }
+
+
+@router.get(
+    "/teams/{team_id}/exists",
+    status_code=status.HTTP_200_OK,
+)
+async def check_team_exists_internal(
+    team_id: UUID,
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Verifica se um time ainda existe no auth (ID interno do auth-service).
+
+    Usado pelo competitions-service para remover espelhos órfãos ao importar
+    aprovação, quando o time foi apagado no auth mas o registro no competitions ficou.
+    """
+    repo = TeamRepository(session)
+    team = await repo.get_by_id(team_id)
+    return {"exists": team is not None}
 
 
 @router.post(

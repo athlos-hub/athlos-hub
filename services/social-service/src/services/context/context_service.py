@@ -7,7 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infrastructure.http import auth_client, competitions_client
-from src.models import OrganizationProfile, TeamProfile
+from src.models import OrganizationProfile
+from src.services.profiles.profiles_service import resolve_team_profile_for_url
 
 
 async def resolve_team_membership(
@@ -73,7 +74,7 @@ async def can_post_as_team(
     team_id: str,
     keycloak_id: str,
     authorization: str,
-) -> bool:
+) -> str:
     try:
         tid = uuid.UUID(team_id)
     except ValueError as e:
@@ -107,15 +108,15 @@ async def can_post_as_team(
             "Você não tem permissão para criar posts nesta equipe",
         )
 
-    tprof = await session.scalar(
-        select(TeamProfile).where(TeamProfile.team_id == team_id)
+    tprof = await resolve_team_profile_for_url(
+        session, team_id, authorization=authorization
     )
     if not tprof or not tprof.approved_for_social:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             "Equipe não disponível no social até ser aprovada na competição",
         )
-    return True
+    return str(tprof.team_id)
 
 
 async def list_user_org_slugs(authorization: str) -> list[str]:

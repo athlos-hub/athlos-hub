@@ -1431,15 +1431,18 @@ class OrganizationService:
 
     async def _get_user_role_in_org(self, org: Organization, user: User) -> str:
         """Obtém função do usuário em uma organização."""
-        logger.warning(
-            f"[DEBUG] Checking role for user {user.id} in org {org.id} (owner_id: {org.owner_id})"
+        logger.debug(
+            "Role check org=%s user=%s owner_id=%s",
+            org.id,
+            user.id,
+            org.owner_id,
         )
 
         if org.owner_id == user.id:
             return OrgRole.OWNER
 
         is_organizer = await self._organizer_repo.is_organizer(org.id, user.id)
-        logger.warning(f"[DEBUG] Is organizer: {is_organizer}")
+        logger.debug("is_organizer=%s org=%s user=%s", is_organizer, org.id, user.id)
 
         if is_organizer:
             return OrgRole.ORGANIZER
@@ -1447,7 +1450,7 @@ class OrganizationService:
         membership = await self._member_repo.get_membership_by_status(
             org.id, user.id, MemberStatus.ACTIVE
         )
-        logger.warning(f"[DEBUG] Membership: {membership}")
+        logger.debug("membership=%s org=%s user=%s", membership, org.id, user.id)
 
         if membership:
             return OrgRole.MEMBER

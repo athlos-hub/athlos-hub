@@ -603,11 +603,10 @@ export default function ClubesPainelPage() {
       <CreateTeamDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        onSuccess={(teamId) => {
+        onSuccess={() => {
           mergedTeamsRef.current = null;
           mergedKeyRef.current = "";
           loadData();
-          router.push(`/clubes/${teamId}`);
         }}
       />
     </div>

@@ -595,9 +595,10 @@ async def delete_team(
     service: TeamService = Depends(get_team_service),
 ):
     """
-    Deleta um time.
-    Apenas o capitão pode excluir, e somente enquanto a competição estiver *pending*
-    (campeonato ainda não começou).
+    Deleta um time. Apenas o capitão pode excluir.
+    Se o time já foi aprovado e existe no competitions, só é permitido enquanto a
+    competição estiver *pending*; remove também o espelho no competitions.
+    Times ainda não aprovados são apagados só no auth (sem chamar o competitions).
     """
     try:
         await service.delete_team(team_id, str(current_user.keycloak_id))
