@@ -1,4 +1,8 @@
 services:
+  # Gateway Kong: sem KONG_NGINX_* / proxy_* globais no compose. Timeouts longos do SSE vêm
+  # só do serviço declarative `notifications-sse-service` (read_timeout/write_timeout). Comentários
+  # SSE `: keepalive` resetam o read_timeout entre upstream e Kong; keepalive HTTP entre cliente e Kong
+  # é ortogonal (conexão persistente na porta 8000).
   api-gateway:
     image: kong:3.9
     environment:

@@ -52,11 +52,17 @@ export async function getComments(
   page: number = 0,
   size: number = 20
 ): Promise<PageResponse<CommentResponse>> {
+  const session = await getServerSession(authOptions);
+  const withAuth = Boolean(session?.accessToken);
+
   const response = await axiosAPI<ApiResponse<PageResponse<CommentResponse>>>({
     endpoint: `/social/posts/${postId}/comments`,
     method: "GET",
     queryParams: { page, size },
-    withAuth: false,
+    withAuth,
+    ...(withAuth && session?.accessToken
+      ? { bearerToken: session.accessToken }
+      : {}),
   });
 
   return response.data.data || response.data as unknown as PageResponse<CommentResponse>;

@@ -30,7 +30,7 @@ export async function listCompetitions(
     endpoint: "/competitions/",
     method: "GET",
     queryParams,
-    withAuth: true,
+    withAuth: false,
     service: "competitions",
   });
 
@@ -41,7 +41,7 @@ export async function getCompetition(id: string): Promise<Competition> {
   const response = await axiosAPI<Competition>({
     endpoint: `/competitions/${id}`,
     method: "GET",
-    withAuth: true,
+    withAuth: false,
     service: "competitions",
   });
 
@@ -158,7 +158,7 @@ export async function getCompetitionTeamsWithPlayers(
   const response = await axiosAPI<TeamWithPlayers[]>({
     endpoint: `/competitions/${competitionId}/teams-with-players`,
     method: "GET",
-    withAuth: true,
+    withAuth: false,
     service: "competitions",
   });
 
@@ -243,7 +243,7 @@ export async function getCompetitionStatsRuleset(
     const response = await axiosAPI<StatsRuleSet>({
       endpoint: `/competitions/${competitionId}/stats-ruleset`,
       method: "GET",
-      withAuth: true,
+      withAuth: false,
       service: "competitions",
     });
     return response.data;

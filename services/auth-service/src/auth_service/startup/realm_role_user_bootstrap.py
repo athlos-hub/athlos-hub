@@ -31,9 +31,9 @@ async def bootstrap_local_users_from_realm_role() -> None:
         if "403" in msg or "Forbidden" in msg:
             logger.warning(
                 "O service account do client KEYCLOAK_CLIENT_ID precisa de papéis no client "
-                "'realm-management' (ex.: view-users, query-users). No dev, reimporte o realm "
-                "(keycloak/athlos-realm.json) ou em Clients → auth-client → Service account "
-                "roles → realm-management, atribua view-users e query-users."
+                "'realm-management' (view-users, query-users, manage-users para registo). "
+                "Reimporte o realm ou: Clients → auth-client → Service account roles → "
+                "realm-management → view-users, query-users, manage-users."
             )
         return
 

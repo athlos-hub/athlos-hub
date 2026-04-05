@@ -22,6 +22,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  isNotificationInformativeOnlyType,
+  resolveNotificationTargetHref,
+} from '@/lib/notifications/notification-detail-sections';
 
 interface NotificationActionsProps {
   notification: Notification;
@@ -35,27 +39,8 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
   const [actionType, setActionType] = useState<'invite' | 'request' | null>(null);
   const notificationType = String(notification.type).toLowerCase();
 
-  const resolveTargetHref = (): string | null => {
-    const raw = notification.action_url?.trim();
-    if (raw) {
-      // Aceita path relativo absoluto do app
-      if (raw.startsWith("/")) return raw;
-      // Normaliza URL absoluta para path interno quando for mesmo domínio
-      try {
-        const parsed = new URL(raw);
-        if (parsed.pathname) return `${parsed.pathname}${parsed.search}${parsed.hash}`;
-      } catch {
-        // ignora formato inválido e usa fallback
-      }
-    }
-    if (notification.metadata?.organization_slug) {
-      return `/organizations/${notification.metadata.organization_slug}`;
-    }
-    return null;
-  };
-
   const navigateToTarget = () => {
-    const href = resolveTargetHref();
+    const href = resolveNotificationTargetHref(notification);
     if (!href) {
       toast.error("Não foi possível abrir o destino desta notificação.");
       return;
@@ -209,7 +194,7 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
         return null;
 
       case 'organization_request_approved':
-        if (resolveTargetHref()) {
+        if (resolveNotificationTargetHref(notification)) {
           return (
             <Button 
               onClick={navigateToTarget}
@@ -224,7 +209,7 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
       case 'organization_accepted':
       case 'organization_organizer_added':
       case 'organization_ownership_received':
-        if (resolveTargetHref()) {
+        if (resolveNotificationTargetHref(notification)) {
           return (
             <Button 
               onClick={navigateToTarget}
@@ -237,7 +222,7 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
         return null;
 
       case 'organization_approved':
-        if (resolveTargetHref()) {
+        if (resolveNotificationTargetHref(notification)) {
           return (
             <Button 
               onClick={navigateToTarget}
@@ -250,7 +235,7 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
         return null;
 
       case 'organization_member_left':
-        if (resolveTargetHref()) {
+        if (resolveNotificationTargetHref(notification)) {
           return (
             <Button 
               onClick={navigateToTarget}
@@ -264,7 +249,7 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
         return null;
 
       case 'organization_suspended':
-        if (resolveTargetHref()) {
+        if (resolveNotificationTargetHref(notification)) {
           return (
             <Button 
               onClick={navigateToTarget}
@@ -278,13 +263,26 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
         return null;
 
       case 'organization_unsuspended':
-        if (resolveTargetHref()) {
+        if (resolveNotificationTargetHref(notification)) {
           return (
             <Button 
               onClick={navigateToTarget}
               className="w-full bg-green-600 hover:bg-green-700"
             >
               Acessar Organização
+            </Button>
+          );
+        }
+        return null;
+
+      case 'post_like':
+      case 'post_comment':
+      case 'post_share':
+      case 'comment_reply':
+        if (resolveNotificationTargetHref(notification)) {
+          return (
+            <Button onClick={navigateToTarget} className="w-full" variant="outline">
+              Ver publicação
             </Button>
           );
         }
@@ -304,7 +302,7 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
         );
 
       default:
-        if (resolveTargetHref()) {
+        if (resolveNotificationTargetHref(notification)) {
           return (
             <Button 
               onClick={navigateToTarget}
@@ -328,23 +326,16 @@ export function NotificationActions({ notification, onComplete }: NotificationAc
     return null;
   }
 
-  const isActionableType =
-    notificationType !== 'organization_request_rejected'
-    && notificationType !== 'organization_member_removed'
-    && notificationType !== 'organization_organizer_removed'
-    && notificationType !== 'organization_invite_cancelled'
-    && notificationType !== 'organization_invite_declined'
-    && notificationType !== 'organization_ownership_transferred'
-    && notificationType !== 'organization_deleted';
+  const isActionableType = !isNotificationInformativeOnlyType(notificationType);
 
   return (
     isActionableType && !notification.action_taken && (
       <>
         <div>
-          <h3 className="text-sm font-medium text-gray-500 mb-3">Ações</h3>
+          <h3 className="mb-3 text-sm font-medium text-gray-500">Ações</h3>
           {actions}
         </div>
-  
+
         <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>

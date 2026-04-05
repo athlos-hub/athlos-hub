@@ -6,6 +6,7 @@ import { PostCard } from "@/components/social/post-card";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { getOrganizationPosts } from "@/actions/social-posts";
+import { toast } from "sonner";
 
 interface OrganizationPostsProps {
   organizationSlug: string;
@@ -50,7 +51,11 @@ export function OrganizationPosts({ organizationSlug }: OrganizationPostsProps) 
 
       setTotalPages(result.totalPages);
       setPage(pageNum);
-    } catch (error) {
+    } catch {
+      setSocialUnavailable(false);
+      setPosts([]);
+      setTotalPages(0);
+      toast.error("Erro ao carregar posts da organização");
     } finally {
       setIsLoading(false);
       setIsLoadingMore(false);

@@ -23,12 +23,22 @@ async def get_post_or_404(session: AsyncSession, post_id: uuid.UUID) -> Post:
     return p
 
 
-async def get_post_visible_or_404(session: AsyncSession, post_id: uuid.UUID) -> Post:
+async def get_post_for_interaction_or_404(
+    session: AsyncSession,
+    post_id: uuid.UUID,
+    viewer_keycloak_id: str | None,
+    viewer_authorization: str | None,
+) -> Post:
+    """Post acessível para leitura/interação segundo visibilidade e perfil social."""
+    from src.services.posts.post_visibility import can_viewer_read_post
+
     p = await get_post_or_404(session, post_id)
     if p.profile_type == "ORGANIZATION":
         await require_org_social_visible(session, p.profile_id)
     elif p.profile_type == "TEAM":
         await require_team_social_visible(session, p.profile_id)
+    if not await can_viewer_read_post(session, p, viewer_keycloak_id, viewer_authorization):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Post não encontrado")
     return p
 
 
@@ -209,8 +219,11 @@ async def update_post(
     keycloak_id: str,
     content: str | None,
     media_urls: list[str] | None,
+    authorization: str,
 ) -> Post:
-    p = await get_post_visible_or_404(session, post_id)
+    p = await get_post_for_interaction_or_404(
+        session, post_id, keycloak_id, authorization
+    )
     if p.created_by_keycloak_id != keycloak_id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Sem permissão para editar")
     if content is not None:
@@ -221,8 +234,12 @@ async def update_post(
     return p
 
 
-async def delete_post_generic(session: AsyncSession, post_id: uuid.UUID, keycloak_id: str) -> None:
-    p = await get_post_visible_or_404(session, post_id)
+async def delete_post_generic(
+    session: AsyncSession, post_id: uuid.UUID, keycloak_id: str, authorization: str
+) -> None:
+    p = await get_post_for_interaction_or_404(
+        session, post_id, keycloak_id, authorization
+    )
     if p.created_by_keycloak_id != keycloak_id and p.created_by_keycloak_id != "SYSTEM":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Sem permissão para deletar")
     await _bump_profile_posts(session, p.profile_type, p.profile_id, -1)
@@ -249,8 +266,11 @@ async def share_original_post(
     keycloak_id: str,
     share_content: str | None,
     share_metadata: dict[str, Any] | None,
+    authorization: str,
 ) -> Post:
-    original = await get_post_visible_or_404(session, original_id)
+    original = await get_post_for_interaction_or_404(
+        session, original_id, keycloak_id, authorization
+    )
     prof = await session.scalar(
         select(AthleteProfile).where(AthleteProfile.keycloak_id == keycloak_id)
     )
@@ -283,26 +303,74 @@ async def share_original_post(
 
 
 async def list_profile_posts(
-    session: AsyncSession, profile_type: str, profile_id: str, page: int, size: int
+    session: AsyncSession,
+    profile_type: str,
+    profile_id: str,
+    page: int,
+    size: int,
+    *,
+    viewer_keycloak_id: str | None = None,
+    viewer_authorization: str | None = None,
 ) -> tuple[list[Post], int]:
-    stmt = (
-        select(Post)
-        .where(Post.profile_type == profile_type, Post.profile_id == profile_id)
-        .order_by(Post.created_at.desc())
+    from src.services.context.context_service import list_user_org_slugs, resolve_team_membership
+    from src.services.posts.post_visibility import (
+        _viewer_follows_athlete,
+        _viewer_follows_org,
+        _viewer_follows_team,
+        build_profile_wall_visibility_clause,
     )
-    total = int(
-        await session.scalar(
-            select(func.count()).select_from(
-                select(Post.id)
-                .where(Post.profile_type == profile_type, Post.profile_id == profile_id)
-                .subquery()
+
+    follows_profile = False
+    is_org_member = False
+    is_team_member = False
+
+    if viewer_keycloak_id:
+        if profile_type == "ATHLETE":
+            follows_profile = await _viewer_follows_athlete(
+                session, viewer_keycloak_id, profile_id
             )
-        )
-        or 0
+        elif profile_type == "ORGANIZATION":
+            follows_profile = await _viewer_follows_org(
+                session, viewer_keycloak_id, profile_id
+            )
+            if viewer_authorization:
+                try:
+                    slugs = await list_user_org_slugs(viewer_authorization)
+                    is_org_member = profile_id in set(slugs)
+                except Exception:
+                    is_org_member = False
+        elif profile_type == "TEAM":
+            follows_profile = await _viewer_follows_team(
+                session, viewer_keycloak_id, profile_id
+            )
+            if viewer_authorization:
+                try:
+                    is_team_member = await resolve_team_membership(
+                        profile_id, viewer_keycloak_id, viewer_authorization
+                    )
+                except Exception:
+                    is_team_member = False
+
+    vis_clause = build_profile_wall_visibility_clause(
+        profile_type,
+        profile_id,
+        viewer_keycloak_id=viewer_keycloak_id,
+        follows_profile=follows_profile,
+        is_org_member=is_org_member,
+        is_team_member=is_team_member,
     )
-    rows = (
-        await session.scalars(stmt.offset(page * size).limit(size))
-    ).all()
+
+    base_where = and_(
+        Post.profile_type == profile_type,
+        Post.profile_id == profile_id,
+        vis_clause,
+    )
+
+    stmt = select(Post).where(base_where).order_by(Post.created_at.desc())
+    total = int(
+        await session.scalar(select(func.count()).select_from(Post).where(base_where)) or 0
+    )
+    rows = (await session.scalars(stmt.offset(page * size).limit(size))).all()
     return list(rows), total
 
 

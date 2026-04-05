@@ -17,6 +17,7 @@ import { Heart, MessageCircle, MoreVertical, Link2, Trash2, Flag, Repeat2 } from
 import { Post, PostType, ProfileType, PostVisibility } from "@/types/social";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { parseBackendIsoToDate } from "@/lib/datetime/parse-backend-iso";
 import { getOrganizationBySlug } from "@/actions/organizations";
 import { togglePostLike, getPostLikeStatus } from "@/actions/social-likes";
 import { checkHasShared, unsharePost } from "@/actions/shares";
@@ -26,6 +27,12 @@ import { ShareButton } from "./share-button";
 import { generatePostLink } from "@/lib/utils/share-links";
 import { toast } from "sonner";
 import { AchievementBadge, Achievement } from "@/components/achievements/achievement-badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 interface PostCardProps {
     post: Post;
@@ -53,6 +60,7 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
     const [isLiking, setIsLiking] = useState(false);
     const [isUnsharing, setIsUnsharing] = useState(false);
     const [showComments, setShowComments] = useState(false);
+    const [expandedMediaUrl, setExpandedMediaUrl] = useState<string | null>(null);
     const [profileInfo, setProfileInfo] = useState<ProfileInfo>({
         name: post.profileId,
     });
@@ -87,8 +95,12 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
             
             try {
                 const status = await getPostLikeStatus(post.id);
-                setLiked(status.isLiked ?? false);
-                setLikesCount(status.likesCount ?? 0);
+                setLiked(status.isLiked);
+                setLikesCount(
+                    typeof status.likesCount === "number"
+                        ? status.likesCount
+                        : (post.likesCount ?? 0)
+                );
             } catch (error) {
             }
         }
@@ -204,6 +216,7 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
     };
 
     return (
+        <>
         <Card className="w-full">
             <CardHeader className="flex flex-row items-center gap-4 pb-3">
                 <Link 
@@ -221,7 +234,15 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
                             post.profileType === ProfileType.ORGANIZATION ? "rounded-lg" : ""
                         }`}
                     >
-                        <AvatarImage src={profileInfo.logoUrl || profileInfo.avatarUrl} />
+                        <AvatarImage
+                            src={profileInfo.logoUrl || profileInfo.avatarUrl}
+                            className={
+                                post.profileType === ProfileType.ORGANIZATION ||
+                                post.profileType === ProfileType.TEAM
+                                    ? "object-contain p-1.5"
+                                    : "object-cover"
+                            }
+                        />
                         <AvatarFallback>{profileInfo.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                 </Link>
@@ -244,23 +265,23 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
                         {/* Badge do tipo de post */}
                         {post.type !== PostType.TEXT && (
                             <Badge variant="secondary" className="text-xs">
-                                {post.type === PostType.ANNOUNCEMENT && "📢 Anúncio"}
-                                {post.type === PostType.EVENT && "📅 Evento"}
-                                {post.type === PostType.TRAINING && "💪 Treino"}
-                                {post.type === PostType.IMAGE && "🖼️ Imagem"}
-                                {post.type === PostType.ACHIEVEMENT && "🏆 Conquista"}
+                                {post.type === PostType.ANNOUNCEMENT && "Anúncio"}
+                                {post.type === PostType.EVENT && "Evento"}
+                                {post.type === PostType.TRAINING && "Treino"}
+                                {post.type === PostType.IMAGE && "Imagem"}
+                                {post.type === PostType.ACHIEVEMENT && "Conquista"}
                             </Badge>
                         )}
                         
                         {post.visibility !== PostVisibility.PUBLIC && (
-                            <Badge variant="outline" className="text-xs">
-                                {post.visibility === PostVisibility.FOLLOWERS && "👥 Seguidores"}
-                                {post.visibility === PostVisibility.MEMBERS_ONLY && "🔒 Membros"}
+                            <Badge variant="secondary" className="text-xs">
+                                {post.visibility === PostVisibility.FOLLOWERS && "Seguidores"}
+                                {post.visibility === PostVisibility.MEMBERS_ONLY && "Membros"}
                             </Badge>
                         )}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(post.createdAt), {
+                        {formatDistanceToNow(parseBackendIsoToDate(post.createdAt), {
                             addSuffix: true,
                             locale: ptBR,
                         })}
@@ -328,17 +349,28 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
                 
                 <p className="text-sm whitespace-pre-wrap">{post.content}</p>
                 {post.mediaUrls && post.mediaUrls.length > 0 && (
-                    <div className="grid grid-cols-2 gap-2 mt-3">
+                    <div className="mt-3 flex flex-wrap gap-2 justify-start">
                         {post.mediaUrls.map((url, index) => (
-                            <img
+                            <button
                                 key={index}
-                                src={url}
-                                alt={`Media ${index + 1}`}
-                                className="rounded-lg w-full object-cover max-h-64"
-                                referrerPolicy="no-referrer"
-                                loading="lazy"
-                                decoding="async"
-                            />
+                                type="button"
+                                className={cn(
+                                    "rounded-lg bg-muted/40 overflow-hidden flex items-center justify-center shrink-0 max-h-44 max-w-[200px] sm:max-h-48 sm:max-w-[220px]",
+                                    "p-0 border-0 cursor-pointer transition-opacity hover:opacity-90",
+                                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                )}
+                                onClick={() => setExpandedMediaUrl(url)}
+                                aria-label={`Ampliar anexo ${index + 1}`}
+                            >
+                                <img
+                                    src={url}
+                                    alt=""
+                                    className="max-h-44 max-w-[200px] sm:max-h-48 sm:max-w-[220px] w-auto h-auto object-contain pointer-events-none"
+                                    referrerPolicy="no-referrer"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                            </button>
                         ))}
                     </div>
                 )}
@@ -387,5 +419,31 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
                 )}
             </CardFooter>
         </Card>
+
+        <Dialog
+            open={expandedMediaUrl !== null}
+            onOpenChange={(open) => {
+                if (!open) setExpandedMediaUrl(null);
+            }}
+        >
+            <DialogContent
+                className={cn(
+                    "max-w-[min(100vw-1.5rem,1200px)] w-fit p-2 sm:p-3 border-0 bg-transparent shadow-none",
+                    "[&>button]:text-white [&>button]:opacity-90 [&>button]:hover:opacity-100 [&>button]:hover:bg-white/10"
+                )}
+            >
+                <DialogTitle className="sr-only">Imagem da publicação</DialogTitle>
+                {expandedMediaUrl ? (
+                    <img
+                        src={expandedMediaUrl}
+                        alt=""
+                        className="max-h-[min(85vh,900px)] max-w-[min(95vw,1200px)] w-auto h-auto object-contain rounded-md"
+                        referrerPolicy="no-referrer"
+                        decoding="async"
+                    />
+                ) : null}
+            </DialogContent>
+        </Dialog>
+        </>
     );
 }

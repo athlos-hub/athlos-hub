@@ -3,7 +3,12 @@ import uuid
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.deps import get_bearer_authorization, get_current_keycloak_id
+from src.api.deps import (
+    get_bearer_authorization,
+    get_current_keycloak_id,
+    get_optional_bearer_authorization,
+    get_optional_keycloak_id,
+)
 from src.routes.deps import get_session
 from src.schemas import api_success, comment_to_camel, spring_page
 from src.services.interactions.interactions_service import (
@@ -34,10 +39,14 @@ async def comment_create(
 async def comment_list(
     post_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    viewer_kid: str | None = Depends(get_optional_keycloak_id),
+    viewer_auth: str | None = Depends(get_optional_bearer_authorization),
     page: int = Query(0, ge=0),
     size: int = Query(10, ge=1, le=100),
 ):
-    rows, total = await list_comments(session, post_id, page, size)
+    rows, total = await list_comments(
+        session, post_id, page, size, viewer_kid, viewer_auth
+    )
     content = [comment_to_camel(c) for c in rows]
     return api_success(spring_page(content, total_elements=total, page=page, size=size))
 
@@ -49,9 +58,15 @@ async def comment_update(
     body: dict[str, str],
     session: AsyncSession = Depends(get_session),
     kid: str = Depends(get_current_keycloak_id),
+    authorization: str = Depends(get_bearer_authorization),
 ):
     c = await update_comment(
-        session, post_id, comment_id, kid, str(body.get("content") or "")
+        session,
+        post_id,
+        comment_id,
+        kid,
+        str(body.get("content") or ""),
+        authorization,
     )
     return api_success(comment_to_camel(c))
 
@@ -62,6 +77,7 @@ async def comment_delete(
     comment_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
     kid: str = Depends(get_current_keycloak_id),
+    authorization: str = Depends(get_bearer_authorization),
 ):
-    await delete_comment(session, post_id, comment_id, kid)
+    await delete_comment(session, post_id, comment_id, kid, authorization)
     return api_success(None)

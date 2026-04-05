@@ -4,7 +4,12 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.deps import get_bearer_authorization, get_current_keycloak_id
+from src.api.deps import (
+    get_bearer_authorization,
+    get_current_keycloak_id,
+    get_optional_bearer_authorization,
+    get_optional_keycloak_id,
+)
 from src.routes.deps import get_session
 from src.schemas import api_success, post_to_camel, spring_page
 from src.services.context.context_service import can_post_as_team
@@ -45,11 +50,21 @@ async def team_post_create(
 async def team_posts_list(
     team_id: str,
     session: AsyncSession = Depends(get_session),
+    viewer_kid: str | None = Depends(get_optional_keycloak_id),
+    viewer_auth: str | None = Depends(get_optional_bearer_authorization),
     page: int = Query(0, ge=0),
     size: int = Query(10, ge=1, le=100),
 ):
     await require_team_social_visible(session, team_id)
-    rows, total = await list_profile_posts(session, "TEAM", team_id, page, size)
+    rows, total = await list_profile_posts(
+        session,
+        "TEAM",
+        team_id,
+        page,
+        size,
+        viewer_keycloak_id=viewer_kid,
+        viewer_authorization=viewer_auth,
+    )
     content = [post_to_camel(p) for p in rows]
     return api_success(spring_page(content, total_elements=total, page=page, size=size))
 
@@ -63,5 +78,5 @@ async def team_post_delete(
     authorization: str = Depends(get_bearer_authorization),
 ):
     await can_post_as_team(session, team_id, kid, authorization)
-    await delete_post_generic(session, post_id, kid)
+    await delete_post_generic(session, post_id, kid, authorization)
     return api_success(None, "Post deletado com sucesso")

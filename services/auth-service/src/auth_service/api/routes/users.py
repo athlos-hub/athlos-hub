@@ -4,10 +4,11 @@ import logging
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, File, Form, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from auth_service.api.deps import CurrentUserDep, OrganizationServiceDep, UserServiceDep
-from auth_service.schemas.user import UserPublic
+from auth_service.core.exceptions.user import AvatarUploadError
+from auth_service.schemas.user import SocialPostImageUrl, UserPublic
 from auth_service.schemas.organization import OrganizationInviteResponse, OrganizationRequestResponse
 
 logger = logging.getLogger(__name__)
@@ -72,6 +73,20 @@ async def update_user_info(
     return updated_user
 
 
+@router.post("/me/social-post-image", response_model=SocialPostImageUrl)
+async def upload_social_post_image(
+    user_service: UserServiceDep,
+    user: CurrentUserDep,
+    image: UploadFile = File(...),
+):
+    """Upload de imagem para anexar em publicação social (S3)."""
+    try:
+        url = await user_service.upload_social_post_attachment(user, image)
+        return SocialPostImageUrl(url=url)
+    except AvatarUploadError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+
+
 @router.get("/{user_id}", response_model=UserPublic)
 async def get_user_by_id(user_id: UUID, user_service: UserServiceDep):
     """Obtém um usuário específico por ID."""
@@ -110,6 +125,35 @@ async def get_user_by_username(username: str, user_service: UserServiceDep):
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     return user
+
+
+@router.post("/batch", response_model=list[UserPublic])
+async def get_users_batch(
+    keycloak_ids: list[str],
+    user_service: UserServiceDep,
+):
+    """Obtém múltiplos usuários pelos keycloak_ids."""
+    
+    if not keycloak_ids:
+        return []
+    
+    # Remove duplicatas
+    keycloak_ids = list(set(keycloak_ids))
+    
+    # Busca até 100 usuários por vez
+    keycloak_ids = keycloak_ids[:100]
+    
+    users = []
+    for keycloak_id in keycloak_ids:
+        try:
+            user = await user_service.get_user_by_keycloak_id(keycloak_id)
+            if user:
+                users.append(user)
+        except Exception:
+            # Se falhar para um usuário específico, continua com os próximos
+            pass
+    
+    return users
 
 
 @router.post("/organizations/{org_slug}/accept-invite", status_code=status.HTTP_200_OK)

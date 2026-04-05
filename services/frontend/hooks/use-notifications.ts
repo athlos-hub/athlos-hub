@@ -138,8 +138,14 @@ export function useNotifications(
 
   const handleUnreadCountUpdate = useCallback(
     (count: number) => {
+      const prev = lastSseCountRef.current;
       lastSseCountRef.current = count;
       setUnreadCount(count);
+
+      // Primeiro evento: carga inicial já buscou a lista; reconexão com mesmo count não precisa refetch.
+      if (prev === null || prev === count) {
+        return;
+      }
 
       if (backgroundFetchTimeout) {
         clearTimeout(backgroundFetchTimeout);
@@ -149,7 +155,6 @@ export function useNotifications(
         if (typeof document !== 'undefined' && document.hidden) {
           return;
         }
-        // Atualiza a lista a cada evento SSE (debounced) para garantir tempo real.
         void fetchNotifications(unreadOnlyRef.current, false, true);
       }, BACKGROUND_FETCH_DEBOUNCE);
     },

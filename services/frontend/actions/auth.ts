@@ -142,6 +142,7 @@ export async function resendVerificationEmail(email: string): Promise<ActionResp
 
 interface UserProfileResponse {
     id: string;
+    keycloak_id: string;
     username: string;
     email: string;
     first_name: string | null;
@@ -173,6 +174,7 @@ export async function getUserProfile(): Promise<UserProfileResponse> {
 
         const normalized: UserProfileResponse = {
             id: data.id,
+            keycloak_id: data.keycloak_id ?? data.sub ?? data.keycloakId,
             username: data.username ?? data.preferred_username ?? null,
             email: data.email ?? null,
             first_name: (data.first_name ?? data.firstName ?? data.given_name) ?? null,
@@ -260,5 +262,25 @@ export async function getUserPublicInfo(keycloakId: string): Promise<UserProfile
             throw error;
         }
         throw error;
+    }
+}
+
+export async function getUsersPublicInfoBatch(keycloakIds: string[]): Promise<UserProfileResponse[]> {
+    try {
+        if (!keycloakIds || keycloakIds.length === 0) {
+            return [];
+        }
+
+        const response = await axiosAPI<UserProfileResponse[]>({
+            endpoint: `/users/batch`,
+            method: "POST",
+            data: keycloakIds,
+            withAuth: false
+        });
+
+        return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+        console.error("Error fetching batch users:", error);
+        return [];
     }
 }

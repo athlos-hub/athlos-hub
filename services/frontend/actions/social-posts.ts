@@ -1,6 +1,7 @@
 "use server";
 
 import { axiosAPI } from "@/lib/api/client";
+import { APIException } from "@/lib/api/errors";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { Post, PostType, PostVisibility } from "@/types/social";
@@ -100,8 +101,11 @@ export async function getOrganizationPosts(
     });
 
     return response.data.data;
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof APIException && error.status === 404) {
+      return null;
+    }
+    throw error;
   }
 }
 
@@ -128,7 +132,10 @@ export async function getTeamPosts(
     });
 
     return response.data.data;
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof APIException && error.status === 404) {
+      return null;
+    }
+    throw error;
   }
 }

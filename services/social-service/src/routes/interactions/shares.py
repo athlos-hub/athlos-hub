@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.deps import (
     get_bearer_authorization,
     get_current_keycloak_id,
+    get_optional_bearer_authorization,
     get_optional_keycloak_id,
 )
 from src.routes.deps import get_session
@@ -40,8 +41,9 @@ async def shares_delete(
     post_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
     kid: str = Depends(get_current_keycloak_id),
+    authorization: str = Depends(get_bearer_authorization),
 ):
-    await unshare_post(session, post_id, kid)
+    await unshare_post(session, post_id, kid, authorization)
     return api_success({"unshared": True})
 
 
@@ -50,10 +52,11 @@ async def shares_check(
     post_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
     kid: str | None = Depends(get_optional_keycloak_id),
+    authorization: str | None = Depends(get_optional_bearer_authorization),
 ):
-    if not kid:
+    if not kid or not authorization:
         return api_success({"shared": False})
-    ok = await has_shared(session, post_id, kid)
+    ok = await has_shared(session, post_id, kid, authorization)
     return api_success({"shared": ok})
 
 
@@ -82,6 +85,11 @@ async def shares_user(
 
 
 @router.get("/shares/count/{post_id}")
-async def shares_count_route(post_id: uuid.UUID, session: AsyncSession = Depends(get_session)):
-    n = await share_count(session, post_id)
+async def shares_count_route(
+    post_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    viewer_kid: str | None = Depends(get_optional_keycloak_id),
+    viewer_auth: str | None = Depends(get_optional_bearer_authorization),
+):
+    n = await share_count(session, post_id, viewer_kid, viewer_auth)
     return api_success({"count": n})

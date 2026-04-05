@@ -58,5 +58,9 @@ class PendingMemberRequest(BaseModel):
 class PendingRequestsResponse(BaseModel):
     total: int
     requests: list[PendingMemberRequest]
-    total: int
-    requests: list[PendingMemberRequest]
+
+
+class SocialPostImageUrl(BaseModel):
+    """URL pública da imagem enviada para anexar em post social."""
+
+    url: str

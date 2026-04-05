@@ -185,11 +185,15 @@ export async function addComment(postId: string, content: string): Promise<Comme
     return response.data;
 }
 
-export async function toggleLike(postId: string): Promise<{ liked: boolean; likesCount: number }> {
-    const response = await callSocialService<ApiResponse<{ liked: boolean; likesCount: number }>>(
+export async function toggleLike(postId: string): Promise<{ isLiked: boolean; likesCount: number }> {
+    const response = await callSocialService<ApiResponse<{ isLiked?: boolean; liked?: boolean; likesCount: number }>>(
         `/posts/${postId}/like`,
         'POST',
         {}
     );
-    return response.data;
+    const d = response.data;
+    return {
+        isLiked: Boolean(d.isLiked ?? d.liked),
+        likesCount: typeof d.likesCount === "number" ? d.likesCount : 0,
+    };
 }

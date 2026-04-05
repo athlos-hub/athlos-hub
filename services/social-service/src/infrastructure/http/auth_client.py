@@ -55,6 +55,15 @@ async def get_my_organizations(authorization: str) -> list[dict[str, Any]]:
         return r.json()
 
 
+async def get_my_teams(authorization: str) -> list[dict[str, Any]]:
+    """Times em que o utilizador é capitão ou jogador (auth-service)."""
+    base = settings.AUTH_SERVICE_URL.rstrip("/")
+    async with httpx.AsyncClient(timeout=settings.AUTH_SERVICE_TIMEOUT) as client:
+        r = await client.get(f"{base}/api/teams/me", headers={"Authorization": authorization})
+        r.raise_for_status()
+        return r.json()
+
+
 async def get_auth_team(team_id: uuid.UUID, authorization: str) -> dict[str, Any]:
     return await _get_json(f"/api/teams/{team_id}", authorization)
 

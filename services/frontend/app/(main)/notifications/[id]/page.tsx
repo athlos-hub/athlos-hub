@@ -6,11 +6,15 @@ import { notificationsApi } from '@/lib/api/notifications';
 import type { Notification } from '@/types/notification';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { NotificationActions } from '@/components/notifications/notification-actions';
+import {
+  getNotificationDetailRows,
+  shouldShowNotificationActions,
+} from '@/lib/notifications/notification-detail-sections';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -116,6 +120,15 @@ export default function NotificationDetailPage({ params }: NotificationDetailPag
     return null;
   }
 
+  const messageText = notification.message?.trim() ?? '';
+  const showMessage = messageText.length > 0;
+  const detailRows = getNotificationDetailRows(notification.metadata);
+  const showDetails = detailRows.length > 0;
+  const showActions = shouldShowNotificationActions(notification);
+
+  const sectionTitleClass =
+    'mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground';
+
   return (
     <div className="mx-auto w-full space-y-6">
       <PageHeader
@@ -170,54 +183,41 @@ export default function NotificationDetailPage({ params }: NotificationDetailPag
           </div>
         </CardHeader>
         <CardContent className="space-y-6 p-6">
-          <div>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mensagem</h3>
-            <div className="rounded-lg border bg-background p-4">
-              <p className="text-sm leading-relaxed text-foreground sm:text-base">{notification.message}</p>
-            </div>
-          </div>
-
-          {notification.metadata && Object.keys(notification.metadata).length > 0 && (
+          {showMessage && (
             <div>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Detalhes</h3>
-              <div className="space-y-2 rounded-lg border bg-muted/30 p-4">
-                {notification.metadata.organization_name && (
-                  <div className="flex items-start justify-between gap-3 rounded-md bg-background px-3 py-2">
-                    <span className="text-sm text-muted-foreground">Organização:</span>
-                    <span className="text-right text-sm font-medium text-foreground">
-                      {notification.metadata.organization_name}
-                    </span>
-                  </div>
-                )}
-                {notification.metadata.requester_name && (
-                  <div className="flex items-start justify-between gap-3 rounded-md bg-background px-3 py-2">
-                    <span className="text-sm text-muted-foreground">Solicitante:</span>
-                    <span className="text-right text-sm font-medium text-foreground">
-                      {notification.metadata.requester_name}
-                    </span>
-                  </div>
-                )}
-                {notification.metadata.member_name && (
-                  <div className="flex items-start justify-between gap-3 rounded-md bg-background px-3 py-2">
-                    <span className="text-sm text-muted-foreground">Membro:</span>
-                    <span className="text-right text-sm font-medium text-foreground">
-                      {notification.metadata.member_name}
-                    </span>
-                  </div>
-                )}
-                {notification.metadata.inviter_name && (
-                  <div className="flex items-start justify-between gap-3 rounded-md bg-background px-3 py-2">
-                    <span className="text-sm text-muted-foreground">Convidado por:</span>
-                    <span className="text-right text-sm font-medium text-foreground">
-                      {notification.metadata.inviter_name}
-                    </span>
-                  </div>
-                )}
+              <h3 className={sectionTitleClass}>Mensagem</h3>
+              <div className="rounded-lg border bg-background p-4">
+                <p className="text-sm leading-relaxed text-foreground sm:text-base">{notification.message}</p>
               </div>
             </div>
           )}
 
-          <NotificationActions notification={notification} onComplete={() => router.push('/notifications')} />
+          {showDetails && (
+            <div>
+              <h3 className={sectionTitleClass}>Detalhes</h3>
+              <div className="space-y-2 rounded-lg border bg-muted/30 p-4">
+                {detailRows.map((row) => (
+                  <div
+                    key={`${row.label}-${row.value}`}
+                    className="flex items-start justify-between gap-3 rounded-md bg-background px-3 py-2"
+                  >
+                    <span className="text-sm text-muted-foreground">{row.label}:</span>
+                    <span className="text-right text-sm font-medium text-foreground">{row.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {showActions && (
+            <NotificationActions notification={notification} onComplete={() => router.push('/notifications')} />
+          )}
+
+          {!showMessage && !showDetails && !showActions && (
+            <p className="text-sm text-muted-foreground">
+              Não há conteúdo adicional para esta notificação.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

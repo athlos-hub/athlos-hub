@@ -3,7 +3,8 @@ export type ServiceType = "auth" | "competitions";
 export interface APIProps {
     endpoint: string;
     method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-    data?: Record<string, unknown> | FormData;
+    /** FormData (multipart), objeto JSON ou array JSON (ex.: POST /users/batch com lista de ids). */
+    data?: Record<string, unknown> | FormData | unknown[];
     queryParams?: Record<string, string | number | boolean>;
     withAuth?: boolean;
     withAttachment?: boolean;

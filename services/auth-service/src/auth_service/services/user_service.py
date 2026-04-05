@@ -20,6 +20,7 @@ from auth_service.repositories.user_repository import UserRepositoryContract
 from auth_service.schemas.user import UserAdmin
 from auth_service.services.authentication_service import AuthenticationService
 from auth_service.utils.keycloak_identity import build_keycloak_identity_update
+from auth_service.utils.social_post_image import upload_social_post_image
 from auth_service.utils.upload_image import upload_image
 
 logger = logging.getLogger(__name__)
@@ -227,6 +228,30 @@ class UserService:
                 return updated_user
 
         return db_user
+
+    async def upload_social_post_attachment(self, user: User, image: UploadFile) -> str:
+        """Envia imagem para S3 (prefixo social-posts) e devolve URL pública."""
+        if not _has_real_upload(image):
+            raise AvatarUploadError("Nenhuma imagem enviada")
+
+        try:
+            result = upload_social_post_image(
+                image,
+                keycloak_id=user.keycloak_id,
+                aws_access_key_id=settings.AWS_BUCKET_ACCESS_KEY_ID,
+                aws_secret_access_key=settings.AWS_BUCKET_SECRET_ACCESS_KEY,
+                aws_region=settings.AWS_BUCKET_REGION,
+                aws_bucket=settings.AWS_BUCKET_NAME,
+            )
+        except AvatarUploadError:
+            raise
+        except Exception as exc:
+            logger.exception("Falha no upload de imagem de post social")
+            raise AvatarUploadError(
+                "Não foi possível enviar a imagem. Tente novamente."
+            ) from exc
+
+        return str(result["url"])
 
     async def suspend_user(self, user_id: UUID) -> None:
         user = await self._user_repo.get_by_id(user_id)

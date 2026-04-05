@@ -750,6 +750,26 @@ services:
     paths:
     - /api/health
     strip_path: false
+  - name: competitions-pub-modalities-get
+    protocols:
+    - http
+    - https
+    paths:
+    - /api/modalities
+    strip_path: false
+    regex_priority: 200
+    methods:
+    - GET
+  - name: competitions-pub-competitions-get
+    protocols:
+    - http
+    - https
+    paths:
+    - /api/competitions
+    strip_path: false
+    regex_priority: 200
+    methods:
+    - GET
   - name: competitions-protected
     protocols:
     - http
@@ -988,6 +1008,14 @@ services:
           if ra and type(ra) == "table" and ra.roles and type(ra.roles) == "table" then
             kong.service.request.set_header("X-Keycloak-Roles", table.concat(ra.roles, ","))
           end
+- name: notifications-sse-service
+  url: http://host.docker.internal:8003
+  protocol: http
+  host: host.docker.internal
+  port: 8003
+  read_timeout: 3600000
+  write_timeout: 3600000
+  routes:
   - name: notifications-sse-stream
     protocols:
     - http
@@ -1058,6 +1086,516 @@ services:
   host: host.docker.internal
   port: 8083
   routes:
+  - name: social-jwt-post-by-id-get-optional
+    protocols:
+    - http
+    - https
+    paths:
+    - ~/api/social/posts/[^/]+$
+    strip_path: false
+    regex_priority: 125
+    methods:
+    - GET
+    plugins:
+    - name: jwt
+      config:
+        key_claim_name: iss
+        claims_to_verify:
+        - exp
+        realm: athlos
+        anonymous: a0000001-0000-4000-8000-000000000001
+    - name: post-function
+      config:
+        access:
+        - |
+          -- Injeta claims do JWT já validado pelo plugin jwt (RS256 / Keycloak).
+          -- Não remove Authorization: os serviços podem repassar o Bearer para outros microsserviços
+          -- sem revalidar a assinatura (validação ocorre apenas aqui no Kong).
+          local token = kong.ctx.shared.authenticated_jwt_token
+          if not token or type(token) ~= "string" then
+            return
+          end
+          local parts = {}
+          for part in string.gmatch(token, "[^%.]+") do
+            table.insert(parts, part)
+          end
+          if #parts < 2 then
+            return
+          end
+          local payload_b64 = parts[2]
+          local pad = 4 - (#payload_b64 % 4)
+          if pad ~= 4 then
+            payload_b64 = payload_b64 .. string.rep("=", pad)
+          end
+          payload_b64 = payload_b64:gsub("-", "+"):gsub("_", "/")
+          local raw = ngx.decode_base64(payload_b64)
+          if not raw then
+            return
+          end
+          local cjson = require("cjson.safe")
+          local claims = cjson.decode(raw)
+          if not claims or type(claims) ~= "table" then
+            return
+          end
+          if claims.sub then
+            kong.service.request.set_header("X-Keycloak-Sub", tostring(claims.sub))
+          end
+          if claims.email then
+            kong.service.request.set_header("X-Keycloak-Email", tostring(claims.email))
+          end
+          if claims.preferred_username then
+            kong.service.request.set_header("X-Keycloak-Preferred-Username", tostring(claims.preferred_username))
+          end
+          local ra = claims.realm_access
+          if ra and type(ra) == "table" and ra.roles and type(ra.roles) == "table" then
+            kong.service.request.set_header("X-Keycloak-Roles", table.concat(ra.roles, ","))
+          end
+  - name: social-jwt-post-comments-get-optional
+    protocols:
+    - http
+    - https
+    paths:
+    - ~/api/social/posts/[^/]+/comments$
+    strip_path: false
+    regex_priority: 125
+    methods:
+    - GET
+    plugins:
+    - name: jwt
+      config:
+        key_claim_name: iss
+        claims_to_verify:
+        - exp
+        realm: athlos
+        anonymous: a0000001-0000-4000-8000-000000000001
+    - name: post-function
+      config:
+        access:
+        - |
+          -- Injeta claims do JWT já validado pelo plugin jwt (RS256 / Keycloak).
+          -- Não remove Authorization: os serviços podem repassar o Bearer para outros microsserviços
+          -- sem revalidar a assinatura (validação ocorre apenas aqui no Kong).
+          local token = kong.ctx.shared.authenticated_jwt_token
+          if not token or type(token) ~= "string" then
+            return
+          end
+          local parts = {}
+          for part in string.gmatch(token, "[^%.]+") do
+            table.insert(parts, part)
+          end
+          if #parts < 2 then
+            return
+          end
+          local payload_b64 = parts[2]
+          local pad = 4 - (#payload_b64 % 4)
+          if pad ~= 4 then
+            payload_b64 = payload_b64 .. string.rep("=", pad)
+          end
+          payload_b64 = payload_b64:gsub("-", "+"):gsub("_", "/")
+          local raw = ngx.decode_base64(payload_b64)
+          if not raw then
+            return
+          end
+          local cjson = require("cjson.safe")
+          local claims = cjson.decode(raw)
+          if not claims or type(claims) ~= "table" then
+            return
+          end
+          if claims.sub then
+            kong.service.request.set_header("X-Keycloak-Sub", tostring(claims.sub))
+          end
+          if claims.email then
+            kong.service.request.set_header("X-Keycloak-Email", tostring(claims.email))
+          end
+          if claims.preferred_username then
+            kong.service.request.set_header("X-Keycloak-Preferred-Username", tostring(claims.preferred_username))
+          end
+          local ra = claims.realm_access
+          if ra and type(ra) == "table" and ra.roles and type(ra.roles) == "table" then
+            kong.service.request.set_header("X-Keycloak-Roles", table.concat(ra.roles, ","))
+          end
+  - name: social-jwt-post-comments-post
+    protocols:
+    - http
+    - https
+    paths:
+    - ~/api/social/posts/[^/]+/comments$
+    strip_path: false
+    regex_priority: 125
+    methods:
+    - POST
+    plugins:
+    - name: jwt
+      config:
+        key_claim_name: iss
+        claims_to_verify:
+        - exp
+        realm: athlos
+    - name: post-function
+      config:
+        access:
+        - |
+          -- Injeta claims do JWT já validado pelo plugin jwt (RS256 / Keycloak).
+          -- Não remove Authorization: os serviços podem repassar o Bearer para outros microsserviços
+          -- sem revalidar a assinatura (validação ocorre apenas aqui no Kong).
+          local token = kong.ctx.shared.authenticated_jwt_token
+          if not token or type(token) ~= "string" then
+            return
+          end
+          local parts = {}
+          for part in string.gmatch(token, "[^%.]+") do
+            table.insert(parts, part)
+          end
+          if #parts < 2 then
+            return
+          end
+          local payload_b64 = parts[2]
+          local pad = 4 - (#payload_b64 % 4)
+          if pad ~= 4 then
+            payload_b64 = payload_b64 .. string.rep("=", pad)
+          end
+          payload_b64 = payload_b64:gsub("-", "+"):gsub("_", "/")
+          local raw = ngx.decode_base64(payload_b64)
+          if not raw then
+            return
+          end
+          local cjson = require("cjson.safe")
+          local claims = cjson.decode(raw)
+          if not claims or type(claims) ~= "table" then
+            return
+          end
+          if claims.sub then
+            kong.service.request.set_header("X-Keycloak-Sub", tostring(claims.sub))
+          end
+          if claims.email then
+            kong.service.request.set_header("X-Keycloak-Email", tostring(claims.email))
+          end
+          if claims.preferred_username then
+            kong.service.request.set_header("X-Keycloak-Preferred-Username", tostring(claims.preferred_username))
+          end
+          local ra = claims.realm_access
+          if ra and type(ra) == "table" and ra.roles and type(ra.roles) == "table" then
+            kong.service.request.set_header("X-Keycloak-Roles", table.concat(ra.roles, ","))
+          end
+  - name: social-jwt-post-comment-mutation
+    protocols:
+    - http
+    - https
+    paths:
+    - ~/api/social/posts/[^/]+/comments/[^/]+$
+    strip_path: false
+    regex_priority: 125
+    methods:
+    - PUT
+    - DELETE
+    plugins:
+    - name: jwt
+      config:
+        key_claim_name: iss
+        claims_to_verify:
+        - exp
+        realm: athlos
+    - name: post-function
+      config:
+        access:
+        - |
+          -- Injeta claims do JWT já validado pelo plugin jwt (RS256 / Keycloak).
+          -- Não remove Authorization: os serviços podem repassar o Bearer para outros microsserviços
+          -- sem revalidar a assinatura (validação ocorre apenas aqui no Kong).
+          local token = kong.ctx.shared.authenticated_jwt_token
+          if not token or type(token) ~= "string" then
+            return
+          end
+          local parts = {}
+          for part in string.gmatch(token, "[^%.]+") do
+            table.insert(parts, part)
+          end
+          if #parts < 2 then
+            return
+          end
+          local payload_b64 = parts[2]
+          local pad = 4 - (#payload_b64 % 4)
+          if pad ~= 4 then
+            payload_b64 = payload_b64 .. string.rep("=", pad)
+          end
+          payload_b64 = payload_b64:gsub("-", "+"):gsub("_", "/")
+          local raw = ngx.decode_base64(payload_b64)
+          if not raw then
+            return
+          end
+          local cjson = require("cjson.safe")
+          local claims = cjson.decode(raw)
+          if not claims or type(claims) ~= "table" then
+            return
+          end
+          if claims.sub then
+            kong.service.request.set_header("X-Keycloak-Sub", tostring(claims.sub))
+          end
+          if claims.email then
+            kong.service.request.set_header("X-Keycloak-Email", tostring(claims.email))
+          end
+          if claims.preferred_username then
+            kong.service.request.set_header("X-Keycloak-Preferred-Username", tostring(claims.preferred_username))
+          end
+          local ra = claims.realm_access
+          if ra and type(ra) == "table" and ra.roles and type(ra.roles) == "table" then
+            kong.service.request.set_header("X-Keycloak-Roles", table.concat(ra.roles, ","))
+          end
+  - name: social-jwt-post-like-get-optional
+    protocols:
+    - http
+    - https
+    paths:
+    - ~/api/social/posts/[^/]+/like$
+    strip_path: false
+    regex_priority: 125
+    methods:
+    - GET
+    plugins:
+    - name: jwt
+      config:
+        key_claim_name: iss
+        claims_to_verify:
+        - exp
+        realm: athlos
+        anonymous: a0000001-0000-4000-8000-000000000001
+    - name: post-function
+      config:
+        access:
+        - |
+          -- Injeta claims do JWT já validado pelo plugin jwt (RS256 / Keycloak).
+          -- Não remove Authorization: os serviços podem repassar o Bearer para outros microsserviços
+          -- sem revalidar a assinatura (validação ocorre apenas aqui no Kong).
+          local token = kong.ctx.shared.authenticated_jwt_token
+          if not token or type(token) ~= "string" then
+            return
+          end
+          local parts = {}
+          for part in string.gmatch(token, "[^%.]+") do
+            table.insert(parts, part)
+          end
+          if #parts < 2 then
+            return
+          end
+          local payload_b64 = parts[2]
+          local pad = 4 - (#payload_b64 % 4)
+          if pad ~= 4 then
+            payload_b64 = payload_b64 .. string.rep("=", pad)
+          end
+          payload_b64 = payload_b64:gsub("-", "+"):gsub("_", "/")
+          local raw = ngx.decode_base64(payload_b64)
+          if not raw then
+            return
+          end
+          local cjson = require("cjson.safe")
+          local claims = cjson.decode(raw)
+          if not claims or type(claims) ~= "table" then
+            return
+          end
+          if claims.sub then
+            kong.service.request.set_header("X-Keycloak-Sub", tostring(claims.sub))
+          end
+          if claims.email then
+            kong.service.request.set_header("X-Keycloak-Email", tostring(claims.email))
+          end
+          if claims.preferred_username then
+            kong.service.request.set_header("X-Keycloak-Preferred-Username", tostring(claims.preferred_username))
+          end
+          local ra = claims.realm_access
+          if ra and type(ra) == "table" and ra.roles and type(ra.roles) == "table" then
+            kong.service.request.set_header("X-Keycloak-Roles", table.concat(ra.roles, ","))
+          end
+  - name: social-jwt-post-like-post
+    protocols:
+    - http
+    - https
+    paths:
+    - ~/api/social/posts/[^/]+/like$
+    strip_path: false
+    regex_priority: 125
+    methods:
+    - POST
+    plugins:
+    - name: jwt
+      config:
+        key_claim_name: iss
+        claims_to_verify:
+        - exp
+        realm: athlos
+    - name: post-function
+      config:
+        access:
+        - |
+          -- Injeta claims do JWT já validado pelo plugin jwt (RS256 / Keycloak).
+          -- Não remove Authorization: os serviços podem repassar o Bearer para outros microsserviços
+          -- sem revalidar a assinatura (validação ocorre apenas aqui no Kong).
+          local token = kong.ctx.shared.authenticated_jwt_token
+          if not token or type(token) ~= "string" then
+            return
+          end
+          local parts = {}
+          for part in string.gmatch(token, "[^%.]+") do
+            table.insert(parts, part)
+          end
+          if #parts < 2 then
+            return
+          end
+          local payload_b64 = parts[2]
+          local pad = 4 - (#payload_b64 % 4)
+          if pad ~= 4 then
+            payload_b64 = payload_b64 .. string.rep("=", pad)
+          end
+          payload_b64 = payload_b64:gsub("-", "+"):gsub("_", "/")
+          local raw = ngx.decode_base64(payload_b64)
+          if not raw then
+            return
+          end
+          local cjson = require("cjson.safe")
+          local claims = cjson.decode(raw)
+          if not claims or type(claims) ~= "table" then
+            return
+          end
+          if claims.sub then
+            kong.service.request.set_header("X-Keycloak-Sub", tostring(claims.sub))
+          end
+          if claims.email then
+            kong.service.request.set_header("X-Keycloak-Email", tostring(claims.email))
+          end
+          if claims.preferred_username then
+            kong.service.request.set_header("X-Keycloak-Preferred-Username", tostring(claims.preferred_username))
+          end
+          local ra = claims.realm_access
+          if ra and type(ra) == "table" and ra.roles and type(ra.roles) == "table" then
+            kong.service.request.set_header("X-Keycloak-Roles", table.concat(ra.roles, ","))
+          end
+  - name: social-jwt-org-wall-posts-get-optional
+    protocols:
+    - http
+    - https
+    paths:
+    - ~/api/social/organizations/[^/]+/posts$
+    strip_path: false
+    regex_priority: 125
+    methods:
+    - GET
+    plugins:
+    - name: jwt
+      config:
+        key_claim_name: iss
+        claims_to_verify:
+        - exp
+        realm: athlos
+        anonymous: a0000001-0000-4000-8000-000000000001
+    - name: post-function
+      config:
+        access:
+        - |
+          -- Injeta claims do JWT já validado pelo plugin jwt (RS256 / Keycloak).
+          -- Não remove Authorization: os serviços podem repassar o Bearer para outros microsserviços
+          -- sem revalidar a assinatura (validação ocorre apenas aqui no Kong).
+          local token = kong.ctx.shared.authenticated_jwt_token
+          if not token or type(token) ~= "string" then
+            return
+          end
+          local parts = {}
+          for part in string.gmatch(token, "[^%.]+") do
+            table.insert(parts, part)
+          end
+          if #parts < 2 then
+            return
+          end
+          local payload_b64 = parts[2]
+          local pad = 4 - (#payload_b64 % 4)
+          if pad ~= 4 then
+            payload_b64 = payload_b64 .. string.rep("=", pad)
+          end
+          payload_b64 = payload_b64:gsub("-", "+"):gsub("_", "/")
+          local raw = ngx.decode_base64(payload_b64)
+          if not raw then
+            return
+          end
+          local cjson = require("cjson.safe")
+          local claims = cjson.decode(raw)
+          if not claims or type(claims) ~= "table" then
+            return
+          end
+          if claims.sub then
+            kong.service.request.set_header("X-Keycloak-Sub", tostring(claims.sub))
+          end
+          if claims.email then
+            kong.service.request.set_header("X-Keycloak-Email", tostring(claims.email))
+          end
+          if claims.preferred_username then
+            kong.service.request.set_header("X-Keycloak-Preferred-Username", tostring(claims.preferred_username))
+          end
+          local ra = claims.realm_access
+          if ra and type(ra) == "table" and ra.roles and type(ra.roles) == "table" then
+            kong.service.request.set_header("X-Keycloak-Roles", table.concat(ra.roles, ","))
+          end
+  - name: social-jwt-team-wall-posts-get-optional
+    protocols:
+    - http
+    - https
+    paths:
+    - ~/api/social/teams/[^/]+/posts$
+    strip_path: false
+    regex_priority: 125
+    methods:
+    - GET
+    plugins:
+    - name: jwt
+      config:
+        key_claim_name: iss
+        claims_to_verify:
+        - exp
+        realm: athlos
+        anonymous: a0000001-0000-4000-8000-000000000001
+    - name: post-function
+      config:
+        access:
+        - |
+          -- Injeta claims do JWT já validado pelo plugin jwt (RS256 / Keycloak).
+          -- Não remove Authorization: os serviços podem repassar o Bearer para outros microsserviços
+          -- sem revalidar a assinatura (validação ocorre apenas aqui no Kong).
+          local token = kong.ctx.shared.authenticated_jwt_token
+          if not token or type(token) ~= "string" then
+            return
+          end
+          local parts = {}
+          for part in string.gmatch(token, "[^%.]+") do
+            table.insert(parts, part)
+          end
+          if #parts < 2 then
+            return
+          end
+          local payload_b64 = parts[2]
+          local pad = 4 - (#payload_b64 % 4)
+          if pad ~= 4 then
+            payload_b64 = payload_b64 .. string.rep("=", pad)
+          end
+          payload_b64 = payload_b64:gsub("-", "+"):gsub("_", "/")
+          local raw = ngx.decode_base64(payload_b64)
+          if not raw then
+            return
+          end
+          local cjson = require("cjson.safe")
+          local claims = cjson.decode(raw)
+          if not claims or type(claims) ~= "table" then
+            return
+          end
+          if claims.sub then
+            kong.service.request.set_header("X-Keycloak-Sub", tostring(claims.sub))
+          end
+          if claims.email then
+            kong.service.request.set_header("X-Keycloak-Email", tostring(claims.email))
+          end
+          if claims.preferred_username then
+            kong.service.request.set_header("X-Keycloak-Preferred-Username", tostring(claims.preferred_username))
+          end
+          local ra = claims.realm_access
+          if ra and type(ra) == "table" and ra.roles and type(ra.roles) == "table" then
+            kong.service.request.set_header("X-Keycloak-Roles", table.concat(ra.roles, ","))
+          end
   - name: social-pub--api-social-health-any
     protocols:
     - http

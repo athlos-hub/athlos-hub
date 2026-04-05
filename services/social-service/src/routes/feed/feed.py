@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.deps import get_current_keycloak_id
+from src.api.deps import get_bearer_authorization, get_current_keycloak_id
 from src.routes.deps import get_session
 from src.schemas import api_success, post_to_camel, spring_page
 from src.services.feed.feed_service import following_feed
@@ -25,10 +25,11 @@ async def feed_public(
 async def feed_following(
     session: AsyncSession = Depends(get_session),
     kid: str = Depends(get_current_keycloak_id),
+    authorization: str = Depends(get_bearer_authorization),
     page: int = Query(0, ge=0),
     size: int = Query(10, ge=1, le=100),
 ):
-    rows, total = await following_feed(session, kid, page, size)
+    rows, total = await following_feed(session, kid, page, size, authorization)
     content = [post_to_camel(p) for p in rows]
     return api_success(spring_page(content, total_elements=total, page=page, size=size))
 

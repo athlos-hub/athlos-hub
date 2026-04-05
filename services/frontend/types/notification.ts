@@ -46,6 +46,13 @@ export interface NotificationMetadata {
   competition_name?: string;
   livestream_id?: string;
   livestream_title?: string;
+  /** UUID do post (curtida, comentário, partilha) */
+  entity_id?: string;
+  postPreview?: string;
+  postContent?: string;
+  commentPreview?: string;
+  commentContent?: string;
+  shareComment?: string;
   [key: string]: any;
 }
 

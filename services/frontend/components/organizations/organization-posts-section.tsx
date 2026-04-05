@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { MessageSquare, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,56 +15,42 @@ interface OrganizationPostsSectionProps {
 }
 
 export function OrganizationPostsSection({ organizationSlug }: OrganizationPostsSectionProps) {
+    const router = useRouter();
     const [posts, setPosts] = useState<Post[]>([]);
     const [socialUnavailable, setSocialUnavailable] = useState(false);
     const [loading, setLoading] = useState(true);
-    const [page, setPage] = useState(0);
-    const [totalPages, setTotalPages] = useState(0);
-    const [loadingMore, setLoadingMore] = useState(false);
+    const [totalPosts, setTotalPosts] = useState(0);
 
     useEffect(() => {
-        loadPosts(0);
+        loadPosts();
     }, [organizationSlug]);
 
-    const loadPosts = async (pageNumber: number) => {
+    const loadPosts = async () => {
         try {
-            if (pageNumber === 0) {
-                setLoading(true);
-            } else {
-                setLoadingMore(true);
-            }
-
-            const response = await getOrganizationPosts(organizationSlug, pageNumber, 10);
+            setLoading(true);
+            const response = await getOrganizationPosts(organizationSlug, 0, 3);
 
             if (!response) {
                 setSocialUnavailable(true);
                 setPosts([]);
-                setTotalPages(0);
-                setPage(0);
+                setTotalPosts(0);
                 return;
             }
             setSocialUnavailable(false);
-
-            if (pageNumber === 0) {
-                setPosts(response.content);
-            } else {
-                setPosts((prev) => [...prev, ...response.content]);
-            }
-
-            setTotalPages(response.totalPages);
-            setPage(pageNumber);
+            setPosts(response.content);
+            setTotalPosts(response.totalElements);
         } catch (error) {
+            setSocialUnavailable(false);
+            setPosts([]);
+            setTotalPosts(0);
             toast.error("Erro ao carregar posts da organização");
         } finally {
             setLoading(false);
-            setLoadingMore(false);
         }
     };
 
-    const handleLoadMore = () => {
-        if (page + 1 < totalPages) {
-            loadPosts(page + 1);
-        }
+    const handleViewAllPosts = () => {
+        router.push(`/social/search?organization=${organizationSlug}`);
     };
 
     if (loading) {
@@ -137,21 +124,13 @@ export function OrganizationPostsSection({ organizationSlug }: OrganizationPosts
                     />
                 ))}
 
-                {page + 1 < totalPages && (
+                {totalPosts > 3 && (
                     <div className="flex justify-center pt-4">
                         <Button
                             variant="outline"
-                            onClick={handleLoadMore}
-                            disabled={loadingMore}
+                            onClick={handleViewAllPosts}
                         >
-                            {loadingMore ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Carregando...
-                                </>
-                            ) : (
-                                "Carregar mais posts"
-                            )}
+                            Acompanhar todos os posts
                         </Button>
                     </div>
                 )}

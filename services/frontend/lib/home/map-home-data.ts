@@ -9,6 +9,7 @@ import type {
 } from "@/types/home-page";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { parseBackendIsoToDate } from "@/lib/datetime/parse-backend-iso";
 
 export function shortNameFromLabel(name: string, max = 4): string {
   const t = name.trim();
@@ -91,7 +92,7 @@ export function socialPostToHomeFeedPost(
 ): HomeFeedPost {
   let relativeTime = "";
   try {
-    relativeTime = formatDistanceToNow(new Date(post.createdAt), {
+    relativeTime = formatDistanceToNow(parseBackendIsoToDate(post.createdAt), {
       addSuffix: true,
       locale: ptBR,
     });

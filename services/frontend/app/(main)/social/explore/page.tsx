@@ -110,12 +110,12 @@ export default function ExplorePage() {
       </FilterPanel>
 
       {isLoading ? (
-        <div className="rounded-xl border border-border bg-muted/20 py-12 flex flex-col items-center justify-center">
+        <div className="py-12 flex flex-col items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-main" />
           <p className="text-sm text-muted-foreground mt-3">Carregando publicações…</p>
         </div>
       ) : posts.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-muted/20 py-12 text-center text-muted-foreground">
+        <div className="py-12 text-center text-muted-foreground">
           <TrendingUp className="h-12 w-12 mx-auto mb-3 opacity-40 text-main" />
           <p className="font-medium text-foreground">Nenhuma publicação popular ainda</p>
           <p className="text-sm mt-2 max-w-sm mx-auto">

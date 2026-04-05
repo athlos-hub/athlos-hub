@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, UserPlus, UserMinus, Building2 } from "lucide-react";
 import { getFollowers, getFollowing, toggleFollow } from "@/actions/follow";
-import { getUserPublicInfo } from "@/actions/auth";
+import { getUserPublicInfo, getUsersPublicInfoBatch } from "@/actions/auth";
 import { getFollowedOrganizations, toggleFollowOrganization } from "@/actions/organization-follow";
 import { getOrganizationBySlug } from "@/actions/organizations";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -27,6 +27,7 @@ interface FollowListModalProps {
   onClose: () => void;
   keycloakId: string;
   initialTab?: "followers" | "following";
+  onFollowChange?: (delta: number) => void;
 }
 
 interface UserInfo {
@@ -62,6 +63,7 @@ export function FollowListModal({
   onClose,
   keycloakId,
   initialTab = "followers",
+  onFollowChange,
 }: FollowListModalProps) {
   const router = useRouter();
   const { data: session } = useSession();
@@ -83,45 +85,65 @@ export function FollowListModal({
     try {
       if (activeTab === "followers") {
         const data = await getFollowers(keycloakId);
-        const followersWithUsers = await Promise.all(
-          data.content.map(async (follow) => {
-            try {
-              const userInfo = await getUserPublicInfo(follow.followerKeycloakId);
-              return {
-                id: follow.id,
-                keycloakId: follow.followerKeycloakId,
-                userInfo,
-              };
-            } catch {
-              return {
-                id: follow.id,
-                keycloakId: follow.followerKeycloakId,
-                userInfo: null,
-              };
-            }
-          })
-        );
+        
+        // Buscar todos os usuários de uma vez (batch)
+        let usersInfo: Record<string, any> = {};
+        if (data.content.length > 0) {
+          try {
+            const batchUsers = await getUsersPublicInfoBatch(data.content);
+            usersInfo = Object.fromEntries(
+              batchUsers.map(user => [user.keycloak_id, user])
+            );
+          } catch (error) {
+            console.error("Error loading batch users:", error);
+          }
+        }
+        
+        // Buscar lista de "Seguindo" do usuário logado para saber quem você já está seguindo
+        let isFollowingMap: Record<string, boolean> = {};
+        if (session?.user?.keycloakId) {
+          try {
+            const myFollowing = await getFollowing(session.user.keycloakId);
+            // Converter em mapa para busca rápida
+            isFollowingMap = Object.fromEntries(
+              myFollowing.content.map(keycloakId => [keycloakId, true])
+            );
+          } catch (error) {
+            console.error("Error loading current user following:", error);
+          }
+        }
+        
+        const followersWithUsers = data.content.map((followerKeycloakId: string) => ({
+          id: followerKeycloakId,
+          keycloakId: followerKeycloakId,
+          userInfo: usersInfo[followerKeycloakId] || null,
+          isFollowing: isFollowingMap[followerKeycloakId] || false,
+        }));
+        
         setFollowers(followersWithUsers);
       } else {
         const userData = await getFollowing(keycloakId);
-        const followingWithUsers = await Promise.all(
-          userData.content.map(async (follow) => {
-            try {
-              const userInfo = await getUserPublicInfo(follow.followingKeycloakId);
-              return {
-                id: follow.id,
-                keycloakId: follow.followingKeycloakId,
-                userInfo,
-              };
-            } catch {
-              return {
-                id: follow.id,
-                keycloakId: follow.followingKeycloakId,
-                userInfo: null,
-              };
-            }
-          })
-        );
+        
+        // Buscar todos os usuários de uma vez (batch)
+        let usersInfo: Record<string, any> = {};
+        if (userData.content.length > 0) {
+          try {
+            const batchUsers = await getUsersPublicInfoBatch(userData.content);
+            usersInfo = Object.fromEntries(
+              batchUsers.map(user => [user.keycloak_id, user])
+            );
+          } catch (error) {
+            console.error("Error loading batch users:", error);
+          }
+        }
+        
+        const followingWithUsers = userData.content.map((followingKeycloakId: string) => ({
+          id: followingKeycloakId,
+          keycloakId: followingKeycloakId,
+          userInfo: usersInfo[followingKeycloakId] || null,
+          isFollowing: true, // Se está na aba "seguindo", já está seguindo
+        }));
+        
         setFollowing(followingWithUsers);
 
         try {
@@ -165,9 +187,37 @@ export function FollowListModal({
   const handleToggleFollow = async (targetKeycloakId: string) => {
     setLoadingFollow(targetKeycloakId);
     try {
-      await toggleFollow(targetKeycloakId);
-      await loadData();
-      toast.success("Atualizado!");
+      const isNowFollowing = await toggleFollow(targetKeycloakId);
+      
+      // Atualizar localmente o estado dos usuários
+      setFollowers(prev => 
+        prev.map(user => 
+          user.keycloakId === targetKeycloakId 
+            ? { ...user, isFollowing: isNowFollowing }
+            : user
+        )
+      );
+      
+      setFollowing(prev => 
+        prev.map(user => 
+          user.keycloakId === targetKeycloakId 
+            ? { ...user, isFollowing: isNowFollowing }
+            : user
+        )
+      );
+      
+      // Notificar o componente pai sobre a mudança
+      if (onFollowChange) {
+        // Atualiza o contador de "Seguindo" do usuário logado
+        onFollowChange(isNowFollowing ? 1 : -1);
+      }
+      
+      // Toast descritivo
+      if (isNowFollowing) {
+        toast.success("Agora você está seguindo este usuário");
+      } else {
+        toast.success("Deixou de seguir este usuário");
+      }
     } catch (error) {
       toast.error("Erro ao atualizar");
     } finally {
@@ -178,9 +228,23 @@ export function FollowListModal({
   const handleToggleOrganizationFollow = async (orgSlug: string) => {
     setLoadingFollow(orgSlug);
     try {
-      await toggleFollowOrganization(orgSlug);
-      await loadData();
-      toast.success("Atualizado!");
+      const isNowFollowing = await toggleFollowOrganization(orgSlug);
+      
+      // Atualizar localmente o estado das organizações
+      setFollowingOrgs(prev => 
+        prev.map(org => 
+          org.organizationSlug === orgSlug 
+            ? { ...org, isFollowing: isNowFollowing }
+            : org
+        )
+      );
+      
+      // Toast descritivo
+      if (isNowFollowing) {
+        toast.success("Agora você está seguindo esta organização");
+      } else {
+        toast.success("Deixou de seguir esta organização");
+      }
     } catch (error) {
       toast.error("Erro ao atualizar");
     } finally {
@@ -223,7 +287,7 @@ export function FollowListModal({
       <div className="space-y-3">
         {users.map((user) => (
           <div
-            key={user.id}
+            key={user.keycloakId}
             className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors"
           >
             <Link
@@ -242,26 +306,28 @@ export function FollowListModal({
                 )}
               </div>
             </Link>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleToggleFollow(user.keycloakId)}
-              disabled={loadingFollow === user.keycloakId}
-            >
-              {loadingFollow === user.keycloakId ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : user.isFollowing ? (
-                <>
-                  <UserMinus className="h-4 w-4 mr-2" />
-                  Seguindo
-                </>
-              ) : (
-                <>
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Seguir
-                </>
-              )}
-            </Button>
+            {session?.user?.keycloakId !== user.keycloakId && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleToggleFollow(user.keycloakId)}
+                disabled={loadingFollow === user.keycloakId}
+              >
+                {loadingFollow === user.keycloakId ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : user.isFollowing ? (
+                  <>
+                    <UserMinus className="h-4 w-4 mr-2" />
+                    Seguindo
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Seguir
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         ))}
       </div>
@@ -289,53 +355,118 @@ export function FollowListModal({
           </TabsContent>
 
           <TabsContent value="following" className="mt-4">
-            {renderUserList(following)}
-            
-            {followingOrgs.length > 0 && (
+            {isLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-main" />
+              </div>
+            ) : following.length === 0 && followingOrgs.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Nenhum perfil sendo seguido</p>
+              </div>
+            ) : (
               <>
-                <div className="mt-6 mb-3">
-                  <h3 className="text-sm font-semibold text-muted-foreground">Organizações</h3>
-                </div>
-                <div className="space-y-3">
-                  {followingOrgs.map((org) => (
-                    <div
-                      key={org.id}
-                      className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors"
-                    >
-                      <Link
-                        href={`/organizations/${org.organizationSlug}`}
-                        className="flex items-center gap-3 flex-1"
-                        onClick={onClose}
-                      >
-                        <Avatar className="h-12 w-12 rounded-lg">
-                          <AvatarImage src={org.orgInfo?.logo_url || undefined} />
-                          <AvatarFallback>
-                            <Building2 className="h-6 w-6" />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">{org.orgInfo?.name || org.organizationSlug}</p>
-                          <p className="text-sm text-muted-foreground">Organização</p>
+                {following.length > 0 && (
+                  <>
+                    {following.length > 0 && <div className="mt-6 mb-3">
+                      <h3 className="text-sm font-semibold text-muted-foreground">Usuários</h3>
+                    </div>}
+                    <div className="space-y-3">
+                      {following.map((user) => (
+                        <div
+                          key={user.keycloakId}
+                          className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors"
+                        >
+                          <Link
+                            href={`/profile/${user.keycloakId}`}
+                            className="flex items-center gap-3 flex-1"
+                            onClick={onClose}
+                          >
+                            <Avatar className="h-12 w-12">
+                              <AvatarImage src={user.userInfo?.avatar_url || undefined} />
+                              <AvatarFallback>{getUserInitials(user.userInfo)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium">{getUserName(user.userInfo)}</p>
+                              {user.userInfo?.username && (
+                                <p className="text-sm text-muted-foreground">@{user.userInfo.username}</p>
+                              )}
+                            </div>
+                          </Link>
+                          {session?.user?.keycloakId !== user.keycloakId && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleToggleFollow(user.keycloakId)}
+                              disabled={loadingFollow === user.keycloakId}
+                            >
+                              {loadingFollow === user.keycloakId ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : user.isFollowing ? (
+                                <>
+                                  <UserMinus className="h-4 w-4 mr-2" />
+                                  Seguindo
+                                </>
+                              ) : (
+                                <>
+                                  <UserPlus className="h-4 w-4 mr-2" />
+                                  Seguir
+                                </>
+                              )}
+                            </Button>
+                          )}
                         </div>
-                      </Link>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleToggleOrganizationFollow(org.organizationSlug)}
-                        disabled={loadingFollow === org.organizationSlug}
-                      >
-                        {loadingFollow === org.organizationSlug ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <>
-                            <UserMinus className="h-4 w-4 mr-2" />
-                            Seguindo
-                          </>
-                        )}
-                      </Button>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </>
+                )}
+                
+                {followingOrgs.length > 0 && (
+                  <>
+                    {following.length > 0 && <div className="mt-6 mb-3">
+                      <h3 className="text-sm font-semibold text-muted-foreground">Organizações</h3>
+                    </div>}
+                    <div className="space-y-3">
+                      {followingOrgs.map((org) => (
+                        <div
+                          key={org.organizationSlug}
+                          className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors"
+                        >
+                          <Link
+                            href={`/organizations/${org.organizationSlug}`}
+                            className="flex items-center gap-3 flex-1"
+                            onClick={onClose}
+                          >
+                            <Avatar className="h-12 w-12 rounded-lg">
+                              <AvatarImage src={org.orgInfo?.logo_url || undefined} />
+                              <AvatarFallback>
+                                <Building2 className="h-6 w-6" />
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium">{org.orgInfo?.name || org.organizationSlug}</p>
+                              <p className="text-sm text-muted-foreground">Organização</p>
+                            </div>
+                          </Link>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleToggleOrganizationFollow(org.organizationSlug)}
+                            disabled={loadingFollow === org.organizationSlug}
+                          >
+                            {loadingFollow === org.organizationSlug ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <UserMinus className="h-4 w-4 mr-2" />
+                                Seguindo
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </>
             )}
           </TabsContent>

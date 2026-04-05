@@ -113,7 +113,11 @@ export function OrganizationDetailClient({ organization }: OrganizationDetailCli
                     <div className="flex items-start justify-between">
                         <div className="flex items-center gap-4">
                             <Avatar className="h-16 w-16 rounded-lg">
-                                <AvatarImage src={organization.logo_url || ""} alt={organization.name} />
+                                <AvatarImage
+                                    src={organization.logo_url || ""}
+                                    alt={organization.name}
+                                    className="object-contain p-2"
+                                />
                                 <AvatarFallback>
                                     <Building2 className="h-8 w-8" />
                                 </AvatarFallback>

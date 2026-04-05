@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import { getServerSession } from "next-auth";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { axiosAPI } from "@/lib/api/client";
+import { authOptions } from "@/lib/auth";
 import { Post } from "@/types/social";
 import { PostPageClient } from "./post-page-client";
 import { SITE_NAME, buildPageMetadata } from "@/lib/seo/site";
@@ -15,10 +17,15 @@ interface ApiResponse<T> {
 
 async function getPost(postId: string): Promise<Post | null> {
   try {
+    const session = await getServerSession(authOptions);
+    const withAuth = Boolean(session?.accessToken);
     const response = await axiosAPI<ApiResponse<Post>>({
       endpoint: `/social/posts/${postId}`,
       method: "GET",
-      withAuth: false,
+      withAuth,
+      ...(withAuth && session?.accessToken
+        ? { bearerToken: session.accessToken }
+        : {}),
     });
     return response.data.data || response.data as unknown as Post;
   } catch {

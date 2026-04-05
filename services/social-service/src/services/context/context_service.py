@@ -10,6 +10,34 @@ from src.infrastructure.http import auth_client, competitions_client
 from src.models import OrganizationProfile, TeamProfile
 
 
+async def resolve_team_membership(
+    team_id: str, keycloak_id: str, authorization: str
+) -> bool:
+    """True se o utilizador é membro do time no auth ou no competitions (igual a can_post_as_team)."""
+    try:
+        tid = uuid.UUID(team_id)
+    except ValueError:
+        return False
+    try:
+        u = await auth_client.get_user_by_keycloak_id(keycloak_id, authorization)
+        internal_id = uuid.UUID(str(u["id"]))
+    except auth_client.AuthClientError:
+        return False
+    try:
+        team = await auth_client.get_auth_team(tid, authorization)
+        if auth_client.auth_team_is_member(team, internal_id):
+            return True
+    except auth_client.AuthClientError:
+        pass
+    try:
+        team = await competitions_client.get_team(tid, authorization)
+        if competitions_client.competition_team_is_member(team, internal_id):
+            return True
+    except competitions_client.CompetitionsClientError:
+        pass
+    return False
+
+
 async def can_post_as_organization(
     session: AsyncSession,
     slug: str,

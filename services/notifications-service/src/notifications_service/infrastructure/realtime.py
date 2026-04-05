@@ -3,8 +3,11 @@
 import asyncio
 import json
 from collections import defaultdict
-from collections.abc import AsyncGenerator, Awaitable, Callable
+from collections.abc import AsyncGenerator
 from uuid import UUID
+
+# Sem bytes no fio, proxies (ex.: Kong read_timeout padrão 60s) fecham a conexão.
+_KEEPALIVE_INTERVAL_S = 20.0
 
 
 class UnreadBroadcaster:
@@ -15,14 +18,18 @@ class UnreadBroadcaster:
         self,
         user_id: UUID,
         initial_count: int,
-    ) -> AsyncGenerator[int, None]:
+    ) -> AsyncGenerator[int | None, None]:
         key = str(user_id)
         q: asyncio.Queue[int] = asyncio.Queue()
         self._queues[key].add(q)
         try:
             yield initial_count
             while True:
-                yield await q.get()
+                try:
+                    count = await asyncio.wait_for(q.get(), timeout=_KEEPALIVE_INTERVAL_S)
+                    yield count
+                except asyncio.TimeoutError:
+                    yield None
         finally:
             self._queues[key].discard(q)
             if not self._queues[key]:
@@ -46,3 +53,8 @@ def get_broadcaster() -> UnreadBroadcaster:
 
 def sse_event(count: int) -> str:
     return f"data: {json.dumps({'count': count})}\n\n"
+
+
+def sse_keepalive() -> str:
+    """Comentário SSE (ignorado pelo cliente); mantém conexão viva atrás de proxies."""
+    return ": keepalive\n\n"

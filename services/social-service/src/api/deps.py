@@ -43,3 +43,11 @@ async def get_bearer_authorization(
             detail="Token não encontrado",
         )
     return authorization.strip()
+
+
+async def get_optional_bearer_authorization(
+    authorization: Annotated[str | None, Header()] = None,
+) -> str | None:
+    if authorization and authorization.strip():
+        return authorization.strip()
+    return None

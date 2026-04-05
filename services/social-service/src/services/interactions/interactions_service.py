@@ -12,13 +12,40 @@ from src.infrastructure.http import auth_client
 from src.infrastructure.moderation.openai_client import assert_content_allowed
 from src.infrastructure.notifications import send_notification
 from src.models import Comment, Like, Post, Share
-from src.services.posts.posts_service import get_post_visible_or_404
+from src.services.posts.posts_service import get_post_for_interaction_or_404
+
+
+def _post_preview_for_notification(post: Post, max_len: int = 120) -> str:
+    """Texto curto para identificar a publicação em notificações (sem card)."""
+    raw = (post.content or "").strip()
+    collapsed = " ".join(raw.split())
+    if collapsed:
+        if len(collapsed) <= max_len:
+            return collapsed
+        return collapsed[: max_len - 1].rstrip() + "…"
+    media = post.media_urls
+    if isinstance(media, list) and len(media) > 0:
+        return "Publicação com mídia"
+    ptype = (post.type or "TEXT").upper()
+    if ptype == "ACHIEVEMENT":
+        return "Publicação de conquista"
+    if ptype == "IMAGE":
+        return "Publicação de imagem"
+    if ptype == "ANNOUNCEMENT":
+        return "Anúncio"
+    if ptype == "EVENT":
+        return "Evento"
+    if ptype == "TRAINING":
+        return "Treino"
+    return "Sua publicação"
 
 
 async def toggle_like(
     session: AsyncSession, post_id: uuid.UUID, keycloak_id: str, authorization: str
 ) -> bool:
-    post = await get_post_visible_or_404(session, post_id)
+    post = await get_post_for_interaction_or_404(
+        session, post_id, keycloak_id, authorization
+    )
 
     existing = await session.scalar(
         select(Like).where(Like.post_id == post_id, Like.keycloak_id == keycloak_id)
@@ -40,20 +67,32 @@ async def toggle_like(
                 name = actor.get("full_name") or actor.get("username") or "Usuário"
             except Exception:
                 name = "Usuário"
+            preview = _post_preview_for_notification(post)
             await send_notification(
                 recipient_internal_user_id=str(rid),
                 actor_keycloak_id=keycloak_id,
                 notification_type="post_like",
-                title=f"{name} curtiu seu post",
-                message=f"{name} curtiu seu post",
-                extra_data={"actorName": name, "postContent": post.content},
+                title=f"{name} curtiu sua publicação",
+                message=f"«{preview}»",
+                extra_data={
+                    "actorName": name,
+                    "postPreview": preview,
+                },
                 entity_id=post_id,
+                action_url=f"/social/post/{post_id}",
             )
     return True
 
 
-async def is_liked(session: AsyncSession, post_id: uuid.UUID, keycloak_id: str) -> bool:
-    await get_post_visible_or_404(session, post_id)
+async def is_liked(
+    session: AsyncSession,
+    post_id: uuid.UUID,
+    keycloak_id: str,
+    authorization: str,
+) -> bool:
+    await get_post_for_interaction_or_404(
+        session, post_id, keycloak_id, authorization
+    )
     q = await session.scalar(
         select(func.count())
         .select_from(Like)
@@ -71,7 +110,9 @@ async def add_comment(
 ) -> Comment:
     await assert_content_allowed(content)
 
-    post = await get_post_visible_or_404(session, post_id)
+    post = await get_post_for_interaction_or_404(
+        session, post_id, keycloak_id, authorization
+    )
 
     c = Comment(post_id=post_id, keycloak_id=keycloak_id, content=content)
     session.add(c)
@@ -87,26 +128,38 @@ async def add_comment(
                 name = actor.get("full_name") or actor.get("username") or "Usuário"
             except Exception:
                 name = "Usuário"
+            preview = _post_preview_for_notification(post)
+            comment_snip = " ".join(content.strip().split())
+            if len(comment_snip) > 100:
+                comment_snip = comment_snip[:99].rstrip() + "…"
             await send_notification(
                 recipient_internal_user_id=str(rid),
                 actor_keycloak_id=keycloak_id,
                 notification_type="post_comment",
-                title=f"{name} comentou no seu post",
-                message=f"{name} comentou no seu post",
+                title=f"{name} comentou na sua publicação",
+                message=f"«{preview}» — {comment_snip}",
                 extra_data={
                     "actorName": name,
-                    "commentContent": content,
-                    "postContent": post.content,
+                    "commentPreview": comment_snip,
+                    "postPreview": preview,
                 },
                 entity_id=post_id,
+                action_url=f"/social/post/{post_id}",
             )
     return c
 
 
 async def list_comments(
-    session: AsyncSession, post_id: uuid.UUID, page: int, size: int
+    session: AsyncSession,
+    post_id: uuid.UUID,
+    page: int,
+    size: int,
+    viewer_keycloak_id: str | None,
+    viewer_authorization: str | None,
 ) -> tuple[list[Comment], int]:
-    await get_post_visible_or_404(session, post_id)
+    await get_post_for_interaction_or_404(
+        session, post_id, viewer_keycloak_id, viewer_authorization
+    )
     stmt = (
         select(Comment)
         .where(Comment.post_id == post_id)
@@ -130,10 +183,13 @@ async def update_comment(
     comment_id: uuid.UUID,
     keycloak_id: str,
     content: str,
+    authorization: str,
 ) -> Comment:
     await assert_content_allowed(content)
 
-    await get_post_visible_or_404(session, post_id)
+    await get_post_for_interaction_or_404(
+        session, post_id, keycloak_id, authorization
+    )
     c = await session.get(Comment, comment_id)
     if not c or c.post_id != post_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Comentário não encontrado")
@@ -149,8 +205,11 @@ async def delete_comment(
     post_id: uuid.UUID,
     comment_id: uuid.UUID,
     keycloak_id: str,
+    authorization: str,
 ) -> None:
-    await get_post_visible_or_404(session, post_id)
+    await get_post_for_interaction_or_404(
+        session, post_id, keycloak_id, authorization
+    )
     c = await session.get(Comment, comment_id)
     if not c or c.post_id != post_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Comentário não encontrado")
@@ -169,7 +228,9 @@ async def share_post(
     comment: str | None,
     authorization: str,
 ) -> Share:
-    post = await get_post_visible_or_404(session, post_id)
+    post = await get_post_for_interaction_or_404(
+        session, post_id, keycloak_id, authorization
+    )
 
     exists = await session.scalar(
         select(Share).where(Share.post_id == post_id, Share.keycloak_id == keycloak_id)
@@ -191,23 +252,40 @@ async def share_post(
                 name = actor.get("full_name") or actor.get("username") or "Usuário"
             except Exception:
                 name = "Usuário"
-            ex: dict[str, Any] = {"actorName": name, "postContent": post.content}
+            preview = _post_preview_for_notification(post)
+            ex: dict[str, Any] = {
+                "actorName": name,
+                "postPreview": preview,
+            }
+            share_msg = f"«{preview}»"
             if comment:
+                cstrip = " ".join(comment.strip().split())
+                if len(cstrip) > 120:
+                    cstrip = cstrip[:119].rstrip() + "…"
                 ex["shareComment"] = comment
+                share_msg = f'{share_msg} — "{cstrip}"'
             await send_notification(
                 recipient_internal_user_id=str(rid),
                 actor_keycloak_id=keycloak_id,
                 notification_type="post_share",
-                title=f"{name} compartilhou seu post",
-                message=f"{name} compartilhou seu post",
+                title=f"{name} compartilhou sua publicação",
+                message=share_msg,
                 extra_data=ex,
                 entity_id=post_id,
+                action_url=f"/social/post/{post_id}",
             )
     return sh
 
 
-async def unshare_post(session: AsyncSession, post_id: uuid.UUID, keycloak_id: str) -> None:
-    await get_post_visible_or_404(session, post_id)
+async def unshare_post(
+    session: AsyncSession,
+    post_id: uuid.UUID,
+    keycloak_id: str,
+    authorization: str,
+) -> None:
+    await get_post_for_interaction_or_404(
+        session, post_id, keycloak_id, authorization
+    )
     sh = await session.scalar(
         select(Share).where(Share.post_id == post_id, Share.keycloak_id == keycloak_id)
     )
@@ -219,8 +297,15 @@ async def unshare_post(session: AsyncSession, post_id: uuid.UUID, keycloak_id: s
     await session.delete(sh)
 
 
-async def has_shared(session: AsyncSession, post_id: uuid.UUID, keycloak_id: str) -> bool:
-    await get_post_visible_or_404(session, post_id)
+async def has_shared(
+    session: AsyncSession,
+    post_id: uuid.UUID,
+    keycloak_id: str,
+    authorization: str,
+) -> bool:
+    await get_post_for_interaction_or_404(
+        session, post_id, keycloak_id, authorization
+    )
     q = await session.scalar(
         select(func.count())
         .select_from(Share)
@@ -256,8 +341,15 @@ async def list_user_shares(
     return await list_my_shares(session, keycloak_id, page, size)
 
 
-async def share_count(session: AsyncSession, post_id: uuid.UUID) -> int:
-    await get_post_visible_or_404(session, post_id)
+async def share_count(
+    session: AsyncSession,
+    post_id: uuid.UUID,
+    viewer_keycloak_id: str | None,
+    viewer_authorization: str | None,
+) -> int:
+    await get_post_for_interaction_or_404(
+        session, post_id, viewer_keycloak_id, viewer_authorization
+    )
     q = await session.scalar(
         select(func.count()).select_from(Share).where(Share.post_id == post_id)
     )

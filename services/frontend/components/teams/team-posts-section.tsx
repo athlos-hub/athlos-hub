@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { MessageSquare, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,11 +15,13 @@ interface TeamPostsSectionProps {
 }
 
 export function TeamPostsSection({ teamId }: TeamPostsSectionProps) {
+  const router = useRouter();
   const [posts, setPosts] = useState<Post[]>([]);
   const [socialUnavailable, setSocialUnavailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+  const [totalPostCount, setTotalPostCount] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
@@ -39,6 +42,7 @@ export function TeamPostsSection({ teamId }: TeamPostsSectionProps) {
         setSocialUnavailable(true);
         setPosts([]);
         setTotalPages(0);
+        setTotalPostCount(0);
         setPage(0);
         return;
       }
@@ -51,8 +55,13 @@ export function TeamPostsSection({ teamId }: TeamPostsSectionProps) {
       }
 
       setTotalPages(response.totalPages);
+      setTotalPostCount(response.totalElements);
       setPage(pageNumber);
     } catch {
+      setSocialUnavailable(false);
+      setPosts([]);
+      setTotalPages(0);
+      setTotalPostCount(0);
       toast.error("Erro ao carregar posts da equipe");
     } finally {
       setLoading(false);
@@ -152,6 +161,17 @@ export function TeamPostsSection({ teamId }: TeamPostsSectionProps) {
               ) : (
                 "Carregar mais posts"
               )}
+            </Button>
+          </div>
+        )}
+
+        {totalPostCount > 3 && (
+          <div className="flex justify-center pt-4">
+            <Button
+              variant="outline"
+              onClick={() => router.push(`/social/search?team=${encodeURIComponent(teamId)}`)}
+            >
+              Acompanhar todos os posts
             </Button>
           </div>
         )}

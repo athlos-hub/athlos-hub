@@ -302,6 +302,23 @@ def main() -> None:
             "regex_priority": 330,
         },
         {"name": "competitions-health", "protocols": ["http", "https"], "paths": ["/api/health"], "strip_path": False},
+        # Leitura pública (listagem/detalhe GET); mutações continuam em competitions-protected.
+        {
+            "name": "competitions-pub-modalities-get",
+            "protocols": ["http", "https"],
+            "paths": ["/api/modalities"],
+            "strip_path": False,
+            "regex_priority": 200,
+            "methods": ["GET"],
+        },
+        {
+            "name": "competitions-pub-competitions-get",
+            "protocols": ["http", "https"],
+            "paths": ["/api/competitions"],
+            "strip_path": False,
+            "regex_priority": 200,
+            "methods": ["GET"],
+        },
         {
             "name": "competitions-protected",
             "protocols": ["http", "https"],
@@ -364,6 +381,16 @@ def main() -> None:
             "response_buffering": False,
             "plugins": jwt_plugins(),
         },
+    ]
+    services.append(notif)
+
+    # Serviço dedicado ao SSE: read_timeout/write_timeout por serviço (Kong 3.x); não há override
+    # global no docker-compose. upstream_keepalive / keepalive_timeout do Nginx do Kong são defaults
+    # da imagem — o que mata conexão longa sem tráfego é sobretudo read_timeout até o upstream.
+    notif_sse = base_service("notifications-sse-service", host, 8003)
+    notif_sse["read_timeout"] = 3_600_000
+    notif_sse["write_timeout"] = 3_600_000
+    notif_sse["routes"] = [
         {
             "name": "notifications-sse-stream",
             "protocols": ["http", "https"],
@@ -376,10 +403,91 @@ def main() -> None:
             "plugins": jwt_plugins(),
         },
     ]
-    services.append(notif)
+    services.append(notif_sse)
 
     soc = base_service("social-service", host, 8083)
     soc_routes: list = []
+
+    # Aninhados em /api/social/posts/:id/... não podem cair nas rotas públicas por prefixo
+    # (/api/social/posts + GET/POST), senão o JWT não corre e o Kong não injeta X-Keycloak-Sub
+    # (401 em like/comentar; 404 em listar comentários de post seguidores/membros).
+    soc_routes.extend(
+        [
+            {
+                "name": "social-jwt-post-by-id-get-optional",
+                "protocols": ["http", "https"],
+                "paths": [r"~/api/social/posts/[^/]+$"],
+                "strip_path": False,
+                "regex_priority": 125,
+                "methods": ["GET"],
+                "plugins": jwt_plugins(anonymous_consumer_id=ANONYMOUS_CONSUMER_ID),
+            },
+            {
+                "name": "social-jwt-post-comments-get-optional",
+                "protocols": ["http", "https"],
+                "paths": [r"~/api/social/posts/[^/]+/comments$"],
+                "strip_path": False,
+                "regex_priority": 125,
+                "methods": ["GET"],
+                "plugins": jwt_plugins(anonymous_consumer_id=ANONYMOUS_CONSUMER_ID),
+            },
+            {
+                "name": "social-jwt-post-comments-post",
+                "protocols": ["http", "https"],
+                "paths": [r"~/api/social/posts/[^/]+/comments$"],
+                "strip_path": False,
+                "regex_priority": 125,
+                "methods": ["POST"],
+                "plugins": jwt_plugins(),
+            },
+            {
+                "name": "social-jwt-post-comment-mutation",
+                "protocols": ["http", "https"],
+                "paths": [r"~/api/social/posts/[^/]+/comments/[^/]+$"],
+                "strip_path": False,
+                "regex_priority": 125,
+                "methods": ["PUT", "DELETE"],
+                "plugins": jwt_plugins(),
+            },
+            {
+                "name": "social-jwt-post-like-get-optional",
+                "protocols": ["http", "https"],
+                "paths": [r"~/api/social/posts/[^/]+/like$"],
+                "strip_path": False,
+                "regex_priority": 125,
+                "methods": ["GET"],
+                "plugins": jwt_plugins(anonymous_consumer_id=ANONYMOUS_CONSUMER_ID),
+            },
+            {
+                "name": "social-jwt-post-like-post",
+                "protocols": ["http", "https"],
+                "paths": [r"~/api/social/posts/[^/]+/like$"],
+                "strip_path": False,
+                "regex_priority": 125,
+                "methods": ["POST"],
+                "plugins": jwt_plugins(),
+            },
+            {
+                "name": "social-jwt-org-wall-posts-get-optional",
+                "protocols": ["http", "https"],
+                "paths": [r"~/api/social/organizations/[^/]+/posts$"],
+                "strip_path": False,
+                "regex_priority": 125,
+                "methods": ["GET"],
+                "plugins": jwt_plugins(anonymous_consumer_id=ANONYMOUS_CONSUMER_ID),
+            },
+            {
+                "name": "social-jwt-team-wall-posts-get-optional",
+                "protocols": ["http", "https"],
+                "paths": [r"~/api/social/teams/[^/]+/posts$"],
+                "strip_path": False,
+                "regex_priority": 125,
+                "methods": ["GET"],
+                "plugins": jwt_plugins(anonymous_consumer_id=ANONYMOUS_CONSUMER_ID),
+            },
+        ]
+    )
+
     public_specs = [
         ("/api/social/health", None, 120),
         ("/api/social/info", None, 120),

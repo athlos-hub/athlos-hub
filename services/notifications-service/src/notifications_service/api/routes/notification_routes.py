@@ -8,7 +8,11 @@ from notifications_service.api.deps import (
     NotificationServiceDep,
     verify_internal_key,
 )
-from notifications_service.infrastructure.realtime import get_broadcaster, sse_event
+from notifications_service.infrastructure.realtime import (
+    get_broadcaster,
+    sse_event,
+    sse_keepalive,
+)
 from notifications_service.schemas.notification import (
     MessageOut,
     MarkReadRequest,
@@ -56,8 +60,11 @@ async def unread_count_stream(user_id: CurrentUserIdDep, service: NotificationSe
     broadcaster = get_broadcaster()
 
     async def gen():
-        async for count in broadcaster.stream_counts(user_id, initial):
-            yield sse_event(count)
+        async for item in broadcaster.stream_counts(user_id, initial):
+            if item is None:
+                yield sse_keepalive()
+            else:
+                yield sse_event(item)
 
     return StreamingResponse(
         gen(),

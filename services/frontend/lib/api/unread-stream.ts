@@ -7,7 +7,8 @@ import { getNotificationsGatewayBase } from '@/lib/notifications-gateway';
 export async function subscribeUnreadCountStream(
   token: string,
   onCount: (count: number) => void,
-  signal: AbortSignal
+  signal: AbortSignal,
+  onConnected?: () => void
 ): Promise<void> {
   const base = getNotificationsGatewayBase().replace(/\/$/, '');
   const res = await fetch(`${base}/notifications/unread-count/stream`, {
@@ -18,6 +19,7 @@ export async function subscribeUnreadCountStream(
     const t = await res.text();
     throw new Error(t || `HTTP ${res.status}`);
   }
+  onConnected?.();
   const reader = res.body?.getReader();
   if (!reader) throw new Error('Resposta sem corpo');
   const decoder = new TextDecoder();

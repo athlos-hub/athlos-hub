@@ -16,7 +16,7 @@ export async function listModalities(
     endpoint: "/modalities/",
     method: "GET",
     queryParams,
-    withAuth: true,
+    withAuth: false,
     service: "competitions",
   });
 

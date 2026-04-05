@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, Send, Trash2, Edit2, X, Check } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { parseBackendIsoToDate } from "@/lib/datetime/parse-backend-iso";
 import { useSession } from "next-auth/react";
 import { 
   CommentResponse, 
@@ -243,7 +244,7 @@ export function CommentSection({ postId, initialCommentsCount, onCommentCountCha
                             </span>
                           </Link>
                           <span className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(comment.createdAt), {
+                            {formatDistanceToNow(parseBackendIsoToDate(comment.createdAt), {
                               addSuffix: true,
                               locale: ptBR,
                             })}

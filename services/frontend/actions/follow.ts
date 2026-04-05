@@ -11,6 +11,22 @@ export interface Follow {
   createdAt: string;
 }
 
+export interface FollowersPage {
+  content: string[]; // Array de keycloak_ids
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
+}
+
+export interface FollowingPage {
+  content: string[]; // Array de keycloak_ids
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
+}
+
 export interface FollowPage {
   content: Follow[];
   totalElements: number;
@@ -62,30 +78,30 @@ export async function checkIsFollowing(targetKeycloakId: string): Promise<boolea
   }
 }
 
-export async function getFollowers(keycloakId: string, page: number = 0, size: number = 20): Promise<FollowPage> {
+export async function getFollowers(keycloakId: string, page: number = 0, size: number = 20): Promise<FollowersPage> {
   const session = await getServerSession(authOptions);
   
-  const response = await axiosAPI<ApiResponse<FollowPage>>({
+  const response = await axiosAPI<ApiResponse<FollowersPage>>({
     endpoint: `/social/follow/followers/${keycloakId}?page=${page}&size=${size}`,
     method: "GET",
     withAuth: !!session?.accessToken,
     bearerToken: session?.accessToken,
   });
 
-  return response.data.data || response.data as unknown as FollowPage;
+  return response.data.data || response.data as unknown as FollowersPage;
 }
 
-export async function getFollowing(keycloakId: string, page: number = 0, size: number = 20): Promise<FollowPage> {
+export async function getFollowing(keycloakId: string, page: number = 0, size: number = 20): Promise<FollowingPage> {
   const session = await getServerSession(authOptions);
   
-  const response = await axiosAPI<ApiResponse<FollowPage>>({
+  const response = await axiosAPI<ApiResponse<FollowingPage>>({
     endpoint: `/social/follow/following/${keycloakId}?page=${page}&size=${size}`,
     method: "GET",
     withAuth: !!session?.accessToken,
     bearerToken: session?.accessToken,
   });
 
-  return response.data.data || response.data as unknown as FollowPage;
+  return response.data.data || response.data as unknown as FollowingPage;
 }
 
 export interface OrganizationFollow {

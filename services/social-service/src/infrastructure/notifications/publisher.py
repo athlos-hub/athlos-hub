@@ -86,6 +86,7 @@ async def send_notification(
     message: str,
     extra_data: dict[str, Any] | None = None,
     entity_id: UUID | None = None,
+    action_url: str | None = None,
 ) -> None:
     if not settings.NOTIFICATIONS_ENABLED:
         return
@@ -102,6 +103,8 @@ async def send_notification(
         "message": message,
         "extra_data": ex,
     }
+    if action_url and action_url.strip():
+        payload["action_url"] = action_url.strip()
 
     if settings.RABBITMQ_URL:
         try:

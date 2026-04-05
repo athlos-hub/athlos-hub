@@ -4,7 +4,12 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.deps import get_current_keycloak_id
+from src.api.deps import (
+    get_bearer_authorization,
+    get_current_keycloak_id,
+    get_optional_bearer_authorization,
+    get_optional_keycloak_id,
+)
 from src.routes.deps import get_session
 from src.schemas import api_success, post_to_camel, spring_page
 from src.services.posts.posts_service import (
@@ -43,7 +48,15 @@ async def athlete_my_posts(
     page: int = Query(0, ge=0),
     size: int = Query(10, ge=1, le=100),
 ):
-    rows, total = await list_profile_posts(session, "ATHLETE", kid, page, size)
+    rows, total = await list_profile_posts(
+        session,
+        "ATHLETE",
+        kid,
+        page,
+        size,
+        viewer_keycloak_id=kid,
+        viewer_authorization=None,
+    )
     content = [post_to_camel(p) for p in rows]
     return api_success(spring_page(content, total_elements=total, page=page, size=size))
 
@@ -66,13 +79,21 @@ async def athlete_posts_by_user(
 async def athlete_posts_by_username(
     username: str,
     session: AsyncSession = Depends(get_session),
+    viewer_kid: str | None = Depends(get_optional_keycloak_id),
+    viewer_auth: str | None = Depends(get_optional_bearer_authorization),
     page: int = Query(0, ge=0),
     size: int = Query(10, ge=1, le=100),
 ):
     """Obtém posts do atleta pelo username."""
     athlete = await get_athlete_by_username(session, username)
     rows, total = await list_profile_posts(
-        session, "ATHLETE", athlete.keycloak_id, page, size
+        session,
+        "ATHLETE",
+        athlete.keycloak_id,
+        page,
+        size,
+        viewer_keycloak_id=viewer_kid,
+        viewer_authorization=viewer_auth,
     )
     content = [post_to_camel(p) for p in rows]
     return api_success(spring_page(content, total_elements=total, page=page, size=size))
@@ -94,6 +115,7 @@ async def athlete_post_share(
     body: dict[str, Any] | None,
     session: AsyncSession = Depends(get_session),
     kid: str = Depends(get_current_keycloak_id),
+    authorization: str = Depends(get_bearer_authorization),
 ):
     b = body or {}
     p = await share_original_post(
@@ -102,5 +124,6 @@ async def athlete_post_share(
         kid,
         b.get("content"),
         b.get("metadata"),
+        authorization,
     )
     return api_success(post_to_camel(p))

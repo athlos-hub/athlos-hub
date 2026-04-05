@@ -34,7 +34,6 @@ import { EditProfileModal } from "./edit-profile-modal";
 import { EditSocialProfileModal } from "./edit-social-profile-modal";
 import { FollowListModal } from "./follow-list-modal";
 import { ShareProfileButton } from "./share-profile-button";
-import { getFollowedOrganizations } from "@/actions/organization-follow";
 import { getUserShares, Share } from "@/actions/shares";
 import { AchievementsSection } from "@/components/achievements/achievements-section";
 
@@ -97,16 +96,9 @@ export function UnifiedProfileClient({
   }, [isOwnProfile, athleteProfile.keycloakId, session?.user?.keycloakId]);
 
   useEffect(() => {
-    async function loadFollowingCount() {
-      try {
-        const orgsData = await getFollowedOrganizations(athleteProfile.keycloakId);
-        setTotalFollowing(currentProfile.followingCount + orgsData.totalElements);
-      } catch {
-        setTotalFollowing(currentProfile.followingCount);
-      }
-    }
-    loadFollowingCount();
-  }, [athleteProfile.keycloakId, currentProfile.followingCount]);
+    // Backend já conta usuários, organizações e times no followingCount
+    setTotalFollowing(currentProfile.followingCount);
+  }, [currentProfile.followingCount]);
 
   useEffect(() => {
     async function loadSharedPosts() {
@@ -584,6 +576,9 @@ export function UnifiedProfileClient({
         onClose={() => setIsFollowListModalOpen(false)}
         keycloakId={athleteProfile.keycloakId}
         initialTab={followListTab}
+        onFollowChange={(delta) => {
+          setTotalFollowing(prev => Math.max(0, prev + delta));
+        }}
       />
     </div>
   );
