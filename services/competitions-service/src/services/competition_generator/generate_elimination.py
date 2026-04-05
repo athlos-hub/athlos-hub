@@ -1,7 +1,7 @@
 from math import ceil, log2
 import random
+import uuid
 from typing import List
-from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.competition import CompetitionModel
 from src.models.teams import TeamModel
@@ -12,7 +12,7 @@ class GenerateEliminationCompetitionService:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def _generate_elimination_system(self, competition: CompetitionModel, teams: List[TeamModel]):
+    async def generate_elimination_system(self, competition: CompetitionModel, teams: List[TeamModel]):
         random.shuffle(teams)
         num_teams = len(teams)
 
@@ -54,7 +54,7 @@ class GenerateEliminationCompetitionService:
                 )
                 all_matches_to_add.append(match)
                 
-                all_segments_to_add.extend(self._create_segments_for_match(match_uuid, ruleset))
+                all_segments_to_add.extend(util.create_segments_for_match(match_uuid, ruleset))
                 
                 preliminary_matches.append(match)
 
@@ -69,7 +69,7 @@ class GenerateEliminationCompetitionService:
 
         previous_round_feeders = next_round_feeders
         
-        round_names = self._get_elimination_round_names(len(previous_round_feeders))
+        round_names = util.get_elimination_round_names(len(previous_round_feeders))
        
         for round_index, round_name in enumerate(round_names):
             round_obj = RoundModel(

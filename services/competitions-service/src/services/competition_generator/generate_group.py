@@ -13,7 +13,7 @@ class GenerateGroupCompetitionService:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def _generate_groups_elimination_system(self, competition: CompetitionModel, teams: List[TeamModel]):
+    async def generate_groups_elimination_system(self, competition: CompetitionModel, teams: List[TeamModel]):
         """
         Gera a estrutura híbrida: Fase de Grupos seguida de Eliminatórias (Mata-mata).
         """
@@ -152,7 +152,7 @@ class GenerateGroupCompetitionService:
                 self.session.add(match)
                 current_round_matches.append(match)
 
-                segments = self._create_segments_for_match(match_uuid, ruleset)
+                segments = util.create_segments_for_match(match_uuid, ruleset)
                 self.session.add_all(segments)
 
             await self.session.flush()
