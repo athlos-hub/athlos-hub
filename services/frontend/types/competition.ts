@@ -165,3 +165,43 @@ export interface CompetitionHighlights {
   champion_team: CompetitionChampionTeam | null;
   stat_leaders: CompetitionStatLeadersByMetric[];
 }
+
+export interface CompetitionAchievementDefinition {
+  id: string;
+  competition_id: string;
+  stat_type_id: string;
+  stat_type_name: string;
+  code: string;
+  title: string;
+  /** Se true, o sync não sobrescreve o título automático (Top …). */
+  title_locked?: boolean;
+  target_type?: "PLAYER" | "TEAM";
+  description?: string | null;
+  top_n: number;
+  active: boolean;
+}
+
+/** Resposta de POST /competitions/:id/finalize */
+export interface CompetitionFinalize {
+  competition: Competition;
+  achievements_checked: boolean;
+  player_achievements_awarded: number;
+  message: string;
+}
+
+/** Conquista individual concedida ao finalizar (persistida + notificada ao social) */
+export interface CompetitionAchievementAward {
+  id: string;
+  competition_id: string;
+  definition_id: string;
+  target_type?: "PLAYER" | "TEAM";
+  player_id?: string | null;
+  player_keycloak_id?: string | null;
+  team_id?: string | null;
+  rank_position: number;
+  stat_value: number;
+  created_at: string;
+  achievement_title: string;
+  achievement_code: string;
+  stat_type_name: string;
+}

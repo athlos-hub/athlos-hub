@@ -87,6 +87,24 @@ def auth_team_is_member(team: dict[str, Any], user_id: uuid.UUID) -> bool:
     return False
 
 
+async def resolve_public_internal_user_id(keycloak_id: str) -> uuid.UUID | None:
+    """Resolve id interno do usuário via endpoint público (sem JWT). Usado por jobs/consumidores."""
+    base = settings.AUTH_SERVICE_URL.rstrip("/")
+    url = f"{base}/api/users/by-keycloak-id/{keycloak_id}"
+    try:
+        async with httpx.AsyncClient(timeout=settings.AUTH_SERVICE_TIMEOUT) as client:
+            r = await client.get(url)
+        if r.status_code != 200:
+            return None
+        data = r.json()
+        uid = data.get("id")
+        if uid:
+            return uuid.UUID(str(uid))
+    except Exception as e:
+        logger.warning("resolve_public_internal_user_id falhou: %s", e)
+    return None
+
+
 async def resolve_internal_user_id(keycloak_id: str, authorization: str) -> uuid.UUID | None:
     try:
         u = await get_user_by_keycloak_id(keycloak_id, authorization)

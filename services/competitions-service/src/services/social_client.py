@@ -49,7 +49,7 @@ class SocialServiceClient:
         self,
         target_id: str,
         target_type: TargetType,
-        achievement_type: AchievementType,
+        achievement_type: AchievementType | str,
         competition_id: str,
         competition_name: str,
         metadata: Optional[Dict[str, Any]] = None
@@ -68,10 +68,13 @@ class SocialServiceClient:
         Returns:
             True se a notificação foi bem sucedida
         """
+        achievement_type_value = (
+            achievement_type.value if isinstance(achievement_type, AchievementType) else str(achievement_type)
+        )
         payload = {
             "targetId": target_id,
             "targetType": target_type.value,
-            "achievementType": achievement_type.value,
+            "achievementType": achievement_type_value,
             "competitionId": competition_id,
             "competitionName": competition_name,
             "metadata": metadata or {},
@@ -85,7 +88,7 @@ class SocialServiceClient:
             await publish_achievement_event(payload)
             logger.info(
                 "Conquista %s enfileirada (athlos.social) para %s (%s)",
-                achievement_type.value,
+                achievement_type_value,
                 target_id,
                 target_type.value,
             )
@@ -96,13 +99,13 @@ class SocialServiceClient:
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 logger.info(
-                    f"Enviando conquista {achievement_type.value} para {target_id} ({target_type.value})"
+                    f"Enviando conquista {achievement_type_value} para {target_id} ({target_type.value})"
                 )
                 
                 response = await client.post(url, json=payload)
                 
                 if response.status_code == 200:
-                    logger.info(f"Conquista {achievement_type.value} notificada com sucesso")
+                    logger.info(f"Conquista {achievement_type_value} notificada com sucesso")
                     return True
                 else:
                     logger.error(

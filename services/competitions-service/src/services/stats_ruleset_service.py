@@ -9,6 +9,9 @@ import re
 from src.models.stats import StatsRuleSetModel, StatsTypeModel
 from src.models.competition import CompetitionModel, CompetitionStatus
 from src.services.competition_write_guard import ensure_competition_not_finished
+from src.config.settings import settings
+from src.services.social_client import SocialServiceClient
+from src.services.competition_achievements_service import CompetitionAchievementsService
 from src.schemas.stats_ruleset_schema import (
     StatsRuleSetCreate, 
     StatsRuleSetUpdate,
@@ -20,6 +23,9 @@ from src.schemas.stats_ruleset_schema import (
 class StatsRuleSetService:
     def __init__(self, session: AsyncSession):
         self.session = session
+        self.competition_achievements_service = CompetitionAchievementsService(
+            session, SocialServiceClient(settings.SOCIAL_SERVICE_URL)
+        )
 
     @staticmethod
     def _build_base_abbreviation(name: str) -> str:
@@ -90,6 +96,7 @@ class StatsRuleSetService:
             self.session.add(stat_type)
 
         await self.session.commit()
+        await self.competition_achievements_service.sync_definitions_for_competition(competition_id)
 
         # Recarregar com relacionamentos
         query = (
@@ -152,9 +159,12 @@ class StatsRuleSetService:
         Deleta um StatsRuleSet e seus tipos associados (cascade).
         """
         ruleset = await self.get_by_id(ruleset_id)
+        competition_id = ruleset.competition_id
         await ensure_competition_not_finished(self.session, ruleset.competition_id)
         await self.session.delete(ruleset)
         await self.session.commit()
+        if competition_id:
+            await self.competition_achievements_service.sync_definitions_for_competition(competition_id)
 
     async def list_all(self, skip: int = 0, limit: int = 100) -> List[StatsRuleSetModel]:
         """
@@ -198,6 +208,7 @@ class StatsRuleSetService:
         stat_type = StatsTypeModel(**payload, stats_ruleset_id=ruleset_id)
         self.session.add(stat_type)
         await self.session.commit()
+        await self.competition_achievements_service.sync_definitions_for_competition(ruleset.competition_id)
         await self.session.refresh(stat_type)
         
         return stat_type
@@ -232,6 +243,7 @@ class StatsRuleSetService:
             setattr(stat_type, key, value)
         
         await self.session.commit()
+        await self.competition_achievements_service.sync_definitions_for_competition(rs.competition_id)
         await self.session.refresh(stat_type)
         
         return stat_type
@@ -258,3 +270,4 @@ class StatsRuleSetService:
 
         await self.session.delete(stat_type)
         await self.session.commit()
+        await self.competition_achievements_service.sync_definitions_for_competition(rs.competition_id)

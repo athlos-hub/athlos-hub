@@ -1,13 +1,16 @@
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import get_optional_bearer_authorization, get_optional_keycloak_id
 from src.routes.deps import get_session
 from src.schemas import api_success, post_to_camel
-from src.services.posts.achievements_service import process_achievement_notification
+from src.services.posts.achievements_service import (
+    emit_achievement_notifications,
+    process_achievement_notification,
+)
 from src.services.posts.posts_service import get_post_for_interaction_or_404
 
 router = APIRouter(tags=["social"])
@@ -27,6 +30,7 @@ async def get_post(
 @router.post("/achievements/notify")
 async def achievements_notify(
     body: dict[str, Any],
+    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_session),
 ):
     p = await process_achievement_notification(session, body)
@@ -34,4 +38,5 @@ async def achievements_notify(
         return api_success(
             None, "Evento ignorado (perfil de time não disponível no social)"
         )
+    background_tasks.add_task(emit_achievement_notifications, body, p)
     return api_success(post_to_camel(p), "Conquista registrada com sucesso")

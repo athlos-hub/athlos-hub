@@ -76,7 +76,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
 
       let postsResponse;
       try {
-        postsResponse = await getAthletePostsByKeycloakId(keycloakId, 0, 10);
+        postsResponse = await getAthletePostsByKeycloakId(keycloakId, 0, 3);
       } catch {
         postsResponse = { content: [], totalElements: 0 };
       }
@@ -130,7 +130,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
 
     let postsResponse;
     try {
-      postsResponse = await getAthletePostsByUsername(username, 0, 10);
+      postsResponse = await getAthletePostsByUsername(username, 0, 3);
     } catch {
       postsResponse = { content: [], totalElements: 0 };
     }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Users, Calendar, Trophy, Building2, CheckCircle, Loader2, UserPlus, XCircle, Clock, Trash2 } from "lucide-react";
+import { Users, Calendar, Trophy, Building2, CheckCircle, Loader2, UserPlus, XCircle, Clock, Trash2, Filter } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,9 @@ import { getTeamFollowersCount } from "@/actions/team-follow";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 import { PageHeader } from "@/components/layout/page-header";
+import { FilterPanel } from "@/components/layout/filter-panel";
+import { AchievementsSection } from "@/components/achievements/achievements-section";
+import { normalizeAchievementsRecord } from "@/lib/achievements/normalize";
 import { TeamLogo } from "@/components/teams/team-logo";
 import { EditTeamDialog, EditTeamDialogTrigger } from "@/components/teams/edit-team-dialog";
 import {
@@ -51,6 +54,7 @@ export function TeamDetailClient({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [teamSocialProfile, setTeamSocialProfile] = useState<TeamSocialProfile | null>(null);
+  const [teamContentTab, setTeamContentTab] = useState<"posts" | "achievements">("posts");
 
   /** Social usa o ID do time no competitions-service (auth: external_team_id). */
   const socialTeamId = useMemo(() => {
@@ -141,6 +145,17 @@ export function TeamDetailClient({
   /** Só há perfil e posts sociais consolidados após aprovação na competição. */
   const showTeamPosts =
     team.status === TeamStatus.APPROVED || team.status === TeamStatus.ACTIVE;
+
+  const teamAchievementsRecord = useMemo(
+    () => normalizeAchievementsRecord(teamSocialProfile?.achievements),
+    [teamSocialProfile?.achievements],
+  );
+  const teamAchievementsCount = teamSocialProfile?.achievementsCount ?? 0;
+
+  const teamTabClass = (active: boolean) =>
+    `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+      active ? "bg-main text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+    }`;
 
   const handleDeleteTeam = async () => {
     setDeleting(true);
@@ -329,7 +344,39 @@ export function TeamDetailClient({
         members={team.members ?? []}
       />
 
-      {showTeamPosts && <TeamPostsSection teamId={socialTeamId} />}
+      {showTeamPosts && (
+        <div className="space-y-4">
+          <FilterPanel icon={<Filter className="w-5 h-5 text-gray-600" />}>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setTeamContentTab("posts")}
+                className={teamTabClass(teamContentTab === "posts")}
+              >
+                Posts
+              </button>
+              <button
+                type="button"
+                onClick={() => setTeamContentTab("achievements")}
+                className={teamTabClass(teamContentTab === "achievements")}
+              >
+                Conquistas
+                {teamAchievementsCount > 0 && (
+                  <span className="ml-1.5 text-xs opacity-90">({teamAchievementsCount})</span>
+                )}
+              </button>
+            </div>
+          </FilterPanel>
+          {teamContentTab === "posts" && <TeamPostsSection teamId={socialTeamId} />}
+          {teamContentTab === "achievements" && (
+            <AchievementsSection
+              achievements={teamAchievementsRecord}
+              achievementsCount={teamAchievementsCount}
+              maxDisplay={12}
+            />
+          )}
+        </div>
+      )}
 
       {isCaptain && (
         <EditTeamDialog

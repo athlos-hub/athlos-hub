@@ -14,8 +14,6 @@ from src.models.stats import StatsRuleSetModel, StatsTypeModel, PlayerStatsModel
 from src.websockets.scoreboard_manager import scoreboard_manager
 from src.services.scoreboard_service import ScoreboardService
 from src.config.settings import settings
-from src.services.social_client import SocialServiceClient
-from src.services.achievements_service import AchievementsService
 from src.services.competition_write_guard import ensure_competition_not_finished
 from src.services.auth_client import AuthClient, AuthClientError
 from src.infrastructure.messaging.live_match_publisher import publish_live_creates_for_matches
@@ -26,8 +24,6 @@ logger = logging.getLogger(__name__)
 class ManageMatchesService:
     def __init__(self, session: AsyncSession):
         self.session = session
-        self.social_client = SocialServiceClient(settings.SOCIAL_SERVICE_URL)
-        self.achievements_service = AchievementsService(session, self.social_client)
 
     async def _resolve_organization_id_for_competition(
         self, competition_id: uuid.UUID
@@ -505,13 +501,6 @@ class ManageMatchesService:
         )
         refresh_result = await self.session.execute(q_refresh)
         match = refresh_result.scalar_one()
-        
-        # Verificar conquistas após finalizar a partida
-        try:
-            await self.achievements_service.check_match_end_achievements(match)
-        except Exception as e:
-            # Não falhar a finalização da partida se houver erro nas conquistas
-            logger.error(f"Erro ao verificar conquistas da partida {match_id}: {str(e)}")
         
         return match
 

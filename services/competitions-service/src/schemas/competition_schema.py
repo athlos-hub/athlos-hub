@@ -101,6 +101,17 @@ class CompetitionResponse(CompetitionBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CompetitionFinalizeResponse(BaseModel):
+    """Resposta ao finalizar: competição atualizada + resumo de conquistas processadas."""
+
+    competition: CompetitionResponse
+    achievements_checked: bool
+    player_achievements_awarded: int = Field(
+        0, description="Conquistas individuais (por estatística) notificadas ao social"
+    )
+    message: str
+
+
 # Schemas para Teams com Players
 class PlayerBasicResponse(BaseModel):
     id: uuid.UUID

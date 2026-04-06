@@ -21,6 +21,9 @@ import {
   Square,
   Plus,
   ArrowRight,
+  Award,
+  Pencil,
+  User,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -64,6 +67,9 @@ import {
   getCompetitionHighlights,
   getCompetitionTeamsWithPlayers,
   getCompetitionStats,
+  getCompetitionAchievementDefinitions,
+  getCompetitionAchievementAwards,
+  updateCompetitionAchievementDefinition,
   generateCompetitionStructure,
   finalizeCompetition,
   advanceGroupPhase,
@@ -89,6 +95,8 @@ import type {
   Competition,
   CompetitionHighlights,
   CompetitionStat,
+  CompetitionAchievementDefinition,
+  CompetitionAchievementAward,
 } from "@/types/competition";
 import { CompetitionStatus, CompetitionSystem, CompetitionPhase } from "@/types/competition";
 import type { StandingsTeam, PlayerRanking } from "@/actions/rankings";
@@ -143,7 +151,14 @@ function isGeneralStandingsLikelyBroken(rows: any[]): boolean {
   return validTeams < Math.ceil(rows.length / 2);
 }
 
-const COMPETITION_TABS = ["standings", "bracket", "teams", "stats", "matches"] as const;
+const COMPETITION_TABS = [
+  "standings",
+  "bracket",
+  "teams",
+  "stats",
+  "achievements",
+  "matches",
+] as const;
 type CompetitionTab = (typeof COMPETITION_TABS)[number];
 
 export function CompetitionDetailPageInner() {
@@ -162,7 +177,7 @@ export function CompetitionDetailPageInner() {
   const [showStatsTab, setShowStatsTab] = useState(true);
 
   const setActiveTab = (value: string) => {
-    if (value === "stats" && !showStatsTab) {
+    if ((value === "stats" || value === "achievements") && !showStatsTab) {
       return;
     }
     const next: CompetitionTab = COMPETITION_TABS.includes(value as CompetitionTab)
@@ -182,6 +197,13 @@ export function CompetitionDetailPageInner() {
   const [allMatches, setAllMatches] = useState<any[]>([]); // Todos os jogos sem filtro
   const [teams, setTeams] = useState<any[]>([]);
   const [competitionStats, setCompetitionStats] = useState<CompetitionStat[]>([]);
+  const [achievementDefinitions, setAchievementDefinitions] = useState<
+    CompetitionAchievementDefinition[]
+  >([]);
+  const [achievementTitleDrafts, setAchievementTitleDrafts] = useState<Record<string, string>>({});
+  const [savingAchievementId, setSavingAchievementId] = useState<string | null>(null);
+  const [editingAchievementId, setEditingAchievementId] = useState<string | null>(null);
+  const [achievementAwards, setAchievementAwards] = useState<CompetitionAchievementAward[]>([]);
   const [statsRulesetId, setStatsRulesetId] = useState<string | null>(null);
   const [selectedStat, setSelectedStat] = useState<string>("");
   const [playerRankings, setPlayerRankings] = useState<PlayerRanking[]>([]);
@@ -487,6 +509,8 @@ export function CompetitionDetailPageInner() {
         const statsData = await getCompetitionStats(competitionId);
         console.log("Estatísticas carregadas:", statsData);
         setCompetitionStats(statsData);
+        const definitionsData = await getCompetitionAchievementDefinitions(competitionId);
+        setAchievementDefinitions(definitionsData);
         if (statsData.length > 0 && !selectedStat) {
           setSelectedStat(statsData[0].abbreviation);
         }
@@ -495,37 +519,49 @@ export function CompetitionDetailPageInner() {
         setStatsRulesetId(null);
         setShowStatsTab(false);
         setCompetitionStats([]);
+        setAchievementDefinitions([]);
         setSelectedStat("");
       }
 
       if (compData.status === CompetitionStatus.FINISHED) {
+        let h: CompetitionHighlights | null = null;
         try {
-          const h = await getCompetitionHighlights(competitionId);
+          h = await getCompetitionHighlights(competitionId);
           setCompetitionHighlights(h);
-          const keycloakIds = [
-            ...new Set(
-              (h.stat_leaders ?? []).flatMap((block) =>
-                (block.leaders ?? []).map((row) => String(row.player_keycloak_id ?? "").trim())
-              )
-            ),
-          ].filter(Boolean);
-          if (keycloakIds.length > 0) {
-            const profiles = await getUsersPublicInfoBatch(keycloakIds);
-            const map: Record<string, string> = {};
-            for (const p of profiles) {
-              const kid = String(p.keycloak_id ?? "").trim();
-              if (kid) map[kid] = formatUserProfileDisplayName(p);
-            }
-            setHighlightPlayerNameByKeycloakId(map);
-          } else {
-            setHighlightPlayerNameByKeycloakId({});
-          }
         } catch {
           setCompetitionHighlights(null);
+          h = null;
+        }
+        let awards: CompetitionAchievementAward[] = [];
+        try {
+          awards = await getCompetitionAchievementAwards(competitionId);
+        } catch {
+          awards = [];
+        }
+        setAchievementAwards(awards);
+
+        const keycloakIds = [
+          ...new Set([
+            ...(h?.stat_leaders ?? []).flatMap((block) =>
+              (block.leaders ?? []).map((row) => String(row.player_keycloak_id ?? "").trim()),
+            ),
+            ...awards.map((a) => String(a.player_keycloak_id ?? "").trim()),
+          ]),
+        ].filter(Boolean);
+        if (keycloakIds.length > 0) {
+          const profiles = await getUsersPublicInfoBatch(keycloakIds);
+          const map: Record<string, string> = {};
+          for (const p of profiles) {
+            const kid = String(p.keycloak_id ?? "").trim();
+            if (kid) map[kid] = formatUserProfileDisplayName(p);
+          }
+          setHighlightPlayerNameByKeycloakId(map);
+        } else {
           setHighlightPlayerNameByKeycloakId({});
         }
       } else {
         setCompetitionHighlights(null);
+        setAchievementAwards([]);
         setHighlightPlayerNameByKeycloakId({});
       }
 
@@ -698,6 +734,12 @@ export function CompetitionDetailPageInner() {
 
       const updatedStats = await getCompetitionStats(competitionId);
       setCompetitionStats(updatedStats);
+      try {
+        const definitionsData = await getCompetitionAchievementDefinitions(competitionId);
+        setAchievementDefinitions(definitionsData);
+      } catch {
+        setAchievementDefinitions([]);
+      }
       if (!selectedStat && updatedStats.length > 0) {
         setSelectedStat(updatedStats[0].abbreviation);
       }
@@ -739,6 +781,12 @@ export function CompetitionDetailPageInner() {
       await deleteStatTypeFromRuleset(statsRulesetId, statToDelete.id);
       const updatedStats = await getCompetitionStats(competitionId);
       setCompetitionStats(updatedStats);
+      try {
+        const definitionsData = await getCompetitionAchievementDefinitions(competitionId);
+        setAchievementDefinitions(definitionsData);
+      } catch {
+        setAchievementDefinitions([]);
+      }
       if (selectedStat === statToDelete.abbreviation) {
         setSelectedStat(updatedStats[0]?.abbreviation ?? "");
       }
@@ -750,6 +798,87 @@ export function CompetitionDetailPageInner() {
       toast.error(message);
     }
   };
+
+  useEffect(() => {
+    setAchievementTitleDrafts(
+      Object.fromEntries(achievementDefinitions.map((d) => [d.id, d.title]))
+    );
+  }, [achievementDefinitions]);
+
+  const handleSaveAchievementTitle = async (definitionId: string) => {
+    const title = (achievementTitleDrafts[definitionId] ?? "").trim();
+    if (!title) {
+      toast.error("Informe o nome da conquista");
+      return;
+    }
+    setSavingAchievementId(definitionId);
+    try {
+      await updateCompetitionAchievementDefinition(competitionId, definitionId, { title });
+      toast.success("Nome da conquista atualizado");
+      const definitionsData = await getCompetitionAchievementDefinitions(competitionId);
+      setAchievementDefinitions(definitionsData);
+      setEditingAchievementId(null);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Erro ao atualizar conquista";
+      toast.error(message);
+    } finally {
+      setSavingAchievementId(null);
+    }
+  };
+
+  const handleResetAchievementTitle = async (definitionId: string) => {
+    setSavingAchievementId(definitionId);
+    try {
+      await updateCompetitionAchievementDefinition(competitionId, definitionId, {
+        reset_auto_title: true,
+      });
+      toast.success("Título automático restaurado");
+      const definitionsData = await getCompetitionAchievementDefinitions(competitionId);
+      setAchievementDefinitions(definitionsData);
+      setEditingAchievementId(null);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Erro ao restaurar título";
+      toast.error(message);
+    } finally {
+      setSavingAchievementId(null);
+    }
+  };
+
+  const handleUpdateAchievementTargetType = async (
+    definitionId: string,
+    targetType: "PLAYER" | "TEAM"
+  ) => {
+    setSavingAchievementId(definitionId);
+    try {
+      await updateCompetitionAchievementDefinition(competitionId, definitionId, {
+        target_type: targetType,
+      });
+      toast.success(
+        targetType === "TEAM"
+          ? "Conquista configurada para equipes"
+          : "Conquista configurada para jogadores"
+      );
+      const definitionsData = await getCompetitionAchievementDefinitions(competitionId);
+      setAchievementDefinitions(definitionsData);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Erro ao atualizar tipo da conquista";
+      toast.error(message);
+    } finally {
+      setSavingAchievementId(null);
+    }
+  };
+
+  useEffect(() => {
+    if (
+      editingAchievementId &&
+      !achievementDefinitions.some((d) => d.id === editingAchievementId)
+    ) {
+      setEditingAchievementId(null);
+    }
+  }, [achievementDefinitions, editingAchievementId]);
 
   // Funções para controlar o status da competição
   const handleStartCompetition = async () => {
@@ -1059,7 +1188,9 @@ export function CompetitionDetailPageInner() {
   const hasTeams = teams.length > 0;
   const effectiveTab: CompetitionTab = (() => {
     let t: CompetitionTab =
-      activeTab === "stats" && !showStatsTab ? "standings" : activeTab;
+      (activeTab === "stats" || activeTab === "achievements") && !showStatsTab
+        ? "standings"
+        : activeTab;
     if (!showStandingsTab && t === "standings") {
       t = "teams";
     }
@@ -1091,11 +1222,14 @@ export function CompetitionDetailPageInner() {
     canMutateCompetition &&
     !phaseIsElimination(competition.current_phase);
 
-  const showFinishedHighlightsCard =
-    competition.status === CompetitionStatus.FINISHED &&
-    competitionHighlights &&
+  const hasFinishedHighlightsContent =
+    !!competitionHighlights &&
     (!!competitionHighlights.champion_team ||
       (competitionHighlights.stat_leaders?.length ?? 0) > 0);
+
+  const showFinishedHighlightsCard =
+    competition.status === CompetitionStatus.FINISHED &&
+    (hasFinishedHighlightsContent || achievementAwards.length > 0);
 
   return (
     <div className="container mx-auto">
@@ -1237,7 +1371,7 @@ export function CompetitionDetailPageInner() {
           </Card>
         )}
 
-        {showFinishedHighlightsCard && competitionHighlights && (
+        {showFinishedHighlightsCard && (
           <Card className="overflow-hidden border-border/80 shadow-sm">
             <div className="border-b border-border bg-muted/40 px-6 py-4">
               <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
@@ -1249,7 +1383,7 @@ export function CompetitionDetailPageInner() {
               </p>
             </div>
             <div className="space-y-6 p-6">
-              {competitionHighlights.champion_team && (
+              {competitionHighlights?.champion_team && (
                 <div className="rounded-xl border border-border bg-background p-5">
                   <div className="mb-4">
                     <Badge className="bg-main text-white hover:bg-main">Campeão</Badge>
@@ -1273,13 +1407,13 @@ export function CompetitionDetailPageInner() {
                   </div>
                 </div>
               )}
-              {(competitionHighlights.stat_leaders?.length ?? 0) > 0 && (
+              {(competitionHighlights?.stat_leaders?.length ?? 0) > 0 && (
                 <section className="space-y-3">
                   <h3 className="text-sm font-medium text-muted-foreground">
                     Destaques individuais
                   </h3>
                   <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    {competitionHighlights.stat_leaders.map((block) => (
+                    {(competitionHighlights?.stat_leaders ?? []).map((block) => (
                       <div
                         key={block.stat_type_id}
                         className="rounded-xl border border-border bg-background p-4"
@@ -1317,6 +1451,50 @@ export function CompetitionDetailPageInner() {
                       </div>
                     ))}
                   </div>
+                </section>
+              )}
+              {achievementAwards.length > 0 && (
+                <section className="space-y-3">
+                  <h3 className="text-sm font-medium text-muted-foreground">
+                    Conquistas do campeonato
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Reconhecimentos por jogador ou equipe, conforme a configuração da conquista
+                    (também exibidos no perfil correspondente).
+                  </p>
+                  <ul className="space-y-2 text-sm">
+                    {achievementAwards.map((a) => {
+                      const isTeamAchievement = a.target_type === "TEAM";
+                      const kid = String(a.player_keycloak_id ?? "").trim();
+                      const teamId = String(a.team_id ?? "").trim();
+                      const team = teams.find((t) => String(t.id) === teamId);
+                      const label = isTeamAchievement
+                        ? team?.name || team?.abbreviation || "Equipe"
+                        : (kid && highlightPlayerNameByKeycloakId[kid]) || "Jogador";
+                      return (
+                        <li
+                          key={a.id}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/40 px-2.5 py-2"
+                        >
+                          <span className="min-w-0">
+                            <span className="font-semibold text-foreground">
+                              {a.achievement_title}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {" · "}
+                              {label}
+                              {isTeamAchievement ? " (equipe)" : " (jogador)"}
+                              {a.stat_type_name ? ` · ${a.stat_type_name}` : ""}
+                            </span>
+                          </span>
+                          <Badge variant="outline" className="shrink-0 tabular-nums">
+                            {a.stat_value}
+                            {a.rank_position > 1 ? ` · #${a.rank_position}` : ""}
+                          </Badge>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </section>
               )}
             </div>
@@ -1426,6 +1604,22 @@ export function CompetitionDetailPageInner() {
                       <span className="inline-flex items-center gap-2">
                         <BarChart3 className="w-4 h-4" />
                         Estatísticas
+                      </span>
+                    </button>
+                  )}
+                  {showStatsTab && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("achievements")}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        effectiveTab === "achievements"
+                          ? "bg-main text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <Award className="w-4 h-4" />
+                        Conquistas
                       </span>
                     </button>
                   )}
@@ -1562,15 +1756,21 @@ export function CompetitionDetailPageInner() {
                 {hasKnockoutBracket ? (
                   <div className="space-y-3">
                     <div className="overflow-x-auto pb-2">
-                      <div className="flex min-w-max items-start gap-4">
-                        {knockoutRounds.map(([roundName, games]) => (
-                          <div key={roundName} className="w-[360px] shrink-0 space-y-3">
+                      <div className="flex min-w-max items-start gap-10 pr-6">
+                        {knockoutRounds.map(([roundName, games], roundIndex) => (
+                          <div key={roundName} className="relative w-[360px] shrink-0 space-y-3">
                             <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
                               <h3 className="text-sm font-semibold text-foreground">{roundName}</h3>
                               <p className="text-xs text-muted-foreground">
                                 {games.length} confronto{games.length !== 1 ? "s" : ""}
                               </p>
                             </div>
+                            {roundIndex < knockoutRounds.length - 1 && (
+                              <div
+                                aria-hidden="true"
+                                className="pointer-events-none absolute -right-6 top-16 h-[calc(100%-4rem)] w-4 border-r border-dashed border-border/80"
+                              />
+                            )}
                             <div className="space-y-3">
                               {games.map((match: any) => {
                                 const homeName =
@@ -1584,16 +1784,13 @@ export function CompetitionDetailPageInner() {
                                 const finished =
                                   String(match.status).toLowerCase() === "finished";
                                 return (
-                                  <Card
-                                    key={match.id}
-                                    className="border border-border/80 p-4 shadow-sm"
-                                  >
-                                    <div className="flex items-start">
+                                  <Card key={match.id} className="border border-border/80 p-4 shadow-sm">
+                                    <div className="flex items-start justify-start">
                                       <Badge variant="secondary" className="font-medium">
                                         {getMatchStatusLabel(displayMatchStatus(match))}
                                       </Badge>
                                     </div>
-                                    <div className="my-5 flex items-center justify-center">
+                                    <div className="my-5 flex min-h-10 items-center justify-center">
                                       <div className="flex w-full min-w-0 items-center gap-3">
                                         <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
                                           <span className="truncate text-right text-sm font-semibold">
@@ -1681,7 +1878,7 @@ export function CompetitionDetailPageInner() {
                   </div>
                 ) : (
                   <div className="py-16 text-center">
-                    <div className="mx-auto flex max-w-xl flex-col items-center gap-4 rounded-xl border border-dashed border-border bg-muted/30 p-8">
+                    <div className="mx-auto flex max-w-xl flex-col items-center gap-4">
                       <Layers className="h-12 w-12 text-gray-300" />
                       <div className="space-y-1">
                         <h3 className="text-lg font-semibold text-gray-900">
@@ -1895,6 +2092,216 @@ export function CompetitionDetailPageInner() {
                 )}
               </div>
             </TabsContent>
+
+            {showStatsTab && (
+              <TabsContent value="achievements" className="mt-6">
+                <div className="space-y-6">
+                  <div className="rounded-xl border border-border/80 bg-muted/30 px-5 py-4 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-main/15 text-main">
+                        <Award className="h-6 w-6" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="font-semibold text-foreground">Conquistas</h3>
+                        <p className="text-sm leading-relaxed text-muted-foreground">
+                          Ao finalizar, os melhores colocados recebem a conquista no perfil do 
+                          jogador ou da equipe, conforme você definir em cada conquista.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  {achievementDefinitions.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 py-14 text-center shadow-sm">
+                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted/80 text-muted-foreground">
+                        <Award className="h-6 w-6" />
+                      </div>
+                      <p className="text-sm font-medium text-foreground">Nenhuma conquista configurada</p>
+                      <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+                        Adicione estatísticas na aba Estatísticas para gerar automaticamente as definições por
+                        métrica.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {achievementDefinitions.map((definition) => (
+                        <Card
+                          key={definition.id}
+                          className="overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm"
+                        >
+                          <div className="border-b border-border bg-muted/40 px-4 py-3.5 sm:px-5">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex min-w-0 items-start gap-3">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-background text-main ring-1 ring-border/80">
+                                  <Award className="h-5 w-5" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                                    Métrica
+                                  </p>
+                                  <p className="truncate text-base font-semibold leading-tight text-foreground">
+                                    {definition.stat_type_name}
+                                  </p>
+                                </div>
+                              </div>
+                              <Badge variant="secondary" className="shrink-0 font-normal tabular-nums">
+                                Top {definition.top_n}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          <div className="space-y-4 p-4 sm:p-5">
+                            <div className="rounded-lg border border-border/70 bg-muted/25 p-3.5">
+                              <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                                {(definition.target_type ?? "PLAYER") === "TEAM" ? (
+                                  <Users className="h-3.5 w-3.5 shrink-0" />
+                                ) : (
+                                  <User className="h-3.5 w-3.5 shrink-0" />
+                                )}
+                                <span>Aplicar para</span>
+                              </div>
+                              {canMutateCompetition ? (
+                                <Select
+                                  value={definition.target_type ?? "PLAYER"}
+                                  onValueChange={(v) =>
+                                    void handleUpdateAchievementTargetType(
+                                      definition.id,
+                                      v as "PLAYER" | "TEAM"
+                                    )
+                                  }
+                                  disabled={savingAchievementId === definition.id}
+                                >
+                                  <SelectTrigger className="h-10 w-full border-border/80 bg-background">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="PLAYER">Jogador</SelectItem>
+                                    <SelectItem value="TEAM">Equipe</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <p className="text-sm font-medium text-foreground">
+                                  {(definition.target_type ?? "PLAYER") === "TEAM"
+                                    ? "Equipe"
+                                    : "Jogador"}
+                                </p>
+                              )}
+                              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                                {(definition.target_type ?? "PLAYER") === "TEAM"
+                                  ? "Soma a estatística entre os atletas do time e concede no perfil da equipe."
+                                  : "Ranking individual: a conquista aparece no perfil do jogador."}
+                              </p>
+                            </div>
+
+                            <div className="rounded-lg border border-border/70 bg-background p-3.5">
+                              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                                Nome da conquista
+                              </p>
+                              {editingAchievementId === definition.id ? (
+                                <div className="mt-2 space-y-3">
+                                  <Input
+                                    id={`achievement-title-${definition.id}`}
+                                    value={achievementTitleDrafts[definition.id] ?? definition.title}
+                                    className="h-10 border-border/80"
+                                    onChange={(e) =>
+                                      setAchievementTitleDrafts((prev) => ({
+                                        ...prev,
+                                        [definition.id]: e.target.value,
+                                      }))
+                                    }
+                                    disabled={savingAchievementId === definition.id}
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Escape") {
+                                        setEditingAchievementId(null);
+                                        setAchievementTitleDrafts((prev) => ({
+                                          ...prev,
+                                          [definition.id]: definition.title,
+                                        }));
+                                      }
+                                    }}
+                                  />
+                                  {definition.title_locked && (
+                                    <p className="text-xs text-muted-foreground">
+                                      Nome personalizado — o sync não sobrescreve automaticamente.
+                                    </p>
+                                  )}
+                                  <div className="flex flex-wrap gap-2">
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      className="bg-main hover:bg-main/90 text-white"
+                                      disabled={savingAchievementId === definition.id}
+                                      onClick={() => void handleSaveAchievementTitle(definition.id)}
+                                    >
+                                      {savingAchievementId === definition.id ? "Salvando…" : "Salvar"}
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="border-border/80"
+                                      disabled={savingAchievementId === definition.id}
+                                      onClick={() => {
+                                        setEditingAchievementId(null);
+                                        setAchievementTitleDrafts((prev) => ({
+                                          ...prev,
+                                          [definition.id]: definition.title,
+                                        }));
+                                      }}
+                                    >
+                                      Cancelar
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="border-border/80"
+                                      disabled={savingAchievementId === definition.id}
+                                      onClick={() => void handleResetAchievementTitle(definition.id)}
+                                    >
+                                      Restaurar nome automático
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="mt-2 flex min-h-10 items-center gap-2 rounded-md bg-muted/30 px-2 py-1.5">
+                                  <p className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
+                                    {achievementTitleDrafts[definition.id] ?? definition.title}
+                                  </p>
+                                  {canMutateCompetition && (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-9 w-9 shrink-0 text-muted-foreground hover:bg-background hover:text-foreground"
+                                      aria-label="Editar nome da conquista"
+                                      onClick={() => {
+                                        setEditingAchievementId(definition.id);
+                                        setAchievementTitleDrafts((prev) => ({
+                                          ...prev,
+                                          [definition.id]: definition.title,
+                                        }));
+                                      }}
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                              )}
+                              {!canMutateCompetition && definition.title_locked && (
+                                <p className="mt-2 text-xs text-muted-foreground">
+                                  Nome personalizado — o sync não sobrescreve automaticamente.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            )}
 
             {/* Jogos */}
             <TabsContent value="matches" className="mt-6">

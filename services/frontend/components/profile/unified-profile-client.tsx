@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
@@ -70,6 +71,7 @@ export function UnifiedProfileClient({
   authUserData,
   isOwnProfile 
 }: UnifiedProfileProps) {
+  const router = useRouter();
   const { data: session } = useSession();
   const [posts] = useState<Post[]>(initialPosts);
   const [sharedPosts, setSharedPosts] = useState<Share[]>([]);
@@ -426,15 +428,33 @@ export function UnifiedProfileClient({
                 )}
               </div>
             ) : (
-              posts.map((post) => (
-                <PostCard
-                  key={post.id}
-                  post={post}
-                  onLike={() => {}}
-                  onComment={() => {}}
-                  onDelete={() => {}}
-                />
-              ))
+              <>
+                {posts.map((post) => (
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    onLike={() => {}}
+                    onComment={() => {}}
+                    onDelete={() => {}}
+                  />
+                ))}
+                {totalPosts > 3 && (
+                  <div className="flex justify-center pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="border-border/80"
+                      onClick={() =>
+                        router.push(
+                          `/social/search?athlete=${encodeURIComponent(athleteProfile.keycloakId)}`
+                        )
+                      }
+                    >
+                      Acompanhar todos os posts
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}

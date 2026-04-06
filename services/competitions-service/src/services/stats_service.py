@@ -84,6 +84,56 @@ class StatsService:
             )
 
         return rankings
+
+    async def get_team_rankings(
+        self,
+        competition_id: uuid.UUID,
+        stats_metric_abbreviation: str,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retorna ranking por equipe para uma métrica, somando os valores de todos
+        os jogadores da equipe na competição.
+        """
+        query = (
+            select(
+                TeamModel.id.label("team_id"),
+                TeamModel.name.label("team_name"),
+                TeamModel.abbreviation.label("team_abbreviation"),
+                func.sum(PlayerStatsModel.value).label("total_value"),
+            )
+            .join(PlayerModel, PlayerModel.team_id == TeamModel.id)
+            .join(PlayerStatsModel, PlayerStatsModel.player_id == PlayerModel.id)
+            .join(StatsTypeModel, PlayerStatsModel.stats_type_id == StatsTypeModel.id)
+            .join(StatsRuleSetModel, StatsTypeModel.stats_ruleset_id == StatsRuleSetModel.id)
+            .where(
+                StatsRuleSetModel.competition_id == competition_id,
+                StatsTypeModel.abbreviation == stats_metric_abbreviation,
+            )
+            .group_by(TeamModel.id, TeamModel.name, TeamModel.abbreviation)
+            .order_by(func.sum(PlayerStatsModel.value).desc())
+        )
+
+        if limit and limit > 0:
+            query = query.limit(limit)
+
+        result = await self.session.execute(query)
+        rows = result.all()
+
+        rankings: List[Dict[str, Any]] = []
+        for team_id, team_name, team_abbreviation, total_value in rows:
+            val = int(total_value or 0)
+            rankings.append(
+                {
+                    "team_id": str(team_id),
+                    "team_name": team_name or "",
+                    "team_abbreviation": team_abbreviation or "",
+                    "stat_value": val,
+                    "total_value": val,
+                }
+            )
+
+        return rankings
     
     async def get_competition_standings(
         self,

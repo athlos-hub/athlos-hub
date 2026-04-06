@@ -11,6 +11,7 @@ from src.services.competition_generator.end_group_phase import EndGroupPhaseServ
 from src.services.auth_client import AuthClient, PermissionDenied, AuthServiceUnavailable
 from src.schemas.competition_schema import (
     CompetitionCreate,
+    CompetitionFinalizeResponse,
     CompetitionHighlightsResponse,
     CompetitionResponse,
     CompetitionUpdate,
@@ -19,7 +20,15 @@ from src.schemas.competition_schema import (
 )
 from src.services.competition_outcome_service import CompetitionOutcomeService
 from src.services.competition_write_guard import ensure_competition_not_finished
+from src.services.competition_achievements_service import CompetitionAchievementsService
+from src.services.social_client import SocialServiceClient
+from src.config.settings import settings
 from src.schemas.stats_ruleset_schema import StatsTypeResponse
+from src.schemas.competition_achievement_schema import (
+    CompetitionAchievementDefinitionPatch,
+    CompetitionAchievementDefinitionResponse,
+    CompetitionAchievementAwardResponse,
+)
 from src.models.modality import ModalityModel
 from src.api.deps import get_current_keycloak_id
 
@@ -143,6 +152,55 @@ async def get_competition_highlights(
     """
     svc = CompetitionOutcomeService(session)
     return await svc.build_highlights(competition_id)
+
+
+@router.get(
+    "/{competition_id}/achievement-definitions",
+    response_model=List[CompetitionAchievementDefinitionResponse],
+    summary="Listar conquistas configuradas da competição",
+)
+async def get_competition_achievement_definitions(
+    competition_id: UUID,
+    session: AsyncSession = Depends(get_session),
+):
+    svc = CompetitionAchievementsService(session, SocialServiceClient(settings.SOCIAL_SERVICE_URL))
+    # Alinha definições com as métricas atuais (idempotente; corrige cargas antigas sem sync).
+    await svc.sync_definitions_for_competition(competition_id)
+    return await svc.list_definitions(competition_id)
+
+
+@router.patch(
+    "/{competition_id}/achievement-definitions/{definition_id}",
+    response_model=CompetitionAchievementDefinitionResponse,
+    summary="Atualizar nome exibido da conquista (ou restaurar título automático)",
+)
+async def patch_competition_achievement_definition(
+    competition_id: UUID,
+    definition_id: UUID,
+    data: CompetitionAchievementDefinitionPatch,
+    session: AsyncSession = Depends(get_session),
+    current_keycloak_id: UUID = Depends(get_current_keycloak_id),
+):
+    service = CompetitionService(session)
+    competition = await service.get_by_id(competition_id)
+    await ensure_competition_not_finished(session, competition_id)
+    organization_slug = await _get_organization_slug_from_modality(session, competition.modality_id)
+    await _verify_user_permission(current_keycloak_id, organization_slug)
+    svc = CompetitionAchievementsService(session, SocialServiceClient(settings.SOCIAL_SERVICE_URL))
+    return await svc.patch_definition(competition_id, definition_id, data)
+
+
+@router.get(
+    "/{competition_id}/achievement-awards",
+    response_model=List[CompetitionAchievementAwardResponse],
+    summary="Listar conquistas concedidas da competição",
+)
+async def get_competition_achievement_awards(
+    competition_id: UUID,
+    session: AsyncSession = Depends(get_session),
+):
+    svc = CompetitionAchievementsService(session, SocialServiceClient(settings.SOCIAL_SERVICE_URL))
+    return await svc.list_awards(competition_id)
 
 
 @router.get(
@@ -322,6 +380,7 @@ async def get_competition_teams_with_players(
 
 @router.post(
     "/{competition_id}/finalize",
+    response_model=CompetitionFinalizeResponse,
     status_code=status.HTTP_200_OK,
     summary="Finalizar competição e verificar conquistas"
 )
@@ -341,4 +400,11 @@ async def finalize_competition(
     competition = await service.get_by_id(competition_id)
     organization_slug = await _get_organization_slug_from_modality(session, competition.modality_id)
     await _verify_user_permission(current_keycloak_id, organization_slug)
-    return await service.finalize_competition(competition_id)
+    summary = await service.finalize_competition(competition_id)
+    refreshed = await service.get_by_id(competition_id)
+    return CompetitionFinalizeResponse(
+        competition=CompetitionResponse.model_validate(refreshed),
+        achievements_checked=summary["achievements_checked"],
+        player_achievements_awarded=summary["player_achievements_awarded"],
+        message=summary["message"],
+    )

@@ -11,6 +11,9 @@ import type {
   CompetitionStat,
   CompetitionStatCreate,
   TeamWithPlayers,
+  CompetitionAchievementDefinition,
+  CompetitionAchievementAward,
+  CompetitionFinalize,
 } from "@/types/competition";
 import type { StatsRuleSet } from "@/types/stats";
 
@@ -121,8 +124,8 @@ export async function generateCompetitionStructure(
 
 export async function finalizeCompetition(
   competitionId: string
-): Promise<Competition> {
-  const response = await axiosAPI<Competition>({
+): Promise<CompetitionFinalize> {
+  const response = await axiosAPI<CompetitionFinalize>({
     endpoint: `/competitions/${competitionId}/finalize`,
     method: "POST",
     withAuth: true,
@@ -142,6 +145,49 @@ export async function getCompetitionStats(
     service: "competitions",
   });
 
+  return response.data;
+}
+
+export async function getCompetitionAchievementDefinitions(
+  competitionId: string
+): Promise<CompetitionAchievementDefinition[]> {
+  const response = await axiosAPI<CompetitionAchievementDefinition[]>({
+    endpoint: `/competitions/${competitionId}/achievement-definitions`,
+    method: "GET",
+    withAuth: false,
+    service: "competitions",
+  });
+  return response.data;
+}
+
+export async function getCompetitionAchievementAwards(
+  competitionId: string
+): Promise<CompetitionAchievementAward[]> {
+  const response = await axiosAPI<CompetitionAchievementAward[]>({
+    endpoint: `/competitions/${competitionId}/achievement-awards`,
+    method: "GET",
+    withAuth: false,
+    service: "competitions",
+  });
+  return response.data;
+}
+
+export async function updateCompetitionAchievementDefinition(
+  competitionId: string,
+  definitionId: string,
+  data:
+    | { title: string }
+    | { reset_auto_title: true }
+    | { target_type: "PLAYER" | "TEAM" }
+    | { title: string; target_type: "PLAYER" | "TEAM" }
+): Promise<CompetitionAchievementDefinition> {
+  const response = await axiosAPI<CompetitionAchievementDefinition>({
+    endpoint: `/competitions/${competitionId}/achievement-definitions/${definitionId}`,
+    method: "PATCH",
+    data: data as unknown as Record<string, unknown>,
+    withAuth: true,
+    service: "competitions",
+  });
   return response.data;
 }
 

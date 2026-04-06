@@ -18,13 +18,15 @@ export function getNotificationDetailRows(
   add('Membro', metadata.member_name);
   add('Convidado por', metadata.inviter_name);
   add('Competição', metadata.competition_name);
+  add('Conquista', metadata.achievementTitle);
+  add('Campeonato', metadata.competitionName);
   add('Equipe', metadata.team_name);
   add('Transmissão', metadata.livestream_title);
   // Notificações novas já trazem o excerto na mensagem; só repetimos aqui em legado (postContent sem postPreview).
   const legacyPost =
     typeof metadata.postContent === 'string' && metadata.postContent.trim() && !metadata.postPreview;
   if (legacyPost) {
-    const pc = metadata.postContent.trim();
+    const pc = metadata.postContent?.trim() ?? '';
     add('Publicação', pc.length > 200 ? `${pc.slice(0, 200)}…` : pc);
   }
   add('Comentário dele(a)', metadata.commentPreview ?? metadata.commentContent);

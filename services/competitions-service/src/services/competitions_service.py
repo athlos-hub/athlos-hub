@@ -16,14 +16,16 @@ from src.models.teams import TeamModel, PlayerModel
 from src.schemas.competition_schema import CompetitionCreate, CompetitionUpdate
 from src.config.settings import settings
 from src.services.social_client import SocialServiceClient
-from src.services.achievements_service import AchievementsService
 from src.services.stats_ruleset_service import StatsRuleSetService
+from src.services.competition_achievements_service import CompetitionAchievementsService
 
 class CompetitionService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.social_client = SocialServiceClient(settings.SOCIAL_SERVICE_URL)
-        self.achievements_service = AchievementsService(session, self.social_client)
+        self.competition_achievements_service = CompetitionAchievementsService(
+            session, self.social_client
+        )
 
     async def create(self, data: CompetitionCreate) -> CompetitionModel:
         """
@@ -170,6 +172,9 @@ class CompetitionService:
                 self.session.add(stat_type)
 
         await self.session.commit()
+        await self.competition_achievements_service.sync_definitions_for_competition(
+            new_competition.id
+        )
 
         # 5. Recarregar com relacionamentos
         query_refresh = (
@@ -313,6 +318,9 @@ class CompetitionService:
                         detail="Só é possível remover o conjunto de estatísticas quando não há métricas cadastradas.",
                     )
                 await self.session.delete(stats_ruleset)
+                await self.competition_achievements_service.sync_definitions_for_competition(
+                    competition.id
+                )
 
             if stats_mode == "new":
                 if stats_ruleset:
@@ -326,6 +334,10 @@ class CompetitionService:
                     competition_id=competition.id,
                 )
                 self.session.add(new_stats_ruleset)
+                await self.session.flush()
+                await self.competition_achievements_service.sync_definitions_for_competition(
+                    competition.id
+                )
 
         if "start_date" in update_data and update_data["start_date"] and update_data["start_date"].tzinfo:
             update_data["start_date"] = update_data["start_date"].replace(tzinfo=None)
@@ -453,19 +465,23 @@ class CompetitionService:
         error_message = None
         
         try:
-            await self.achievements_service.check_competition_end_achievements(
-                competition.id
+            player_achievements_count = (
+                await self.competition_achievements_service.award_competition_achievements(
+                    competition.id
+                )
             )
         except Exception as e:
             logger.error(f"Erro ao verificar conquistas: {str(e)}", exc_info=True)
             achievements_checked = False
             error_message = str(e)
+            player_achievements_count = 0
         
         return {
             "competition_id": competition_id,
             "competition_name": competition.name,
             "status": competition.status.value,
             "achievements_checked": achievements_checked,
+            "player_achievements_awarded": player_achievements_count,
             "message": "Competição finalizada com sucesso" if achievements_checked 
                       else f"Competição finalizada, mas houve erro ao verificar conquistas: {error_message}"
         }

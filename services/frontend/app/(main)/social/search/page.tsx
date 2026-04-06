@@ -7,6 +7,7 @@ import Link from "next/link";
 import { PostCard } from "@/components/social/post-card";
 import { searchPosts, searchOrganizations, searchUsers, searchTeams, type Organization, type User, type Team } from "@/actions/search";
 import { getOrganizationPosts, getTeamPosts } from "@/actions/social-posts";
+import { getAthletePostsByKeycloakId } from "@/actions/athlete-posts";
 import { Post } from "@/types/social";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,10 +55,12 @@ export default function SearchPage() {
   const searchParams = useSearchParams();
   const organizationSlug = searchParams.get("organization")?.trim() || "";
   const teamWallId = searchParams.get("team")?.trim() || "";
+  const athleteWallId = searchParams.get("athlete")?.trim() || "";
   const qParam = searchParams.get("q")?.trim() || "";
   const inOrgWall = Boolean(organizationSlug);
   const inTeamWall = Boolean(teamWallId);
-  const inWallMode = inOrgWall || inTeamWall;
+  const inAthleteWall = Boolean(athleteWallId);
+  const inWallMode = inOrgWall || inTeamWall || inAthleteWall;
   const hasTextSearch = Boolean(qParam);
 
   const [query, setQuery] = useState(qParam);
@@ -215,6 +218,31 @@ export default function SearchPage() {
     }
   }, []);
 
+  const loadAthleteWallPage = useCallback(async (keycloakId: string, page: number, append: boolean) => {
+    setPostsLoading(true);
+    try {
+      const data = await getAthletePostsByKeycloakId(keycloakId, page, 20);
+      if (!data) {
+        if (!append) setPosts([]);
+        setPostsHasMore(false);
+        setPostsPage(0);
+        return;
+      }
+      if (append) {
+        setPosts((prev) => [...prev, ...data.content]);
+      } else {
+        setPosts(data.content);
+      }
+      setPostsPage(page);
+      setPostsHasMore(page + 1 < data.totalPages);
+    } catch {
+      if (!append) setPosts([]);
+      setPostsHasMore(false);
+    } finally {
+      setPostsLoading(false);
+    }
+  }, []);
+
   /** Preenche a aba Orgs no mural da organização; times ficam vazios neste modo. */
   const loadOrgWallSideContext = useCallback(async (slug: string) => {
     setOrgsLoading(true);
@@ -280,6 +308,16 @@ export default function SearchPage() {
       return;
     }
 
+    if (athleteWallId) {
+      setActiveTab("posts");
+      setSearchQuery("");
+      setOrganizations([]);
+      setUsers([]);
+      setTeams([]);
+      void loadAthleteWallPage(athleteWallId, 0, false);
+      return;
+    }
+
     if (q) {
       setSearchQuery(q);
       void loadAllResultsForQuery(q);
@@ -297,6 +335,7 @@ export default function SearchPage() {
     searchParams.toString(),
     loadOrgWallPage,
     loadTeamWallPage,
+    loadAthleteWallPage,
     loadAllResultsForQuery,
     loadOrgWallSideContext,
     loadTeamWallSideContext,
@@ -306,6 +345,7 @@ export default function SearchPage() {
     const nextPage = postsPage + 1;
     const org = searchParams.get("organization")?.trim() || "";
     const team = searchParams.get("team")?.trim() || "";
+    const athlete = searchParams.get("athlete")?.trim() || "";
 
     try {
       if (org) {
@@ -314,6 +354,10 @@ export default function SearchPage() {
       }
       if (team) {
         await loadTeamWallPage(team, nextPage, true);
+        return;
+      }
+      if (athlete) {
+        await loadAthleteWallPage(athlete, nextPage, true);
         return;
       }
       const postsData = await searchPosts(searchQuery, nextPage, 20);
@@ -386,7 +430,9 @@ export default function SearchPage() {
       ? `Organização · ${organizationSlug}`
       : inTeamWall
         ? "Time"
-        : "";
+        : inAthleteWall
+          ? "Atleta"
+          : "";
 
   return (
     <div className="space-y-6">
@@ -412,6 +458,16 @@ export default function SearchPage() {
         <p className="text-sm text-muted-foreground -mt-2">
           <Link href={`/clubes/${teamWallId}`} className="font-medium text-main hover:underline">
             Abrir página do time
+          </Link>
+        </p>
+      )}
+      {inAthleteWall && (
+        <p className="text-sm text-muted-foreground -mt-2">
+          <Link
+            href={`/profile/${encodeURIComponent(athleteWallId)}`}
+            className="font-medium text-main hover:underline"
+          >
+            Abrir perfil do atleta
           </Link>
         </p>
       )}

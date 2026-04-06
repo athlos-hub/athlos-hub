@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Heart, MessageCircle, MoreVertical, Link2, Trash2, Flag, Repeat2 } from "lucide-react";
+import { Heart, MessageCircle, MoreVertical, Link2, Trash2, Flag, Repeat2, Trophy } from "lucide-react";
 import { Post, PostType, ProfileType, PostVisibility } from "@/types/social";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -26,7 +26,6 @@ import { CommentSection } from "./comment-section";
 import { ShareButton } from "./share-button";
 import { generatePostLink } from "@/lib/utils/share-links";
 import { toast } from "sonner";
-import { AchievementBadge, Achievement } from "@/components/achievements/achievement-badge";
 import {
   Dialog,
   DialogContent,
@@ -347,26 +346,55 @@ export function PostCard({ post, onLike, onComment, onDelete, onUnshare, isLiked
             </CardHeader>
 
             <CardContent className="space-y-3">
-                {/* Renderização especial para conquistas */}
                 {post.type === PostType.ACHIEVEMENT && post.metadata && (
-                    <div className="mb-4">
-                        <AchievementBadge
-                            achievement={{
-                                achievementType: post.metadata.achievementType || "ACHIEVEMENT",
-                                displayName: post.metadata.displayName || "Conquista",
-                                description: post.metadata.description || "",
-                                competitionName: post.metadata.competitionName,
-                                competitionId: post.metadata.competitionId,
-                                metadata: post.metadata
-                            }}
-                            size="lg"
-                            showDetails
-                        />
+                    <div className="rounded-xl border border-border/80 bg-muted/30 p-4 sm:p-5 shadow-sm ring-1 ring-border/60">
+                        <div className="flex items-start gap-3">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-main/15 text-main ring-1 ring-main/20">
+                                <Trophy className="h-5 w-5" />
+                            </div>
+                            <div className="min-w-0 flex-1 space-y-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                        Conquista
+                                    </span>
+                                    {post.metadata.competitionName && (
+                                        <Badge variant="secondary" className="font-normal text-xs">
+                                            {String(post.metadata.competitionName)}
+                                        </Badge>
+                                    )}
+                                </div>
+                                <h4 className="text-base font-semibold leading-snug text-foreground">
+                                    {String(post.metadata.displayName || post.metadata.title || "Conquista")}
+                                </h4>
+                                {(post.metadata.description || post.metadata.statType) && (
+                                    <p className="text-sm text-muted-foreground leading-relaxed">
+                                        {post.metadata.description
+                                            ? String(post.metadata.description)
+                                            : post.metadata.statType
+                                              ? `Métrica: ${String(post.metadata.statType)}`
+                                              : ""}
+                                    </p>
+                                )}
+                                <div className="flex flex-wrap gap-2 pt-1">
+                                    {post.metadata.statValue != null && post.metadata.statValue !== "" && (
+                                        <span className="inline-flex items-center rounded-md border border-border/80 bg-background px-2 py-0.5 text-xs font-medium tabular-nums text-foreground">
+                                            Total: {String(post.metadata.statValue)}
+                                        </span>
+                                    )}
+                                    {post.metadata.rankPosition != null && (
+                                        <span className="inline-flex items-center rounded-md border border-border/80 bg-background px-2 py-0.5 text-xs text-muted-foreground">
+                                            Posição #{String(post.metadata.rankPosition)}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
-                
-                
-                <p className="text-sm whitespace-pre-wrap">{post.content}</p>
+
+                {post.type !== PostType.ACHIEVEMENT || !post.metadata ? (
+                    <p className="text-sm whitespace-pre-wrap">{post.content}</p>
+                ) : null}
                 {post.mediaUrls && post.mediaUrls.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-2 justify-start">
                         {post.mediaUrls.map((url, index) => (

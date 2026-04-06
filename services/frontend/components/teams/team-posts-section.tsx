@@ -19,61 +19,33 @@ export function TeamPostsSection({ teamId }: TeamPostsSectionProps) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [socialUnavailable, setSocialUnavailable] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
   const [totalPostCount, setTotalPostCount] = useState(0);
-  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
-    loadPosts(0);
-  }, [teamId]);
-
-  const loadPosts = async (pageNumber: number) => {
-    try {
-      if (pageNumber === 0) {
+    void (async () => {
+      try {
         setLoading(true);
-      } else {
-        setLoadingMore(true);
-      }
+        const response = await getTeamPosts(teamId, 0, 3);
 
-      const response = await getTeamPosts(teamId, pageNumber, 10);
-
-      if (!response) {
-        setSocialUnavailable(true);
-        setPosts([]);
-        setTotalPages(0);
-        setTotalPostCount(0);
-        setPage(0);
-        return;
-      }
-      setSocialUnavailable(false);
-
-      if (pageNumber === 0) {
+        if (!response) {
+          setSocialUnavailable(true);
+          setPosts([]);
+          setTotalPostCount(0);
+          return;
+        }
+        setSocialUnavailable(false);
         setPosts(response.content);
-      } else {
-        setPosts((prev) => [...prev, ...response.content]);
+        setTotalPostCount(response.totalElements);
+      } catch {
+        setSocialUnavailable(false);
+        setPosts([]);
+        setTotalPostCount(0);
+        toast.error("Erro ao carregar posts da equipe");
+      } finally {
+        setLoading(false);
       }
-
-      setTotalPages(response.totalPages);
-      setTotalPostCount(response.totalElements);
-      setPage(pageNumber);
-    } catch {
-      setSocialUnavailable(false);
-      setPosts([]);
-      setTotalPages(0);
-      setTotalPostCount(0);
-      toast.error("Erro ao carregar posts da equipe");
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  };
-
-  const handleLoadMore = () => {
-    if (page + 1 < totalPages) {
-      loadPosts(page + 1);
-    }
-  };
+    })();
+  }, [teamId]);
 
   if (loading) {
     return (
@@ -145,25 +117,6 @@ export function TeamPostsSection({ teamId }: TeamPostsSectionProps) {
             onComment={async () => {}}
           />
         ))}
-
-        {page + 1 < totalPages && (
-          <div className="flex justify-center pt-4">
-            <Button
-              variant="outline"
-              onClick={handleLoadMore}
-              disabled={loadingMore}
-            >
-              {loadingMore ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Carregando...
-                </>
-              ) : (
-                "Carregar mais posts"
-              )}
-            </Button>
-          </div>
-        )}
 
         {totalPostCount > 3 && (
           <div className="flex justify-center pt-4">
