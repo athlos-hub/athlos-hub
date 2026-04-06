@@ -19,8 +19,10 @@ function LiveGameCard({ game }: { game: HomeLiveGame }) {
   return (
     <Card className="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-md">
       <CardHeader className="pb-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {game.competition.modality}
+        <p className="text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Fase</span>
+          {" · "}
+          {game.competition.phaseLabel ?? game.competition.modality}
         </p>
         <p className="line-clamp-2 text-lg font-semibold leading-tight text-foreground">
           {game.competition.name}

@@ -51,7 +51,7 @@ class GenerateLeagueCompetitionService:
                         home_team_id=home.id,
                         away_team_id=away.id,
                         status=MatchStatus.SCHEDULED,
-                        local="A definir",
+                        local="Não definido",
                         round_number_match=match_number
                     )
                     all_matches.append(match)

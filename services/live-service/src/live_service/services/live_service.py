@@ -9,7 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from live_service.common.enums import LiveStatus
 from live_service.infrastructure import redis_client as rc
-from live_service.infrastructure.http_clients import AuthServiceClient, CompetitionsClient
+from live_service.infrastructure.http_clients import (
+    AuthServiceClient,
+    CompetitionsClient,
+    CompetitionsStartMatchError,
+)
 from live_service.repositories.live_repository import LiveRepository
 from live_service.schemas.live import CreateLiveBody, LiveResponse
 from live_service.infrastructure.messaging.stat_sync_publisher import publish_match_live_finished
@@ -199,9 +203,21 @@ class LiveService:
                 detail=f"Transição inválida: status {live.status}",
             )
 
+        # Sincroniza competitions antes de marcar a live como LIVE (evita live ativa com jogo ainda "scheduled").
+        try:
+            await self._competitions.start_match(live.external_match_id)
+        except CompetitionsStartMatchError as exc:
+            logger.exception(
+                "Início sem stream: competitions-service não aceitou start para match %s",
+                live.external_match_id,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Não foi possível iniciar a partida no serviço de competições. Verifique o jogo e tente novamente.",
+            ) from exc
+
         now = datetime.now(timezone.utc)
         live.status = LiveStatus.LIVE.value
         live.started_at = now
         await self._repo.save_entity(live)
-        await self._competitions.start_match(live.external_match_id)
         return _to_response(live)

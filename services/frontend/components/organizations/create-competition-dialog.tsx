@@ -51,6 +51,8 @@ export function CreateCompetitionDialog({
   const [rulesetOption, setRulesetOption] = useState<"existing" | "new" | "none">("new"); // Padrão: criar novo ruleset
   const [statsRulesetOption, setStatsRulesetOption] = useState<"default" | "none">("none");
   const [selectedRulesetId, setSelectedRulesetId] = useState<string>("");
+  const [teamsPerGroupInput, setTeamsPerGroupInput] = useState("");
+  const [qualifiedPerGroupInput, setQualifiedPerGroupInput] = useState("");
   
   const [formData, setFormData] = useState<CompetitionCreate>({
     name: "",
@@ -134,6 +136,46 @@ export function CreateCompetitionDialog({
         ...formData,
       };
 
+      if (formData.system === "mixed") {
+        const teamsPerGroup = teamsPerGroupInput.trim() ? Number(teamsPerGroupInput) : undefined;
+        const qualifiedPerGroup = qualifiedPerGroupInput.trim() ? Number(qualifiedPerGroupInput) : undefined;
+
+        if (teamsPerGroup !== undefined && (!Number.isInteger(teamsPerGroup) || teamsPerGroup < 2)) {
+          toast.error("Times por Grupo deve ser um inteiro maior ou igual a 2.");
+          setIsLoading(false);
+          return;
+        }
+
+        if (
+          qualifiedPerGroup !== undefined &&
+          (!Number.isInteger(qualifiedPerGroup) || qualifiedPerGroup < 1)
+        ) {
+          toast.error("Qualificados por Grupo deve ser um inteiro maior ou igual a 1.");
+          setIsLoading(false);
+          return;
+        }
+
+        if (
+          teamsPerGroup !== undefined &&
+          qualifiedPerGroup !== undefined &&
+          qualifiedPerGroup > teamsPerGroup
+        ) {
+          toast.error("Qualificados por Grupo não pode ser maior que Times por Grupo.");
+          setIsLoading(false);
+          return;
+        }
+
+        if (teamsPerGroup !== undefined) {
+          dataToSend.teams_per_group = teamsPerGroup;
+        }
+        if (qualifiedPerGroup !== undefined) {
+          dataToSend.teams_qualified_per_group = qualifiedPerGroup;
+        }
+      } else {
+        delete dataToSend.teams_per_group;
+        delete dataToSend.teams_qualified_per_group;
+      }
+
       // Sport Ruleset
       if (rulesetOption === "existing") {
         if (selectedRulesetId) {
@@ -170,6 +212,8 @@ export function CreateCompetitionDialog({
         min_members_per_team: 5,
         max_members_per_team: 20,
       });
+      setTeamsPerGroupInput("");
+      setQualifiedPerGroupInput("");
       setRulesetOption("new");
       setStatsRulesetOption("none");
       
@@ -274,6 +318,40 @@ export function CreateCompetitionDialog({
                   </SelectContent>
                 </Select>
               </div>
+
+              {formData.system === "mixed" && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="teams_per_group">
+                      Times por Grupo
+                      <span className="text-xs text-muted-foreground ml-1">(opcional)</span>
+                    </Label>
+                    <Input
+                      id="teams_per_group"
+                      type="number"
+                      min="2"
+                      value={teamsPerGroupInput}
+                      onChange={(e) => setTeamsPerGroupInput(e.target.value)}
+                      placeholder="Ex: 4"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="qualified_per_group">
+                      Qualificados por Grupo
+                      <span className="text-xs text-muted-foreground ml-1">(opcional)</span>
+                    </Label>
+                    <Input
+                      id="qualified_per_group"
+                      type="number"
+                      min="1"
+                      value={qualifiedPerGroupInput}
+                      onChange={(e) => setQualifiedPerGroupInput(e.target.value)}
+                      placeholder="Ex: 2"
+                    />
+                  </div>
+                </>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="min_members">Mínimo de Jogadores *</Label>

@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional, List
 import uuid
 
-from src.models.competition import CompetitionStatus, CompetitionSystem
+from src.models.competition import CompetitionStatus, CompetitionSystem, CompetitionPhase
 from src.schemas.sport_ruleset_schema import SportRulesetCreate, SportRulesetResponse
 from src.schemas.stats_ruleset_schema import StatsRuleSetForCompetition, StatsRuleSetResponse
 
@@ -86,7 +86,11 @@ class CompetitionResponse(CompetitionBase):
     id: uuid.UUID
     status: CompetitionStatus
     organization_slug: Optional[str] = None  # Adicionado para facilitar verificações de permissão
-    
+    current_phase: Optional[CompetitionPhase] = Field(
+        None,
+        description="Fase atual (ex.: grupos ou eliminatória) — relevante para sistema MIXED",
+    )
+
     # Retorna o ID da regra vinculada (opcional)
     sport_ruleset_id: Optional[uuid.UUID] = None
     sport_ruleset: Optional[SportRulesetResponse] = None

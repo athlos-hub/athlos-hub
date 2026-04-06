@@ -5,7 +5,7 @@ import uuid
 
 class StatsTypeBase(BaseModel):
     name: str = Field(..., max_length=100, description="Nome da estatística (ex: Gols, Faltas)")
-    abbreviation: str = Field(..., max_length=20, description="Abreviação (ex: GOL, FLT)")
+    abbreviation: Optional[str] = Field(None, max_length=20, description="Abreviação (opcional)")
     description: Optional[str] = Field(None, max_length=500, description="Descrição da estatística")
     display_order: Optional[int] = Field(None, description="Ordem de exibição")
 

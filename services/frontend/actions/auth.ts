@@ -62,7 +62,8 @@ export async function registerUser(formData: FormData): Promise<void> {
             method: "POST",
             data: backendFormData,
             withAuth: false,
-            withAttachment: true
+            withAttachment: true,
+            service: "auth_upstream",
         });
 
         const emailVal = email || null;

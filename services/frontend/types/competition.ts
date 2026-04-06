@@ -91,6 +91,8 @@ export interface CompetitionUpdate {
   system?: CompetitionSystem;
   sport_ruleset_id?: string;
   stats_ruleset_mode?: "keep" | "none" | "new";
+  teams_per_group?: number;
+  teams_qualified_per_group?: number;
 }
 
 export interface GenerateStructureRequest {
@@ -116,7 +118,7 @@ export interface CompetitionStat {
 
 export interface CompetitionStatCreate {
   name: string;
-  abbreviation: string;
+  abbreviation?: string;
   description?: string;
   display_order?: number;
 }

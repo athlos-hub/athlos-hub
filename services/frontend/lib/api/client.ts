@@ -8,6 +8,29 @@ import { APIProps, APIResponse } from "./types";
 import { APIException } from "./errors";
 import { parseErrorMessage, isAPIErrorData, getBaseURL, getServiceURL } from "./utils";
 
+function safeTransformResponse(data: unknown, headers?: Record<string, string>): unknown {
+    if (typeof data !== "string") {
+        return data;
+    }
+
+    const contentType = headers?.["content-type"] ?? headers?.["Content-Type"] ?? "";
+    const shouldTryJSON =
+        contentType.includes("application/json") ||
+        contentType.includes("+json");
+
+    if (!shouldTryJSON) {
+        return data;
+    }
+
+    try {
+        return JSON.parse(data);
+    } catch {
+        // Alguns gateways/proxies retornam texto/HTML com content-type inconsistente.
+        // Nesses casos, preservamos o payload bruto para evitar erro de parse no Axios.
+        return data;
+    }
+}
+
 export async function axiosAPI<TypeResponse = unknown>({
                                                            endpoint,
                                                            method = "GET",
@@ -29,6 +52,7 @@ export async function axiosAPI<TypeResponse = unknown>({
             params: queryParams,
             timeout: 30000,
             signal,
+            transformResponse: [safeTransformResponse],
         };
 
         if (method !== "GET" && data) {
@@ -36,9 +60,14 @@ export async function axiosAPI<TypeResponse = unknown>({
         }
 
         if (withAttachment && data instanceof FormData) {
-            config.headers = {};
+            // Deixar Axios setar Content-Type: multipart/form-data automaticamente
+            config.headers = {
+                ...config.headers,
+                // NÃO SETAR Content-Type para FormData!
+            };
         } else {
             config.headers = {
+                ...config.headers,
                 "Content-Type": "application/json",
             };
         }

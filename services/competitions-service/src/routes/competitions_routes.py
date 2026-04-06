@@ -7,6 +7,7 @@ from uuid import UUID
 from src.routes.routes import get_session
 from src.services.competitions_service import CompetitionService
 from src.services.competition_generator.competition_generator import StructureGeneratorService
+from src.services.competition_generator.end_group_phase import EndGroupPhaseService
 from src.services.auth_client import AuthClient, PermissionDenied, AuthServiceUnavailable
 from src.schemas.competition_schema import (
     CompetitionCreate,
@@ -224,6 +225,44 @@ async def generate_structure(
     )
 
 
+@router.post(
+    "/{competition_id}/advance-group-phase",
+    status_code=status.HTTP_200_OK,
+    summary="Avançar da fase de grupos para eliminação (apenas MIXED)"
+)
+async def advance_group_phase(
+    competition_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    current_keycloak_id: UUID = Depends(get_current_keycloak_id)
+):
+    """
+    Finaliza a fase de grupos e popula a árvore eliminatória com os times classificados.
+    
+    - Requer que **todos** os jogos da fase de grupos estejam FINISHED
+    - Seleciona os top N times de cada grupo (conforme configurado)
+    - Cria cruzamentos inteligentes (cabeças de chave vs potes baixos)
+    - Atualiza matches vazios (placeholders) da fase final com os times reais
+    - Transição: current_phase muda de GROUPS para ELIMINATION
+    
+    **Requer autenticação**: Apenas OWNER ou ORGANIZER da organização podem executar esta ação.
+    
+    **Apenas para competições MIXED** com 2 fases.
+    """
+    # Buscar a competição para obter a modalidade
+    competition_service = CompetitionService(session)
+    competition = await competition_service.get_by_id(competition_id)
+    await ensure_competition_not_finished(session, competition_id)
+
+    # Buscar organization_slug da modalidade
+    organization_slug = await _get_organization_slug_from_modality(session, competition.modality_id)
+    
+    # Verificar permissão do usuário
+    await _verify_user_permission(current_keycloak_id, organization_slug)
+    
+    service = EndGroupPhaseService(session)
+    return await service.advance_group_phase(competition_id)
+
+
 @router.get(
     "/{competition_id}/stats-ruleset",
     response_model=Optional[StatsRuleSetResponse],
@@ -288,7 +327,8 @@ async def get_competition_teams_with_players(
 )
 async def finalize_competition(
     competition_id: UUID,
-    session: AsyncSession = Depends(get_session)
+    session: AsyncSession = Depends(get_session),
+    current_keycloak_id: UUID = Depends(get_current_keycloak_id),
 ):
     """
     Finaliza uma competição e verifica todas as conquistas.
@@ -298,4 +338,7 @@ async def finalize_competition(
     - Notifica o social-service sobre as conquistas
     """
     service = CompetitionService(session)
+    competition = await service.get_by_id(competition_id)
+    organization_slug = await _get_organization_slug_from_modality(session, competition.modality_id)
+    await _verify_user_permission(current_keycloak_id, organization_slug)
     return await service.finalize_competition(competition_id)

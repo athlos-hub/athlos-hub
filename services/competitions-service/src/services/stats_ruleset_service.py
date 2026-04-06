@@ -4,6 +4,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from typing import Optional, List
 from uuid import UUID
+import re
 
 from src.models.stats import StatsRuleSetModel, StatsTypeModel
 from src.models.competition import CompetitionModel, CompetitionStatus
@@ -19,6 +20,27 @@ from src.schemas.stats_ruleset_schema import (
 class StatsRuleSetService:
     def __init__(self, session: AsyncSession):
         self.session = session
+
+    @staticmethod
+    def _build_base_abbreviation(name: str) -> str:
+        tokens = re.findall(r"[A-Za-z0-9]+", (name or "").strip())
+        if not tokens:
+            return "STAT"
+        if len(tokens) > 1:
+            return "".join(token[0] for token in tokens).upper()[:20] or "STAT"
+        return tokens[0].upper()[:20] or "STAT"
+
+    @classmethod
+    def _next_available_abbreviation(cls, name: str, used_abbreviations: set[str]) -> str:
+        base = cls._build_base_abbreviation(name)
+        candidate = base
+        counter = 2
+        while candidate in used_abbreviations:
+            suffix = str(counter)
+            candidate = f"{base[: max(1, 20 - len(suffix))]}{suffix}"
+            counter += 1
+        used_abbreviations.add(candidate)
+        return candidate
 
     async def create(self, competition_id: UUID, data: StatsRuleSetCreate) -> StatsRuleSetModel:
         """
@@ -49,9 +71,20 @@ class StatsRuleSetService:
         await self.session.flush()
 
         # Criar os tipos de estatísticas
+        used_abbreviations = set()
         for stat_type_data in data.stats_types:
+            payload = stat_type_data.model_dump()
+            incoming_abbr = (payload.get("abbreviation") or "").strip().upper()
+            if incoming_abbr:
+                payload["abbreviation"] = incoming_abbr
+                used_abbreviations.add(incoming_abbr)
+            else:
+                payload["abbreviation"] = self._next_available_abbreviation(
+                    payload.get("name", ""),
+                    used_abbreviations,
+                )
             stat_type = StatsTypeModel(
-                **stat_type_data.model_dump(),
+                **payload,
                 stats_ruleset_id=new_ruleset.id
             )
             self.session.add(stat_type)
@@ -144,7 +177,25 @@ class StatsRuleSetService:
         ruleset = await self.get_by_id(ruleset_id)
         await ensure_competition_not_finished(self.session, ruleset.competition_id)
 
-        stat_type = StatsTypeModel(**data.model_dump(), stats_ruleset_id=ruleset_id)
+        payload = data.model_dump()
+        existing_rows = await self.session.execute(
+            select(StatsTypeModel.abbreviation).where(StatsTypeModel.stats_ruleset_id == ruleset_id)
+        )
+        used_abbreviations = {
+            (abbr or "").strip().upper()
+            for abbr in existing_rows.scalars().all()
+            if (abbr or "").strip()
+        }
+        incoming_abbr = (payload.get("abbreviation") or "").strip().upper()
+        if incoming_abbr:
+            payload["abbreviation"] = incoming_abbr
+        else:
+            payload["abbreviation"] = self._next_available_abbreviation(
+                payload.get("name", ""),
+                used_abbreviations,
+            )
+
+        stat_type = StatsTypeModel(**payload, stats_ruleset_id=ruleset_id)
         self.session.add(stat_type)
         await self.session.commit()
         await self.session.refresh(stat_type)

@@ -6,10 +6,10 @@ import logging
 from typing import Optional
 from uuid import UUID
 
-from src.models.competition import CompetitionModel, CompetitionSystem, CompetitionStatus
+from src.models.competition import CompetitionModel, CompetitionSystem, CompetitionStatus, CompetitionPhase
 from src.models.modality import ModalityModel
 from src.models.teams import TeamModel
-from src.models.matches import MatchModel
+from src.models.matches import MatchModel, MatchStatus
 from .standings_manager import initialize_standings
 from .generate_league import GenerateLeagueCompetitionService as LeagueService
 from .generate_elimination import GenerateEliminationCompetitionService as EliminationService
@@ -30,6 +30,18 @@ class StructureGeneratorService:
     
     def __init__(self, session: AsyncSession):
         self.session = session
+
+    @staticmethod
+    def _resolve_mixed_group_rules(competition: CompetitionModel) -> tuple[int, int]:
+        raw_teams_per_group = getattr(competition, "teams_per_group", None)
+        raw_qualified_per_group = getattr(competition, "teams_qualified_per_group", None)
+        teams_per_group = raw_teams_per_group if isinstance(raw_teams_per_group, int) and raw_teams_per_group > 0 else 4
+        qualified_per_group = (
+            raw_qualified_per_group
+            if isinstance(raw_qualified_per_group, int) and raw_qualified_per_group > 0
+            else 2
+        )
+        return teams_per_group, qualified_per_group
     
     async def generate_structure(
         self, 
@@ -119,10 +131,18 @@ class StructureGeneratorService:
                 status_code=400, 
                 detail="Mínimo de 2 times necessários."
             )
+        if competition.system == CompetitionSystem.MIXED:
+            teams_per_group, qualified_per_group = self._resolve_mixed_group_rules(competition)
+            if qualified_per_group >= teams_per_group:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Configuração inválida para sistema misto: "
+                        "'Qualificados por Grupo' deve ser menor que 'Times por Grupo'."
+                    ),
+                )
         
         try:
-            await initialize_standings(self.session, competition, teams)
-
             matches: list[MatchModel] = []
 
             if competition.system == CompetitionSystem.POINTS:
@@ -146,22 +166,34 @@ class StructureGeneratorService:
                     detail="Sistema de disputa ainda não implementado.",
                 )
 
+            # Inicializa classificações após gerar a estrutura.
+            # Em MIXED, os grupos precisam existir antes para criar standings por grupo.
+            await initialize_standings(self.session, competition, teams)
+
             competition.status = (
                 CompetitionStatus.STARTED
                 if hasattr(CompetitionStatus, "STARTED")
                 else "STARTED"
             )
+            if competition.system == CompetitionSystem.MIXED:
+                competition.current_phase = CompetitionPhase.GROUPS
             self.session.add(competition)
+            live_ready_matches = [
+                m
+                for m in matches
+                if m.status != MatchStatus.PENDING and m.home_team_id is not None and m.away_team_id is not None
+            ]
 
             if settings.RABBITMQ_URL:
                 await self.session.commit()
                 logger.info(
-                    "Estrutura persistida; enfileirando %s lives (RabbitMQ) para competição %s",
+                    "Estrutura persistida; enfileirando %s/%s lives (RabbitMQ) para competição %s",
+                    len(live_ready_matches),
                     len(matches),
                     competition_id,
                 )
                 try:
-                    n = await publish_live_creates_for_matches(matches, organization_id)
+                    n = await publish_live_creates_for_matches(live_ready_matches, organization_id)
                 except Exception as e:
                     logger.error("Falha ao enfileirar criação de lives: %s", e)
                     raise HTTPException(
@@ -192,7 +224,8 @@ class StructureGeneratorService:
                     )
 
                 logger.info(
-                    "Criando %s lives (HTTP) para competição %s",
+                    "Criando %s/%s lives (HTTP) para competição %s",
+                    len(live_ready_matches),
                     len(matches),
                     competition_id,
                 )
@@ -203,7 +236,7 @@ class StructureGeneratorService:
                 )
                 try:
                     created_lives = await live_service.create_lives_for_matches(
-                        matches=matches,
+                        matches=live_ready_matches,
                         competition=competition,
                     )
                 except LivestreamClientError as e:

@@ -324,3 +324,28 @@ export async function deleteStatTypeFromRuleset(
     service: "competitions",
   });
 }
+
+export interface AdvanceGroupPhaseResponse {
+  message: string;
+  qualified_teams: number;
+  matches_updated: number;
+  round_name: string;
+}
+
+export async function advanceGroupPhase(
+  competitionId: string
+): Promise<AdvanceGroupPhaseResponse> {
+  try {
+    const response = await axiosAPI<AdvanceGroupPhaseResponse>({
+      endpoint: `/competitions/${competitionId}/advance-group-phase`,
+      method: "POST",
+      withAuth: true,
+      service: "competitions",
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error("[ACTION advanceGroupPhase] Erro:", error);
+    throw error;
+  }
+}

@@ -7,7 +7,7 @@ from src.models.stats import PlayerStatsModel, StatsTypeModel, StatsRuleSetModel
 from src.models.teams import PlayerModel, TeamModel
 from src.models.standings import ClassificationModel
 from src.models.matches import GroupModel, RoundModel, MatchModel
-from src.models.competition import CompetitionModel, CompetitionSystem, CompetitionPhase
+from src.models.competition import CompetitionModel, CompetitionSystem
 
 
 class StatsService:
@@ -155,8 +155,10 @@ class StatsService:
             ]
 
         if competition.system == CompetitionSystem.MIXED:
-            if competition.current_phase == CompetitionPhase.ELIMINATION:
-                return await self._get_bracket(competition_id)
+            # Sempre retornar classificação da fase de grupos (por grupo + geral).
+            # Na fase eliminatória os pontos deixam de ser atualizados, mas o histórico permanece.
+            # Compatibilidade com frontend atual: retorno flat contendo
+            # classificações por grupo e tabela geral (group_id = None).
             groups_res = await self.session.execute(
                 select(GroupModel).where(GroupModel.competition_id == competition_id).order_by(GroupModel.name)
             )
@@ -194,28 +196,80 @@ class StatsService:
                     q = q.limit(limit)
                 res = await self.session.execute(q)
                 rows = res.all()
-                result.append(
-                    {
-                        "group_id": g.id,
-                        "group_name": g.name,
-                        "standings": [
-                            {
-                                "team_id": r.team_id,
-                                "team_name": r.name,
-                                "team_abbreviation": (r.abbreviation or "") if r.abbreviation is not None else "",
-                                "team_logo_url": r.logo_url,
-                                "points": r.points,
-                                "wins": r.wins,
-                                "draws": r.draws,
-                                "losses": r.losses,
-                                "score_pro": r.score_pro,
-                                "score_against": r.score_against,
-                                "score_balance": r.score_balance,
-                            }
-                            for r in rows
-                        ],
-                    }
+                result.extend(
+                    [
+                        {
+                            "team_id": str(r.team_id),
+                            "team_name": r.name,
+                            "team_abbreviation": (r.abbreviation or "") if r.abbreviation is not None else "",
+                            "team_logo_url": r.logo_url,
+                            "points": r.points,
+                            "matches_played": r.wins + r.draws + r.losses,
+                            "wins": r.wins,
+                            "draws": r.draws,
+                            "losses": r.losses,
+                            "goals_for": r.score_pro,
+                            "goals_against": r.score_against,
+                            "goal_difference": r.score_balance,
+                            "group_id": str(g.id),
+                            "group_name": g.name,
+                        }
+                        for r in rows
+                    ]
                 )
+
+            q_general = (
+                select(
+                    ClassificationModel.team_id,
+                    TeamModel.name,
+                    TeamModel.abbreviation,
+                    TeamModel.logo_url,
+                    ClassificationModel.points,
+                    ClassificationModel.wins,
+                    ClassificationModel.draws,
+                    ClassificationModel.losses,
+                    ClassificationModel.score_pro,
+                    ClassificationModel.score_against,
+                    ClassificationModel.score_balance,
+                )
+                .join(TeamModel, TeamModel.id == ClassificationModel.team_id)
+                .where(
+                    ClassificationModel.competition_id == competition_id,
+                    ClassificationModel.group_id.is_(None),
+                )
+                .order_by(
+                    ClassificationModel.points.desc(),
+                    ClassificationModel.wins.desc(),
+                    ClassificationModel.score_balance.desc(),
+                    ClassificationModel.losses.asc(),
+                    ClassificationModel.score_pro.desc(),
+                )
+            )
+            if limit and limit > 0:
+                q_general = q_general.limit(limit)
+            general_res = await self.session.execute(q_general)
+            general_rows = general_res.all()
+            result.extend(
+                [
+                    {
+                        "team_id": str(r.team_id),
+                        "team_name": r.name,
+                        "team_abbreviation": (r.abbreviation or "") if r.abbreviation is not None else "",
+                        "team_logo_url": r.logo_url,
+                        "points": r.points,
+                        "matches_played": r.wins + r.draws + r.losses,
+                        "wins": r.wins,
+                        "draws": r.draws,
+                        "losses": r.losses,
+                        "goals_for": r.score_pro,
+                        "goals_against": r.score_against,
+                        "goal_difference": r.score_balance,
+                        "group_id": None,
+                        "group_name": None,
+                    }
+                    for r in general_rows
+                ]
+            )
             return result
 
         return await self._get_bracket(competition_id)

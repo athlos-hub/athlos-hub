@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { updateMatch, type MatchUpdateData } from "@/actions/matches";
+import { listLives, patchLiveTransmitVideo } from "@/actions/lives";
 import {
   backendIsoToDatetimeLocalInput,
   datetimeLocalInputToUtcIsoString,
@@ -75,6 +76,14 @@ export function EditMatchDialog({
     setIsLoading(true);
     try {
       await updateMatch(match.id, payload);
+
+      // Mantém live-service sincronizado com a preferência de transmissão do jogo.
+      const lives = await listLives({ externalMatchId: match.id });
+      const relatedLive = lives[0];
+      if (relatedLive?.id) {
+        await patchLiveTransmitVideo(relatedLive.id, payload.transmitVideo !== false);
+      }
+
       toast.success("Jogo atualizado com sucesso!");
       onSuccess();
       onOpenChange(false);

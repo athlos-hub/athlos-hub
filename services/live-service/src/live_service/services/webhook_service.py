@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from live_service.common.enums import LiveStatus
 from live_service.infrastructure import redis_client as rc
-from live_service.infrastructure.http_clients import CompetitionsClient
+from live_service.infrastructure.http_clients import CompetitionsClient, CompetitionsStartMatchError
 from live_service.repositories.live_repository import LiveRepository
 from live_service.schemas.webhook import MediaMTXAuthBody, OnPublishDoneBody
 from live_service.infrastructure.messaging.stat_sync_publisher import publish_match_live_finished
@@ -77,14 +77,25 @@ class WebhookService:
                 detail="Live não está em um estado válido para aceitar transmissões",
             )
 
-        await rc.mark_stream_active(r, stream_key)
-
         if live.status == LiveStatus.SCHEDULED.value:
+            try:
+                await self._competitions.start_match(live.external_match_id)
+            except CompetitionsStartMatchError as exc:
+                logger.error(
+                    "Falha ao iniciar partida no competitions (match=%s): %s",
+                    live.external_match_id,
+                    exc,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail="Não foi possível registrar o início da partida no serviço de competições.",
+                ) from exc
             live.status = LiveStatus.LIVE.value
             live.started_at = datetime.now(timezone.utc)
             await self._repo.save_entity(live)
             logger.info("Live %s iniciada automaticamente", live.id)
-            await self._competitions.start_match(live.external_match_id)
+
+        await rc.mark_stream_active(r, stream_key)
 
         logger.info(
             "Stream key %s válida; publicação aceita de IP %s",

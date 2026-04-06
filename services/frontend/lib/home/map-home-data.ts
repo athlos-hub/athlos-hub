@@ -25,6 +25,14 @@ function modalityFromMatch(m: MatchDetail): string {
   return m.round_name?.trim() || m.group_name?.trim() || "Partida";
 }
 
+export function phaseLabelFromMatch(m: MatchDetail): string {
+  const gn = m.group_name?.trim();
+  if (gn) return `Fase de grupos · ${gn}`;
+  const rn = m.round_name?.trim();
+  if (rn) return rn;
+  return "Partida";
+}
+
 export function matchAndLiveToHomeGame(live: Live, match: MatchDetail): HomeLiveGame | null {
   if (!match.home_team || !match.away_team) return null;
   return {
@@ -33,6 +41,7 @@ export function matchAndLiveToHomeGame(live: Live, match: MatchDetail): HomeLive
       id: String(match.competition_id),
       name: match.competition_name?.trim() || `Competição #${match.competition_id}`,
       modality: modalityFromMatch(match),
+      phaseLabel: phaseLabelFromMatch(match),
     },
     homeTeam: {
       id: match.home_team.id,
@@ -68,6 +77,7 @@ export function matchAndLiveToUpcoming(
       id: String(match.competition_id),
       name: match.competition_name?.trim() || `Competição #${match.competition_id}`,
       modality: modalityFromMatch(match),
+      phaseLabel: phaseLabelFromMatch(match),
     },
     homeTeam: {
       id: match.home_team.id,

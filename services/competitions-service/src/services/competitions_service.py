@@ -10,12 +10,14 @@ from uuid import UUID
 from src.models.competition import CompetitionModel, CompetitionStatus
 from src.models.sport_ruleset import SportRulesetModel
 from src.models.modality import ModalityModel
+from src.models.matches import MatchModel, MatchStatus
 from src.models.stats import StatsRuleSetModel, StatsTypeModel
 from src.models.teams import TeamModel, PlayerModel
 from src.schemas.competition_schema import CompetitionCreate, CompetitionUpdate
 from src.config.settings import settings
 from src.services.social_client import SocialServiceClient
 from src.services.achievements_service import AchievementsService
+from src.services.stats_ruleset_service import StatsRuleSetService
 
 class CompetitionService:
     def __init__(self, session: AsyncSession):
@@ -149,9 +151,20 @@ class CompetitionService:
             await self.session.flush()
 
             # Criar os tipos de estatísticas
+            used_abbreviations = set()
             for stat_type_data in data.stats_ruleset.stats_types:
+                payload = stat_type_data.model_dump()
+                incoming_abbr = (payload.get("abbreviation") or "").strip().upper()
+                if incoming_abbr:
+                    payload["abbreviation"] = incoming_abbr
+                    used_abbreviations.add(incoming_abbr)
+                else:
+                    payload["abbreviation"] = StatsRuleSetService._next_available_abbreviation(
+                        payload.get("name", ""),
+                        used_abbreviations,
+                    )
                 stat_type = StatsTypeModel(
-                    **stat_type_data.model_dump(),
+                    **payload,
                     stats_ruleset_id=new_stats_ruleset.id
                 )
                 self.session.add(stat_type)
@@ -411,6 +424,23 @@ class CompetitionService:
             raise HTTPException(
                 status_code=400, 
                 detail="Competição já está finalizada"
+            )
+        if competition.status != CompetitionStatus.STARTED:
+            raise HTTPException(
+                status_code=400,
+                detail="A competição só pode ser finalizada após ser iniciada.",
+            )
+
+        unfinished_matches_q = select(MatchModel.id).where(
+            MatchModel.competition_id == competition_id,
+            MatchModel.status.in_([MatchStatus.PENDING, MatchStatus.SCHEDULED, MatchStatus.LIVE]),
+        )
+        unfinished_matches_res = await self.session.execute(unfinished_matches_q)
+        unfinished_match_ids = unfinished_matches_res.scalars().all()
+        if unfinished_match_ids:
+            raise HTTPException(
+                status_code=400,
+                detail="Não é possível finalizar a competição com jogos pendentes, agendados ou ao vivo.",
             )
         
         # Atualizar status para finalizada

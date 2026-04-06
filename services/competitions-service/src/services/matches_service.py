@@ -119,7 +119,8 @@ class MatchesService:
             .options(
                 selectinload(MatchModel.home_team),
                 selectinload(MatchModel.away_team),
-                selectinload(MatchModel.round) # Carrega o nome da rodada
+                selectinload(MatchModel.round),  # Carrega o nome da rodada
+                selectinload(MatchModel.group),
             )
         )
 

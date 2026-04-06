@@ -23,7 +23,8 @@ function UpcomingRow({ game }: { game: HomeUpcomingGame }) {
       </div>
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3 sm:gap-4">
         <p className="w-full text-xs text-muted-foreground sm:hidden">
-          {game.competition.name} · {game.competition.modality}
+          {game.competition.name} · Fase:{" "}
+          {game.competition.phaseLabel ?? game.competition.modality}
         </p>
         <div className="flex min-w-0 flex-1 items-center justify-center gap-2 sm:justify-end">
           <span className="truncate text-right text-sm font-medium">
@@ -52,9 +53,12 @@ function UpcomingRow({ game }: { game: HomeUpcomingGame }) {
         </div>
       </div>
       <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
-        <p className="hidden text-xs text-muted-foreground sm:block sm:text-right">
-          {game.competition.name}
-        </p>
+        <div className="hidden text-xs text-muted-foreground sm:block sm:text-right">
+          <p className="font-medium text-foreground">{game.competition.name}</p>
+          <p>
+            Fase: {game.competition.phaseLabel ?? game.competition.modality}
+          </p>
+        </div>
         <Link
           href={game.competitionHref}
           className={cn(buttonVariants({ variant: "outline", size: "sm" }))}

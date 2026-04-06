@@ -324,7 +324,7 @@ export function MatchLiveEventDialog({
                     <SelectContent>
                       {ruleset.stats_types.map((s) => (
                         <SelectItem key={s.id} value={s.abbreviation}>
-                          {s.name} ({s.abbreviation})
+                          {s.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

@@ -76,17 +76,35 @@ async def _handle_message(message: IncomingMessage) -> None:
             if not row:
                 logger.warning("match.live.finished: jogo %s não encontrado", match_uuid)
                 return
-            if row.status != MatchStatus.LIVE:
+            if row.status == MatchStatus.FINISHED:
                 logger.info(
-                    "match.live.finished ignorado (jogo %s status=%s, live=%s, source=%s)",
+                    "match.live.finished ignorado (jogo %s já finalizado, live=%s, source=%s)",
                     match_uuid,
-                    row.status,
                     live_id,
                     source,
                 )
                 return
 
             svc = ManageMatchesService(session)
+            # Se o competitions ficou em scheduled (ex.: falha antiga ao sincronizar início), promove a live antes de finalizar.
+            if row.status == MatchStatus.SCHEDULED:
+                logger.info(
+                    "match.live.finished: jogo %s em scheduled; promovendo a live antes de finalizar (live=%s, source=%s)",
+                    match_uuid,
+                    live_id,
+                    source,
+                )
+                try:
+                    await svc.start_match(match_uuid)
+                except HTTPException as exc:
+                    logger.warning(
+                        "match.live.finished: não foi possível promover jogo %s a live (%s): %s",
+                        match_uuid,
+                        exc.status_code,
+                        exc.detail,
+                    )
+                    return
+
             try:
                 await svc.finalize_match(match_uuid)
                 logger.info(

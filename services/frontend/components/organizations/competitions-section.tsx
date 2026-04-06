@@ -46,6 +46,8 @@ export function CompetitionsSection({ organizationSlug, orgCode, isAdmin, isPend
     system: "points" as CompetitionSystem,
     sport_ruleset_id: "",
     stats_ruleset_mode: "keep" as "keep" | "none" | "new",
+    teams_per_group: 4,
+    teams_qualified_per_group: 2,
   });
   const [editingRules, setEditingRules] = useState({
     canEditBeforeStart: false,
@@ -156,6 +158,8 @@ export function CompetitionsSection({ organizationSlug, orgCode, isAdmin, isPend
         system: competition.system,
         sport_ruleset_id: competition.sport_ruleset_id ? String(competition.sport_ruleset_id) : "",
         stats_ruleset_mode: "keep",
+        teams_per_group: competition.teams_per_group || 4,
+        teams_qualified_per_group: competition.teams_qualified_per_group || 2,
       });
       setEditingCompetition(competition);
     } catch (error) {

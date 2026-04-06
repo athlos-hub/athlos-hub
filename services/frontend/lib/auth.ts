@@ -26,7 +26,6 @@ interface BackendUserResponse {
 
 export const authOptions: NextAuthOptions = {
     // Evita falha do fetch de sessão quando o Host não bate com NEXTAUTH_URL (localhost vs 127.0.0.1, proxy, etc.)
-    trustHost: true,
     providers: [
         CredentialsProvider({
             name: "Credentials",

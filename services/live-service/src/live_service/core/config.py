@@ -55,6 +55,7 @@ class Settings(BaseSettings):
 
     AUTH_SERVICE_URL: str = "http://localhost:8100"
     COMPETITIONS_SERVICE_URL: str = "http://localhost:8100"
+    COMPETITIONS_SERVICE_UPSTREAM_URL: str = ""
 
     rabbitmq_url: str = Field(default="", alias="RABBITMQ_URL")
 

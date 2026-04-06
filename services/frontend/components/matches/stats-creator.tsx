@@ -315,12 +315,7 @@ export function StatsCreator({
                   <SelectContent>
                     {statsRuleSet.stats_types.map((stat) => (
                       <SelectItem key={stat.id} value={stat.abbreviation}>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
-                            {stat.abbreviation}
-                          </span>
-                          <span>{stat.name}</span>
-                        </div>
+                        {stat.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

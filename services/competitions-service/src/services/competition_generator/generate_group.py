@@ -17,8 +17,15 @@ class GenerateGroupCompetitionService:
         """
         Gera a estrutura híbrida: Fase de Grupos seguida de Eliminatórias (Mata-mata).
         """
-        TEAMS_PER_GROUP = getattr(competition, "teams_per_group", 4)
-        QUALIFIED_PER_GROUP = getattr(competition, "teams_qualified_per_group", 2)
+        raw_teams_per_group = getattr(competition, "teams_per_group", None)
+        raw_qualified_per_group = getattr(competition, "teams_qualified_per_group", None)
+
+        TEAMS_PER_GROUP = raw_teams_per_group if isinstance(raw_teams_per_group, int) and raw_teams_per_group > 0 else 4
+        QUALIFIED_PER_GROUP = (
+            raw_qualified_per_group
+            if isinstance(raw_qualified_per_group, int) and raw_qualified_per_group > 0
+            else 2
+        )
         
         num_teams = len(teams)
         if num_teams < TEAMS_PER_GROUP:
@@ -27,6 +34,12 @@ class GenerateGroupCompetitionService:
         random.shuffle(teams)
 
         num_groups = ceil(num_teams / TEAMS_PER_GROUP)
+        # Em sistema misto, a fase inicial deve ter ao menos 2 grupos quando possível.
+        # Ex.: 4 times não devem cair em 1 grupo de 4; o esperado é 2 grupos de 2.
+        if num_groups < 2 and num_teams >= 4:
+            num_groups = 2
+            TEAMS_PER_GROUP = ceil(num_teams / num_groups)
+
         groups_objects = []
         
         for i in range(num_groups):
@@ -91,7 +104,7 @@ class GenerateGroupCompetitionService:
                         home_team_id=home.id,
                         away_team_id=away.id,
                         status=MatchStatus.SCHEDULED,
-                        local="A definir",
+                        local="Não definido",
                         round_number_match=i + 1
                     )
                     self.session.add(match)
@@ -144,7 +157,7 @@ class GenerateGroupCompetitionService:
                     home_feeder_match_id=home_feeder_id,
                     away_feeder_match_id=away_feeder_id,
                     status=MatchStatus.PENDING,
-                    local="A definir",
+                    local="Não definido",
                     round_number_match=i + 1,
                     has_overtime=True,
                     has_penalties=True

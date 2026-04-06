@@ -41,6 +41,8 @@ interface CompetitionEditForm {
   system: CompetitionSystem;
   sport_ruleset_id: string;
   stats_ruleset_mode: StatsMode;
+  teams_per_group: number;
+  teams_qualified_per_group: number;
 }
 
 interface CompetitionEditRules {
@@ -161,6 +163,59 @@ export function CompetitionManagementDialogs({
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Campos de configuração para competições MIXED */}
+            {form.system === "mixed" && (
+              <>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Times por Grupo
+                    <span className="text-xs text-muted-foreground ml-1">(2-16)</span>
+                  </label>
+                  <Input
+                    type="number"
+                    min={2}
+                    max={16}
+                    value={form.teams_per_group || 4}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        teams_per_group: parseInt(e.target.value) || 4,
+                      }))
+                    }
+                    placeholder="4"
+                    disabled={!rules.canEditBeforeStart}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Total de times em cada grupo da fase inicial
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Qualificados por Grupo
+                    <span className="text-xs text-muted-foreground ml-1">(1-{form.teams_per_group || 4})</span>
+                  </label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={form.teams_per_group || 4}
+                    value={form.teams_qualified_per_group || 2}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        teams_qualified_per_group: parseInt(e.target.value) || 2,
+                      }))
+                    }
+                    placeholder="2"
+                    disabled={!rules.canEditBeforeStart}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Quantos times de cada grupo avançam para eliminação (total: grupos × qualificados)
+                  </p>
+                </div>
+              </>
+            )}
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Regras esportivas</label>

@@ -4,6 +4,8 @@ export interface HomeCompetition {
   id: string;
   name: string;
   modality: string;
+  /** Ex.: "Semifinal", "Fase de grupos · A" */
+  phaseLabel?: string;
 }
 
 export interface HomeTeam {

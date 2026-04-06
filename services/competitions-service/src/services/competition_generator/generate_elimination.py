@@ -47,7 +47,7 @@ class GenerateEliminationCompetitionService:
                     home_team_id=team1.id,
                     away_team_id=team2.id,
                     status=MatchStatus.SCHEDULED,
-                    local="A definir",
+                    local="Não definido",
                     round_number_match=i,
                     has_overtime=ruleset.overtime_segments > 0,
                     has_penalties=ruleset.penalty_segments > 0
@@ -101,7 +101,7 @@ class GenerateEliminationCompetitionService:
                     home_feeder_match_id=feeder_home_id,
                     away_feeder_match_id=feeder_away_id,
                     status=MatchStatus.SCHEDULED,
-                    local="A definir",
+                    local="Não definido",
                     round_number_match=i,
                     has_overtime=ruleset.overtime_segments > 0,
                     has_penalties=ruleset.penalty_segments > 0

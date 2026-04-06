@@ -91,7 +91,7 @@ export async function searchOrganizations(query: string, limit: number = 100): P
     // Filtrar localmente por query
     if (query.trim()) {
       const lowerQuery = query.toLowerCase();
-      return organizations.filter(org =>
+      return organizations.filter((org: any) =>
         org.name.toLowerCase().includes(lowerQuery) ||
         org.slug.toLowerCase().includes(lowerQuery) ||
         (org.description?.toLowerCase() ?? "").includes(lowerQuery)
@@ -159,7 +159,7 @@ export async function searchTeams(query: string, organizationSlug?: string): Pro
     // Filtrar localmente por query
     if (query.trim()) {
       const lowerQuery = query.toLowerCase();
-      return teams.filter(team =>
+      return teams.filter((team: any) =>
         team.name.toLowerCase().includes(lowerQuery) ||
         team.abbreviation.toLowerCase().includes(lowerQuery) ||
         team.organization_name.toLowerCase().includes(lowerQuery)

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 from datetime import datetime
 from typing import Optional, List
 import uuid
@@ -46,6 +46,13 @@ class RoundSummary(BaseModel):
     name: str
     model_config = ConfigDict(from_attributes=True)
 
+
+class GroupSummary(BaseModel):
+    id: uuid.UUID
+    name: str
+    model_config = ConfigDict(from_attributes=True)
+
+
 class MatchResponse(BaseModel):
     id: uuid.UUID
     status: MatchStatus
@@ -61,10 +68,26 @@ class MatchResponse(BaseModel):
     home_team: Optional[TeamSummary] = None
     away_team: Optional[TeamSummary] = None
     round: Optional[RoundSummary] = None  # Importante para contexto de competição
+    group: Optional[GroupSummary] = None
+
+    group_id: Optional[uuid.UUID] = None
+    round_name: Optional[str] = None
+    group_name: Optional[str] = None
+    home_feeder_match_id: Optional[uuid.UUID] = None
+    away_feeder_match_id: Optional[uuid.UUID] = None
 
     transmit_video: bool = True
 
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="after")
+    def fill_flat_round_group_names(self) -> "MatchResponse":
+        updates = {}
+        if self.round_name is None and self.round is not None:
+            updates["round_name"] = self.round.name
+        if self.group_name is None and self.group is not None:
+            updates["group_name"] = self.group.name
+        return self.model_copy(update=updates) if updates else self
 
 class MatchUpdateRequest(BaseModel):
     scheduled_datetime: Optional[datetime] = Field(None, description="Nova data e hora do jogo (ISO 8601)")

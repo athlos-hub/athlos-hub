@@ -71,19 +71,28 @@ export function getBaseURL(): string {
     return base.replace(/\/$/, "");
 }
 
-export function getServiceURL(service: "auth" | "competitions" = "auth"): string {
+export function getServiceURL(service: "auth" | "auth_upstream" | "competitions" = "auth"): string {
     const gateway = (process.env.API_BASE_URL || "http://localhost:8100/api").replace(/\/$/, "");
-    if (process.env.ENV !== "prod") {
-        if (service === "competitions") {
-            return (process.env.COMPETITIONS_API_URL || "http://localhost:8100/api").replace(/\/$/, "");
-        }
-        const authHost = process.env.AUTH_API_URL;
-        if (authHost) {
-            return `${authHost.replace(/\/$/, "")}/api`;
-        }
-        return "http://localhost:8000/api";
+    const gatewayNoApi = gateway.replace(/\/api$/, "");
+
+    if (service === "competitions") {
+        return (process.env.COMPETITIONS_API_URL || gateway).replace(/\/$/, "");
     }
-    return gateway;
+
+    if (service === "auth") {
+        return gateway;
+    }
+
+    const authHost = (process.env.AUTH_API_URL || "").replace(/\/$/, "");
+    const authHostNoApi = authHost.replace(/\/api$/, "");
+
+    // Evita loop pelo gateway quando AUTH_API_URL aponta para o mesmo host do API_BASE_URL.
+    if (authHostNoApi && authHostNoApi !== gatewayNoApi) {
+        return `${authHostNoApi}/api`;
+    }
+
+    // Upstream direto para casos específicos (ex.: register multipart).
+    return "http://localhost:8000/api";
 }
 
 export function buildQueryString(params?: Record<string, string | number | boolean>): string {

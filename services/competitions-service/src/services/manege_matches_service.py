@@ -4,7 +4,7 @@ import logging
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.orm import selectinload
 
 from src.models.matches import MatchModel, SegmentModel, MatchStatus
@@ -17,6 +17,8 @@ from src.config.settings import settings
 from src.services.social_client import SocialServiceClient
 from src.services.achievements_service import AchievementsService
 from src.services.competition_write_guard import ensure_competition_not_finished
+from src.services.auth_client import AuthClient, AuthClientError
+from src.infrastructure.messaging.live_match_publisher import publish_live_creates_for_matches
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +28,38 @@ class ManageMatchesService:
         self.session = session
         self.social_client = SocialServiceClient(settings.SOCIAL_SERVICE_URL)
         self.achievements_service = AchievementsService(session, self.social_client)
+
+    async def _resolve_organization_id_for_competition(
+        self, competition_id: uuid.UUID
+    ) -> Optional[uuid.UUID]:
+        q = (
+            select(CompetitionModel)
+            .where(CompetitionModel.id == competition_id)
+            .options(selectinload(CompetitionModel.modality))
+        )
+        res = await self.session.execute(q)
+        competition = res.scalar_one_or_none()
+        if not competition:
+            return None
+
+        org_slug = competition.organization_slug if hasattr(competition, "organization_slug") else None
+        if not org_slug:
+            return None
+
+        try:
+            async with AuthClient() as auth_client:
+                data = await auth_client.check_organization_exists(org_slug)
+            if not data.get("exists"):
+                return None
+            org_id = data.get("organization_id")
+            return uuid.UUID(str(org_id)) if org_id else None
+        except (AuthClientError, ValueError, TypeError):
+            logger.exception(
+                "Falha ao resolver organization_id da competição %s (slug=%s)",
+                competition_id,
+                org_slug,
+            )
+            return None
 
     async def register_score(
         self,
@@ -79,6 +113,14 @@ class ManageMatchesService:
         # DEBUG: Status do jogo
         logger.info(f"[REGISTER_SCORE] Match status: {match.status}")
 
+        if match.status != MatchStatus.LIVE:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Não é possível registrar placar/estatística. O jogo deve estar 'live' "
+                    f"(status atual: {match.status})."
+                ),
+            )
 
         # 2) Atualiza placar (opcional: estatística sem alterar resultado no placar)
         if update_scoreboard:
@@ -448,6 +490,9 @@ class ManageMatchesService:
 
         await self.session.commit()
         
+        # Propaga vencedor para matches dependentes (eliminação)
+        await self._propagate_winner_to_feeders(match, winner_team_id)
+        
         # Recarrega a partida com todos os relacionamentos necessários
         q_refresh = (
             select(MatchModel)
@@ -560,3 +605,79 @@ class ManageMatchesService:
                     a_st.points += 3
 
         self.session.add_all([h_st, a_st])
+
+    async def _propagate_winner_to_feeders(
+        self,
+        finished_match: MatchModel,
+        winner_team_id: Optional[uuid.UUID],
+    ) -> None:
+        """
+        Quando um feeder (match) termina, atualiza os matches dependentes com o time vencedor
+        e muda o status para SCHEDULED quando ambos os times estiverem definidos.
+        
+        Isso permite a progressão automática da árvore de eliminação.
+        """
+        if not winner_team_id:
+            # Empate em eliminatória pode não ter vencedor em caso de penalties
+            return
+
+        # Busca matches onde este match é o feeder do lado HOME
+        promoted_matches: list[MatchModel] = []
+        q_home = select(MatchModel).where(
+            MatchModel.home_feeder_match_id == finished_match.id
+        )
+        res_home = await self.session.execute(q_home)
+        home_dependents = res_home.scalars().all()
+
+        for dep in home_dependents:
+            dep.home_team_id = winner_team_id
+            if dep.away_team_id is not None:
+                dep.status = MatchStatus.SCHEDULED
+                promoted_matches.append(dep)
+            self.session.add(dep)
+            logger.info(
+                f"[FEEDERS] Match {finished_match.id} (feeder home) → "
+                f"Match {dep.id} recebeu home_team_id={winner_team_id}"
+            )
+
+        # Busca matches onde este match é o feeder do lado AWAY
+        q_away = select(MatchModel).where(
+            MatchModel.away_feeder_match_id == finished_match.id
+        )
+        res_away = await self.session.execute(q_away)
+        away_dependents = res_away.scalars().all()
+
+        for dep in away_dependents:
+            dep.away_team_id = winner_team_id
+            if dep.home_team_id is not None:
+                dep.status = MatchStatus.SCHEDULED
+                promoted_matches.append(dep)
+            self.session.add(dep)
+            logger.info(
+                f"[FEEDERS] Match {finished_match.id} (feeder away) → "
+                f"Match {dep.id} recebeu away_team_id={winner_team_id}"
+            )
+
+        # Se houver dependentes, commit das mudanças
+        if home_dependents or away_dependents:
+            await self.session.commit()
+            logger.info(
+                f"[FEEDERS] Propagação completa para match {finished_match.id}: "
+                f"{len(home_dependents)} home dependents, {len(away_dependents)} away dependents"
+            )
+
+        if settings.RABBITMQ_URL and promoted_matches:
+            org_id = await self._resolve_organization_id_for_competition(
+                finished_match.competition_id
+            )
+            if org_id:
+                try:
+                    await publish_live_creates_for_matches(promoted_matches, org_id)
+                    logger.info(
+                        "[FEEDERS] Lives enfileiradas para %s partidas promovidas a scheduled",
+                        len(promoted_matches),
+                    )
+                except Exception:
+                    logger.exception(
+                        "[FEEDERS] Falha ao enfileirar lives para partidas promovidas"
+                    )

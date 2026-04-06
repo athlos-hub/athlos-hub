@@ -20,6 +20,7 @@ import {
   Play,
   Square,
   Plus,
+  ArrowRight,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -65,6 +66,7 @@ import {
   getCompetitionStats,
   generateCompetitionStructure,
   finalizeCompetition,
+  advanceGroupPhase,
   updateCompetition,
   deleteCompetition,
   listSportRulesets,
@@ -86,10 +88,9 @@ import { formatUserProfileDisplayName } from "@/lib/user-display-name";
 import type {
   Competition,
   CompetitionHighlights,
-  CompetitionPhase,
   CompetitionStat,
 } from "@/types/competition";
-import { CompetitionStatus, CompetitionSystem } from "@/types/competition";
+import { CompetitionStatus, CompetitionSystem, CompetitionPhase } from "@/types/competition";
 import type { StandingsTeam, PlayerRanking } from "@/actions/rankings";
 import { OrgRole } from "@/types/organization";
 import { CompetitionManagementDialogs } from "@/components/organizations/competition-management-dialogs";
@@ -107,8 +108,42 @@ import { ptBR } from "date-fns/locale";
 import { EditMatchDialog } from "@/components/matches/edit-match-dialog";
 import { Edit } from "lucide-react";
 import { parseBackendIsoToDate } from "@/lib/datetime/parse-backend-iso";
+import { Badge } from "@/components/ui/badge";
 
-const COMPETITION_TABS = ["standings", "teams", "stats", "matches"] as const;
+function phaseIsElimination(phase?: CompetitionPhase | string | null): boolean {
+  if (phase == null) return false;
+  const s = String(phase).toLowerCase().trim();
+  return s === "elimination" || phase === CompetitionPhase.ELIMINATION;
+}
+
+function normalizeCompetitionMatch(m: any) {
+  const roundName = m.round_name ?? m.round?.name ?? null;
+  const groupName = m.group_name ?? m.group?.name ?? null;
+  return { ...m, round_name: roundName, group_name: groupName };
+}
+
+function matchPhaseLabel(match: any): string {
+  const gn = typeof match.group_name === "string" ? match.group_name.trim() : "";
+  if (gn) return `Fase de grupos · ${gn}`;
+  if (match.group_id) return "Fase de grupos";
+  const rn = (match.round_name || match.round?.name || "").trim();
+  if (rn) return rn;
+  return "Mata-mata";
+}
+
+function hasValidTeamIdentity(row: any): boolean {
+  const name = String(row?.team_name ?? "").trim();
+  const id = String(row?.team_id ?? "").trim();
+  return name.length > 0 && name !== "?" && id.length > 0;
+}
+
+function isGeneralStandingsLikelyBroken(rows: any[]): boolean {
+  if (rows.length === 0) return true;
+  const validTeams = rows.filter(hasValidTeamIdentity).length;
+  return validTeams < Math.ceil(rows.length / 2);
+}
+
+const COMPETITION_TABS = ["standings", "bracket", "teams", "stats", "matches"] as const;
 type CompetitionTab = (typeof COMPETITION_TABS)[number];
 
 export function CompetitionDetailPageInner() {
@@ -140,6 +175,9 @@ export function CompetitionDetailPageInner() {
 
   const [competition, setCompetition] = useState<Competition | null>(null);
   const [standings, setStandings] = useState<StandingsTeam[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<string>("general");
+  const [groups, setGroups] = useState<Array<{ id: string; name: string }>>([]);
+  const [isAdvancingPhase, setIsAdvancingPhase] = useState(false);
   const [matches, setMatches] = useState<any[]>([]);
   const [allMatches, setAllMatches] = useState<any[]>([]); // Todos os jogos sem filtro
   const [teams, setTeams] = useState<any[]>([]);
@@ -153,7 +191,6 @@ export function CompetitionDetailPageInner() {
   const [editingStatId, setEditingStatId] = useState<string | null>(null);
   const [statForm, setStatForm] = useState({
     name: "",
-    abbreviation: "",
     description: "",
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -191,6 +228,8 @@ export function CompetitionDetailPageInner() {
     system: "points" as CompetitionSystem,
     sport_ruleset_id: "",
     stats_ruleset_mode: "keep" as "keep" | "none" | "new",
+    teams_per_group: 4,
+    teams_qualified_per_group: 2,
   });
   
   // Filtros de jogos
@@ -210,6 +249,47 @@ export function CompetitionDetailPageInner() {
     }
     return m;
   }, [teams]);
+
+  const knockoutRounds = useMemo(() => {
+    const knockout = allMatches.filter((m: any) => m.group_id == null);
+    const map = new Map<string, any[]>();
+    for (const m of knockout) {
+      const key = (m.round_name || m.round?.name || "").trim() || "Mata-mata";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(m);
+    }
+    for (const arr of map.values()) {
+      arr.sort(
+        (a, b) =>
+          (a.round_match_number ?? a.round_number_match ?? 0) -
+          (b.round_match_number ?? b.round_number_match ?? 0),
+      );
+    }
+    return Array.from(map.entries()).sort((a, b) => b[1].length - a[1].length);
+  }, [allMatches]);
+
+  // Filtrar standings de acordo com grupo selecionado
+  const filteredStandings = useMemo(() => {
+    const generalRows = standings.filter((s: any) => !s.group_id);
+    const groupedRows = standings.filter((s: any) => !!s.group_id);
+
+    if (selectedGroup === "general") {
+      // Em algumas viradas de fase a API retorna geral "quebrada" (times sem nome/ID).
+      // Nesses casos, preservamos uma visão útil usando os dados por grupo.
+      if (!isGeneralStandingsLikelyBroken(generalRows)) {
+        return generalRows;
+      }
+      if (groupedRows.length > 0) {
+        return groupedRows.filter(hasValidTeamIdentity);
+      }
+      return generalRows;
+    } else {
+      // Mostrar standings do grupo específico
+      const groupRows = standings.filter((s: any) => s.group_id === selectedGroup);
+      const validGroupRows = groupRows.filter(hasValidTeamIdentity);
+      return validGroupRows.length > 0 ? validGroupRows : groupRows;
+    }
+  }, [standings, selectedGroup]);
 
   useEffect(() => {
     if (competitionId) {
@@ -342,19 +422,49 @@ export function CompetitionDetailPageInner() {
         try {
           const standingsData = await getCompetitionStandings(competitionId);
           setStandings(standingsData);
+          
+          // Extrair grupos únicos a partir das standings (se houver group_id)
+          if (compData.system === CompetitionSystem.MIXED && standingsData.length > 0) {
+            const groupsSet = new Set<string>();
+            const groupsMap = new Map<string, { id: string; name: string }>();
+            
+            standingsData.forEach((s: any) => {
+              if (s.group_id && s.group_name && !groupsSet.has(s.group_id)) {
+                groupsSet.add(s.group_id);
+                groupsMap.set(s.group_id, { id: s.group_id, name: s.group_name });
+              }
+            });
+            
+            const groupsArray = Array.from(groupsMap.values())
+              .sort((a, b) => a.name.localeCompare(b.name));
+            
+            setGroups(groupsArray);
+            const generalRows = standingsData.filter((s: any) => !s.group_id);
+            const generalBroken = isGeneralStandingsLikelyBroken(generalRows);
+            if (!generalBroken || groupsArray.length === 0) {
+              setSelectedGroup("general");
+            } else {
+              setSelectedGroup(groupsArray[0].id);
+            }
+          }
         } catch {
           setStandings([]);
+          setGroups([]);
         }
       } else {
         setStandings([]);
+        setGroups([]);
       }
 
       // Carregar matches
       try {
         const matchesData = await getCompetitionMatches(competitionId);
         console.log("Matches carregados:", matchesData);
-        setAllMatches(matchesData);
-        setMatches(matchesData);
+        const normalized = Array.isArray(matchesData)
+          ? matchesData.map(normalizeCompetitionMatch)
+          : [];
+        setAllMatches(normalized);
+        setMatches(normalized);
       } catch (error) {
         console.log("Jogos não disponíveis ainda");
       }
@@ -546,7 +656,6 @@ export function CompetitionDetailPageInner() {
   const resetStatForm = () => {
     setStatForm({
       name: "",
-      abbreviation: "",
       description: "",
     });
     setEditingStatId(null);
@@ -558,8 +667,8 @@ export function CompetitionDetailPageInner() {
   };
 
   const handleSaveStat = async () => {
-    if (!statForm.name.trim() || !statForm.abbreviation.trim()) {
-      toast.error("Informe nome e abreviação da estatística");
+    if (!statForm.name.trim()) {
+      toast.error("Informe o nome da estatística");
       return;
     }
 
@@ -567,7 +676,6 @@ export function CompetitionDetailPageInner() {
     try {
       const payload = {
         name: statForm.name.trim(),
-        abbreviation: statForm.abbreviation.trim().toUpperCase(),
         description: statForm.description.trim() || undefined,
         display_order: editingStatId
           ? competitionStats.find((s) => s.id === editingStatId)?.display_order ?? 0
@@ -608,7 +716,6 @@ export function CompetitionDetailPageInner() {
     setEditingStatId(stat.id);
     setStatForm({
       name: stat.name ?? "",
-      abbreviation: stat.abbreviation ?? "",
       description: stat.description ?? "",
     });
     setIsStatDialogOpen(true);
@@ -702,6 +809,26 @@ export function CompetitionDetailPageInner() {
     }
   };
 
+  const handleAdvanceGroupPhase = async () => {
+    if (!competitionId || isAdvancingPhase) return;
+    setIsAdvancingPhase(true);
+    try {
+      const result = await advanceGroupPhase(competitionId);
+      toast.success(
+        `${result.message} (${result.matches_updated} jogos atualizados na chave — ${result.round_name}).`
+      );
+      await loadCompetitionData();
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível avançar a fase. Verifique se todos os jogos de grupos estão finalizados.";
+      toast.error(message);
+    } finally {
+      setIsAdvancingPhase(false);
+    }
+  };
+
   const openCompetitionEditDialog = async () => {
     if (!competition) return;
     if (competition.status === CompetitionStatus.FINISHED) {
@@ -747,6 +874,8 @@ export function CompetitionDetailPageInner() {
         system: competition.system,
         sport_ruleset_id: competition.sport_ruleset_id ? String(competition.sport_ruleset_id) : "",
         stats_ruleset_mode: "keep",
+        teams_per_group: competition.teams_per_group || 4,
+        teams_qualified_per_group: competition.teams_qualified_per_group || 2,
       });
 
       setIsCompetitionEditDialogOpen(true);
@@ -776,6 +905,9 @@ export function CompetitionDetailPageInner() {
           ? (editingCompetitionForm.sport_ruleset_id || undefined)
           : undefined,
         stats_ruleset_mode: editingRules.canEditBeforeStart ? editingCompetitionForm.stats_ruleset_mode : "keep",
+        // Campos de configuração MIXED
+        teams_per_group: editingRules.canEditBeforeStart && editingCompetitionForm.system === CompetitionSystem.MIXED ? editingCompetitionForm.teams_per_group : undefined,
+        teams_qualified_per_group: editingRules.canEditBeforeStart && editingCompetitionForm.system === CompetitionSystem.MIXED ? editingCompetitionForm.teams_qualified_per_group : undefined,
       });
       toast.success("Competição atualizada com sucesso");
       setIsCompetitionEditDialogOpen(false);
@@ -920,7 +1052,9 @@ export function CompetitionDetailPageInner() {
   }
 
   const showStandingsTab = competition.system !== CompetitionSystem.ELIMINATION;
-  const hasStandings = showStandingsTab && standings.length > 0;
+  const showBracketTab = competition.system === CompetitionSystem.MIXED;
+  const hasStandingsTable = showStandingsTab && filteredStandings.length > 0;
+  const hasKnockoutBracket = showBracketTab && knockoutRounds.length > 0;
   const hasMatches = matches.length > 0;
   const hasTeams = teams.length > 0;
   const effectiveTab: CompetitionTab = (() => {
@@ -928,6 +1062,9 @@ export function CompetitionDetailPageInner() {
       activeTab === "stats" && !showStatsTab ? "standings" : activeTab;
     if (!showStandingsTab && t === "standings") {
       t = "teams";
+    }
+    if (!showBracketTab && t === "bracket") {
+      t = "standings";
     }
     return t;
   })();
@@ -946,6 +1083,13 @@ export function CompetitionDetailPageInner() {
     !!session && (userRole === OrgRole.OWNER || userRole === OrgRole.ORGANIZER);
   const canMutateCompetition =
     canManageCompetition && competition.status !== CompetitionStatus.FINISHED;
+
+  /** MIXED ainda não passou para mata-mata (fase groups ou legado sem current_phase no JSON). */
+  const canAdvanceToEliminationPhase =
+    competition.system === CompetitionSystem.MIXED &&
+    competition.status === CompetitionStatus.STARTED &&
+    canMutateCompetition &&
+    !phaseIsElimination(competition.current_phase);
 
   const showFinishedHighlightsCard =
     competition.status === CompetitionStatus.FINISHED &&
@@ -1062,51 +1206,90 @@ export function CompetitionDetailPageInner() {
           </div>
         </Card>
 
+        {canAdvanceToEliminationPhase && (
+          <Card className="p-4 border-main/30 bg-main/5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-gray-900">
+                  Próxima fase: eliminatória
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Quando todos os jogos da fase de grupos estiverem finalizados, avance para montar os
+                  confrontos do mata-mata com os classificados.
+                </p>
+              </div>
+              <Button
+                type="button"
+                className="shrink-0 gap-2 bg-main hover:bg-main/90 text-white"
+                disabled={isAdvancingPhase}
+                onClick={() => void handleAdvanceGroupPhase()}
+              >
+                {isAdvancingPhase ? (
+                  "Avançando..."
+                ) : (
+                  <>
+                    <ArrowRight className="w-4 h-4" />
+                    Avançar para eliminação
+                  </>
+                )}
+              </Button>
+            </div>
+          </Card>
+        )}
+
         {showFinishedHighlightsCard && competitionHighlights && (
-          <Card className="p-6 border-amber-200/60 bg-gradient-to-br from-amber-50/90 to-background">
-            <div className="space-y-6">
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-amber-600" />
+          <Card className="overflow-hidden border-border/80 shadow-sm">
+            <div className="border-b border-border bg-muted/40 px-6 py-4">
+              <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                <Trophy className="h-5 w-5 text-main" />
                 Resultado e destaques
               </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Encerramento da competição e principais destaques individuais.
+              </p>
+            </div>
+            <div className="space-y-6 p-6">
               {competitionHighlights.champion_team && (
-                <div className="flex flex-col gap-3 rounded-xl border border-border/80 bg-background/90 p-4 sm:flex-row sm:items-center sm:gap-6">
-                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground shrink-0">
-                    Campeão
-                  </span>
-                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                <div className="rounded-xl border border-border bg-background p-5">
+                  <div className="mb-4">
+                    <Badge className="bg-main text-white hover:bg-main">Campeão</Badge>
+                  </div>
+                  <div className="flex min-w-0 items-center gap-4">
                     <TeamLogo
                       name={competitionHighlights.champion_team.name}
                       abbreviation={competitionHighlights.champion_team.abbreviation || "?"}
                       logoUrl={competitionHighlights.champion_team.logo_url ?? null}
-                      className="h-12 w-12 shrink-0"
-                      textClassName="text-xs"
+                      className="h-14 w-14 shrink-0"
+                      textClassName="text-sm"
                     />
                     <div className="min-w-0">
-                      <div className="truncate text-base font-semibold text-foreground">
+                      <p className="truncate text-lg font-semibold text-foreground">
                         {competitionHighlights.champion_team.name}
-                      </div>
-                      {competitionHighlights.champion_team.abbreviation && (
-                        <div className="text-sm text-muted-foreground">
-                          {competitionHighlights.champion_team.abbreviation}
-                        </div>
-                      )}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {competitionHighlights.champion_team.abbreviation || "—"}
+                      </p>
                     </div>
                   </div>
                 </div>
               )}
               {(competitionHighlights.stat_leaders?.length ?? 0) > 0 && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-800 mb-3">
-                    Top jogadores por estatística
+                <section className="space-y-3">
+                  <h3 className="text-sm font-medium text-muted-foreground">
+                    Destaques individuais
                   </h3>
                   <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     {competitionHighlights.stat_leaders.map((block) => (
                       <div
                         key={block.stat_type_id}
-                        className="rounded-lg border border-border/80 bg-background p-4 space-y-2"
+                        className="rounded-xl border border-border bg-background p-4"
                       >
-                        <div className="text-sm font-semibold text-gray-900">{block.name}</div>
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-foreground">{block.name}</p>
+                          <Badge variant="secondary" className="font-normal">
+                            Top {block.leaders.length}
+                          </Badge>
+                        </div>
                         <ul className="space-y-2 text-sm">
                           {block.leaders.map((L, idx) => {
                             const kid = String(L.player_keycloak_id ?? "").trim();
@@ -1115,16 +1298,16 @@ export function CompetitionDetailPageInner() {
                             return (
                               <li
                                 key={`${L.player_id}-${idx}`}
-                                className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 border-b border-border/50 pb-2 last:border-0 last:pb-0"
+                                className="flex items-center justify-between gap-2 rounded-md bg-muted/40 px-2.5 py-2"
                               >
-                                <span className="min-w-0">
+                                <span className="min-w-0 truncate">
                                   <span className="font-medium text-foreground">{label}</span>
                                   <span className="text-muted-foreground">
-                                    {" "}
-                                    · {L.team_name || L.team_abbreviation || "—"}
+                                    {" · "}
+                                    {L.team_name || L.team_abbreviation || "—"}
                                   </span>
                                 </span>
-                                <span className="shrink-0 tabular-nums font-semibold text-foreground">
+                                <span className="shrink-0 rounded bg-background px-2 py-0.5 font-semibold tabular-nums text-foreground">
                                   {L.stat_value}
                                 </span>
                               </li>
@@ -1134,7 +1317,7 @@ export function CompetitionDetailPageInner() {
                       </div>
                     ))}
                   </div>
-                </div>
+                </section>
               )}
             </div>
           </Card>
@@ -1202,6 +1385,22 @@ export function CompetitionDetailPageInner() {
                       </span>
                     </button>
                   )}
+                  {showBracketTab && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("bracket")}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        effectiveTab === "bracket"
+                          ? "bg-main text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <Layers className="w-4 h-4" />
+                        Chaveamento
+                      </span>
+                    </button>
+                  )}
                   <button
                     onClick={() => setActiveTab("teams")}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -1247,65 +1446,98 @@ export function CompetitionDetailPageInner() {
               </div>
             </div>
 
-            {/* Tabela de pontos — omitida quando o sistema é só eliminatório */}
             {showStandingsTab && (
             <TabsContent value="standings" className="mt-6">
-              {hasStandings ? (
-                <div className="rounded-lg border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-12">#</TableHead>
-                        <TableHead>Time</TableHead>
-                        <TableHead className="text-center">P</TableHead>
-                        <TableHead className="text-center">J</TableHead>
-                        <TableHead className="text-center">V</TableHead>
-                        <TableHead className="text-center">E</TableHead>
-                        <TableHead className="text-center">D</TableHead>
-                        <TableHead className="text-center">GP</TableHead>
-                        <TableHead className="text-center">GC</TableHead>
-                        <TableHead className="text-center">SG</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {standings.map((team, index) => (
-                        <TableRow key={`${String(team.team_id)}-${index}`}>
-                          <TableCell className="font-medium">{index + 1}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-3 min-w-0">
-                              <TeamLogo
-                                name={team.team_name}
-                                abbreviation={team.team_abbreviation || "?"}
-                                logoUrl={
-                                  teamLogoByCompetitionTeamId.get(String(team.team_id)) ??
-                                  team.team_logo_url ??
-                                  null
-                                }
-                                className="h-9 w-9"
-                                textClassName="text-xs"
-                              />
-                              <div className="min-w-0">
-                                <div className="font-medium truncate">{team.team_name}</div>
-                                {team.team_abbreviation && (
-                                  <div className="text-xs text-gray-500">{team.team_abbreviation}</div>
-                                )}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center font-bold">{team.points}</TableCell>
-                          <TableCell className="text-center">{team.matches_played}</TableCell>
-                          <TableCell className="text-center">{team.wins}</TableCell>
-                          <TableCell className="text-center">{team.draws}</TableCell>
-                          <TableCell className="text-center">{team.losses}</TableCell>
-                          <TableCell className="text-center">{team.goals_for || 0}</TableCell>
-                          <TableCell className="text-center">{team.goals_against || 0}</TableCell>
-                          <TableCell className="text-center font-medium">
-                            {team.goal_difference || 0}
-                          </TableCell>
+              {hasStandingsTable ? (
+                <div>
+                  {competition.system === CompetitionSystem.MIXED &&
+                    phaseIsElimination(competition.current_phase) && (
+                      <div className="mb-4 rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                        <span className="font-medium">Fase de Grupos finalizada. Acompanhe o chaveamento da fase eliminatória.</span>
+                      </div>
+                    )}
+                  {/* Seletor de grupos para competições MIXED */}
+                  {competition?.system === CompetitionSystem.MIXED && groups.length > 0 && (
+                    <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                      <div className="flex-1">
+                        <label htmlFor="group-select" className="text-sm font-medium text-gray-700">
+                          Visualizar Classificação:
+                        </label>
+                        <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+                          <SelectTrigger id="group-select" className="mt-2 w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="general">Tabela Geral</SelectItem>
+                            {groups.map((group) => (
+                              <SelectItem key={group.id} value={group.id}>
+                                {group.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="rounded-lg border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-12">#</TableHead>
+                          <TableHead>Time</TableHead>
+                          <TableHead className="text-center">P</TableHead>
+                          <TableHead className="text-center">J</TableHead>
+                          <TableHead className="text-center">V</TableHead>
+                          <TableHead className="text-center">E</TableHead>
+                          <TableHead className="text-center">D</TableHead>
+                          <TableHead className="text-center">GP</TableHead>
+                          <TableHead className="text-center">GC</TableHead>
+                          <TableHead className="text-center">SG</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredStandings.map((team, index) => (
+                          <TableRow key={`${String(team.team_id)}-${index}`}>
+                            <TableCell className="font-medium">{index + 1}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-3 min-w-0">
+                                <TeamLogo
+                                  name={team.team_name || "Equipe"}
+                                  abbreviation={team.team_abbreviation || "?"}
+                                  logoUrl={
+                                    teamLogoByCompetitionTeamId.get(String(team.team_id)) ??
+                                    team.team_logo_url ??
+                                    null
+                                  }
+                                  className="h-9 w-9"
+                                  textClassName="text-xs"
+                                />
+                                <div className="min-w-0">
+                                  <div className="font-medium truncate">
+                                    {team.team_name || "Equipe não identificada"}
+                                  </div>
+                                  {team.team_abbreviation && (
+                                    <div className="text-xs text-gray-500">{team.team_abbreviation}</div>
+                                  )}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center font-bold">{team.points ?? 0}</TableCell>
+                            <TableCell className="text-center">{team.matches_played ?? 0}</TableCell>
+                            <TableCell className="text-center">{team.wins ?? 0}</TableCell>
+                            <TableCell className="text-center">{team.draws ?? 0}</TableCell>
+                            <TableCell className="text-center">{team.losses ?? 0}</TableCell>
+                            <TableCell className="text-center">{team.goals_for || 0}</TableCell>
+                            <TableCell className="text-center">{team.goals_against || 0}</TableCell>
+                            <TableCell className="text-center font-medium">
+                              {team.goal_difference || 0}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               ) : (
                 <div className="py-16 text-center">
@@ -1323,6 +1555,147 @@ export function CompetitionDetailPageInner() {
                 </div>
               )}
             </TabsContent>
+            )}
+
+            {showBracketTab && (
+              <TabsContent value="bracket" className="mt-6">
+                {hasKnockoutBracket ? (
+                  <div className="space-y-3">
+                    <div className="overflow-x-auto pb-2">
+                      <div className="flex min-w-max items-start gap-4">
+                        {knockoutRounds.map(([roundName, games]) => (
+                          <div key={roundName} className="w-[360px] shrink-0 space-y-3">
+                            <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+                              <h3 className="text-sm font-semibold text-foreground">{roundName}</h3>
+                              <p className="text-xs text-muted-foreground">
+                                {games.length} confronto{games.length !== 1 ? "s" : ""}
+                              </p>
+                            </div>
+                            <div className="space-y-3">
+                              {games.map((match: any) => {
+                                const homeName =
+                                  match.home_team_name ||
+                                  match.home_team?.name ||
+                                  (match.home_team_id ? "Time mandante" : "A definir");
+                                const awayName =
+                                  match.away_team_name ||
+                                  match.away_team?.name ||
+                                  (match.away_team_id ? "Time visitante" : "A definir");
+                                const finished =
+                                  String(match.status).toLowerCase() === "finished";
+                                return (
+                                  <Card
+                                    key={match.id}
+                                    className="border border-border/80 p-4 shadow-sm"
+                                  >
+                                    <div className="flex items-start">
+                                      <Badge variant="secondary" className="font-medium">
+                                        {getMatchStatusLabel(displayMatchStatus(match))}
+                                      </Badge>
+                                    </div>
+                                    <div className="my-5 flex items-center justify-center">
+                                      <div className="flex w-full min-w-0 items-center gap-3">
+                                        <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+                                          <span className="truncate text-right text-sm font-semibold">
+                                            {homeName}
+                                          </span>
+                                          <TeamLogo
+                                            name={homeName}
+                                            abbreviation={
+                                              match.home_team_abbreviation ||
+                                              match.home_team?.abbreviation ||
+                                              "?"
+                                            }
+                                            logoUrl={
+                                              (match.home_team?.id != null
+                                                ? teamLogoByCompetitionTeamId.get(
+                                                    String(match.home_team.id),
+                                                  )
+                                                : undefined) ??
+                                              match.home_team?.logo_url ??
+                                              match.home_team?.logo ??
+                                              null
+                                            }
+                                            className="h-9 w-9 shrink-0"
+                                            textClassName="text-[10px]"
+                                          />
+                                        </div>
+                                        <div className="shrink-0 text-center text-sm font-bold tabular-nums">
+                                          {finished ? (
+                                            <>
+                                              {match.home_score}
+                                              <span className="mx-1 text-muted-foreground">:</span>
+                                              {match.away_score}
+                                            </>
+                                          ) : (
+                                            <span className="text-muted-foreground">vs</span>
+                                          )}
+                                        </div>
+                                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                                          <TeamLogo
+                                            name={awayName}
+                                            abbreviation={
+                                              match.away_team_abbreviation ||
+                                              match.away_team?.abbreviation ||
+                                              "?"
+                                            }
+                                            logoUrl={
+                                              (match.away_team?.id != null
+                                                ? teamLogoByCompetitionTeamId.get(
+                                                    String(match.away_team.id),
+                                                  )
+                                                : undefined) ??
+                                              match.away_team?.logo_url ??
+                                              match.away_team?.logo ??
+                                              null
+                                            }
+                                            className="h-9 w-9 shrink-0"
+                                            textClassName="text-[10px]"
+                                          />
+                                          <span className="truncate text-sm font-semibold">
+                                            {awayName}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="mt-2 flex justify-center text-xs text-muted-foreground">
+                                      {match.scheduled_datetime ? (
+                                        <span>
+                                          {formatDate(
+                                            match.scheduled_datetime,
+                                            "dd/MM/yyyy · HH:mm",
+                                          )}
+                                        </span>
+                                      ) : (
+                                        <span className="italic">Horário não definido</span>
+                                      )}
+                                    </div>
+                                  </Card>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-16 text-center">
+                    <div className="mx-auto flex max-w-xl flex-col items-center gap-4 rounded-xl border border-dashed border-border bg-muted/30 p-8">
+                      <Layers className="h-12 w-12 text-gray-300" />
+                      <div className="space-y-1">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Chaveamento ainda sem confrontos
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          Na fase de grupos esta área fica vazia. Após avançar para a eliminatória, os
+                          jogos do mata-mata aparecem aqui em colunas por rodada.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
             )}
 
             {/* Times */}
@@ -1415,7 +1788,6 @@ export function CompetitionDetailPageInner() {
                             <TableHeader>
                               <TableRow>
                                 <TableHead>Nome</TableHead>
-                                <TableHead>Abrev.</TableHead>
                                 <TableHead className="text-right">Ações</TableHead>
                               </TableRow>
                             </TableHeader>
@@ -1423,7 +1795,6 @@ export function CompetitionDetailPageInner() {
                               {competitionStats.map((stat) => (
                                 <TableRow key={stat.id}>
                                   <TableCell className="font-medium">{stat.name}</TableCell>
-                                  <TableCell>{stat.abbreviation}</TableCell>
                                   <TableCell className="text-right">
                                     <div className="flex justify-end gap-2">
                                       <Button
@@ -1465,7 +1836,7 @@ export function CompetitionDetailPageInner() {
                         <SelectContent>
                           {competitionStats.map((stat) => (
                             <SelectItem key={stat.id} value={stat.abbreviation}>
-                              {stat.name} ({stat.abbreviation})
+                              {stat.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -1527,6 +1898,31 @@ export function CompetitionDetailPageInner() {
 
             {/* Jogos */}
             <TabsContent value="matches" className="mt-6">
+              {canAdvanceToEliminationPhase && (
+                <Card className="mb-6 p-4 border-main/30 bg-main/5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Fase de grupos: ao terminar todos os jogos, use o botão para gerar o mata-mata com os
+                      classificados.
+                    </p>
+                    <Button
+                      type="button"
+                      className="shrink-0 gap-2 bg-main hover:bg-main/90 text-white"
+                      disabled={isAdvancingPhase}
+                      onClick={() => void handleAdvanceGroupPhase()}
+                    >
+                      {isAdvancingPhase ? (
+                        "Avançando..."
+                      ) : (
+                        <>
+                          <ArrowRight className="w-4 h-4" />
+                          Avançar para eliminação
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </Card>
+              )}
               {/* Filtros */}
               <div className="mb-6 flex flex-wrap gap-4">
                 <div className="flex items-center gap-2">
@@ -1573,7 +1969,7 @@ export function CompetitionDetailPageInner() {
               </div>
 
               {hasMatches ? (
-                <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-2 max-w-5xl">
+                <div className="grid w-full gap-4 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-2">
                   {matches.map((match) => (
                     <Card
                       key={match.id}
@@ -1589,13 +1985,25 @@ export function CompetitionDetailPageInner() {
                             >
                               {getMatchStatusLabel(displayMatchStatus(match))}
                             </span>
-                            {match.round_name && (
-                              <span className="text-xs text-muted-foreground truncate">
-                                {match.round_name}
+                            <Badge variant="secondary" className="max-w-[min(100%,14rem)] truncate font-normal">
+                              {matchPhaseLabel(match)}
+                            </Badge>
+                            {/* Indicadores de feeders (eliminação) */}
+                            {match.home_feeder_match_id && (
+                              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
+                                <span className="text-blue-600">🔗</span>
+                                Home Feeder
+                              </span>
+                            )}
+                            {match.away_feeder_match_id && (
+                              <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
+                                <span className="text-green-600">🔗</span>
+                                Away Feeder
                               </span>
                             )}
                           </div>
-                          {canMutateCompetition && (
+                          {canMutateCompetition &&
+                            !["live", "finished"].includes(displayMatchStatus(match)) && (
                             <Button
                               type="button"
                               variant="ghost"
@@ -1606,7 +2014,7 @@ export function CompetitionDetailPageInner() {
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
-                          )}
+                            )}
                         </div>
 
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -1757,11 +2165,6 @@ export function CompetitionDetailPageInner() {
               placeholder="Nome (ex.: Gols)"
               value={statForm.name}
               onChange={(e) => setStatForm((prev) => ({ ...prev, name: e.target.value }))}
-            />
-            <Input
-              placeholder="Abreviação (ex.: GOL)"
-              value={statForm.abbreviation}
-              onChange={(e) => setStatForm((prev) => ({ ...prev, abbreviation: e.target.value }))}
             />
             <Input
               placeholder="Descrição (opcional)"

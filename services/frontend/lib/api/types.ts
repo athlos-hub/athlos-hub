@@ -1,4 +1,4 @@
-export type ServiceType = "auth" | "competitions";
+export type ServiceType = "auth" | "auth_upstream" | "competitions";
 
 export interface APIProps {
     endpoint: string;
