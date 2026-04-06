@@ -6,7 +6,7 @@ from fastapi import APIRouter, Query
 
 from live_service.api.deps import GatewayUserDep, LiveServiceDep
 from live_service.common.enums import LiveStatus
-from live_service.schemas.live import CreateLiveBody, LiveResponse
+from live_service.schemas.live import CreateLiveBody, LiveResponse, LiveTransmitPatchBody
 
 router = APIRouter(prefix="/lives", tags=["lives"])
 
@@ -51,3 +51,30 @@ async def cancel_live(
     user: GatewayUserDep,
 ) -> LiveResponse:
     return await svc.cancel_live(live_id, user.sub)
+
+
+@router.patch(
+    "/{live_id}/transmit-video",
+    response_model=LiveResponse,
+    response_model_by_alias=True,
+)
+async def patch_transmit_video(
+    live_id: str,
+    body: LiveTransmitPatchBody,
+    svc: LiveServiceDep,
+    user: GatewayUserDep,
+) -> LiveResponse:
+    return await svc.update_transmit_video(live_id, user.sub, body.transmit_video)
+
+
+@router.patch(
+    "/{live_id}/start-without-stream",
+    response_model=LiveResponse,
+    response_model_by_alias=True,
+)
+async def start_match_without_stream(
+    live_id: str,
+    svc: LiveServiceDep,
+    user: GatewayUserDep,
+) -> LiveResponse:
+    return await svc.start_match_without_stream(live_id, user.sub)

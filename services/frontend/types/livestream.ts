@@ -28,6 +28,8 @@ export interface Live {
   startedAt: string | null;
   endedAt: string | null;
   createdAt: string;
+  /** Padrão true. Se false, não exibir player de vídeo (placar/chat/eventos mantidos). */
+  transmitVideo?: boolean;
 }
 
 export interface CreateLiveDto {

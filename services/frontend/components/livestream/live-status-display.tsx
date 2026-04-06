@@ -1,6 +1,7 @@
 import { Clock, PlayCircle, StopCircle, XCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import type { LiveStatus } from "@/types/livestream";
+import { parseBackendIsoToDate } from "@/lib/datetime/parse-backend-iso";
 
 interface LiveStatusDisplayProps {
   status: LiveStatus;
@@ -69,7 +70,7 @@ export function LiveStatusDisplay({ status, startedAt, endedAt }: LiveStatusDisp
   const Icon = config.icon;
 
   const formatDateTime = (date: string) => {
-    return new Date(date).toLocaleString("pt-BR", {
+    return parseBackendIsoToDate(date).toLocaleString("pt-BR", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",

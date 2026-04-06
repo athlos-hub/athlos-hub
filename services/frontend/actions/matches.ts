@@ -119,6 +119,7 @@ export async function finishMatch(matchId: string): Promise<MatchScoreResponse> 
 export interface MatchUpdateData {
   scheduled_datetime?: string;
   local?: string;
+  transmitVideo?: boolean;
 }
 
 /**

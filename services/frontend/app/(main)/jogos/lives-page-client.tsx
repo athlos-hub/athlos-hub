@@ -34,6 +34,7 @@ import { useSession } from "next-auth/react";
 import { LoginCtaBanner } from "@/components/auth/login-cta-banner";
 import { PageHeader } from "@/components/layout/page-header";
 import { FilterPanel } from "@/components/layout/filter-panel";
+import { parseBackendIsoToDate } from "@/lib/datetime/parse-backend-iso";
 
 function parseStatusFromSearchParams(sp: URLSearchParams): LiveStatus | "all" {
   const raw = sp.get("status");
@@ -176,9 +177,6 @@ export default function LivesPageClient() {
     return [...allLives].sort(sortByStatus);
   }, [allLives]);
 
-  const scheduledLives = useMemo(() => {
-    return allLives.filter((live) => live.status === LiveStatus.SCHEDULED);
-  }, [allLives]);
 
   const handleSelectLive = (liveId: string, checked: boolean) => {
     const live = allLives.find((l) => l.id === liveId);
@@ -189,7 +187,7 @@ export default function LivesPageClient() {
     }
 
     if (checked && live?.matchData?.scheduled_datetime) {
-      const matchDate = new Date(live.matchData.scheduled_datetime);
+      const matchDate = parseBackendIsoToDate(live.matchData.scheduled_datetime);
       const now = new Date();
       
       if (matchDate <= now) {
@@ -213,7 +211,7 @@ export default function LivesPageClient() {
       const schedulableLivesWithDatetime = lives.filter((live) => {
         if (live.status !== LiveStatus.SCHEDULED) return false;
         if (!live.matchData?.scheduled_datetime) return false;
-        const matchDate = new Date(live.matchData.scheduled_datetime);
+        const matchDate = parseBackendIsoToDate(live.matchData.scheduled_datetime);
         return matchDate > now;
       });
 
@@ -253,7 +251,7 @@ export default function LivesPageClient() {
       return;
     }
 
-    const matchDate = new Date(live.matchData.scheduled_datetime);
+    const matchDate = parseBackendIsoToDate(live.matchData.scheduled_datetime);
     const now = new Date();
     if (matchDate <= now) {
       toast.error("Não é possível adicionar jogos que já começaram ao calendário");
@@ -301,7 +299,7 @@ export default function LivesPageClient() {
       return (
         live?.status === LiveStatus.SCHEDULED &&
         !!live.matchData?.scheduled_datetime &&
-        new Date(live.matchData.scheduled_datetime) > now
+        parseBackendIsoToDate(live.matchData.scheduled_datetime) > now
       );
     });
 
@@ -437,7 +435,7 @@ export default function LivesPageClient() {
   const hasSelection = selectedLives.size > 0;
   const now = new Date();
   const schedulableLivesWithDatetime = schedulableLives.filter((live) => {
-    return !!live.matchData?.scheduled_datetime && new Date(live.matchData.scheduled_datetime) > now;
+    return !!live.matchData?.scheduled_datetime && parseBackendIsoToDate(live.matchData.scheduled_datetime) > now;
   });
   const allSelected = schedulableLivesWithDatetime.length > 0 && selectedLives.size === schedulableLivesWithDatetime.length;
 

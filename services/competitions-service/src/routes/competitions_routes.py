@@ -9,12 +9,15 @@ from src.services.competitions_service import CompetitionService
 from src.services.competition_generator.competition_generator import StructureGeneratorService
 from src.services.auth_client import AuthClient, PermissionDenied, AuthServiceUnavailable
 from src.schemas.competition_schema import (
-    CompetitionCreate, 
-    CompetitionResponse, 
+    CompetitionCreate,
+    CompetitionHighlightsResponse,
+    CompetitionResponse,
     CompetitionUpdate,
     StatsRuleSetResponse,
     TeamWithPlayersResponse,
 )
+from src.services.competition_outcome_service import CompetitionOutcomeService
+from src.services.competition_write_guard import ensure_competition_not_finished
 from src.schemas.stats_ruleset_schema import StatsTypeResponse
 from src.models.modality import ModalityModel
 from src.api.deps import get_current_keycloak_id
@@ -122,6 +125,25 @@ async def list_competitions(
     service = CompetitionService(session)
     return await service.list_all(skip, limit, organization_slug=organization_slug, status=status)
 
+
+@router.get(
+    "/{competition_id}/highlights",
+    response_model=CompetitionHighlightsResponse,
+    summary="Campeão e destaques de estatísticas (competição finalizada)",
+)
+async def get_competition_highlights(
+    competition_id: UUID,
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Quando a competição está **finalizada**, retorna o time campeão (quando for possível inferir)
+    e os top 3 jogadores por métrica configurada no conjunto de estatísticas.
+    Para competições não finalizadas, retorna resposta vazia.
+    """
+    svc = CompetitionOutcomeService(session)
+    return await svc.build_highlights(competition_id)
+
+
 @router.get(
     "/{competition_id}", 
     response_model=CompetitionResponse,
@@ -187,7 +209,8 @@ async def generate_structure(
     # Buscar a competição para obter a modalidade
     competition_service = CompetitionService(session)
     competition = await competition_service.get_by_id(competition_id)
-    
+    await ensure_competition_not_finished(session, competition_id)
+
     # Buscar organization_slug da modalidade
     organization_slug = await _get_organization_slug_from_modality(session, competition.modality_id)
     

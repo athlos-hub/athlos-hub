@@ -292,6 +292,7 @@ async def register_match_score(
         segment_id=score.segment_id,
         stats_metric_abbreviation=score.stats_metric_abbreviation,
         player_id=score.player_id,
+        update_scoreboard=score.update_scoreboard,
     )
     return updated
 

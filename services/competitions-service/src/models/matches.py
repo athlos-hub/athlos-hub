@@ -69,6 +69,9 @@ class MatchModel(Base):
     
     has_penalties: Mapped[bool] = mapped_column(Boolean, default=False)
     has_overtime: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Se false, a partida pode ser acompanhada só com placar/chat/eventos (sem player de vídeo).
+    transmit_video: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     
     # Winner (FK)
     winner_team_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("teams.id"), nullable=True)

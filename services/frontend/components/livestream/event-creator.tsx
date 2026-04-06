@@ -23,9 +23,7 @@ import {
 import { MatchEventType } from "@/types/livestream";
 import { CompetitionStat, TeamWithPlayers, Player } from "@/types/competition";
 import { SegmentScore } from "@/types/scoreboard";
-import { RegisterScoreRequest } from "@/types/stats";
 import { publishMatchEvent } from "@/actions/lives";
-import { registerMatchScore } from "@/actions/matches";
 import { toast } from "sonner";
 import { 
   Plus, 

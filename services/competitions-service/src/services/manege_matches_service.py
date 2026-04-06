@@ -16,6 +16,7 @@ from src.services.scoreboard_service import ScoreboardService
 from src.config.settings import settings
 from src.services.social_client import SocialServiceClient
 from src.services.achievements_service import AchievementsService
+from src.services.competition_write_guard import ensure_competition_not_finished
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ class ManageMatchesService:
         segment_id: Optional[uuid.UUID] = None,
         stats_metric_abbreviation: Optional[str] = None,
         player_id: Optional[uuid.UUID] = None,
+        update_scoreboard: bool = True,
     ) -> MatchModel:
         """
         Registra pontuação para um jogo.
@@ -72,41 +74,46 @@ class ManageMatchesService:
         if not match:
             raise HTTPException(status_code=404, detail="Jogo não encontrado.")
 
+        await ensure_competition_not_finished(self.session, match.competition_id)
+
         # DEBUG: Status do jogo
         logger.info(f"[REGISTER_SCORE] Match status: {match.status}")
 
 
-        # 2) Atualiza placar
-        if segment_id is not None:
-            # Atualiza o segmento específico
-            q_segment = select(SegmentModel).where(
-                SegmentModel.id == segment_id, SegmentModel.match_id == match.id
-            )
-            seg_res = await self.session.execute(q_segment)
-            segment = seg_res.scalar_one_or_none()
-            if not segment:
-                raise HTTPException(status_code=404, detail="Segmento não encontrado para este jogo.")
+        # 2) Atualiza placar (opcional: estatística sem alterar resultado no placar)
+        if update_scoreboard:
+            if segment_id is not None:
+                # Atualiza o segmento específico
+                q_segment = select(SegmentModel).where(
+                    SegmentModel.id == segment_id, SegmentModel.match_id == match.id
+                )
+                seg_res = await self.session.execute(q_segment)
+                segment = seg_res.scalar_one_or_none()
+                if not segment:
+                    raise HTTPException(status_code=404, detail="Segmento não encontrado para este jogo.")
 
-            if team_side == "home":
-                segment.home_score = (segment.home_score or 0) + max(0, increment)
+                if team_side == "home":
+                    segment.home_score = (segment.home_score or 0) + max(0, increment)
+                else:
+                    segment.away_score = (segment.away_score or 0) + max(0, increment)
+
+                self.session.add(segment)
+
+                # Recalcula o placar total do jogo com base nos segmentos
+                total_home = sum((s.home_score or 0) for s in match.segments)
+                total_away = sum((s.away_score or 0) for s in match.segments)
+                match.home_score = total_home
+                match.away_score = total_away
             else:
-                segment.away_score = (segment.away_score or 0) + max(0, increment)
+                # Jogo sem segmentação: incrementa diretamente
+                if team_side == "home":
+                    match.home_score = (match.home_score or 0) + max(0, increment)
+                else:
+                    match.away_score = (match.away_score or 0) + max(0, increment)
 
-            self.session.add(segment)
-
-            # Recalcula o placar total do jogo com base nos segmentos
-            total_home = sum((s.home_score or 0) for s in match.segments)
-            total_away = sum((s.away_score or 0) for s in match.segments)
-            match.home_score = total_home
-            match.away_score = total_away
+            self.session.add(match)
         else:
-            # Jogo sem segmentação: incrementa diretamente
-            if team_side == "home":
-                match.home_score = (match.home_score or 0) + max(0, increment)
-            else:
-                match.away_score = (match.away_score or 0) + max(0, increment)
-
-        self.session.add(match)
+            logger.info("[REGISTER_SCORE] update_scoreboard=False: placar do jogo não foi alterado.")
 
         # 3) Regras de Stats
         # Verifica se a competição registra métricas
@@ -116,6 +123,12 @@ class ManageMatchesService:
         
         # DEBUG: Stats ruleset
         logger.info(f"[REGISTER_SCORE] Tem StatsRuleSet? {ruleset is not None}")
+
+        if not update_scoreboard and not ruleset:
+            raise HTTPException(
+                status_code=400,
+                detail="Sem métricas configuradas na competição, é preciso alterar o placar para registrar este incremento.",
+            )
 
         if ruleset:
             # Ao existir ruleset, exigimos player e métrica
@@ -221,6 +234,8 @@ class ManageMatchesService:
 
         if not match:
             raise HTTPException(status_code=404, detail="Jogo não encontrado.")
+
+        await ensure_competition_not_finished(self.session, match.competition_id)
 
         # Status deve ser LIVE
         if match.status != MatchStatus.LIVE:
@@ -332,6 +347,8 @@ class ManageMatchesService:
         if not match:
             raise HTTPException(status_code=404, detail="Jogo não encontrado.")
 
+        await ensure_competition_not_finished(self.session, match.competition_id)
+
         # Permite iniciar apenas se estiver SCHEDULED
         if match.status != MatchStatus.SCHEDULED:
             raise HTTPException(
@@ -360,6 +377,8 @@ class ManageMatchesService:
 
         if not match:
             raise HTTPException(status_code=404, detail="Jogo não encontrado.")
+
+        await ensure_competition_not_finished(self.session, match.competition_id)
 
         if match.status != MatchStatus.LIVE:
             raise HTTPException(status_code=400, detail=f"Só é possível finalizar jogos em status 'live' (status atual: {match.status}).")

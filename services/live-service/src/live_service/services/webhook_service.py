@@ -12,6 +12,7 @@ from live_service.infrastructure import redis_client as rc
 from live_service.infrastructure.http_clients import CompetitionsClient
 from live_service.repositories.live_repository import LiveRepository
 from live_service.schemas.webhook import MediaMTXAuthBody, OnPublishDoneBody
+from live_service.infrastructure.messaging.stat_sync_publisher import publish_match_live_finished
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +112,13 @@ class WebhookService:
             logger.warning("Live %s não encontrada no banco", live_id)
             return
 
+        if not getattr(live, "transmit_video", True):
+            logger.info(
+                "Live %s: transmissão de vídeo desligada — fim do publish RTMP não encerra a partida",
+                live_id,
+            )
+            return
+
         if live.status != LiveStatus.LIVE.value:
             logger.info("Live %s não está ativa, ignorando finalização automática", live_id)
             return
@@ -119,3 +127,14 @@ class WebhookService:
         live.ended_at = datetime.now(timezone.utc)
         await self._repo.save_entity(live)
         logger.info("Live %s finalizada após término da stream", live_id)
+        try:
+            await publish_match_live_finished(
+                match_id=live.external_match_id,
+                live_id=live.id,
+                source="on_publish_done",
+            )
+        except Exception:
+            logger.exception(
+                "Falha ao publicar match.live.finished após on_publish_done (match=%s)",
+                live.external_match_id,
+            )

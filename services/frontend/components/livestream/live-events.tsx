@@ -4,8 +4,7 @@ import { useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLiveEvents } from "@/hooks/use-live-events";
 import { EventItem } from "./event-item";
-import { EventCreator } from "./event-creator";
-import { StatsCreator } from "@/components/matches/stats-creator";
+import { MatchLiveEventDialog } from "./match-live-event-dialog";
 import { Loader2, Radio } from "lucide-react";
 import type { LiveStatus } from "@/types/livestream";
 import type { CompetitionStat, TeamWithPlayers } from "@/types/competition";
@@ -66,30 +65,22 @@ export function LiveEvents({
             </div>
           </div>
           
-          {canCreateEvents && isLiveOrScheduled && (
-            <div className="flex items-center gap-2">
-              <StatsCreator
-                matchId={matchId}
-                competitionId={competitionId!}
-                homeTeamId={matchData.home_team_id}
-                awayTeamId={matchData.away_team_id}
-                segments={segments}
+          {canCreateEvents &&
+            liveStatus === "live" &&
+            competitionId &&
+            matchId && (
+              <MatchLiveEventDialog
                 liveId={liveId}
-              />
-              <EventCreator 
-                liveId={liveId} 
                 matchId={matchId}
+                competitionId={competitionId}
+                competitionStats={competitionStats}
                 matchData={matchData}
-                competitionStats={competitionStats} 
                 teamsWithPlayers={teamsWithPlayers}
                 segments={segments}
-                onEventCreated={() => {
-                  // Callback opcional para atualizar algo após criar evento
-                  // Por enquanto vazio, mas pode ser usado no futuro
-                }}
+                canCreate={canCreateEvents}
+                liveStatus={liveStatus ?? ""}
               />
-            </div>
-          )}
+            )}
         </div>
       </CardHeader>
 

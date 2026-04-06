@@ -136,3 +136,30 @@ export interface TeamWithPlayers {
   auth_team_id?: string | null;
   players: Player[];
 }
+
+export interface CompetitionChampionTeam {
+  id: string;
+  name: string;
+  abbreviation: string;
+  logo_url?: string | null;
+}
+
+export interface CompetitionStatLeaderEntry {
+  player_id: string;
+  player_keycloak_id: string;
+  team_name: string;
+  team_abbreviation: string;
+  stat_value: number;
+}
+
+export interface CompetitionStatLeadersByMetric {
+  stat_type_id: string;
+  abbreviation: string;
+  name: string;
+  leaders: CompetitionStatLeaderEntry[];
+}
+
+export interface CompetitionHighlights {
+  champion_team: CompetitionChampionTeam | null;
+  stat_leaders: CompetitionStatLeadersByMetric[];
+}

@@ -13,6 +13,8 @@ export interface Scoreboard {
   away_team_id: string | null;
   home_team_name: string | null;
   away_team_name: string | null;
+  home_team_logo_url?: string | null;
+  away_team_logo_url?: string | null;
   home_total_score: number;
   away_total_score: number;
   segments: SegmentScore[];

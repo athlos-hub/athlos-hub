@@ -62,13 +62,20 @@ class MatchResponse(BaseModel):
     away_team: Optional[TeamSummary] = None
     round: Optional[RoundSummary] = None  # Importante para contexto de competição
 
+    transmit_video: bool = True
+
     model_config = ConfigDict(from_attributes=True)
 
 class MatchUpdateRequest(BaseModel):
     scheduled_datetime: Optional[datetime] = Field(None, description="Nova data e hora do jogo (ISO 8601)")
     local: Optional[str] = Field(None, description="Novo local da partida")
+    transmit_video: Optional[bool] = Field(
+        None,
+        description="Se a partida terá transmissão em vídeo (padrão: true).",
+        alias="transmitVideo",
+    )
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class TeamBasicInfo(BaseModel):
@@ -99,6 +106,7 @@ class MatchDetailResponse(BaseModel):
     group_name: Optional[str] = None
     round_number_match: int
     competition_name: Optional[str] = None
+    transmit_video: bool = True
     model_config = ConfigDict(from_attributes=True)
 
 class MultipleMatchesDetailResponse(BaseModel):
@@ -118,6 +126,10 @@ class ScoreUpdateRequest(BaseModel):
     # Métrica de stats (obrigatória se a competição possuir StatsRuleSet)
     stats_metric_abbreviation: Optional[str] = Field(None, description="Abreviação da métrica (ex: 'GOL', 'PTS')")
     player_id: Optional[uuid.UUID] = Field(None, description="ID do jogador que realizou a pontuação")
+    update_scoreboard: bool = Field(
+        True,
+        description="Se true, soma increment ao placar do jogo/segmento. Se false, só registra métricas do jogador (quando houver ruleset).",
+    )
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -9,6 +9,7 @@ from typing import List
 
 from src.models.matches import MatchModel, MatchStatus
 from src.models.competition import CompetitionModel
+from src.services.competition_write_guard import ensure_competition_not_finished
 from src.models.modality import ModalityModel 
 from src.schemas.matches_schema import MatchPeriodFilter, MatchUpdateRequest
 from sqlalchemy.orm import selectinload
@@ -248,6 +249,8 @@ class MatchesService:
         if not match:
             raise HTTPException(status_code=404, detail="Jogo não encontrado.")
 
+        await ensure_competition_not_finished(self.session, match.competition_id)
+
         # 2. Atualiza Data/Hora (com Validação)
         if update_data.scheduled_datetime:
             # Remove info de fuso horário para comparação simples (naive) ou garanta que ambos tenham timezone
@@ -270,6 +273,9 @@ class MatchesService:
         # 3. Atualiza Local
         if update_data.local:
             match.local = update_data.local
+
+        if update_data.transmit_video is not None:
+            match.transmit_video = update_data.transmit_video
 
         # 4. Persiste
         self.session.add(match)
@@ -378,5 +384,6 @@ class MatchesService:
             round_number_match=match.round_number_match,
             
             # Competição
-            competition_name=match.competition.name if match.competition else None
+            competition_name=match.competition.name if match.competition else None,
+            transmit_video=getattr(match, "transmit_video", True),
         )

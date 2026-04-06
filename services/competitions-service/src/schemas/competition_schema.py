@@ -116,3 +116,30 @@ class TeamWithPlayersResponse(BaseModel):
     players: List[PlayerBasicResponse] = []
     
     model_config = ConfigDict(from_attributes=True)
+
+
+class CompetitionChampionTeamResponse(BaseModel):
+    id: uuid.UUID
+    name: str
+    abbreviation: str
+    logo_url: Optional[str] = None
+
+
+class StatLeaderRowResponse(BaseModel):
+    player_id: uuid.UUID
+    player_keycloak_id: uuid.UUID
+    team_name: str
+    team_abbreviation: str
+    stat_value: int
+
+
+class StatMetricLeadersResponse(BaseModel):
+    stat_type_id: uuid.UUID
+    abbreviation: str
+    name: str
+    leaders: List[StatLeaderRowResponse]
+
+
+class CompetitionHighlightsResponse(BaseModel):
+    champion_team: Optional[CompetitionChampionTeamResponse] = None
+    stat_leaders: List[StatMetricLeadersResponse] = Field(default_factory=list)

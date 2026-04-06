@@ -12,6 +12,13 @@ class CreateLiveBody(BaseModel):
 
     external_match_id: str = Field(..., alias="externalMatchId")
     organization_id: str = Field(..., alias="organizationId")
+    transmit_video: bool = Field(True, alias="transmitVideo")
+
+
+class LiveTransmitPatchBody(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    transmit_video: bool = Field(..., alias="transmitVideo")
 
 
 class LiveResponse(BaseModel):
@@ -25,6 +32,7 @@ class LiveResponse(BaseModel):
     started_at: datetime | None = Field(None, alias="startedAt")
     ended_at: datetime | None = Field(None, alias="endedAt")
     created_at: datetime = Field(..., alias="createdAt")
+    transmit_video: bool = Field(True, alias="transmitVideo")
 
 
 class ListLivesQuery(BaseModel):

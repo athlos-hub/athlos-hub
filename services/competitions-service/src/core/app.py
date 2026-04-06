@@ -22,6 +22,12 @@ from src.infrastructure.messaging.teams_import_consumer import teams_import_cons
 from src.infrastructure.messaging.teams_mirror_delete_consumer import (
     teams_mirror_delete_consumer_loop,
 )
+from src.infrastructure.messaging.match_live_finished_consumer import (
+    match_live_finished_consumer_loop,
+)
+from src.infrastructure.messaging.match_stat_sync_consumer import (
+    match_stat_sync_consumer_loop,
+)
 from src.infrastructure.notification_publisher import close_notification_publisher
 
 # JWT validation is handled exclusively by Kong Gateway.
@@ -58,9 +64,13 @@ async def lifespan(app: FastAPI):
     stop_teams = asyncio.Event()
     stop_mirror_delete = asyncio.Event()
     stop_logo = asyncio.Event()
+    stop_match_stat = asyncio.Event()
+    stop_match_live_finished = asyncio.Event()
     teams_consumer_task: asyncio.Task | None = None
     mirror_delete_consumer_task: asyncio.Task | None = None
     logo_consumer_task: asyncio.Task | None = None
+    match_stat_consumer_task: asyncio.Task | None = None
+    match_live_finished_consumer_task: asyncio.Task | None = None
     if settings.RABBITMQ_URL:
         teams_consumer_task = asyncio.create_task(teams_import_consumer_loop(stop_teams))
         startup_logger.info("Consumer RabbitMQ: teams-import ativo.")
@@ -70,6 +80,14 @@ async def lifespan(app: FastAPI):
         startup_logger.info("Consumer RabbitMQ: teams-mirror-delete ativo.")
         logo_consumer_task = asyncio.create_task(logo_sync_consumer_loop(stop_logo))
         startup_logger.info("Consumer RabbitMQ: logo-sync ativo.")
+        match_stat_consumer_task = asyncio.create_task(
+            match_stat_sync_consumer_loop(stop_match_stat)
+        )
+        startup_logger.info("Consumer RabbitMQ: match-stat-sync ativo.")
+        match_live_finished_consumer_task = asyncio.create_task(
+            match_live_finished_consumer_loop(stop_match_live_finished)
+        )
+        startup_logger.info("Consumer RabbitMQ: match-live-finished ativo.")
 
     yield
 
@@ -92,6 +110,20 @@ async def lifespan(app: FastAPI):
         logo_consumer_task.cancel()
         try:
             await logo_consumer_task
+        except asyncio.CancelledError:
+            pass
+    if match_stat_consumer_task:
+        stop_match_stat.set()
+        match_stat_consumer_task.cancel()
+        try:
+            await match_stat_consumer_task
+        except asyncio.CancelledError:
+            pass
+    if match_live_finished_consumer_task:
+        stop_match_live_finished.set()
+        match_live_finished_consumer_task.cancel()
+        try:
+            await match_live_finished_consumer_task
         except asyncio.CancelledError:
             pass
     try:

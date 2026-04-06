@@ -16,6 +16,8 @@ from auth_service.schemas.internal import (
     UserValidationResult,
     CheckPermissionRequest,
     CheckPermissionResponse,
+    CheckPermissionByOrgIdRequest,
+    CheckPermissionByOrgIdResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -135,4 +137,28 @@ async def check_user_permission(
     )
     
     return result
+
+
+@router.post(
+    "/check-permission-by-org-id",
+    response_model=CheckPermissionByOrgIdResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def check_user_permission_by_org_id_internal(
+    request: CheckPermissionByOrgIdRequest,
+    org_service: OrganizationServiceDep,
+):
+    """
+    Mesma regra que GET /organizations/by-id/{id}/permissions, via POST interno
+    (rota estável no Kong, como /check-permission).
+    """
+    info = await org_service.check_user_permission_by_org_id(
+        request.organization_id,
+        str(request.keycloak_id),
+    )
+    return CheckPermissionByOrgIdResponse(
+        has_permission=info["has_permission"],
+        role=info.get("role"),
+        organization_id=request.organization_id,
+    )
 

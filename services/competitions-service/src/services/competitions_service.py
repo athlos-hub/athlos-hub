@@ -219,6 +219,11 @@ class CompetitionService:
 
     async def update(self, competition_id: UUID, data: CompetitionUpdate) -> CompetitionModel:
         competition = await self.get_by_id(competition_id)
+        if competition.status == CompetitionStatus.FINISHED:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Competição finalizada não pode ser editada.",
+            )
         update_data = data.model_dump(exclude_unset=True)
         can_edit_before_start = competition.status == CompetitionStatus.PENDING
 
@@ -323,6 +328,11 @@ class CompetitionService:
 
     async def delete(self, competition_id: UUID) -> None:
         competition = await self.get_by_id(competition_id)
+        if competition.status == CompetitionStatus.FINISHED:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Competição finalizada não pode ser excluída.",
+            )
         try:
             await self.session.delete(competition)
             await self.session.commit()

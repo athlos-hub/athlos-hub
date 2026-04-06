@@ -56,7 +56,8 @@ class LivestreamClient:
     async def create_live(
         self, 
         external_match_id: UUID, 
-        organization_id: UUID
+        organization_id: UUID,
+        transmit_video: bool = True,
     ) -> Dict[str, Any]:
         """
         Cria uma nova live no live-service
@@ -77,7 +78,8 @@ class LivestreamClient:
         
         payload = {
             "externalMatchId": str(external_match_id),
-            "organizationId": str(organization_id)
+            "organizationId": str(organization_id),
+            "transmitVideo": transmit_video,
         }
         
         try:

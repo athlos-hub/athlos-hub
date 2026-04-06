@@ -4,7 +4,7 @@
 
 from urllib.parse import quote
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import RedirectResponse
 
 from live_service.api.deps import GatewayUserDep, GoogleCalendarServiceDep
@@ -110,6 +110,12 @@ async def get_events_existence(
 oauth_router = APIRouter(prefix="/google-calendar/oauth", tags=["google-calendar-oauth"])
 
 
+def _frontend_oauth_redirect(query: str) -> RedirectResponse:
+    """Callback costuma ser em :8100 (Kong); erros/sucesso devem ir ao Next (:3000)."""
+    base = settings.FRONTEND_BASE_URL.rstrip("/")
+    return RedirectResponse(f"{base}{query}")
+
+
 @oauth_router.get("/authorize")
 async def oauth_authorize(
     svc: GoogleCalendarServiceDep,
@@ -140,11 +146,11 @@ async def oauth_callback(
     error: str | None = Query(None),
 ):
     if error:
-        return RedirectResponse(
+        return _frontend_oauth_redirect(
             f"/?error=oauth_cancelled&message={quote(error)}"
         )
     if not code:
-        return RedirectResponse(
+        return _frontend_oauth_redirect(
             "/?error=oauth_failed&message="
             + quote("Código de autorização não fornecido")
         )
@@ -152,15 +158,20 @@ async def oauth_callback(
     user_id = parts[0]
     redirect_path = parts[1] if len(parts) > 1 else None
     if not user_id:
-        return RedirectResponse(
+        return _frontend_oauth_redirect(
             "/?error=oauth_failed&message=" + quote("State inválido")
         )
     try:
         tokens = await svc.exchange_code_for_tokens(code)
         await svc.save_oauth_tokens_from_response(user_id, tokens)
+    except HTTPException as exc:
+        detail = exc.detail
+        msg = detail if isinstance(detail, str) else str(detail)
+        return _frontend_oauth_redirect(f"/?error=oauth_failed&message={quote(msg)}")
     except Exception as exc:
-        msg = str(exc)
-        return RedirectResponse(f"/?error=oauth_failed&message={quote(msg)}")
+        return _frontend_oauth_redirect(
+            f"/?error=oauth_failed&message={quote(str(exc))}"
+        )
     base = settings.FRONTEND_BASE_URL.rstrip("/")
     if redirect_path and redirect_path.startswith("http"):
         target = redirect_path

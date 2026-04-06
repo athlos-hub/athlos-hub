@@ -319,6 +319,23 @@ def main() -> None:
             "regex_priority": 200,
             "methods": ["GET"],
         },
+        # WebSocket do placar: browsers não enviam Authorization no upgrade; JWT quebraria a conexão.
+        {
+            "name": "competitions-pub-scoreboard-ws",
+            "protocols": ["http", "https"],
+            "paths": ["~/api/scoreboard/ws/[^/]+$"],
+            "strip_path": False,
+            "regex_priority": 400,
+        },
+        # GET placar por partida (leitura pública; POST /update continua em competitions-protected).
+        {
+            "name": "competitions-pub-scoreboard-get",
+            "protocols": ["http", "https"],
+            "paths": ["~/api/scoreboard/[0-9a-fA-F-]{36}$"],
+            "strip_path": False,
+            "regex_priority": 350,
+            "methods": ["GET"],
+        },
         {
             "name": "competitions-protected",
             "protocols": ["http", "https"],

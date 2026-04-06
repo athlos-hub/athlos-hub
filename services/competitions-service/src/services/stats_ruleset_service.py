@@ -6,7 +6,8 @@ from typing import Optional, List
 from uuid import UUID
 
 from src.models.stats import StatsRuleSetModel, StatsTypeModel
-from src.models.competition import CompetitionModel
+from src.models.competition import CompetitionModel, CompetitionStatus
+from src.services.competition_write_guard import ensure_competition_not_finished
 from src.schemas.stats_ruleset_schema import (
     StatsRuleSetCreate, 
     StatsRuleSetUpdate,
@@ -33,6 +34,12 @@ class StatsRuleSetService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Competição com ID {competition_id} não encontrada"
+            )
+
+        if competition.status == CompetitionStatus.FINISHED:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Competição finalizada: não é possível criar conjunto de estatísticas.",
             )
 
         # Criar o ruleset
@@ -112,6 +119,7 @@ class StatsRuleSetService:
         Deleta um StatsRuleSet e seus tipos associados (cascade).
         """
         ruleset = await self.get_by_id(ruleset_id)
+        await ensure_competition_not_finished(self.session, ruleset.competition_id)
         await self.session.delete(ruleset)
         await self.session.commit()
 
@@ -133,9 +141,9 @@ class StatsRuleSetService:
         """
         Adiciona um novo tipo de estatística a um ruleset existente.
         """
-        # Verificar se o ruleset existe
-        await self.get_by_id(ruleset_id)
-        
+        ruleset = await self.get_by_id(ruleset_id)
+        await ensure_competition_not_finished(self.session, ruleset.competition_id)
+
         stat_type = StatsTypeModel(**data.model_dump(), stats_ruleset_id=ruleset_id)
         self.session.add(stat_type)
         await self.session.commit()
@@ -164,7 +172,10 @@ class StatsRuleSetService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Stat Type {stat_type_id} não encontrado no ruleset {ruleset_id}"
             )
-        
+
+        rs = await self.get_by_id(ruleset_id)
+        await ensure_competition_not_finished(self.session, rs.competition_id)
+
         update_data = data.model_dump(exclude_unset=True)
         for key, value in update_data.items():
             setattr(stat_type, key, value)
@@ -190,6 +201,9 @@ class StatsRuleSetService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Stat Type {stat_type_id} não encontrado no ruleset {ruleset_id}"
             )
-        
+
+        rs = await self.get_by_id(ruleset_id)
+        await ensure_competition_not_finished(self.session, rs.competition_id)
+
         await self.session.delete(stat_type)
         await self.session.commit()

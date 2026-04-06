@@ -33,6 +33,7 @@ import { MatchEventType } from "@/types/livestream";
 import type { StatsRuleSet, TeamWithPlayers } from "@/types/stats";
 import type { SegmentScore } from "@/types/scoreboard";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
 
 interface StatsCreatorProps {
   matchId: string;
@@ -69,6 +70,8 @@ export function StatsCreator({
   const [increment, setIncrement] = useState<number>(1);
   const [description, setDescription] = useState<string>("");
   const [minute, setMinute] = useState<string>("");
+  /** Com métricas da competição: se false, só grava stat do jogador sem somar ao placar. */
+  const [alterPlacar, setAlterPlacar] = useState(false);
 
   // Carrega dados quando abre o modal
   useEffect(() => {
@@ -103,6 +106,7 @@ export function StatsCreator({
     setIncrement(1);
     setDescription("");
     setMinute("");
+    setAlterPlacar(false);
   };
 
   // Filtra jogadores pelo time selecionado
@@ -162,14 +166,18 @@ export function StatsCreator({
 
     setIsSubmitting(true);
 
+    const statsConfigured = !!(statsRuleSet && statsRuleSet.stats_types.length > 0);
+    const updateScoreboard = !statsConfigured || alterPlacar;
+
     try {
-      // 1. Registra a pontuação no backend
+      // 1. Registra no backend (placar opcional quando há métricas configuradas)
       await registerMatchScore(matchId, {
         team_side: teamSide as "home" | "away",
         increment,
         stats_metric_abbreviation: selectedStatType || undefined,
         player_id: selectedPlayerId || undefined,
         segment_id: selectedSegmentId || undefined,
+        update_scoreboard: updateScoreboard,
       });
 
       // 2. Publica evento na timeline se tiver liveId
@@ -195,7 +203,8 @@ export function StatsCreator({
           payload.statAbbreviation = selectedStatType;
           payload.playerId = selectedPlayerId;
           payload.playerName = player?.name || `${player?.id.slice(0, 8)} - ${teamName}`;
-          
+          payload.alterPlacar = updateScoreboard;
+
           eventType = MatchEventType.CUSTOM; // Evento customizado com stats
         }
 
@@ -226,7 +235,11 @@ export function StatsCreator({
         console.log('[STATS] Sem liveId, evento não será publicado na timeline');
       }
 
-      toast.success("Estatística registrada com sucesso!");
+      toast.success(
+        updateScoreboard
+          ? "Estatística registrada (placar atualizado)."
+          : "Estatística registrada (placar inalterado)."
+      );
       resetForm();
       setOpen(false);
       onStatCreated?.();
@@ -239,7 +252,7 @@ export function StatsCreator({
   };
 
   const selectedPlayers = getPlayersForSelectedTeam();
-  const hasStatsConfig = statsRuleSet && statsRuleSet.stats_types.length > 0;
+  const hasStatsConfig = !!(statsRuleSet && statsRuleSet.stats_types.length > 0);
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
@@ -403,12 +416,32 @@ export function StatsCreator({
               />
             </div>
 
+            {hasStatsConfig && (
+              <div className="flex flex-col gap-2 rounded-lg border border-border/80 px-3 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="stats-alter-placar" className="text-sm font-medium">
+                      Alterar placar
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Marque para somar ao resultado do jogo. Desmarcado: só registra a métrica do jogador.
+                    </p>
+                  </div>
+                  <Switch
+                    id="stats-alter-placar"
+                    checked={alterPlacar}
+                    onCheckedChange={setAlterPlacar}
+                  />
+                </div>
+              </div>
+            )}
+
             {!hasStatsConfig && (
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Esta competição não possui estatísticas configuradas. 
-                  Apenas o placar geral será atualizado.
+                  Esta competição não possui estatísticas configuradas.
+                  O registro atualiza apenas o placar.
                 </AlertDescription>
               </Alert>
             )}

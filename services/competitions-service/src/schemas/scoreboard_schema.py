@@ -18,6 +18,8 @@ class ScoreboardSchema(BaseModel):
     away_team_id: uuid.UUID | None = Field(None, description="ID do time visitante")
     home_team_name: str | None = Field(None, description="Nome do time da casa")
     away_team_name: str | None = Field(None, description="Nome do time visitante")
+    home_team_logo_url: str | None = Field(None, description="Logo URL time da casa")
+    away_team_logo_url: str | None = Field(None, description="Logo URL time visitante")
     home_total_score: int = Field(default=0, description="Placar total do time da casa")
     away_total_score: int = Field(default=0, description="Placar total do time visitante")
     segments: List[SegmentScoreSchema] = Field(default_factory=list, description="Lista de segments com seus placares")

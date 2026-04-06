@@ -3,7 +3,7 @@
 import logging
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import quote
+from uuid import UUID
 
 import httpx
 
@@ -19,7 +19,7 @@ class OrganizationPermissionDetails:
 
 
 class AuthServiceClient:
-    """Cliente para GET /api/organizations/by-id/{id}/permissions."""
+    """Cliente para permissão de organização via auth-service (POST interno)."""
 
     def __init__(self, base_url: str | None = None) -> None:
         self._base = (base_url or settings.AUTH_SERVICE_URL).rstrip("/")
@@ -29,32 +29,41 @@ class AuthServiceClient:
         keycloak_sub: str,
         organization_id: str,
     ) -> OrganizationPermissionDetails:
-        safe = quote(keycloak_sub, safe="")
-        url = (
-            f"{self._base}/api/organizations/by-id/{organization_id}/permissions"
-            f"?keycloak_sub={safe}"
-        )
+        """
+        Usa POST /api/internal/check-permission-by-org-id (mesma regra que o GET público),
+        alinhado ao roteamento Kong das rotas /api/internal/*.
+        """
+        try:
+            kid = UUID(str(keycloak_sub).strip())
+            oid = UUID(str(organization_id).strip())
+        except ValueError:
+            logger.warning(
+                "IDs inválidos para permissão: org=%s sub=%s",
+                organization_id,
+                keycloak_sub,
+            )
+            return OrganizationPermissionDetails(has_permission=False, role="NONE")
+
+        url = f"{self._base}/api/internal/check-permission-by-org-id"
+        body = {"keycloak_id": str(kid), "organization_id": str(oid)}
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(
+                response = await client.post(
                     url,
+                    json=body,
                     headers={"Content-Type": "application/json"},
                 )
         except Exception as exc:
             logger.error("Falha ao contactar auth-service: %s", exc)
             return OrganizationPermissionDetails(has_permission=False, role="NONE")
 
-        if response.status_code == 404:
-            logger.warning(
-                "Organização ou permissão 404: org=%s sub=%s",
-                organization_id,
-                keycloak_sub,
-            )
-            return OrganizationPermissionDetails(has_permission=False, role="NONE")
-
         if not response.is_success:
-            logger.error("auth-service retornou %s", response.status_code)
+            logger.error(
+                "auth-service check-permission-by-org-id retornou %s: %s",
+                response.status_code,
+                response.text[:500],
+            )
             return OrganizationPermissionDetails(has_permission=False, role="NONE")
 
         data: dict[str, Any] = response.json()

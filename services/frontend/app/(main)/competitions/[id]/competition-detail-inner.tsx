@@ -60,6 +60,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   getCompetition,
+  getCompetitionHighlights,
   getCompetitionTeamsWithPlayers,
   getCompetitionStats,
   generateCompetitionStructure,
@@ -79,7 +80,15 @@ import {
   getCompetitionMatches 
 } from "@/actions/rankings";
 import { getOrganizationBySlug } from "@/actions/organizations";
-import type { Competition, CompetitionPhase, CompetitionStat } from "@/types/competition";
+import { listLives } from "@/actions/lives";
+import { getUsersPublicInfoBatch } from "@/actions/auth";
+import { formatUserProfileDisplayName } from "@/lib/user-display-name";
+import type {
+  Competition,
+  CompetitionHighlights,
+  CompetitionPhase,
+  CompetitionStat,
+} from "@/types/competition";
 import { CompetitionStatus, CompetitionSystem } from "@/types/competition";
 import type { StandingsTeam, PlayerRanking } from "@/actions/rankings";
 import { OrgRole } from "@/types/organization";
@@ -97,6 +106,7 @@ import { cn } from "@/lib/utils";
 import { ptBR } from "date-fns/locale";
 import { EditMatchDialog } from "@/components/matches/edit-match-dialog";
 import { Edit } from "lucide-react";
+import { parseBackendIsoToDate } from "@/lib/datetime/parse-backend-iso";
 
 const COMPETITION_TABS = ["standings", "teams", "stats", "matches"] as const;
 type CompetitionTab = (typeof COMPETITION_TABS)[number];
@@ -153,9 +163,18 @@ export function CompetitionDetailPageInner() {
   const [isSavingCompetition, setIsSavingCompetition] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [organizationName, setOrganizationName] = useState<string | null>(null);
+  /** ID da organização (auth) para listar lives no live-service */
+  const [organizationIdForLives, setOrganizationIdForLives] = useState<string | null>(null);
+  /** match_id (competitions) → status da live (live-service), em minúsculas */
+  const [liveStatusByMatchId, setLiveStatusByMatchId] = useState<Record<string, string>>({});
   const [editingMatch, setEditingMatch] = useState<any | null>(null);
   const [isCompetitionEditDialogOpen, setIsCompetitionEditDialogOpen] = useState(false);
   const [competitionToDelete, setCompetitionToDelete] = useState<Competition | null>(null);
+  const [competitionHighlights, setCompetitionHighlights] =
+    useState<CompetitionHighlights | null>(null);
+  const [highlightPlayerNameByKeycloakId, setHighlightPlayerNameByKeycloakId] = useState<
+    Record<string, string>
+  >({});
   const [sportRulesets, setSportRulesets] = useState<any[]>([]);
   const [editingRules, setEditingRules] = useState({
     canEditBeforeStart: false,
@@ -197,6 +216,66 @@ export function CompetitionDetailPageInner() {
       loadCompetitionData();
     }
   }, [competitionId]);
+
+  /** Troca ?tab=standings se a competição for só eliminatória (sem tabela de pontos). */
+  useEffect(() => {
+    if (!competition) return;
+    if (competition.system !== CompetitionSystem.ELIMINATION) return;
+    if (tabParam !== "standings") return;
+    const paramsNext = new URLSearchParams(searchParams.toString());
+    paramsNext.set("tab", "teams");
+    router.replace(`${pathname}?${paramsNext.toString()}`, { scroll: false });
+  }, [competition, tabParam, pathname, router, searchParams]);
+
+  /** ID público da organização (para GET /lives?organizationId=) */
+  useEffect(() => {
+    const slug = competition?.organization_slug;
+    if (!slug) {
+      setOrganizationIdForLives(null);
+      return;
+    }
+    let cancelled = false;
+    void getOrganizationBySlug(slug, false)
+      .then((o) => {
+        if (cancelled) return;
+        if (o && typeof o === "object" && "id" in o && typeof o.id === "string") {
+          setOrganizationIdForLives(o.id);
+        } else {
+          setOrganizationIdForLives(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setOrganizationIdForLives(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [competition?.organization_slug]);
+
+  /** Status exibido na lista de jogos: prioriza live-service quando existir live para a partida */
+  useEffect(() => {
+    if (!organizationIdForLives) {
+      setLiveStatusByMatchId({});
+      return;
+    }
+    let cancelled = false;
+    void listLives({ organizationId: organizationIdForLives })
+      .then((lives) => {
+        if (cancelled) return;
+        const m: Record<string, string> = {};
+        for (const live of lives) {
+          const mid = String(live.externalMatchId ?? "");
+          if (mid) m[mid] = String(live.status ?? "").toLowerCase();
+        }
+        setLiveStatusByMatchId(m);
+      })
+      .catch(() => {
+        if (!cancelled) setLiveStatusByMatchId({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [organizationIdForLives]);
 
   /** Papel na organização depende da sessão; na URL direta a sessão costuma chegar depois do 1º load. */
   useEffect(() => {
@@ -258,12 +337,16 @@ export function CompetitionDetailPageInner() {
         setMyTeams([]);
       }
 
-      // Carregar standings
-      try {
-        const standingsData = await getCompetitionStandings(competitionId);
-        setStandings(standingsData);
-      } catch (error) {
-        console.log("Standings não disponíveis ainda");
+      // Classificação por pontos: não aplica a competição só eliminatória
+      if (compData.system !== CompetitionSystem.ELIMINATION) {
+        try {
+          const standingsData = await getCompetitionStandings(competitionId);
+          setStandings(standingsData);
+        } catch {
+          setStandings([]);
+        }
+      } else {
+        setStandings([]);
       }
 
       // Carregar matches
@@ -303,6 +386,37 @@ export function CompetitionDetailPageInner() {
         setShowStatsTab(false);
         setCompetitionStats([]);
         setSelectedStat("");
+      }
+
+      if (compData.status === CompetitionStatus.FINISHED) {
+        try {
+          const h = await getCompetitionHighlights(competitionId);
+          setCompetitionHighlights(h);
+          const keycloakIds = [
+            ...new Set(
+              (h.stat_leaders ?? []).flatMap((block) =>
+                (block.leaders ?? []).map((row) => String(row.player_keycloak_id ?? "").trim())
+              )
+            ),
+          ].filter(Boolean);
+          if (keycloakIds.length > 0) {
+            const profiles = await getUsersPublicInfoBatch(keycloakIds);
+            const map: Record<string, string> = {};
+            for (const p of profiles) {
+              const kid = String(p.keycloak_id ?? "").trim();
+              if (kid) map[kid] = formatUserProfileDisplayName(p);
+            }
+            setHighlightPlayerNameByKeycloakId(map);
+          } else {
+            setHighlightPlayerNameByKeycloakId({});
+          }
+        } catch {
+          setCompetitionHighlights(null);
+          setHighlightPlayerNameByKeycloakId({});
+        }
+      } else {
+        setCompetitionHighlights(null);
+        setHighlightPlayerNameByKeycloakId({});
       }
 
     } catch (error) {
@@ -374,12 +488,10 @@ export function CompetitionDetailPageInner() {
 
   const formatDate = (dateString: string, formatStr: string): string => {
     try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        return "Data inválida";
-      }
+      const date = parseBackendIsoToDate(dateString);
+      if (isNaN(date.getTime())) return "Data inválida";
       return format(date, formatStr, { locale: ptBR });
-    } catch (error) {
+    } catch {
       return "Data inválida";
     }
   };
@@ -388,8 +500,43 @@ export function CompetitionDetailPageInner() {
   const loadPlayerRankingsForStat = async (statAbbreviation: string) => {
     if (!statAbbreviation) return;
     try {
-      const rankings = await getPlayerRankings(competitionId, statAbbreviation, 20);
-      setPlayerRankings(rankings);
+      const raw = await getPlayerRankings(competitionId, statAbbreviation, 200);
+      const normalized = raw.map((row) => {
+        const r = row as PlayerRanking & { total_value?: number };
+        const statVal = r.stat_value ?? r.total_value ?? 0;
+        return {
+          ...r,
+          stat_value: typeof statVal === "number" ? statVal : Number(statVal) || 0,
+          team_name: r.team_name ?? "",
+        };
+      });
+      const keycloakIds = [
+        ...new Set(
+          normalized
+            .map((r) => String(r.player_keycloak_id ?? "").trim())
+            .filter(Boolean)
+        ),
+      ];
+      const profiles =
+        keycloakIds.length > 0 ? await getUsersPublicInfoBatch(keycloakIds) : [];
+      const nameByKc = new Map<string, string>();
+      for (const p of profiles) {
+        const kid = String(p.keycloak_id ?? "").trim();
+        if (kid) nameByKc.set(kid, formatUserProfileDisplayName(p));
+      }
+      const enriched: PlayerRanking[] = normalized
+        .map((r) => {
+          const kid = String(r.player_keycloak_id ?? "").trim();
+          return {
+            ...r,
+            player_name:
+              r.player_name?.trim() ||
+              (kid ? nameByKc.get(kid) : undefined) ||
+              "Jogador",
+          };
+        })
+        .sort((a, b) => (b.stat_value ?? 0) - (a.stat_value ?? 0));
+      setPlayerRankings(enriched);
     } catch (error) {
       console.error("Erro ao carregar rankings:", error);
       setPlayerRankings([]);
@@ -557,6 +704,10 @@ export function CompetitionDetailPageInner() {
 
   const openCompetitionEditDialog = async () => {
     if (!competition) return;
+    if (competition.status === CompetitionStatus.FINISHED) {
+      toast.error("Competição finalizada não pode ser editada");
+      return;
+    }
     try {
       const slug = competition.organization_slug;
       let rulesets = slug ? await listSportRulesets(0, 100, slug) : [];
@@ -651,16 +802,19 @@ export function CompetitionDetailPageInner() {
     }
   };
 
-  // Verificar se o usuário pode gerenciar a competição
-  // Apenas OWNER e ORGANIZER podem gerenciar
-  const canManageCompetition = session && (userRole === OrgRole.OWNER || userRole === OrgRole.ORGANIZER);
-
   // Efeito para carregar rankings quando mudar a estatística selecionada
   useEffect(() => {
     if (selectedStat && activeTab === "stats") {
       loadPlayerRankingsForStat(selectedStat);
     }
   }, [selectedStat, activeTab]);
+
+  const displayMatchStatus = (match: { id?: string; status?: string }) => {
+    const mid = match?.id != null ? String(match.id) : "";
+    const fromLive = mid ? liveStatusByMatchId[mid] : undefined;
+    if (fromLive) return fromLive;
+    return String(match?.status ?? "").toLowerCase();
+  };
 
   // Efeito para filtrar jogos
   useEffect(() => {
@@ -669,7 +823,7 @@ export function CompetitionDetailPageInner() {
     // Filtrar por status
     if (matchStatusFilter !== "all") {
       filtered = filtered.filter((match) => {
-        const status = match.status?.toLowerCase();
+        const status = displayMatchStatus(match);
         if (matchStatusFilter === "scheduled") {
           return status === "scheduled" || status === "pending";
         }
@@ -710,7 +864,7 @@ export function CompetitionDetailPageInner() {
     }
 
     setMatches(filtered);
-  }, [matchStatusFilter, matchPeriodFilter, allMatches]);
+  }, [matchStatusFilter, matchPeriodFilter, allMatches, liveStatusByMatchId]);
 
   const getMatchStatusLabel = (status: string): string => {
     const labels: Record<string, string> = {
@@ -719,6 +873,7 @@ export function CompetitionDetailPageInner() {
       live: "Ao Vivo",
       finished: "Finalizado",
       canceled: "Cancelado",
+      cancelled: "Cancelado",
     };
     return labels[status?.toLowerCase()] || "Status não definido";
   };
@@ -730,6 +885,7 @@ export function CompetitionDetailPageInner() {
       live: "bg-green-100 text-green-800",
       finished: "bg-gray-100 text-gray-800",
       canceled: "bg-red-100 text-red-800",
+      cancelled: "bg-red-100 text-red-800",
     };
     return colors[status?.toLowerCase()] || "bg-gray-100 text-gray-800";
   };
@@ -763,10 +919,18 @@ export function CompetitionDetailPageInner() {
     );
   }
 
-  const hasStandings = standings.length > 0;
+  const showStandingsTab = competition.system !== CompetitionSystem.ELIMINATION;
+  const hasStandings = showStandingsTab && standings.length > 0;
   const hasMatches = matches.length > 0;
   const hasTeams = teams.length > 0;
-  const effectiveTab: CompetitionTab = activeTab === "stats" && !showStatsTab ? "standings" : activeTab;
+  const effectiveTab: CompetitionTab = (() => {
+    let t: CompetitionTab =
+      activeTab === "stats" && !showStatsTab ? "standings" : activeTab;
+    if (!showStandingsTab && t === "standings") {
+      t = "teams";
+    }
+    return t;
+  })();
 
   const myTeamInCompetition = myTeams.find(
     (t) => String(t.competition_id) === String(competitionId)
@@ -777,6 +941,17 @@ export function CompetitionDetailPageInner() {
     userRole !== null &&
     !myTeamInCompetition &&
     !!competition.organization_slug;
+
+  const canManageCompetition =
+    !!session && (userRole === OrgRole.OWNER || userRole === OrgRole.ORGANIZER);
+  const canMutateCompetition =
+    canManageCompetition && competition.status !== CompetitionStatus.FINISHED;
+
+  const showFinishedHighlightsCard =
+    competition.status === CompetitionStatus.FINISHED &&
+    competitionHighlights &&
+    (!!competitionHighlights.champion_team ||
+      (competitionHighlights.stat_leaders?.length ?? 0) > 0);
 
   return (
     <div className="container mx-auto">
@@ -804,8 +979,8 @@ export function CompetitionDetailPageInner() {
                   {getStatusLabel(competition.status)}
                 </span>
                 
-                {/* Botões de Controle - Apenas para owner/organizador */}
-                {canManageCompetition && (
+                {/* Botões de Controle - Apenas para owner/organizador (bloqueado se finalizada) */}
+                {canMutateCompetition && (
                   <div className="flex gap-2 ml-auto">
                     <Button
                       onClick={openCompetitionEditDialog}
@@ -887,6 +1062,84 @@ export function CompetitionDetailPageInner() {
           </div>
         </Card>
 
+        {showFinishedHighlightsCard && competitionHighlights && (
+          <Card className="p-6 border-amber-200/60 bg-gradient-to-br from-amber-50/90 to-background">
+            <div className="space-y-6">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-amber-600" />
+                Resultado e destaques
+              </h2>
+              {competitionHighlights.champion_team && (
+                <div className="flex flex-col gap-3 rounded-xl border border-border/80 bg-background/90 p-4 sm:flex-row sm:items-center sm:gap-6">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground shrink-0">
+                    Campeão
+                  </span>
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <TeamLogo
+                      name={competitionHighlights.champion_team.name}
+                      abbreviation={competitionHighlights.champion_team.abbreviation || "?"}
+                      logoUrl={competitionHighlights.champion_team.logo_url ?? null}
+                      className="h-12 w-12 shrink-0"
+                      textClassName="text-xs"
+                    />
+                    <div className="min-w-0">
+                      <div className="truncate text-base font-semibold text-foreground">
+                        {competitionHighlights.champion_team.name}
+                      </div>
+                      {competitionHighlights.champion_team.abbreviation && (
+                        <div className="text-sm text-muted-foreground">
+                          {competitionHighlights.champion_team.abbreviation}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {(competitionHighlights.stat_leaders?.length ?? 0) > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-800 mb-3">
+                    Top jogadores por estatística
+                  </h3>
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {competitionHighlights.stat_leaders.map((block) => (
+                      <div
+                        key={block.stat_type_id}
+                        className="rounded-lg border border-border/80 bg-background p-4 space-y-2"
+                      >
+                        <div className="text-sm font-semibold text-gray-900">{block.name}</div>
+                        <ul className="space-y-2 text-sm">
+                          {block.leaders.map((L, idx) => {
+                            const kid = String(L.player_keycloak_id ?? "").trim();
+                            const label =
+                              (kid && highlightPlayerNameByKeycloakId[kid]) || "Jogador";
+                            return (
+                              <li
+                                key={`${L.player_id}-${idx}`}
+                                className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 border-b border-border/50 pb-2 last:border-0 last:pb-0"
+                              >
+                                <span className="min-w-0">
+                                  <span className="font-medium text-foreground">{label}</span>
+                                  <span className="text-muted-foreground">
+                                    {" "}
+                                    · {L.team_name || L.team_abbreviation || "—"}
+                                  </span>
+                                </span>
+                                <span className="shrink-0 tabular-nums font-semibold text-foreground">
+                                  {L.stat_value}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
+
         {session &&
           competition.status === CompetitionStatus.PENDING &&
           userRole !== null &&
@@ -933,23 +1186,26 @@ export function CompetitionDetailPageInner() {
               <div className="flex items-center gap-4">
                 <Filter className="w-5 h-5 text-gray-600" />
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => setActiveTab("standings")}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      activeTab === "standings"
-                        ? "bg-main text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    <span className="inline-flex items-center gap-2">
-                      <TableProperties className="w-4 h-4" />
-                      Classificação
-                    </span>
-                  </button>
+                  {showStandingsTab && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("standings")}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        effectiveTab === "standings"
+                          ? "bg-main text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <TableProperties className="w-4 h-4" />
+                        Classificação
+                      </span>
+                    </button>
+                  )}
                   <button
                     onClick={() => setActiveTab("teams")}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      activeTab === "teams"
+                      effectiveTab === "teams"
                         ? "bg-main text-white"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                     }`}
@@ -977,7 +1233,7 @@ export function CompetitionDetailPageInner() {
                   <button
                     onClick={() => setActiveTab("matches")}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      activeTab === "matches"
+                      effectiveTab === "matches"
                         ? "bg-main text-white"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                     }`}
@@ -991,7 +1247,8 @@ export function CompetitionDetailPageInner() {
               </div>
             </div>
 
-            {/* Tabela de Classificação */}
+            {/* Tabela de pontos — omitida quando o sistema é só eliminatório */}
+            {showStandingsTab && (
             <TabsContent value="standings" className="mt-6">
               {hasStandings ? (
                 <div className="rounded-lg border">
@@ -1012,7 +1269,7 @@ export function CompetitionDetailPageInner() {
                     </TableHeader>
                     <TableBody>
                       {standings.map((team, index) => (
-                        <TableRow key={team.team_id}>
+                        <TableRow key={`${String(team.team_id)}-${index}`}>
                           <TableCell className="font-medium">{index + 1}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-3 min-w-0">
@@ -1066,15 +1323,16 @@ export function CompetitionDetailPageInner() {
                 </div>
               )}
             </TabsContent>
+            )}
 
             {/* Times */}
             <TabsContent value="teams" className="mt-6 space-y-10">
-              {canManageCompetition && competition.organization_slug && (
+              {canMutateCompetition && competition.organization_slug && (
                 <CompetitionPendingTeamsSection
                   organizationSlug={competition.organization_slug}
                   competitionId={competitionId}
                   competitionName={competition.name}
-                  isAdmin={!!canManageCompetition}
+                  isAdmin={!!canMutateCompetition}
                   onChanged={reloadCompetitionTeams}
                 />
               )}
@@ -1131,7 +1389,7 @@ export function CompetitionDetailPageInner() {
             {/* Estatísticas */}
             <TabsContent value="stats" className="mt-6">
               <div className="space-y-6">
-                {canManageCompetition && showStatsTab && (
+                {canMutateCompetition && showStatsTab && (
                   <Card className="p-4">
                     <div className="space-y-4">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1254,9 +1512,11 @@ export function CompetitionDetailPageInner() {
                         <p className="text-gray-600">
                           {!showStatsTab
                             ? "Esta competição foi configurada sem conjunto de estatísticas."
-                            : canManageCompetition
-                            ? "Use o formulário acima para adicionar as primeiras métricas."
-                            : "As estatísticas serão exibidas quando forem configuradas para esta competição."}
+                            : canMutateCompetition
+                              ? "Use o formulário acima para adicionar as primeiras métricas."
+                              : canManageCompetition
+                                ? "Competição finalizada: as métricas não podem ser alteradas."
+                                : "As estatísticas serão exibidas quando forem configuradas para esta competição."}
                         </p>
                       </div>
                     </div>
@@ -1313,49 +1573,71 @@ export function CompetitionDetailPageInner() {
               </div>
 
               {hasMatches ? (
-                <div className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-2 max-w-5xl">
                   {matches.map((match) => (
-                    <Card key={match.id} className="p-5 hover:shadow-md transition-shadow">
-                      <div className="space-y-4">
-                        <div className="flex items-start justify-between gap-4 pb-3 border-b">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getMatchStatusColor(match.status)}`}>
-                                {getMatchStatusLabel(match.status)}
+                    <Card
+                      key={match.id}
+                      className="overflow-hidden border border-border/80 shadow-sm transition-shadow hover:shadow-md"
+                    >
+                      <div className="p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2 min-w-0">
+                            <span
+                              className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${getMatchStatusColor(
+                                displayMatchStatus(match)
+                              )}`}
+                            >
+                              {getMatchStatusLabel(displayMatchStatus(match))}
+                            </span>
+                            {match.round_name && (
+                              <span className="text-xs text-muted-foreground truncate">
+                                {match.round_name}
                               </span>
-                              {match.round_name && (
-                                <span className="text-xs text-gray-500">{match.round_name}</span>
-                              )}
-                            </div>
-                            
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <Calendar className="w-4 h-4 text-gray-400" />
-                              {match.scheduled_datetime ? (
-                                <span>{formatDate(match.scheduled_datetime, "dd/MM/yyyy 'às' HH:mm")}</span>
-                              ) : (
-                                <span className="text-gray-400 italic">Data não definida</span>
-                              )}
-                            </div>
-
-                            <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-                              <Building2 className="w-4 h-4 text-gray-400" />
-                              {match.local ? (
-                                <span>{match.local}</span>
-                              ) : (
-                                <span className="text-gray-400 italic">Local não definido</span>
-                              )}
-                            </div>
+                            )}
                           </div>
+                          {canMutateCompetition && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 shrink-0"
+                              onClick={() => setEditingMatch(match)}
+                              aria-label="Editar jogo"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
 
-                        <div className="flex items-center justify-between gap-6">
-                          <div className="flex-1 flex items-center justify-end gap-3 min-w-0">
-                            <div className="text-right min-w-0">
-                              <div className="font-semibold text-gray-900 text-lg truncate">
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                          <span className="inline-flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 opacity-70" />
+                            {match.scheduled_datetime ? (
+                              formatDate(match.scheduled_datetime, "dd/MM/yyyy 'às' HH:mm")
+                            ) : (
+                              <span className="italic">Data não definida</span>
+                            )}
+                          </span>
+                          <span className="inline-flex items-center gap-1.5 min-w-0">
+                            <Building2 className="w-3.5 h-3.5 shrink-0 opacity-70" />
+                            <span className="truncate">
+                              {match.local ? (
+                                match.local
+                              ) : (
+                                <span className="italic">Local não definido</span>
+                              )}
+                            </span>
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3 rounded-lg bg-muted/40 px-3 py-2.5">
+                          <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+                            <div className="min-w-0 text-right">
+                              <div className="truncate text-sm font-semibold text-foreground">
                                 {match.home_team_name || match.home_team?.name || "Time A"}
                               </div>
                               {(match.home_team_abbreviation || match.home_team?.abbreviation) && (
-                                <div className="text-xs text-gray-500">
+                                <div className="text-[11px] text-muted-foreground">
                                   {match.home_team_abbreviation || match.home_team?.abbreviation}
                                 </div>
                               )}
@@ -1369,30 +1651,24 @@ export function CompetitionDetailPageInner() {
                               }
                               logoUrl={
                                 (match.home_team?.id != null
-                                  ? teamLogoByCompetitionTeamId.get(
-                                      String(match.home_team.id)
-                                    )
+                                  ? teamLogoByCompetitionTeamId.get(String(match.home_team.id))
                                   : undefined) ??
                                 match.home_team?.logo_url ??
                                 match.home_team?.logo ??
                                 null
                               }
-                              className="h-10 w-10 shrink-0"
-                              textClassName="text-xs"
+                              className="h-9 w-9 shrink-0"
+                              textClassName="text-[10px]"
                             />
                           </div>
-                          
-                          <div className="flex items-center gap-3 px-6 shrink-0">
-                            <div className="text-4xl font-bold text-gray-900">
-                              {match.home_score ?? "-"}
-                            </div>
-                            <div className="text-2xl text-gray-400 font-light">×</div>
-                            <div className="text-4xl font-bold text-gray-900">
-                              {match.away_score ?? "-"}
-                            </div>
+
+                          <div className="flex shrink-0 items-center gap-2 px-1 font-bold tabular-nums">
+                            <span className="text-xl text-foreground">{match.home_score ?? "—"}</span>
+                            <span className="text-sm font-normal text-muted-foreground">×</span>
+                            <span className="text-xl text-foreground">{match.away_score ?? "—"}</span>
                           </div>
-                          
-                          <div className="flex-1 flex items-center gap-3 min-w-0">
+
+                          <div className="flex min-w-0 flex-1 items-center gap-2">
                             <TeamLogo
                               name={match.away_team_name || match.away_team?.name || "Time B"}
                               abbreviation={
@@ -1402,46 +1678,26 @@ export function CompetitionDetailPageInner() {
                               }
                               logoUrl={
                                 (match.away_team?.id != null
-                                  ? teamLogoByCompetitionTeamId.get(
-                                      String(match.away_team.id)
-                                    )
+                                  ? teamLogoByCompetitionTeamId.get(String(match.away_team.id))
                                   : undefined) ??
                                 match.away_team?.logo_url ??
                                 match.away_team?.logo ??
                                 null
                               }
-                              className="h-10 w-10 shrink-0"
-                              textClassName="text-xs"
+                              className="h-9 w-9 shrink-0"
+                              textClassName="text-[10px]"
                             />
-                            <div className="text-left min-w-0">
-                              <div className="font-semibold text-gray-900 text-lg truncate">
+                            <div className="min-w-0 text-left">
+                              <div className="truncate text-sm font-semibold text-foreground">
                                 {match.away_team_name || match.away_team?.name || "Time B"}
                               </div>
                               {(match.away_team_abbreviation || match.away_team?.abbreviation) && (
-                                <div className="text-xs text-gray-500">
+                                <div className="text-[11px] text-muted-foreground">
                                   {match.away_team_abbreviation || match.away_team?.abbreviation}
                                 </div>
                               )}
                             </div>
                           </div>
-                        </div>
-
-                        <div className="pt-3 border-t flex gap-2">
-                          <Link href={`/partidas/${match.id}`} className="flex-1">
-                            <Button variant="outline" size="sm" className="w-full">
-                              Ficha da partida
-                            </Button>
-                          </Link>
-                          {canManageCompetition && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => setEditingMatch(match)}
-                              className="px-3"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                          )}
                         </div>
                       </div>
                     </Card>

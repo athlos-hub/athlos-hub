@@ -25,6 +25,8 @@ interface BackendUserResponse {
 }
 
 export const authOptions: NextAuthOptions = {
+    // Evita falha do fetch de sessão quando o Host não bate com NEXTAUTH_URL (localhost vs 127.0.0.1, proxy, etc.)
+    trustHost: true,
     providers: [
         CredentialsProvider({
             name: "Credentials",
@@ -195,19 +197,23 @@ export const authOptions: NextAuthOptions = {
         async session({ session, token }) {
             session.accessToken = token.accessToken as string;
             session.refreshToken = token.refreshToken as string;
-            
+
             let keycloakId: string | undefined;
-            if (token.accessToken) {
+            if (token.accessToken && typeof token.accessToken === "string") {
                 try {
-                    const payload = JSON.parse(
-                        Buffer.from((token.accessToken as string).split('.')[1], 'base64').toString()
-                    );
-                    keycloakId = payload.sub;
+                    const parts = token.accessToken.split(".");
+                    if (parts.length >= 2) {
+                        const payload = JSON.parse(
+                            Buffer.from(parts[1], "base64url").toString("utf8")
+                        );
+                        keycloakId =
+                            typeof payload.sub === "string" ? payload.sub : undefined;
+                    }
                 } catch (error) {
-                    console.error('Failed to decode JWT:', error);
+                    console.error("Failed to decode access token for session:", error);
                 }
             }
-            
+
             session.user = {
                 ...session.user,
                 id: token.id as string,

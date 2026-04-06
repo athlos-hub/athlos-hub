@@ -20,12 +20,14 @@ class LiveRepository:
         organization_id: str,
         stream_key: str,
         status: LiveStatus,
+        transmit_video: bool = True,
     ) -> Live:
         row = Live(
             external_match_id=external_match_id,
             organization_id=organization_id,
             stream_key=stream_key,
             status=status.value,
+            transmit_video=transmit_video,
         )
         self._session.add(row)
         await self._session.flush()

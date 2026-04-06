@@ -26,10 +26,11 @@ export function useLiveChat(liveId: string, userId: string, userName: string) {
       try {
         const history = await getChatHistory(liveId, 50);
         setMessages(history.reverse());
-        setHistoryLoaded(true);
       } catch (error) {
         console.error("Erro ao carregar histórico do chat:", error);
+      } finally {
         setHistoryLoaded(true);
+        setIsLoading(false);
       }
     }
 

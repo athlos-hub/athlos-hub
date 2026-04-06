@@ -11,7 +11,7 @@ Exchanges (topic, duráveis):
 Dead-letter: athlos.dlx (direct).
 
 Routing keys (resumo):
-- notification.created, match.live.requested, teams.import.requested, teams.mirror.delete.requested, teams.logo.sync
+- notification.created, match.live.requested, match.live.finished, teams.import.requested, teams.mirror.delete.requested, teams.logo.sync
 - achievement.notify
 - profile.athlete.ensure, profile.organization.ensure, profile.team.ensure, profile.team.delete
 - mail.send
@@ -37,6 +37,7 @@ EXCHANGE_TYPE_TOPIC = "topic"
 
 RK_NOTIFICATION_CREATED = "notification.created"
 RK_LIVE_MATCH_REQUESTED = "match.live.requested"
+RK_MATCH_LIVE_FINISHED = "match.live.finished"
 RK_TEAMS_IMPORT_REQUESTED = "teams.import.requested"
 RK_TEAMS_MIRROR_DELETE_REQUESTED = "teams.mirror.delete.requested"
 RK_TEAMS_LOGO_SYNC = "teams.logo.sync"
@@ -49,6 +50,7 @@ RK_MAIL_SEND = "mail.send"
 
 QUEUE_NOTIFICATIONS = "notifications.notification_created"
 QUEUE_LIVE_MATCH_CREATE = "live.match_live_create"
+QUEUE_COMPETITIONS_MATCH_LIVE_FINISHED = "competitions.match_live_finished"
 QUEUE_COMPETITIONS_TEAMS_IMPORT = "competitions.teams_import_rpc"
 QUEUE_COMPETITIONS_MIRROR_DELETE = "competitions.teams_mirror_delete_rpc"
 QUEUE_COMPETITIONS_LOGO_SYNC = "competitions.team_logo_sync"

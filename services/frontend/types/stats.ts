@@ -39,6 +39,8 @@ export interface RegisterScoreRequest {
   segment_id?: string;
   stats_metric_abbreviation?: string;
   player_id?: string;
+  /** Se false, não soma ao placar; só grava métrica do jogador (exige StatsRuleSet na competição). Padrão no backend: true. */
+  update_scoreboard?: boolean;
 }
 
 // Request para setar placar específico

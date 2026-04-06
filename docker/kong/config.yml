@@ -92,6 +92,34 @@ plugins:
     credentials: true
     max_age: 3600
 services:
+# Next.js (NextAuth + rotas BFF em app/api/auth/*). Prioridade acima do auth-service:
+# o prefixo amplo /api/auth no auth-service capturava /api/auth/session e enviava ao Keycloak → 404.
+- name: nextjs-frontend
+  url: http://host.docker.internal:3000
+  protocol: http
+  host: host.docker.internal
+  port: 3000
+  routes:
+  - name: nextjs-api-auth-nextauth-bff
+    protocols:
+    - http
+    - https
+    paths:
+    - ~/api/auth/session$
+    - ~/api/auth/csrf$
+    - ~/api/auth/providers$
+    - ~/api/auth/error$
+    - ~/api/auth/_log$
+    - ~/api/auth/signout$
+    - ~/api/auth/register$
+    - ~/api/auth/refresh-token$
+    - ~/api/auth/resend$
+    - ~/api/auth/request-reset-password$
+    - ~/api/auth/reset-password$
+    - ~/api/auth/signin(?:/.*)?$
+    - ~/api/auth/callback(?:/.*)?$
+    strip_path: false
+    regex_priority: 500
 - name: auth-service
   url: http://host.docker.internal:8000
   protocol: http
@@ -103,8 +131,16 @@ services:
     - http
     - https
     paths:
-    - /api/auth
+    - ~/api/auth/login$
+    - ~/api/auth/refresh$
+    - ~/api/auth/logout$
+    - ~/api/auth/keycloak/callback$
+    - ~/api/auth/resend-verification$
+    - ~/api/auth/google/url$
+    - ~/api/auth/verify/[^/]+$
+    - ~/api/auth/reset-password/[^/]+$
     strip_path: false
+    regex_priority: 450
   - name: auth-public-health
     protocols:
     - http
@@ -128,6 +164,16 @@ services:
     - https
     paths:
     - /api/internal/check-permission
+    methods:
+    - POST
+    strip_path: false
+    regex_priority: 320
+  - name: auth-internal-check-permission-by-org-id
+    protocols:
+    - http
+    - https
+    paths:
+    - /api/internal/check-permission-by-org-id
     methods:
     - POST
     strip_path: false
@@ -770,6 +816,24 @@ services:
     regex_priority: 200
     methods:
     - GET
+  - name: competitions-pub-scoreboard-ws
+    protocols:
+    - http
+    - https
+    paths:
+    - ~/api/scoreboard/ws/[^/]+$
+    strip_path: false
+    regex_priority: 400
+  - name: competitions-pub-scoreboard-get
+    protocols:
+    - http
+    - https
+    paths:
+    - ~/api/scoreboard/[0-9a-fA-F-]{36}$
+    strip_path: false
+    regex_priority: 350
+    methods:
+    - GET
   - name: competitions-protected
     protocols:
     - http
@@ -858,6 +922,18 @@ services:
     - https
     strip_path: false
     preserve_host: true
+  # OAuth callback: redirect do navegador sem Authorization (Google → Kong → live-service).
+  # Deve ficar SEM plugin jwt; caso contrário 401 antes de chegar ao serviço.
+  - name: livestream-google-calendar-oauth-callback
+    protocols:
+    - http
+    - https
+    paths:
+    - ~/api/google-calendar/oauth/callback$
+    methods:
+    - GET
+    strip_path: false
+    regex_priority: 400
   - name: livestream-jwt
     paths:
     - /api/lives

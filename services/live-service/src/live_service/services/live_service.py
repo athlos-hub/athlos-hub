@@ -9,9 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from live_service.common.enums import LiveStatus
 from live_service.infrastructure import redis_client as rc
-from live_service.infrastructure.http_clients import AuthServiceClient
+from live_service.infrastructure.http_clients import AuthServiceClient, CompetitionsClient
 from live_service.repositories.live_repository import LiveRepository
 from live_service.schemas.live import CreateLiveBody, LiveResponse
+from live_service.infrastructure.messaging.stat_sync_publisher import publish_match_live_finished
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ def _to_response(row) -> LiveResponse:
         started_at=row.started_at,
         ended_at=row.ended_at,
         created_at=row.created_at,
+        transmit_video=getattr(row, "transmit_video", True),
     )
 
 
@@ -36,6 +38,7 @@ class LiveService:
         self._session = session
         self._repo = LiveRepository(session)
         self._auth = AuthServiceClient()
+        self._competitions = CompetitionsClient()
 
     async def user_can_manage_organization_live(
         self, keycloak_sub: str, organization_id: str
@@ -57,6 +60,7 @@ class LiveService:
             organization_id=body.organization_id,
             stream_key=stream_key,
             status=LiveStatus.SCHEDULED,
+            transmit_video=body.transmit_video,
         )
         r = rc.redis_client.client()
         await rc.save_stream_key_metadata(
@@ -114,6 +118,19 @@ class LiveService:
         r = rc.redis_client.client()
         await rc.mark_stream_inactive(r, live.stream_key)
 
+        try:
+            await publish_match_live_finished(
+                match_id=live.external_match_id,
+                live_id=live.id,
+                source="finish_live",
+            )
+        except Exception:
+            logger.exception(
+                "Falha ao publicar match.live.finished (match=%s live=%s)",
+                live.external_match_id,
+                live.id,
+            )
+
         return _to_response(live)
 
     async def cancel_live(self, live_id: str, keycloak_sub: str) -> LiveResponse:
@@ -139,4 +156,52 @@ class LiveService:
         live.status = LiveStatus.CANCELLED.value
         live.ended_at = ended
         await self._repo.save_entity(live)
+        return _to_response(live)
+
+    async def update_transmit_video(
+        self, live_id: str, keycloak_sub: str, transmit_video: bool
+    ) -> LiveResponse:
+        live = await self._repo.find_by_id(live_id)
+        if not live:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Live não encontrada")
+
+        if not await self.user_can_manage_organization_live(keycloak_sub, live.organization_id):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Você não tem permissão para alterar esta live",
+            )
+
+        if live.status != LiveStatus.SCHEDULED.value:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Só é possível alterar antes do início da partida.",
+            )
+
+        live.transmit_video = transmit_video
+        await self._repo.save_entity(live)
+        return _to_response(live)
+
+    async def start_match_without_stream(self, live_id: str, keycloak_sub: str) -> LiveResponse:
+        """Inicia a partida no competitions e marca live como LIVE (sem depender de RTMP)."""
+        live = await self._repo.find_by_id(live_id)
+        if not live:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Live não encontrada")
+
+        if not await self.user_can_manage_organization_live(keycloak_sub, live.organization_id):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Você não tem permissão para iniciar esta partida",
+            )
+
+        if live.status != LiveStatus.SCHEDULED.value:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Transição inválida: status {live.status}",
+            )
+
+        now = datetime.now(timezone.utc)
+        live.status = LiveStatus.LIVE.value
+        live.started_at = now
+        await self._repo.save_entity(live)
+        await self._competitions.start_match(live.external_match_id)
         return _to_response(live)

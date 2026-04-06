@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,8 +21,25 @@ import { LiveStatusDisplay } from "@/components/livestream/live-status-display";
 import { StreamKeyDisplay } from "@/components/livestream/stream-key-display";
 import { ScoreboardDisplay } from "@/components/matches/scoreboard-display";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getLiveById, finishLive, cancelLive } from "@/actions/lives";
-import { getMatchById, finishMatch } from "@/actions/matches";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  getLiveById,
+  finishLive,
+  cancelLive,
+  patchLiveTransmitVideo,
+  startMatchWithoutStream,
+} from "@/actions/lives";
+import { getMatchById, finishMatch, updateMatch } from "@/actions/matches";
 import { getMyOrganizations } from "@/actions/organizations";
 import { getCompetitionStats, getCompetitionTeamsWithPlayers } from "@/actions/competitions";
 import { OrgRole } from "@/types/organization";
@@ -32,12 +49,12 @@ import type { Live } from "@/types/livestream";
 import type { MatchDetail } from "@/types/match";
 import type { CompetitionStat, TeamWithPlayers } from "@/types/competition";
 import { toast } from "sonner";
-import { ArrowLeft, Square, X } from "lucide-react";
+import { ArrowLeft, Play, Square, Video, X } from "lucide-react";
 import Link from "next/link";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default function LiveDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const { data: session } = useSession();
   const [initialLive, setInitialLive] = useState<Live | null>(null);
   const [matchDetails, setMatchDetails] = useState<MatchDetail | null>(null);
@@ -49,10 +66,12 @@ export default function LiveDetailPage() {
   const [showFinishDialog, setShowFinishDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showFinishMatchDialog, setShowFinishMatchDialog] = useState(false);
+  const [showTransmitDialog, setShowTransmitDialog] = useState(false);
+  const [transmitDraft, setTransmitDraft] = useState(true);
 
   const liveId = params?.id as string;
 
-  const { live, updateLive, isConnected } = useLiveStatus(liveId, initialLive);
+  const { live, updateLive } = useLiveStatus(liveId, initialLive);
   
   // Hook do scoreboard para obter os segments
   const { scoreboard } = useScoreboard(live?.externalMatchId || null);
@@ -146,6 +165,46 @@ export default function LiveDetailPage() {
     }
   };
 
+  const handleSaveTransmit = async () => {
+    if (!liveId || isUpdating) return;
+    setIsUpdating(true);
+    try {
+      const updated = await patchLiveTransmitVideo(liveId, transmitDraft);
+      updateLive(updated);
+      if (live?.externalMatchId) {
+        await updateMatch(live.externalMatchId, { transmitVideo: transmitDraft });
+        const m = await getMatchById(live.externalMatchId);
+        setMatchDetails(m);
+      }
+      toast.success("Preferência de transmissão atualizada.");
+      setShowTransmitDialog(false);
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleStartWithoutStream = async () => {
+    if (!liveId || isUpdating) return;
+    setIsUpdating(true);
+    try {
+      const updated = await startMatchWithoutStream(liveId);
+      updateLive(updated);
+      if (live?.externalMatchId) {
+        const m = await getMatchById(live.externalMatchId);
+        setMatchDetails(m);
+      }
+      toast.success("Partida iniciada.");
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "Erro ao iniciar partida");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   const handleFinishMatch = async () => {
     if (!live?.externalMatchId || isUpdating) return;
 
@@ -190,30 +249,51 @@ export default function LiveDetailPage() {
     );
   }
 
+  const wantsVideo = live.transmitVideo !== false;
+  const canManage = userOrgRole === OrgRole.OWNER || userOrgRole === OrgRole.ORGANIZER;
+  const canEditTransmitBeforeStart = canManage && live.status === "scheduled";
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <Link href="/jogos">
-          <Button variant="ghost" size="sm" className="gap-2 cursor-pointer">
-            <ArrowLeft className="w-5 h-5" />
-            <span className="text-sm">Voltar</span>
-          </Button>
-        </Link>
+      <div className="flex items-start justify-between">
+        <PageHeader
+          title="Transmissão do jogo"
+          subtitle={
+            wantsVideo
+              ? "Assista à transmissão e acompanhe o andamento da partida."
+              : "Acompanhe o jogo ao vivo."
+          }
+        />
 
         <div className="flex items-center gap-2">
-          {((userOrgRole === OrgRole.OWNER) || (userOrgRole === OrgRole.ORGANIZER)) && live.status === "scheduled" && (
-            <Button
-              onClick={() => setShowCancelDialog(true)}
-              disabled={isUpdating}
-              variant="outline"
-              className="gap-2"
-            >
-              <X className="w-4 h-4" />
-              Cancelar
-            </Button>
+          {canEditTransmitBeforeStart && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-2"
+                disabled={isUpdating}
+                onClick={() => {
+                  setTransmitDraft(wantsVideo);
+                  setShowTransmitDialog(true);
+                }}
+              >
+                <Video className="w-4 h-4" />
+                Modo de transmissão
+              </Button>
+              <Button
+                onClick={() => setShowCancelDialog(true)}
+                disabled={isUpdating}
+                variant="destructive"
+                className="gap-2 text-white"
+              >
+                <X className="w-4 h-4" />
+                Cancelar
+              </Button>
+            </>
           )}
 
-          {((userOrgRole === OrgRole.OWNER) || (userOrgRole === OrgRole.ORGANIZER)) && live.status === "live" && (
+          {canManage && live.status === "live" && (
             <>
               <Button
                 onClick={() => setShowFinishDialog(true)}
@@ -245,7 +325,7 @@ export default function LiveDetailPage() {
         endedAt={live.endedAt}
       />
 
-      {((userOrgRole === OrgRole.OWNER) || (userOrgRole === OrgRole.ORGANIZER)) && (live.status === "scheduled" || live.status === "live") && (
+      {canManage && wantsVideo && (live.status === "scheduled" || live.status === "live") && (
         <StreamKeyDisplay streamKey={live.streamKey} />
       )}
 
@@ -259,36 +339,131 @@ export default function LiveDetailPage() {
         />
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 h-[720px]">
-          <LivePlayer live={live} />
-        </div>
+      {wantsVideo ? (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 h-[720px] min-h-[400px]">
+              <LivePlayer live={live} />
+            </div>
 
-        <div className="lg:col-span-1 h-[720px]">
-          <LiveChat
+            <div className="lg:col-span-1 h-[720px] min-h-[400px] flex flex-col min-h-0">
+              <LiveChat
+                liveId={liveId}
+                userId={session?.user?.id || null}
+                userName={session?.user?.name || null}
+                isAuthenticated={!!session?.user}
+                liveStatus={live.status}
+              />
+            </div>
+          </div>
+
+          <LiveEvents
             liveId={liveId}
-            userId={session?.user?.id || null}
-            userName={session?.user?.name || null}
-            isAuthenticated={!!session?.user}
             liveStatus={live.status}
+            matchId={live.externalMatchId || ""}
+            matchData={{
+              home_team_id: matchDetails?.home_team?.id,
+              away_team_id: matchDetails?.away_team?.id,
+            }}
+            competitionId={matchDetails?.competition_id}
+            competitionStats={competitionStats}
+            teamsWithPlayers={teamsWithPlayers}
+            segments={scoreboard?.segments || []}
+            canCreateEvents={canManage}
           />
-        </div>
-      </div>
+        </>
+      ) : (
+        <>
+          {canEditTransmitBeforeStart && (
+            <Card className="border-border/80 shadow-sm">
+              <CardContent className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-foreground">Sem transmissão de vídeo</p>
+                  <p className="text-sm text-muted-foreground">
+                    Inicie a partida quando estiver pronto.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  className="shrink-0 gap-2 bg-main hover:bg-main/90 text-white"
+                  disabled={isUpdating}
+                  onClick={handleStartWithoutStream}
+                >
+                  <Play className="w-4 h-4" />
+                  Iniciar partida
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
-      <LiveEvents 
-        liveId={liveId} 
-        liveStatus={live.status} 
-        matchId={live.externalMatchId || ""}
-        matchData={{
-          home_team_id: matchDetails?.home_team?.id,
-          away_team_id: matchDetails?.away_team?.id
-        }}
-        competitionId={matchDetails?.competition_id}
-        competitionStats={competitionStats}
-        teamsWithPlayers={teamsWithPlayers}
-        segments={scoreboard?.segments || []}
-        canCreateEvents={(userOrgRole === OrgRole.OWNER) || (userOrgRole === OrgRole.ORGANIZER)}
-      />
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:h-[720px]">
+            <div className="flex min-h-[420px] flex-col lg:h-full lg:min-h-0">
+              <LiveEvents
+                liveId={liveId}
+                liveStatus={live.status}
+                matchId={live.externalMatchId || ""}
+                matchData={{
+                  home_team_id: matchDetails?.home_team?.id,
+                  away_team_id: matchDetails?.away_team?.id,
+                }}
+                competitionId={matchDetails?.competition_id}
+                competitionStats={competitionStats}
+                teamsWithPlayers={teamsWithPlayers}
+                segments={scoreboard?.segments || []}
+                canCreateEvents={canManage}
+              />
+            </div>
+            <div className="flex min-h-[420px] flex-col lg:h-full lg:min-h-0">
+              <LiveChat
+                liveId={liveId}
+                userId={session?.user?.id || null}
+                userName={session?.user?.name || null}
+                isAuthenticated={!!session?.user}
+                liveStatus={live.status}
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      <Dialog open={showTransmitDialog} onOpenChange={setShowTransmitDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Transmissão de vídeo</DialogTitle>
+            <DialogDescription>
+              Defina o modo de transmissão para o jogo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-border/80 px-3 py-3">
+            <div className="space-y-0.5">
+              <Label htmlFor="transmit-live" className="text-sm font-medium">
+                Transmitir em vídeo
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Desligue para ocultar o player e usar só placar ao vivo, chat e eventos.
+              </p>
+            </div>
+            <Switch
+              id="transmit-live"
+              checked={transmitDraft}
+              onCheckedChange={setTransmitDraft}
+            />
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => setShowTransmitDialog(false)} disabled={isUpdating}>
+              Voltar
+            </Button>
+            <Button
+              type="button"
+              className="bg-main hover:bg-main/90 text-white"
+              disabled={isUpdating}
+              onClick={() => void handleSaveTransmit()}
+            >
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={showFinishDialog} onOpenChange={setShowFinishDialog}>
         <AlertDialogContent>

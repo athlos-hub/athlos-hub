@@ -55,11 +55,12 @@ async def _ensure_exchange() -> aio_pika.abc.AbstractExchange:
 
 
 async def publish_live_create_for_match(
-    *, external_match_id: UUID, organization_id: UUID
+    *, external_match_id: UUID, organization_id: UUID, transmit_video: bool = True
 ) -> None:
     body: dict[str, Any] = {
         "external_match_id": str(external_match_id),
         "organization_id": str(organization_id),
+        "transmit_video": transmit_video,
     }
     raw = json.dumps(body).encode("utf-8")
     exchange = await _ensure_exchange()
@@ -79,6 +80,8 @@ async def publish_live_creates_for_matches(
     """Publica um evento por partida. Retorna quantidade publicada."""
     for m in matches:
         await publish_live_create_for_match(
-            external_match_id=m.id, organization_id=organization_id
+            external_match_id=m.id,
+            organization_id=organization_id,
+            transmit_video=getattr(m, "transmit_video", True),
         )
     return len(matches)

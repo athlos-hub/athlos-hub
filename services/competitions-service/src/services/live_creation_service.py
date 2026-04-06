@@ -57,7 +57,8 @@ class LiveCreationService:
             try:
                 live_data = await self.livestream_client.create_live(
                     external_match_id=match.id,
-                    organization_id=self.organization_id
+                    organization_id=self.organization_id,
+                    transmit_video=getattr(match, "transmit_video", True),
                 )
                 
                 created_lives.append({

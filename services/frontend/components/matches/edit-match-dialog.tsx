@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Calendar, MapPin, Loader2 } from "lucide-react";
 import {
   Dialog,
@@ -13,8 +13,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { updateMatch, type MatchUpdateData } from "@/actions/matches";
+import {
+  backendIsoToDatetimeLocalInput,
+  datetimeLocalInputToUtcIsoString,
+} from "@/lib/datetime/datetime-local";
 
 interface EditMatchDialogProps {
   open: boolean;
@@ -25,6 +30,7 @@ interface EditMatchDialogProps {
     local?: string;
     home_team_name?: string;
     away_team_name?: string;
+    transmit_video?: boolean;
   };
   onSuccess: () => void;
 }
@@ -36,40 +42,39 @@ export function EditMatchDialog({
   onSuccess,
 }: EditMatchDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Converte a data do formato ISO para datetime-local
-  const getDatetimeLocalValue = (isoDate?: string) => {
-    if (!isoDate) return "";
-    try {
-      const date = new Date(isoDate);
-      // Formata para yyyy-MM-ddTHH:mm
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      return `${year}-${month}-${day}T${hours}:${minutes}`;
-    } catch {
-      return "";
-    }
-  };
 
   const [formData, setFormData] = useState<MatchUpdateData>({
     scheduled_datetime: match.scheduled_datetime,
     local: match.local || "",
+    transmitVideo: match.transmit_video !== false,
   });
+
+  useEffect(() => {
+    if (!open) return;
+    console.log("match.scheduled_datetime:", match.scheduled_datetime);
+    setFormData({
+      scheduled_datetime: match.scheduled_datetime,
+      local: match.local || "",
+      transmitVideo: match.transmit_video !== false,
+    });
+  }, [open, match.id, match.scheduled_datetime, match.local, match.transmit_video]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.scheduled_datetime && !formData.local) {
-      toast.error("Preencha pelo menos um campo para atualizar");
-      return;
+    const payload: MatchUpdateData = {
+      transmitVideo: formData.transmitVideo !== false,
+    };
+    if (formData.scheduled_datetime) {
+      payload.scheduled_datetime = formData.scheduled_datetime;
+    }
+    if (formData.local !== undefined) {
+      payload.local = formData.local;
     }
 
     setIsLoading(true);
     try {
-      await updateMatch(match.id, formData);
+      await updateMatch(match.id, payload);
       toast.success("Jogo atualizado com sucesso!");
       onSuccess();
       onOpenChange(false);
@@ -86,6 +91,9 @@ export function EditMatchDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Editar Jogo</DialogTitle>
+          <DialogDescription>
+            Data, local e se a partida terá transmissão em vídeo (padrão: sim).
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
@@ -97,11 +105,24 @@ export function EditMatchDialog({
               <Input
                 id="scheduled_datetime"
                 type="datetime-local"
-                value={getDatetimeLocalValue(formData.scheduled_datetime)}
-                onChange={(e) => setFormData({ 
-                  ...formData, 
-                  scheduled_datetime: e.target.value ? new Date(e.target.value).toISOString() : undefined 
-                })}
+                value={backendIsoToDatetimeLocalInput(formData.scheduled_datetime)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (!v) {
+                    setFormData({ ...formData, scheduled_datetime: undefined });
+                    return;
+                  }
+                  try {
+                    setFormData({
+                      ...formData,
+                      scheduled_datetime: datetimeLocalInputToUtcIsoString(v),
+                    });
+                  } catch (err) {
+                    const msg =
+                      err instanceof Error ? err.message : "Não foi possível interpretar data e hora.";
+                    toast.error(msg);
+                  }
+                }}
               />
             </div>
 
@@ -117,22 +138,29 @@ export function EditMatchDialog({
                 placeholder="Ex: Ginásio Municipal"
               />
             </div>
+
+            <div className="flex items-center justify-between gap-4 rounded-lg border border-border/80 px-3 py-3">
+              <div className="space-y-0.5">
+                <Label htmlFor="transmit_video" className="text-sm font-medium">
+                  Transmitir em vídeo
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Se desligado, a partida pode ser acompanhada só com placar, chat e eventos.
+                </p>
+              </div>
+              <Switch
+                id="transmit_video"
+                checked={formData.transmitVideo !== false}
+                onCheckedChange={(checked) => setFormData({ ...formData, transmitVideo: checked })}
+              />
+            </div>
           </div>
 
           <DialogFooter className="mt-6">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isLoading}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
               Cancelar
             </Button>
-            <Button 
-              type="submit" 
-              disabled={isLoading}
-              className="bg-main hover:bg-main/90 text-white"
-            >
+            <Button type="submit" disabled={isLoading} className="bg-main hover:bg-main/90 text-white">
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />

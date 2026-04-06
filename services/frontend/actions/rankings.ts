@@ -19,9 +19,15 @@ export interface StandingsTeam {
 
 export interface PlayerRanking {
   player_id: string;
-  player_name: string;
-  team_name: string;
+  /** Preenchido no frontend a partir de player_keycloak_id + auth-service, se necessário */
+  player_name?: string;
+  player_keycloak_id?: string;
+  team_id?: string;
+  team_name?: string;
+  team_abbreviation?: string;
   stat_value: number;
+  /** Legado: mesmo valor que stat_value */
+  total_value?: number;
 }
 
 export async function getCompetitionStandings(

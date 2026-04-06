@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Index, String
+from sqlalchemy import Boolean, DateTime, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from live_service.common.enums import LiveStatus
@@ -32,4 +32,7 @@ class Live(Base):
         DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(timezone.utc),
+    )
+    transmit_video: Mapped[bool] = mapped_column(
+        "transmit_video", Boolean, nullable=False, default=True
     )

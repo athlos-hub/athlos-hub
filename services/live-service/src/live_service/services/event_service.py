@@ -13,6 +13,9 @@ from live_service.infrastructure import redis_client as rc
 from live_service.repositories.event_repository import EventRepository
 from live_service.repositories.live_repository import LiveRepository
 from live_service.schemas.event import MatchEventResponse, PublishMatchEventBody
+from live_service.infrastructure.messaging.stat_sync_publisher import (
+    publish_match_stat_register,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -60,21 +63,34 @@ class EventService:
 
         event_id = str(uuid.uuid4())
         ts = datetime.now(timezone.utc)
-        created_iso = ts.isoformat()
+
+        raw_pl: dict = dict(body.payload) if body.payload else {}
+        sync_blob = raw_pl.pop("_competitionsScoreSync", None)
+        public_payload = {k: v for k, v in raw_pl.items() if not str(k).startswith("_")}
 
         await self._events.publish_event(
             event_id=event_id,
             live_id=live_id,
             event_type=body.type,
-            payload=body.payload,
+            payload=public_payload,
             created_at=ts,
         )
+
+        if isinstance(sync_blob, dict) and sync_blob:
+            try:
+                await publish_match_stat_register(
+                    event_id=event_id,
+                    match_id=live.external_match_id,
+                    sync=sync_blob,
+                )
+            except Exception as exc:
+                logger.error("Falha ao publicar match.stat.register: %s", exc, exc_info=True)
 
         return MatchEventResponse(
             id=event_id,
             live_id=live_id,
             type=body.type,
-            payload=body.payload,
+            payload=public_payload,
             timestamp=ts.isoformat(),
         )
 

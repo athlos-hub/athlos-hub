@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import quote, urlencode
+from zoneinfo import ZoneInfo
 
 import httpx
 from fastapi import HTTPException, status
@@ -177,10 +178,27 @@ class GoogleCalendarService:
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
         if not response.is_success:
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST,
-                detail=f"Falha ao obter tokens: {response.text}",
-            )
+            detail = response.text
+            try:
+                err = response.json()
+                if err.get("error") == "invalid_client":
+                    detail = (
+                        "Credenciais OAuth inválidas: verifique GOOGLE_CLIENT_ID e "
+                        "GOOGLE_CLIENT_SECRET no .env do live-service (mesmo cliente "
+                        '"Aplicativo da Web" no Google Cloud Console; secret sem espaços extras). '
+                        f"Resposta Google: {err}"
+                    )
+                elif err.get("error") == "redirect_uri_mismatch":
+                    detail = (
+                        "redirect_uri não coincide: em Google Cloud Console → Credenciais → "
+                        "URIs de redirecionamento autorizados, inclua exatamente: "
+                        f"{settings.google_redirect_uri_effective}. Resposta: {err}"
+                    )
+                else:
+                    detail = f"Falha ao obter tokens: {err}"
+            except Exception:
+                detail = f"Falha ao obter tokens: {response.text}"
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=detail)
         return response.json()
 
     async def is_authorized(self, user_id: str) -> bool:
@@ -269,6 +287,14 @@ class GoogleCalendarService:
         ]
         return "\n".join(lines)
 
+    def _format_scheduled_datetime(self, dt_str: str) -> str:
+        try:
+            dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+            brt = dt.astimezone(ZoneInfo("America/Sao_Paulo"))
+            return brt.strftime("%d/%m/%Y às %H:%M (Horário de Brasília)")
+        except Exception:
+            return dt_str
+
     def _build_description_from_match(
         self, match: MatchDto, live: Live, frontend_base_url: str
     ) -> str:
@@ -286,7 +312,7 @@ class GoogleCalendarService:
         if match.local:
             lines.append(f"Local: {match.local}")
         if match.scheduled_datetime:
-            lines.append(f"Horário: {match.scheduled_datetime}")
+            lines.append(f"Horário: {self._format_scheduled_datetime(match.scheduled_datetime)}")
         lines.extend(["", f"Acesse a live em: {frontend_base_url}/jogos/{live.id}"])
         return "\n".join(lines)
 

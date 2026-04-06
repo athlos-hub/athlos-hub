@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import axios, { AxiosError } from "axios";
 import type { Live, CreateLiveDto, ListLivesParams, ChatMessage, MatchEvent, MatchEventType } from "@/types/livestream";
+import { parseBackendIsoToDate } from "@/lib/datetime/parse-backend-iso";
 
 const API_GATEWAY_URL = process.env.API_BASE_URL || "http://localhost:8100/api";
 
@@ -87,6 +88,25 @@ export async function finishLive(id: string): Promise<Live> {
 
 export async function cancelLive(id: string): Promise<Live> {
   return livestreamAPI<Live>(`/lives/${id}/cancel`, {
+    method: "PATCH",
+    requireAuth: true,
+  });
+}
+
+export async function patchLiveTransmitVideo(
+  liveId: string,
+  transmitVideo: boolean
+): Promise<Live> {
+  return livestreamAPI<Live>(`/lives/${liveId}/transmit-video`, {
+    method: "PATCH",
+    data: { transmitVideo },
+    requireAuth: true,
+  });
+}
+
+/** Inicia a partida sem RTMP (placar/chat/eventos). */
+export async function startMatchWithoutStream(liveId: string): Promise<Live> {
+  return livestreamAPI<Live>(`/lives/${liveId}/start-without-stream`, {
     method: "PATCH",
     requireAuth: true,
   });
@@ -198,13 +218,24 @@ export async function createMultipleGoogleCalendarEvents(
 function transformMatchForCalendar(m: Record<string, any>) {
   if (!m) return m;
 
+  const rawDatetime = m.scheduled_datetime ?? m.scheduledDatetime ?? m.scheduledDatetimeUtc ?? m.scheduled_datetime_utc;
+
+  let scheduledDatetime = rawDatetime;
+  if (rawDatetime && typeof rawDatetime === "string") {
+    try {
+      scheduledDatetime = parseBackendIsoToDate(rawDatetime).toISOString();
+    } catch {
+      scheduledDatetime = rawDatetime;
+    }
+  }
+
   return {
     externalMatchId: m.id ?? m.external_match_id ?? m.externalMatchId,
     competitionName: m.competition_name ?? m.competitionName ?? m.competition?.name,
     roundName: m.round_name ?? m.roundName,
     groupName: m.group_name ?? m.groupName,
     local: m.local ?? m.venue ?? m.location,
-    scheduledDatetime: m.scheduled_datetime ?? m.scheduledDatetime ?? m.scheduledDatetimeUtc ?? m.scheduled_datetime_utc,
+    scheduledDatetime, // ← agora sempre chega como "2026-04-07T22:00:00.000Z"
     homeTeam: m.home_team
       ? {
           id: m.home_team.id,
@@ -219,8 +250,8 @@ function transformMatchForCalendar(m: Record<string, any>) {
           logo: m.away_team.logo_url ?? m.away_team.logo,
         }
       : m.awayTeam,
-    homeScore: typeof m.home_score === 'number' ? m.home_score : m.homeScore,
-    awayScore: typeof m.away_score === 'number' ? m.away_score : m.awayScore,
+    homeScore: typeof m.home_score === "number" ? m.home_score : m.homeScore,
+    awayScore: typeof m.away_score === "number" ? m.away_score : m.awayScore,
   };
 }
 

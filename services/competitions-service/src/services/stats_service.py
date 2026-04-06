@@ -24,23 +24,34 @@ class StatsService:
         Retorna ranking de jogadores para uma métrica (abbreviation) específica
         dentro da competição, somando valores de todos os jogos e ordenando desc.
 
-        Saída: lista de dicts com `player_id`, `team_id`, `total_value`.
+        Saída: dicts com player_id, player_keycloak_id, team_id, team_name,
+        team_abbreviation, stat_value (e total_value espelhado para compatibilidade).
         """
 
         query = (
             select(
                 PlayerModel.id.label("player_id"),
+                PlayerModel.keycloak_id.label("player_keycloak_id"),
                 PlayerModel.team_id.label("team_id"),
+                TeamModel.name.label("team_name"),
+                TeamModel.abbreviation.label("team_abbreviation"),
                 func.sum(PlayerStatsModel.value).label("total_value"),
             )
             .join(PlayerStatsModel, PlayerStatsModel.player_id == PlayerModel.id)
             .join(StatsTypeModel, PlayerStatsModel.stats_type_id == StatsTypeModel.id)
             .join(StatsRuleSetModel, StatsTypeModel.stats_ruleset_id == StatsRuleSetModel.id)
+            .join(TeamModel, TeamModel.id == PlayerModel.team_id)
             .where(
                 StatsRuleSetModel.competition_id == competition_id,
                 StatsTypeModel.abbreviation == stats_metric_abbreviation,
             )
-            .group_by(PlayerModel.id, PlayerModel.team_id)
+            .group_by(
+                PlayerModel.id,
+                PlayerModel.keycloak_id,
+                PlayerModel.team_id,
+                TeamModel.name,
+                TeamModel.abbreviation,
+            )
             .order_by(func.sum(PlayerStatsModel.value).desc())
         )
 
@@ -50,14 +61,27 @@ class StatsService:
         result = await self.session.execute(query)
         rows = result.all()
 
-        # Normaliza saída em uma lista de dicts
         rankings: List[Dict[str, Any]] = []
-        for player_id, team_id, total_value in rows:
-            rankings.append({
-                "player_id": player_id,
-                "team_id": team_id,
-                "total_value": int(total_value or 0),
-            })
+        for (
+            player_id,
+            player_keycloak_id,
+            team_id,
+            team_name,
+            team_abbreviation,
+            total_value,
+        ) in rows:
+            val = int(total_value or 0)
+            rankings.append(
+                {
+                    "player_id": str(player_id),
+                    "player_keycloak_id": str(player_keycloak_id),
+                    "team_id": str(team_id),
+                    "team_name": team_name or "",
+                    "team_abbreviation": team_abbreviation or "",
+                    "stat_value": val,
+                    "total_value": val,
+                }
+            )
 
         return rankings
     

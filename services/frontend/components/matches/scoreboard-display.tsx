@@ -1,13 +1,12 @@
 "use client";
 
 import { useScoreboard } from "@/hooks/use-scoreboard";
-import type { Scoreboard as ScoreboardType } from "@/types/scoreboard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Trophy, Radio, Clock, CheckCircle2, XCircle } from "lucide-react";
-import { ScoreEditor } from "./score-editor";
+import { Radio, Clock, XCircle } from "lucide-react";
 import { TeamLogo } from "@/components/teams/team-logo";
+import { ScoreboardEditDialog } from "./scoreboard-edit-dialog";
+import { RiH3 } from "react-icons/ri";
 
 function abbrFromTeamName(name: string | null | undefined): string {
   const t = (name || "").trim();
@@ -24,20 +23,25 @@ interface ScoreboardDisplayProps {
   liveId?: string;
 }
 
-export function ScoreboardDisplay({ matchId, competitionId, canEdit = false, liveId }: ScoreboardDisplayProps) {
-  const { scoreboard, isConnected, error } = useScoreboard(matchId);
+export function ScoreboardDisplay({ matchId, canEdit = false }: ScoreboardDisplayProps) {
+  const { scoreboard, isConnected, error, reconnect } = useScoreboard(matchId);
 
-  if (error) {
+  if (error && !scoreboard) {
     return (
-      <Card className="border-destructive">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-destructive">
-            <XCircle className="w-5 h-5" />
-            Erro no Placar
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">{error}</p>
+      <Card className="border-destructive/40 shadow-sm">
+        <CardContent className="flex items-start gap-3 p-4 pt-4">
+          <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-destructive">Placar indisponível</p>
+            <p className="text-sm text-muted-foreground">{error}</p>
+            <button
+              type="button"
+              className="text-xs text-main underline underline-offset-2"
+              onClick={() => reconnect()}
+            >
+              Tentar novamente
+            </button>
+          </div>
         </CardContent>
       </Card>
     );
@@ -45,183 +49,96 @@ export function ScoreboardDisplay({ matchId, competitionId, canEdit = false, liv
 
   if (!scoreboard) {
     return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-32" />
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Skeleton className="h-20 w-full" />
-          <Skeleton className="h-16 w-full" />
+      <Card className="border-border/80 shadow-sm">
+        <CardContent className="space-y-4 p-4">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-6 w-20 rounded-full" />
+          </div>
+          <Skeleton className="h-[7.5rem] w-full rounded-lg" />
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="relative">
-      {/* Indicador de conexão */}
-      <div className="absolute top-4 right-4">
-        {isConnected ? (
-          <Badge variant="outline" className="gap-1.5 bg-green-50 text-green-700 border-green-200">
-            <Radio className="w-3 h-3 animate-pulse" />
-            Ao vivo
-          </Badge>
-        ) : (
-          <Badge variant="outline" className="gap-1.5">
-            <Clock className="w-3 h-3" />
-            Offline
-          </Badge>
-        )}
-      </div>
+    <Card className="overflow-hidden border-border/80 shadow-sm">
+      <CardContent className="p-0">
+        <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-semibold leading-none tracking-tight">
+              Placar
+            </h3>
+            {isConnected ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/90 px-2.5 py-0.5 text-[11px] font-medium text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-200">
+                <Radio className="h-3 w-3 shrink-0 animate-pulse" aria-hidden />
+                Ao vivo
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/60 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                <Clock className="h-3 w-3 shrink-0" aria-hidden />
+                Tempo real off
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 min-w-0">
+            {canEdit && scoreboard.segments.length > 0 && (
+              <ScoreboardEditDialog
+                matchId={matchId}
+                segments={scoreboard.segments}
+                canEdit={canEdit}
+              />
+            )}
+            
+          </div>
+        </div>
 
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Trophy className="w-5 h-5" />
-          Placar
-        </CardTitle>
-      </CardHeader>
-
-      <CardContent className="space-y-6">
-        {/* Placar Principal */}
-        <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center">
-          {/* Time da Casa */}
-          <div className="text-right space-y-2 flex flex-col items-end">
-            <div className="flex items-center justify-end gap-2 min-w-0">
-              <div className="min-w-0">
-                <p className="font-semibold text-lg truncate">
+        <div className="bg-muted/35 px-3 py-5 sm:px-5">
+          <div className="mx-auto flex max-w-3xl items-center justify-between gap-2 sm:gap-4">
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-3">
+              <div className="min-w-0 text-right">
+                <p className="truncate text-sm font-semibold text-foreground sm:text-base">
                   {scoreboard.home_team_name || "Time A"}
                 </p>
               </div>
               <TeamLogo
                 name={scoreboard.home_team_name || "Time A"}
                 abbreviation={abbrFromTeamName(scoreboard.home_team_name)}
-                logoUrl={null}
-                className="h-10 w-10 shrink-0"
+                logoUrl={scoreboard.home_team_logo_url ?? null}
+                className="h-11 w-11 shrink-0 sm:h-12 sm:w-12"
                 textClassName="text-xs"
               />
             </div>
-            <p className="text-5xl font-bold text-primary">
-              {scoreboard.home_total_score}
-            </p>
-          </div>
 
-          {/* Separador */}
-          <div className="text-3xl font-bold text-muted-foreground">
-            ×
-          </div>
+            <div className="flex shrink-0 items-baseline gap-2 px-1 tabular-nums sm:gap-3">
+              <span className="min-w-[2ch] text-center text-3xl font-bold tracking-tight text-main sm:text-4xl sm:min-w-[2.5ch]">
+                {scoreboard.home_total_score}
+              </span>
+              <span className="text-lg font-light text-muted-foreground sm:text-xl" aria-hidden>
+                ×
+              </span>
+              <span className="min-w-[2ch] text-center text-3xl font-bold tracking-tight text-main sm:text-4xl sm:min-w-[2.5ch]">
+                {scoreboard.away_total_score}
+              </span>
+            </div>
 
-          {/* Time Visitante */}
-          <div className="text-left space-y-2 flex flex-col items-start">
-            <div className="flex items-center justify-start gap-2 min-w-0">
+            <div className="flex min-w-0 flex-1 items-center justify-start gap-2 sm:gap-3">
               <TeamLogo
                 name={scoreboard.away_team_name || "Time B"}
                 abbreviation={abbrFromTeamName(scoreboard.away_team_name)}
-                logoUrl={null}
-                className="h-10 w-10 shrink-0"
+                logoUrl={scoreboard.away_team_logo_url ?? null}
+                className="h-11 w-11 shrink-0 sm:h-12 sm:w-12"
                 textClassName="text-xs"
               />
-              <div className="min-w-0">
-                <p className="font-semibold text-lg truncate">
+              <div className="min-w-0 text-left">
+                <p className="truncate text-sm font-semibold text-foreground sm:text-base">
                   {scoreboard.away_team_name || "Time B"}
                 </p>
               </div>
             </div>
-            <p className="text-5xl font-bold text-primary">
-              {scoreboard.away_total_score}
-            </p>
           </div>
-        </div>
-
-        {/* Segments (Tempos/Períodos) */}
-        {scoreboard.segments.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-muted-foreground uppercase">
-                Detalhamento
-              </h4>
-            </div>
-
-            <div className="space-y-2">
-              {scoreboard.segments.map((segment) => (
-                <div
-                  key={segment.segment_number}
-                  className={`grid grid-cols-[1fr_auto_1fr_auto] gap-4 items-center p-3 rounded-lg border transition-colors ${
-                    segment.finished
-                      ? "bg-muted/50 border-muted"
-                      : "bg-blue-50 border-blue-200"
-                  }`}
-                >
-                  {/* Casa - Segment */}
-                  <div className="text-right">
-                    <span className="text-2xl font-bold">
-                      {segment.home_score}
-                    </span>
-                  </div>
-
-                  {/* Nome do Segment */}
-                  <div className="text-center min-w-[100px]">
-                    <div className="flex flex-col items-center gap-1">
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {getSegmentLabel(segment.segment_number, segment.segment_type)}
-                      </span>
-                      {segment.finished && (
-                        <CheckCircle2 className="w-3 h-3 text-green-600" />
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Visitante - Segment */}
-                  <div className="text-left">
-                    <span className="text-2xl font-bold">
-                      {segment.away_score}
-                    </span>
-                  </div>
-
-                  {/* Botão de Edição */}
-                  {canEdit && (
-                    <div className="flex justify-center">
-                      <ScoreEditor
-                        matchId={matchId}
-                        segment={segment}
-                      />
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Status da Partida */}
-        <div className="pt-4 border-t">
-          <StatusBadge status={scoreboard.status} />
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function getSegmentLabel(number: number, type: string): string {
-  if (type === "PENALTY") return "Pênaltis";
-  if (type === "OVERTIME") return `Prorrogação ${number}`;
-  return `${number}º Tempo`;
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const statusConfig = {
-    pending: { label: "Pendente", variant: "secondary" as const },
-    scheduled: { label: "Agendada", variant: "outline" as const },
-    live: { label: "Ao Vivo", variant: "default" as const },
-    finished: { label: "Finalizada", variant: "secondary" as const },
-    canceled: { label: "Cancelada", variant: "destructive" as const },
-  };
-
-  const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
-
-  return (
-    <div className="flex items-center justify-center gap-2">
-      <span className="text-sm text-muted-foreground">Status:</span>
-      <Badge variant={config.variant}>{config.label}</Badge>
-    </div>
   );
 }

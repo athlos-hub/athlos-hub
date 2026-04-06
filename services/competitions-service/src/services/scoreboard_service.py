@@ -53,6 +53,8 @@ class ScoreboardService:
             away_team_id=match.away_team_id,
             home_team_name=match.home_team.name if match.home_team else None,
             away_team_name=match.away_team.name if match.away_team else None,
+            home_team_logo_url=match.home_team.logo_url if match.home_team else None,
+            away_team_logo_url=match.away_team.logo_url if match.away_team else None,
             home_total_score=match.home_score,
             away_total_score=match.away_score,
             segments=segments,

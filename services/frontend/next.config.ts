@@ -38,6 +38,11 @@ const nextConfig: NextConfig = {
                 destination: "/jogos?status=finished",
                 permanent: false,
             },
+            {
+                source: "/partidas/:matchId",
+                destination: "/jogos",
+                permanent: false,
+            },
         ];
     },
     async rewrites() {

@@ -20,6 +20,8 @@ export interface MatchDetail {
   group_name?: string;
   round_number_match: number;
   competition_name?: string;
+  /** Se false, apenas placar/chat/eventos (sem player de vídeo). */
+  transmit_video?: boolean;
 }
 
 export interface MultipleMatchesDetailResponse {

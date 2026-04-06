@@ -39,7 +39,7 @@ export function StreamKeyDisplay({ streamKey }: StreamKeyDisplayProps) {
     <Card>
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
-          🔑 Stream Key
+          Stream Key
         </CardTitle>
         <CardDescription>
           Use esta chave no OBS para conectar à transmissão
@@ -101,7 +101,7 @@ export function StreamKeyDisplay({ streamKey }: StreamKeyDisplayProps) {
 
         <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-4 space-y-2 text-sm">
           <p className="font-semibold text-blue-900 dark:text-blue-100">
-            📺 Configuração no OBS Studio:
+            Configuração no OBS Studio:
           </p>
           <ol className="list-decimal list-inside space-y-1 text-blue-800 dark:text-blue-200">
             <li>Vá em <strong>Configurações → Transmissão</strong></li>
@@ -114,7 +114,7 @@ export function StreamKeyDisplay({ streamKey }: StreamKeyDisplayProps) {
         
         <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-sm">
           <p className="font-semibold text-amber-900 dark:text-amber-100 mb-1">
-            ⚠️ Atenção:
+            Atenção:
           </p>
           <p className="text-amber-800 dark:text-amber-200">
             Não compartilhe sua stream key com ninguém. Qualquer pessoa com esta chave pode transmitir para sua live.

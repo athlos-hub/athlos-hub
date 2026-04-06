@@ -7,9 +7,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { LiveStatusBadge } from "./live-status-badge";
 import type { LiveWithMatchData } from "@/types/combined";
 import { TeamLogo } from "@/components/teams/team-logo";
-import { Calendar, Play, CalendarPlus, MapPin, Trophy } from "lucide-react";
+import { Calendar, Play, CalendarPlus, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { parseBackendIsoToDate } from "@/lib/datetime/parse-backend-iso";
 
 interface LiveCardProps {
   live: LiveWithMatchData;
@@ -34,9 +35,8 @@ export function LiveCard({
 
   const formatMatchDateTime = (dateString?: string) => {
     if (!dateString) return null;
-
     try {
-      const date = new Date(dateString);
+      const date = parseBackendIsoToDate(dateString); // ← aqui
       return {
         fullDate: format(date, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }),
       };
@@ -52,7 +52,7 @@ export function LiveCard({
   const hasScheduledDatetime = !!matchData?.scheduled_datetime;
 
   const hasMatchStarted = matchData?.scheduled_datetime
-    ? new Date(matchData?.scheduled_datetime) <= new Date()
+    ? parseBackendIsoToDate(matchData.scheduled_datetime) <= new Date() // ← aqui
     : false;
 
   const canActuallyAddToCalendar = canAddToCalendar && hasScheduledDatetime && !hasMatchStarted;
@@ -85,55 +85,56 @@ export function LiveCard({
 
       </CardHeader>
 
-      <CardContent className="space-y-3 flex-1 my-4">
+      <CardContent className="space-y-3 flex-1 my-4 min-w-0 overflow-hidden">
         {matchData?.home_team && matchData?.away_team ? (
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <TeamLogo
-                  name={matchData.home_team.name}
-                  abbreviation={matchData.home_team.abbreviation || "?"}
-                  logoUrl={
-                    matchData.home_team.logo_url ??
-                    matchData.home_team.logo ??
-                    null
-                  }
-                  className="h-8 w-8"
-                  textClassName="text-[10px]"
-                />
-                <span className="font-semibold text-sm truncate">
-                  {matchData.home_team.name}
-                </span>
-              </div>
+          <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-x-2 gap-y-2 items-center">
+            <div className="flex min-w-0 items-center gap-2">
+              <TeamLogo
+                name={matchData.home_team.name}
+                abbreviation={matchData.home_team.abbreviation || "?"}
+                logoUrl={
+                  matchData.home_team.logo_url ??
+                  matchData.home_team.logo ??
+                  null
+                }
+                className="h-8 w-8 shrink-0"
+                textClassName="text-[10px]"
+              />
+              <span className="min-w-0 font-semibold text-sm truncate" title={matchData.home_team.name}>
+                {matchData.home_team.name}
+              </span>
             </div>
 
-            <div className="flex items-center justify-center gap-8">
-              {(live.status === 'live' || live.status === 'finished') && (
-                <span className="font-bold text-lg">{matchData.home_score}</span>
+            <div className="flex shrink-0 items-center justify-center gap-2 px-1 tabular-nums">
+              {(live.status === "live" || live.status === "finished") && (
+                <span className="font-bold text-lg leading-none">{matchData.home_score}</span>
               )}
-              <span className="text-xs text-gray-400 font-medium">VS</span>
-              {(live.status === 'live' || live.status === 'finished') && (
-                <span className="font-bold text-lg">{matchData.away_score}</span>
+              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                VS
+              </span>
+              {(live.status === "live" || live.status === "finished") && (
+                <span className="font-bold text-lg leading-none">{matchData.away_score}</span>
               )}
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <TeamLogo
-                  name={matchData.away_team.name}
-                  abbreviation={matchData.away_team.abbreviation || "?"}
-                  logoUrl={
-                    matchData.away_team.logo_url ??
-                    matchData.away_team.logo ??
-                    null
-                  }
-                  className="h-8 w-8"
-                  textClassName="text-[10px]"
-                />
-                <span className="font-semibold text-sm truncate">
-                  {matchData.away_team.name}
-                </span>
-              </div>
+            <div className="flex min-w-0 items-center justify-end gap-2">
+              <span
+                className="min-w-0 font-semibold text-sm truncate text-right"
+                title={matchData.away_team.name}
+              >
+                {matchData.away_team.name}
+              </span>
+              <TeamLogo
+                name={matchData.away_team.name}
+                abbreviation={matchData.away_team.abbreviation || "?"}
+                logoUrl={
+                  matchData.away_team.logo_url ??
+                  matchData.away_team.logo ??
+                  null
+                }
+                className="h-8 w-8 shrink-0"
+                textClassName="text-[10px]"
+              />
             </div>
           </div>
         ) : (

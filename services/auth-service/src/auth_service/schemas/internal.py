@@ -52,6 +52,22 @@ class CheckPermissionRequest(BaseModel):
     )
 
 
+class CheckPermissionByOrgIdRequest(BaseModel):
+    """Verifica permissão de admin (owner/organizador) por ID da organização (microsserviços)."""
+
+    keycloak_id: UUID = Field(..., description="Keycloak subject (sub) do usuário")
+    organization_id: UUID = Field(..., description="ID da organização no auth-service")
+
+
+class CheckPermissionByOrgIdResponse(BaseModel):
+    has_permission: bool
+    role: Optional[str] = Field(
+        default=None,
+        description="OWNER, ORGANIZER ou None se não for admin",
+    )
+    organization_id: UUID
+
+
 class CheckPermissionResponse(BaseModel):
     """Response da verificação de permissão."""
     

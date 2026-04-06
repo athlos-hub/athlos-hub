@@ -42,6 +42,17 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str | None = None
     GOOGLE_REDIRECT_URI: str | None = None
 
+    @field_validator("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI", mode="before")
+    @classmethod
+    def _strip_google_oauth_fields(cls, v: object) -> str | None:
+        """Evita client secret inválido por espaço/quebra ao colar do Console."""
+        if v is None:
+            return None
+        if isinstance(v, str):
+            s = v.strip().strip('"').strip("'")
+            return s if s else None
+        return v
+
     AUTH_SERVICE_URL: str = "http://localhost:8100"
     COMPETITIONS_SERVICE_URL: str = "http://localhost:8100"
 

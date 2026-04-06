@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import type { SegmentScore, Scoreboard } from '@/types/scoreboard';
+import type { Scoreboard } from '@/types/scoreboard';
 
 interface UseScoreboardReturn {
   scoreboard: Scoreboard | null;
@@ -8,9 +8,16 @@ interface UseScoreboardReturn {
   reconnect: () => void;
 }
 
+function getPublicApiBase(): string {
+  return (
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    process.env.NEXT_PUBLIC_COMPETITIONS_API_URL ||
+    'http://localhost:8100/api'
+  ).replace(/\/$/, '');
+}
+
 /**
- * Hook para conectar ao WebSocket do placar de uma partida
- * @param matchId - ID da partida
+ * Hook para placar: bootstrap via GET público (Kong) + atualização em tempo real via WebSocket.
  */
 export function useScoreboard(matchId: string | null): UseScoreboardReturn {
   const [scoreboard, setScoreboard] = useState<Scoreboard | null>(null);
@@ -19,26 +26,30 @@ export function useScoreboard(matchId: string | null): UseScoreboardReturn {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const reconnectAttemptsRef = useRef(0);
+  const hasDataRef = useRef(false);
   const maxReconnectAttempts = 5;
+
+  const applyScoreboard = useCallback((data: Scoreboard) => {
+    hasDataRef.current = true;
+    setScoreboard(data);
+  }, []);
 
   const connect = useCallback(() => {
     if (!matchId) return;
 
     try {
-      // URL do WebSocket - usa variável de ambiente
       const getScoreboardWsUrl = () => {
-        const baseUrl = process.env.NEXT_PUBLIC_SCOREBOARD_WS_URL || 'wss://athloshub.com.br/api';
-        // Converte http/https para ws/wss
+        const baseUrl =
+          process.env.NEXT_PUBLIC_SCOREBOARD_WS_URL || 'wss://athloshub.com.br/api';
         return baseUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
       };
-      
+
       const wsUrl = `${getScoreboardWsUrl()}/scoreboard/ws/${matchId}`;
-      
+
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('[Scoreboard] Conectado ao WebSocket');
         setIsConnected(true);
         setError(null);
         reconnectAttemptsRef.current = 0;
@@ -46,21 +57,15 @@ export function useScoreboard(matchId: string | null): UseScoreboardReturn {
 
       ws.onmessage = (event) => {
         try {
-          console.log('[Scoreboard] Mensagem recebida:', event.data);
           const message = JSON.parse(event.data);
-          console.log('[Scoreboard] Mensagem parseada:', message.type, message);
-          
+
           if (message.type === 'initial_scoreboard' || message.type === 'scoreboard_update') {
-            console.log('[Scoreboard] Atualizando scoreboard:', message.data);
-            setScoreboard(message.data);
+            applyScoreboard(message.data as Scoreboard);
           } else if (message.type === 'error') {
             console.error('[Scoreboard] Erro do servidor:', message.message);
-            setError(message.message);
-          } else if (message.type === 'pong') {
-            console.log('[Scoreboard] Pong recebido');
-            // Resposta ao ping - conexão está ativa
-          } else {
-            console.warn('[Scoreboard] Tipo de mensagem desconhecido:', message.type);
+            if (!hasDataRef.current) {
+              setError(message.message ?? 'Erro ao carregar placar');
+            }
           }
         } catch (err) {
           console.error('[Scoreboard] Erro ao processar mensagem:', err, event.data);
@@ -68,34 +73,30 @@ export function useScoreboard(matchId: string | null): UseScoreboardReturn {
       };
 
       ws.onerror = () => {
-        // O evento onerror do WebSocket não fornece detalhes úteis
-        // O erro real geralmente aparece no onclose
-        setError('Erro na conexão com o servidor');
+        // Detalhes vêm no onclose; não sobrescrever erro se já temos placar via REST.
       };
 
       ws.onclose = () => {
-        console.log('[Scoreboard] WebSocket desconectado');
         setIsConnected(false);
         wsRef.current = null;
 
-        // Tentativa de reconexão automática
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
           const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
-          console.log(`[Scoreboard] Tentando reconectar em ${delay}ms...`);
-          
           reconnectTimeoutRef.current = setTimeout(() => {
             reconnectAttemptsRef.current += 1;
             connect();
           }, delay);
-        } else {
+        } else if (!hasDataRef.current) {
           setError('Falha ao conectar após múltiplas tentativas');
         }
       };
     } catch (err) {
       console.error('[Scoreboard] Erro ao criar WebSocket:', err);
-      setError('Erro ao estabelecer conexão');
+      if (!hasDataRef.current) {
+        setError('Erro ao estabelecer conexão');
+      }
     }
-  }, [matchId]);
+  }, [matchId, applyScoreboard]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -116,7 +117,6 @@ export function useScoreboard(matchId: string | null): UseScoreboardReturn {
     connect();
   }, [connect, disconnect]);
 
-  // Envia ping periodicamente para manter a conexão
   useEffect(() => {
     if (!isConnected || !wsRef.current) return;
 
@@ -124,16 +124,60 @@ export function useScoreboard(matchId: string | null): UseScoreboardReturn {
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send('ping');
       }
-    }, 30000); // Ping a cada 30 segundos
+    }, 30000);
 
     return () => clearInterval(pingInterval);
   }, [isConnected]);
 
-  // Conecta/desconecta quando o matchId mudar
+  // Bootstrap REST (rota GET pública no Kong) — funciona sem sessão e cobre falha do WS.
   useEffect(() => {
-    if (matchId) {
-      connect();
+    if (!matchId) {
+      setScoreboard(null);
+      hasDataRef.current = false;
+      setError(null);
+      return;
     }
+
+    setScoreboard(null);
+    hasDataRef.current = false;
+    setError(null);
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch(`${getPublicApiBase()}/scoreboard/${matchId}`, {
+          method: 'GET',
+          cache: 'no-store',
+        });
+        if (!res.ok) {
+          if (!cancelled && !hasDataRef.current) {
+            setError('Não foi possível carregar o placar');
+          }
+          return;
+        }
+        const data = (await res.json()) as Scoreboard;
+        if (!cancelled) {
+          applyScoreboard(data);
+          setError(null);
+        }
+      } catch (e) {
+        console.error('[Scoreboard] REST bootstrap:', e);
+        if (!cancelled && !hasDataRef.current) {
+          setError('Não foi possível carregar o placar');
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [matchId, applyScoreboard]);
+
+  useEffect(() => {
+    if (!matchId) return;
+    reconnectAttemptsRef.current = 0;
+    connect();
 
     return () => {
       disconnect();

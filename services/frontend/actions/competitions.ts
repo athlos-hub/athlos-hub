@@ -4,6 +4,7 @@ import { axiosAPI } from "@/lib/api/client";
 import type {
   Competition,
   CompetitionCreate,
+  CompetitionHighlights,
   CompetitionUpdate,
   GenerateStructureRequest,
   GenerateStructureResponse,
@@ -45,6 +46,18 @@ export async function getCompetition(id: string): Promise<Competition> {
     service: "competitions",
   });
 
+  return response.data;
+}
+
+export async function getCompetitionHighlights(
+  id: string
+): Promise<CompetitionHighlights> {
+  const response = await axiosAPI<CompetitionHighlights>({
+    endpoint: `/competitions/${id}/highlights`,
+    method: "GET",
+    withAuth: false,
+    service: "competitions",
+  });
   return response.data;
 }
 
